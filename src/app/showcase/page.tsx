@@ -259,7 +259,7 @@ export default function ShowcasePage() {
                   </div>
 
                   <div
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-background border border-card-border hover:bg-background text-foreground transition-colors"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </div>
@@ -283,7 +283,7 @@ export default function ShowcasePage() {
             {/* Close */}
             <button
               onClick={() => setSubmitOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-background rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>

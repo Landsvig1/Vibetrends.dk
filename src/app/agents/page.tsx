@@ -178,7 +178,7 @@ export default function AgentsPage() {
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedCategory === cat
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-background hover:text-foreground"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
               }`}
             >
               {cat}
@@ -236,7 +236,7 @@ export default function AgentsPage() {
                   <span className="truncate pr-8">{agent.installCommand}</span>
                   <button
                     onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
-                    className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-background transition-colors z-10"
+                    className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-10"
                   >
                     {copiedId === agent.id ? (
                       <CheckCircle className="h-3.5 w-3.5 text-accent-primary" />
@@ -277,7 +277,7 @@ export default function AgentsPage() {
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
             <button
               onClick={() => setAddOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-background rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>

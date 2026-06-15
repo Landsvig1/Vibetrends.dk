@@ -153,7 +153,7 @@ export default function ForumPage() {
                 className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   selectedCategory === cat
                     ? "bg-accent-light text-accent-primary border border-accent-primary/20"
-                    : "bg-background border border-transparent text-text-secondary hover:bg-background hover:text-foreground"
+                    : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
                 }`}
               >
                 {cat}
@@ -245,7 +245,7 @@ export default function ForumPage() {
             {/* Close */}
             <button
               onClick={() => setNewThreadOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-background rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>

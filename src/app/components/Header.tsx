@@ -87,7 +87,7 @@ export default function Header() {
                 <span className="text-xs text-text-secondary">@{user.username}</span>
                 <button
                   onClick={logout}
-                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-background cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-card-border cursor-pointer"
                 >
                   Log ud
                 </button>

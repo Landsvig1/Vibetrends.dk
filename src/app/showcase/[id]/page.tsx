@@ -139,7 +139,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                         href={project.githubUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-background transition-colors"
+                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors"
                       >
                         <GithubIcon className="h-5 w-5" />
                       </a>

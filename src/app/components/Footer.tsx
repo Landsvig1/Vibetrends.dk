@@ -3,7 +3,7 @@ import { Terminal, Globe, ArrowUpRight } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer style={{ viewTransitionName: "site-footer" }} className="mt-auto border-t border-card-border bg-background backdrop-blur-md">
+    <footer style={{ viewTransitionName: "site-footer" }} className="mt-auto border-t border-card-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           {/* Brand section */}

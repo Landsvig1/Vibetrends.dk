@@ -59,7 +59,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
               <span className="truncate pr-4">{agent.installCommand}</span>
               <button
                 onClick={() => handleCopyCommand(agent.installCommand)}
-                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-background transition-all active:scale-95"
+                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-all active:scale-95"
               >
                 {copiedId === "install" ? (
                   <CheckCircle className="h-4 w-4 text-accent-primary" />

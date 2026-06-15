@@ -69,7 +69,7 @@ export default function BlogList() {
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedCategory === cat
                   ? "bg-violet-600 text-foreground font-extrabold shadow-md shadow-violet-500/20"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-background hover:text-foreground"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
               }`}
             >
               {cat}
