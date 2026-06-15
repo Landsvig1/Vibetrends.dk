@@ -1,6 +1,6 @@
 {
   "name": "vibetrends.dk",
-  "purpose": "Hub and marketplace for Danish AI developers and Vibe Coders",
+  "purpose": "Hub and registry for Danish AI developers and Vibe Coders",
   "capabilities": {
     "list_skills": "GET /api/skills - Exposes freelance AI developer profiles, categories, ratings, and pricing.",
     "list_projects": "GET /api/showcase - Exposes vibe-coded showcase items, including core AI prompts.",

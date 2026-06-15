@@ -66,7 +66,7 @@ export default async function Home() {
         </div>
         <div className="text-center space-y-2 md:border-r border-card-border">
           <p className="text-3xl font-extrabold text-foreground font-mono">{skills.length}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Vibe-konsulenter</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Community Skills</p>
         </div>
         <div className="text-center space-y-2 border-r border-card-border">
           <p className="text-3xl font-extrabold text-foreground font-mono">{threads.length}</p>
@@ -141,12 +141,12 @@ export default async function Home() {
           )}
         </div>
 
-        {/* Skills Marketplace Highlight */}
+        {/* Community Skills Highlight */}
         <div className="flex flex-col h-full space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center">
               <Briefcase className="mr-2 h-5 w-5 text-accent-primary" />
-              Søges lige nu
+              Community Skills
             </h2>
             <Link href="/skills" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
               Se alle
@@ -166,9 +166,6 @@ export default async function Home() {
                       {featuredSkill.title}
                     </h3>
                   </div>
-                  <span className="text-xl font-bold text-accent-primary font-mono">
-                    {featuredSkill.price}
-                  </span>
                 </div>
                 <p className="text-sm text-text-secondary line-clamp-3">
                   {featuredSkill.description}
@@ -323,7 +320,7 @@ export default async function Home() {
                 href="/agents"
                 className="btn-secondary text-xs"
               >
-                Gå til Agent Marketplace
+                Gå til Agent Registry
               </Link>
             </div>
           </div>

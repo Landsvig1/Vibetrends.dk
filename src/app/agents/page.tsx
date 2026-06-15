@@ -142,7 +142,7 @@ export default function AgentsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Agent & <span className="text-accent-primary">MCP Marketplace</span>
+            Agent & <span className="text-accent-primary">MCP Registry</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
             Find færdigbyggede systemprompts, custom GPT configs og Model Context Protocol (MCP) servere. Hent dem og kobl dem direkte til dine AI-agenter.

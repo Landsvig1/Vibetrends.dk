@@ -1,26 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Star, Briefcase, Mail, CheckCircle2, X } from "lucide-react";
+import { useState } from "react";
+import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X, ExternalLink } from "lucide-react";
 import { db, Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
+import dynamic from "next/dynamic";
+
+const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
+
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    stroke="currentColor"
+    strokeWidth="2"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
 
 export default function SkillsPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [bookingSkill, setBookingSkill] = useState<Skill | null>(null);
   const { user } = useAuth();
-  const [bookingEmail, setBookingEmail] = useState("");
-  const [bookingMessage, setBookingMessage] = useState("");
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+  
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (user?.email) {
-      setTimeout(() => setBookingEmail(user.email), 0);
-    }
-  }, [user]);
+  // Form states
+  const [subTitle, setSubTitle] = useState("");
+  const [subDesc, setSubDesc] = useState("");
+  const [subCat, setSubCat] = useState("Prompting");
+  const [subTags, setSubTags] = useState("");
+  const [subUrl, setSubUrl] = useState("");
 
-  // Filter skills client-side for instant search response
   const filteredSkills = db.skills.filter((skill) => {
     const matchesSearch =
       skill.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -35,62 +53,58 @@ export default function SkillsPage() {
 
   const categories = ["All", "Prompting", "Agents", "Automation", "Fullstack"];
 
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bookingEmail || !bookingMessage || !bookingSkill) return;
-
+    if (!user) return;
+    
     try {
-      const res = await fetch("/api/book", {
+      const res = await fetch("/api/skills", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-username": user.username
+        },
         body: JSON.stringify({
-          email: bookingEmail,
-          skillId: bookingSkill.id,
-          message: bookingMessage,
+          title: subTitle,
+          category: subCat,
+          description: subDesc,
+          tags: subTags.split(",").map((t) => t.trim()).filter(Boolean),
+          githubUrl: subUrl,
         }),
       });
 
       if (res.ok) {
-        setBookingSuccess(true);
+        setSubmitSuccess(true);
         setTimeout(() => {
-          setBookingSuccess(false);
-          setBookingSkill(null);
-          setBookingEmail("");
-          setBookingMessage("");
-        }, 4000);
+          setSubmitSuccess(false);
+          setSubmitOpen(false);
+          setSubTitle("");
+          setSubDesc("");
+          setSubTags("");
+          setSubUrl("");
+        }, 3000);
       }
     } catch (err) {
-      console.error("Booking error:", err);
+      console.error("Submit error:", err);
     }
   };
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "name": "Freelance AI & Vibe Coding Services",
-    "description": "Markedsplads for freelance AI-specialister og vibe-kodere i Danmark.",
+    "name": "Community Skills Bibliotek",
+    "description": "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
     "numberOfItems": filteredSkills.length,
     "itemListElement": filteredSkills.map((skill, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "item": {
-        "@type": "Service",
+        "@type": "SoftwareSourceCode",
         "name": skill.title,
         "description": skill.description,
-        "provider": {
+        "author": {
           "@type": "Person",
-          "name": skill.vibeCoder,
-          "jobTitle": skill.vibeCoderTitle,
-        },
-        "offers": {
-          "@type": "Offer",
-          "price": skill.price.replace("$", ""),
-          "priceCurrency": "USD",
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": skill.rating,
-          "reviewCount": skill.reviewsCount,
+          "name": skill.vibeCoder
         }
       }
     }))
@@ -103,13 +117,22 @@ export default function SkillsPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {/* Page Header */}
-      <div className="space-y-4 text-center md:text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-          Skills <span className="text-accent-primary">Marketplace</span>
-        </h1>
-        <p className="text-text-secondary max-w-2xl">
-          Find og hyr freelance AI-specialister og vibe coders til at bygge dine workflows, konfigurere dine agenter eller optimere din Cursor-opsætning.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-4 text-center md:text-left">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+            Skills <span className="text-accent-primary">Bibliotek</span>
+          </h1>
+          <p className="text-text-secondary max-w-2xl">
+            Udforsk og del smarte workflows, agents og automatiserings-scripts fra det danske Vibe Coding community. 100% gratis og open source.
+          </p>
+        </div>
+        <button
+          onClick={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
+          className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
+        >
+          <PlusCircle className="h-5 w-5" />
+          Del en Skill
+        </button>
       </div>
 
       {/* Filters & Search */}
@@ -122,7 +145,7 @@ export default function SkillsPage() {
             placeholder="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
           />
         </div>
 
@@ -159,9 +182,6 @@ export default function SkillsPage() {
                       {skill.title}
                     </h3>
                   </div>
-                  <span className="text-xl font-bold text-accent-primary font-mono">
-                    {skill.price}
-                  </span>
                 </div>
                 <p className="text-sm text-text-secondary leading-relaxed">
                   {skill.description}
@@ -187,12 +207,17 @@ export default function SkillsPage() {
                   <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
                 </div>
                 
-                <button
-                  onClick={() => setBookingSkill(skill)}
-                  className="px-4 py-2 text-xs font-semibold rounded btn-primary text-foreground shadow shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
-                >
-                  Book Vibe Coder
-                </button>
+                {skill.githubUrl && (
+                  <a
+                    href={skill.githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
+                  >
+                    <GithubIcon className="h-4 w-4" />
+                    Se på GitHub
+                  </a>
+                )}
               </div>
             </div>
           ))}
@@ -200,77 +225,117 @@ export default function SkillsPage() {
       ) : (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">Ingen kompetencer matcher din søgning.</p>
+          <p className="text-text-secondary font-semibold">Ingen skills matcher din søgning.</p>
           <p className="text-text-secondary text-sm mt-1">Prøv at søge efter noget andet eller nulstil filtre.</p>
         </div>
       )}
 
-      {/* Booking Modal */}
-      {bookingSkill && (
+      {/* Submit Modal */}
+      {submitOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
             {/* Close */}
             <button
-              onClick={() => setBookingSkill(null)}
+              onClick={() => setSubmitOpen(false)}
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
 
-            {bookingSuccess ? (
+            {submitSuccess ? (
               <div className="text-center py-8 space-y-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">Forespørgsel Sendt!</h3>
+                <h3 className="text-lg font-bold text-foreground">Skill Delt!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  Din besked er leveret til <span className="font-semibold text-foreground">{bookingSkill.vibeCoder}</span>. Du modtager svar på din angivne mail indenfor kort tid.
+                  Mange tak for at bidrage til fællesskabet! Din skill er nu tilgængelig i biblioteket.
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleBookingSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Book Vibe Coder</span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">{bookingSkill.title}</h3>
-                  <p className="text-xs text-text-secondary mt-1">Leveres af: {bookingSkill.vibeCoder} ({bookingSkill.price})</p>
+                  <h3 className="text-lg font-bold text-foreground">Del en Skill</h3>
+                  <p className="text-sm text-text-secondary mt-1">Bidrag til communityet med dine bedste scripts, workflows eller prompts.</p>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Din E-mail</label>
-                  <input
-                    type="email"
-                    required
-                    value={bookingEmail}
-                    onChange={(e) => setBookingEmail(e.target.value)}
-                    placeholder="eksempel@firma.dk"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-text-secondary">Titel</label>
+                    <input
+                      required
+                      value={subTitle}
+                      onChange={(e) => setSubTitle(e.target.value)}
+                      placeholder="fx Next.js 15 Cursor Rules"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-text-secondary">Kategori</label>
+                      <select
+                        value={subCat}
+                        onChange={(e) => setSubCat(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/30 text-sm"
+                      >
+                        <option value="Prompting">Prompting</option>
+                        <option value="Agents">Agents</option>
+                        <option value="Automation">Automation</option>
+                        <option value="Fullstack">Fullstack</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-text-secondary">GitHub / Repo Link (valgfrit)</label>
+                      <input
+                        type="url"
+                        value={subUrl}
+                        onChange={(e) => setSubUrl(e.target.value)}
+                        placeholder="https://github.com/..."
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={subDesc}
+                      onChange={(e) => setSubDesc(e.target.value)}
+                      placeholder="Hvad gør denne skill, og hvordan bruger man den?"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-text-secondary">Tags (kommasepareret)</label>
+                    <input
+                      value={subTags}
+                      onChange={(e) => setSubTags(e.target.value)}
+                      placeholder="fx Cursor, Supabase, Workflow"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Projektbeskrivelse</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={bookingMessage}
-                    onChange={(e) => setBookingMessage(e.target.value)}
-                    placeholder="Beskriv hvad du har brug for hjælp til, og din tidsramme..."
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
-                  />
+                <div className="pt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    className="flex items-center justify-center px-6 py-2.5 rounded-lg btn-primary text-sm"
+                  >
+                    Udgiv Skill
+                  </button>
                 </div>
-
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Forespørgsel
-                </button>
               </form>
             )}
           </div>
         </div>
       )}
+
+      {/* Login Modal */}
+      {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
     </div>
   );
 }

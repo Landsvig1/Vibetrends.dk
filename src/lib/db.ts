@@ -2,13 +2,13 @@ export interface Skill {
   id: string;
   title: string;
   category: "Prompting" | "Agents" | "Automation" | "Fullstack";
-  price: string;
   vibeCoder: string;
   vibeCoderTitle: string;
   rating: number;
   reviewsCount: number;
   description: string;
   tags: string[];
+  githubUrl?: string;
 }
 
 export interface ShowcaseProject {
@@ -80,49 +80,49 @@ const initialDbState: DbState = {
       id: "s1",
       title: "Custom Cursor rules (.cursorrules) Optimization",
       category: "Prompting" as const,
-      price: "$49",
       vibeCoder: "Lars Hansen",
       vibeCoderTitle: "Lead AI Automator at aiauto.dk",
       rating: 4.9,
       reviewsCount: 38,
       description: "Fine-tune your local Cursor workflow. I design custom .cursorrules tailored for Next.js, Tailwind v4, and Supabase integration to reduce agent hallucinations by 80%.",
       tags: ["Cursor", "Next.js", "Workspace Rules"],
+      githubUrl: "https://github.com/lars/cursorrules-vibe"
     },
     {
       id: "s2",
       title: "Multi-Agent Workflow Design (LangGraph / CrewAI)",
       category: "Agents" as const,
-      price: "$299",
       vibeCoder: "Sofie Nielsen",
       vibeCoderTitle: "Autonomous Agent Architect",
       rating: 4.8,
       reviewsCount: 14,
       description: "Get a production-ready multi-agent system. I build sequential and hierarchical agent structures that do web scraping, lead generation, and automated follow-ups.",
       tags: ["CrewAI", "LangGraph", "Python"],
+      githubUrl: "https://github.com/sofie/multi-agent-vibe"
     },
     {
       id: "s3",
       title: "Supabase Database & RLS Policy Auditing",
       category: "Automation" as const,
-      price: "$149",
       vibeCoder: "Christian Møller",
       vibeCoderTitle: "Supabase Expert & Backend Engineer",
       rating: 5.0,
       reviewsCount: 22,
       description: "Ensure your database is secure. I review and write PostgreSQL Row-Level Security (RLS) policies, database triggers, and edge functions to secure your user data.",
       tags: ["Supabase", "Postgres", "Security"],
+      githubUrl: "https://github.com/christian/supabase-vibe"
     },
     {
       id: "s4",
       title: "One-Click Vercel Pipeline & DNS Launch Setup",
       category: "Fullstack" as const,
-      price: "$89",
       vibeCoder: "Mette Poulsen",
       vibeCoderTitle: "DevOps & Vibe Deploy Specialist",
       rating: 4.7,
       reviewsCount: 45,
       description: "Go from local code to live production in minutes. Setup automated preview deployments, environment variable injection, and custom domain configuration on Vercel.",
       tags: ["Vercel", "Simply.com", "CI/CD"],
+      githubUrl: "https://github.com/mette/vercel-simply-pipeline"
     },
   ],
   showcase: [

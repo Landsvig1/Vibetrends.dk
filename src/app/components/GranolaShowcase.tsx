@@ -75,7 +75,7 @@ const TEMPLATE_DATA: Template[] = [
     time: "Today 9:30 AM",
     attendees: "Engineering & Design Team",
     sections: [
-      { heading: "Completed Yesterday", lines: ["Deployed security scanning to MCP marketplace", "Merged Next.js 16 layouts fix"] },
+      { heading: "Completed Yesterday", lines: ["Deployed security scanning to MCP registry", "Merged Next.js 16 layouts fix"] },
       { heading: "Focus Areas Today", lines: ["Optimize LCP image loading in Showcase", "Implement Resend verification templates"] }
     ]
   }

@@ -63,10 +63,10 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText(/Svar \(/)).toBeVisible();
   });
 
-  test('should navigate to Agents marketplace', async ({ page }) => {
+  test('should navigate to Agents registry', async ({ page }) => {
     await page.goto('/agents');
     
-    await expect(page.getByRole('heading', { name: /Agent & MCP Marketplace/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Agent & MCP Registry/i })).toBeVisible();
     
     // Check a detail page
     const firstAgent = page.getByTestId('agent-card').first();

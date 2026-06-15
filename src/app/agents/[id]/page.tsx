@@ -55,7 +55,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til marketplace
+        Tilbage til registry
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

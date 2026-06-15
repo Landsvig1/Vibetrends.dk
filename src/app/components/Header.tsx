@@ -42,7 +42,7 @@ export default function Header() {
                 <span className="text-lg font-bold text-foreground transition-all duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
-                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Hub & Marketplace</span>
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Hub & Community</span>
               </div>
             </Link>
           </div>
