@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #FAF9F6;
+  --foreground: #1E1E1E;
+  --text-secondary: #4F4F4C;
+  --card-bg: #FFFFFF;
+  --card-border: #E6E3DC;
+  --accent-primary: #264021;
+  --accent-light: #F0F4EF;
+  --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-text-secondary: var(--text-secondary);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-light: var(--accent-light);
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.02;
+}
+
+/* Glassmorphism Panels (updated for light mode) */
+.glass-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.glass-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover,
+.glass-card:focus-within {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 4px;
+}
+
+/* Pill Badges & Buttons */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--card-border);
+  background: var(--background);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: white;
+  border: 1px solid var(--accent-primary);
+  border-radius: 99px;
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--card-border);
+  border-radius: 99px;
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--accent-light);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* View Transitions Keyframes & Rules */
+::view-transition-old(.nav-forward) {
+  --slide-offset: -60px;
+  animation:
+    150ms ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 60px;
+  animation:
+    210ms ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+::view-transition-old(.nav-back) {
+  --slide-offset: 60px;
+  animation:
+    150ms ease-in both fade reverse,
+    400ms ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -60px;
+  animation:
+    210ms ease-out 150ms both fade,
+    400ms ease-in-out both slide;
+}
+
+@keyframes slide {
+  from { translate: var(--slide-offset); }
+  to { translate: 0; }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Anchored Header & Footer to prevent jumpiness */
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+::view-transition-group(site-footer) {
+  animation: none;
+  z-index: 90;
+}
+::view-transition-old(site-footer) {
+  display: none;
+}
+::view-transition-new(site-footer) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

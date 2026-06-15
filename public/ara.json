@@ -1,0 +1,15 @@
+{
+  "name": "vibetrends.dk",
+  "purpose": "Hub and marketplace for Danish AI developers and Vibe Coders",
+  "capabilities": {
+    "list_skills": "GET /api/skills - Exposes freelance AI developer profiles, categories, ratings, and pricing.",
+    "list_projects": "GET /api/showcase - Exposes vibe-coded showcase items, including core AI prompts.",
+    "book_freelancer": "POST /api/book - programmatic form delivery to hire AI consultants.",
+    "upvote_project": "POST /api/upvote - upvote showcase items programmatically."
+  },
+  "schemas": {
+    "SkillsList": "https://vibetrends.dk/api/skills",
+    "ShowcaseList": "https://vibetrends.dk/api/showcase"
+  },
+  "licensing": "AEO optimized, machine-readable under 300 tokens."
+}

@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Code, Globe, ShieldCheck } from "lucide-react";
+import { getAgents } from "@/lib/db";
+import { notFound } from "next/navigation";
+import AgentActionSection from "./AgentActionSection";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const agents = await getAgents();
+  const agent = agents.find(a => a.id === id);
+  if (!agent) return { title: "Agent ikke fundet" };
+
+  return {
+    title: `${agent.name} - AI Agent Marketplace`,
+    description: agent.description,
+  };
+}
+
+export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const agents = await getAgents();
+  const agent = agents.find(a => a.id === id);
+
+  if (!agent) {
+    notFound();
+  }
+
+  const categoryIcons = {
+    "DevTools": <Terminal className="h-5 w-5" />,
+    "Writing": <Code className="h-5 w-5" />,
+    "Browsing": <Globe className="h-5 w-5" />,
+    "MCP Server": <Cpu className="h-5 w-5" />
+  };
+
+  return (
+    <div className="space-y-10">
+      <Link
+        href="/agents"
+        className="flex items-center text-slate-400 hover:text-white text-sm font-semibold transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Tilbage til marketplace
+      </Link>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        {/* Left: Agent Info & System Prompt */}
+        <div className="lg:col-span-2 space-y-8">
+          <div className="p-8 rounded-2xl glass-panel border border-white/5 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+               <Cpu className="h-32 w-32" />
+            </div>
+
+            <div className="flex justify-between items-start gap-4 relative z-10">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                   <div className="p-2.5 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-400">
+                     {categoryIcons[agent.category as keyof typeof categoryIcons] || <Cpu className="h-5 w-5" />}
+                   </div>
+                   <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">{agent.category}</span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
+                  {agent.name}
+                </h1>
+              </div>
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                <Heart className="h-4 w-4 fill-current" />
+                <span className="font-mono font-bold">{agent.upvotes}</span>
+              </div>
+            </div>
+
+            <p className="text-slate-300 text-lg leading-relaxed relative z-10">
+              {agent.description}
+            </p>
+
+            <div className="flex flex-wrap gap-2 relative z-10">
+               {agent.tags.map(tag => (
+                 <span key={tag} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-mono">
+                   #{tag}
+                 </span>
+               ))}
+            </div>
+
+            <div className="flex items-center space-x-4 pt-6 border-t border-white/5 text-xs text-slate-500 relative z-10">
+               <div className="flex items-center space-x-2">
+                 <User className="h-4 w-4" />
+                 <span>Udgivet af <span className="text-slate-300 font-bold">{agent.developer}</span></span>
+               </div>
+               <span className="text-slate-700">&middot;</span>
+               <div className="flex items-center space-x-2">
+                 <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                 <span className="text-emerald-500/80">Verificeret Vibe Tool</span>
+               </div>
+            </div>
+          </div>
+
+          {/* System Prompt Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+               <h3 className="text-lg font-bold text-white flex items-center">
+                 <Terminal className="h-5 w-5 mr-2 text-cyan-400" />
+                 System Prompt
+               </h3>
+               <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest bg-white/5 px-2 py-1 rounded border border-white/5">
+                 Raw Output
+               </span>
+            </div>
+            <div className="relative group">
+               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-violet-500/5 rounded-2xl -m-0.5" />
+               <div className="relative p-6 rounded-2xl bg-slate-950 border border-white/5 font-mono text-sm text-slate-300 leading-relaxed whitespace-pre-wrap overflow-x-auto shadow-inner">
+                  {agent.systemPrompt}
+               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Actions & Stats */}
+        <div className="space-y-6">
+           <AgentActionSection agent={agent} />
+
+           <div className="p-6 rounded-2xl glass-card border border-white/5 space-y-4">
+              <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center">
+                <Sparkles className="h-4 w-4 mr-2 text-amber-400" />
+                Vibe Insights
+              </h4>
+              <ul className="space-y-3 text-xs text-slate-400 leading-relaxed">
+                 <li className="flex gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                    <span>Optimeret til Claude 3.5 Sonnet & GPT-4o.</span>
+                 </li>
+                 <li className="flex gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
+                    <span>Understøtter Cursor & Windsurf workflows.</span>
+                 </li>
+                 <li className="flex gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                    <span>Lokal eksekvering via CLI understøttet.</span>
+                 </li>
+              </ul>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}

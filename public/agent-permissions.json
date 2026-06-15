@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "policy": {
+    "allowed_agents": ["*"],
+    "rate_limits": {
+      "requests_per_minute": 120
+    },
+    "capabilities": {
+      "headless_browsing": true,
+      "api_access": true,
+      "transactional_booking": true
+    },
+    "paths": {
+      "read_endpoints": [
+        "/sitemap.xml",
+        "/ara.json",
+        "/api/skills",
+        "/api/showcase",
+        "/api/agents"
+      ],
+      "write_endpoints": {
+        "/api/book": {
+          "description": "Submit a booking request for a freelance Vibe Coder / AI developer",
+          "method": "POST",
+          "payload_format": "JSON",
+          "required_fields": ["email", "skillId", "message"]
+        },
+        "/api/upvote": {
+          "description": "Upvote a showcase project",
+          "method": "POST",
+          "payload_format": "JSON",
+          "required_fields": ["projectId"]
+        }
+      },
+      "disallowed_paths": [
+        "/_next/*",
+        "/api/auth/*"
+      ]
+    }
+  }
+}

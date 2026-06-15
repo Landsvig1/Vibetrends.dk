@@ -1,0 +1,116 @@
+"use client";
+
+import { useState } from "react";
+import { X, Mail } from "lucide-react";
+import { useAuth } from "./AuthProvider";
+
+export default function LoginModal({ onClose }: { onClose: () => void }) {
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    login(email, "email");
+    onClose();
+  };
+
+  const handleOAuth = (provider: "google" | "github") => {
+    login(`${provider}@vibetrends.dk`, provider);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in fade-in duration-200">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Log ind</span>
+            <h3 className="text-xl font-bold text-white">Velkommen til vibetrends.dk</h3>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+              Log ind for at få dit eget profilnavn, oprette tråde, indsende projekter eller slette dine bidrag.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">E-mail</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="eksempel@vibe.dk"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-950 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-sm"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold text-sm shadow cursor-pointer transition-all"
+            >
+              Fortsæt med E-mail
+            </button>
+          </form>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-white/5"></div>
+            <span className="flex-shrink mx-4 text-slate-500 text-[10px] uppercase font-bold tracking-wider">Eller log ind med</span>
+            <div className="flex-grow border-t border-white/5"></div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleOAuth("google")}
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold transition-all cursor-pointer"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-red-400"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="4" />
+                <line x1="21.17" y1="8" x2="12" y2="8" />
+                <line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+                <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+              </svg>
+              <span>Google</span>
+            </button>
+            <button
+              onClick={() => handleOAuth("github")}
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold transition-all cursor-pointer"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-slate-300"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                <path d="M9 18c-4.51 2-5-2-7-2" />
+              </svg>
+              <span>GitHub</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
