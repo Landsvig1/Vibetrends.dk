@@ -43,6 +43,27 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": project.title,
+            "description": project.description,
+            "applicationCategory": "DeveloperApplication",
+            "author": {
+              "@type": "Person",
+              "name": project.author
+            },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          })
+        }}
+      />
       <Link
         href="/showcase"
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"

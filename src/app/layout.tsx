@@ -65,6 +65,18 @@ export default function RootLayout({
       <head>
         <link rel="agent-permissions" href="/agent-permissions.json" />
         <link rel="ara-manifest" href="/ara.json" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "vibetrends.dk",
+              "url": "https://vibetrends.dk/",
+              "description": "Dansk markedsplads og community for AI-udviklere, prompt engineers og vibe coders."
+            })
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-accent-light selection:text-text-primary">
         <AuthProvider>

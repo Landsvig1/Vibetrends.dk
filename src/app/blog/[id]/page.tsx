@@ -87,7 +87,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             <div className="mt-12 p-6 rounded-xl bg-violet-600/5 border border-accent-primary/20 text-sm">
               <h4 className="font-bold text-foreground mb-2">Om denne serie</h4>
               <p className="text-text-secondary">
-                Dette er en del af en løbende artikelserie på vibetrends.dk. Vi dykker ned i de værktøjer og metoder, som Cand.it solo-foundere og &quot;vibe coders&quot; bruger til at bygge software hurtigere end nogensinde før.
+                Dette er en del af en løbende artikelserie på vibetrends.dk. Vi dykker ned i de værktøjer og metoder, som solo-foundere og &quot;vibe coders&quot; bruger til at bygge software hurtigere end nogensinde før.
               </p>
             </div>
           </div>

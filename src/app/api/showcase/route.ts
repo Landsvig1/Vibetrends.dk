@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
-import { getProjects, createProject, deleteProject } from "@/lib/db";
+import { getProjects, createProject, deleteProject, db } from "@/lib/db";
+import { z } from "zod";
+
+const projectSchema = z.object({
+  title: z.string().min(1).max(100),
+  author: z.string().optional(),
+  description: z.string().min(10).max(500),
+  tools: z.array(z.string()).max(10).optional(),
+  prompts: z.array(z.string()).optional(),
+  demoUrl: z.string().url().max(200).optional().or(z.literal("")),
+  githubUrl: z.string().url().max(200).optional(),
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,18 +26,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { title, author, description, tools, prompts, demoUrl, githubUrl } = await request.json();
+    const username = request.headers.get("x-username");
+    if (!username) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!title || !description) {
+    const body = await request.json();
+    const result = projectSchema.safeParse(body);
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Manglende påkrævede felter (title, description)" },
+        { error: "Invalid input", details: result.error.errors },
         { status: 400 }
       );
     }
 
+    const { title, author, description, tools, prompts, demoUrl, githubUrl } = result.data;
+
     const project = await createProject(
       title,
-      author || "Anonym",
+      author || username,
       description,
       tools || [],
       prompts || [],
@@ -36,22 +55,37 @@ export async function POST(request: Request) {
 
     return NextResponse.json(project, { status: 201 });
   } catch {
-    return NextResponse.json({ error: "Ugyldig JSON payload" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 }
 
 export async function DELETE(request: Request) {
+  const username = request.headers.get("x-username");
+  if (!username) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("projectId");
 
   if (!id) {
-    return NextResponse.json({ error: "projectId er påkrævet" }, { status: 400 });
+    return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+  }
+
+  // Authorization check
+  const project = db.showcase.find(p => p.id === id);
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+  
+  if (project.author !== username) {
+    return NextResponse.json({ error: "Forbidden: You do not own this project" }, { status: 403 });
   }
 
   const success = await deleteProject(id);
   if (!success) {
-    return NextResponse.json({ error: "Projektet blev ikke fundet" }, { status: 404 });
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, message: "Projekt slettet" });
+  return NextResponse.json({ success: true, message: "Project deleted" });
 }

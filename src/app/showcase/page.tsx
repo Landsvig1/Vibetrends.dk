@@ -111,6 +111,7 @@ export default function ShowcasePage() {
     try {
       const res = await fetch(`/api/showcase?projectId=${id}`, {
         method: "DELETE",
+        headers: user ? { "x-username": user.username } : {},
       });
 
       if (res.ok) {
@@ -380,6 +381,10 @@ export default function ShowcasePage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+ )}
     </div>
   );
 }

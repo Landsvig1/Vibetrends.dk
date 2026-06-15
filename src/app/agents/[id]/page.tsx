@@ -34,6 +34,22 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": agent.name,
+            "description": agent.description,
+            "applicationCategory": "DeveloperApplication",
+            "author": {
+              "@type": "Person",
+              "name": agent.developer
+            }
+          })
+        }}
+      />
       <Link
         href="/agents"
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"

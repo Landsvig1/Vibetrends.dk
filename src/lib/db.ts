@@ -218,7 +218,7 @@ const initialDbState: DbState = {
       id: "b1",
       title: "The Rise of the Vibe Coder: From Idea to Live App in 3 Hours",
       excerpt: "Vibe coding is changing how solo founders build. Discover the stack, tools, and prompts that let you ship real products with zero manual coding.",
-      content: "Vibe coding isn't about ignoring software engineering; it's about shifting the cognitive load. Instead of writing boilerplate syntax, developers focus on system architecture, data structures, and integrations while letting LLMs generate code. In this guide, we outline the exact setup—Next.js 15, Tailwind v4, and Vercel—that enables Cand.it solo founders to construct fully realized web applications in hours rather than weeks...",
+      content: "Vibe coding isn't about ignoring software engineering; it's about shifting the cognitive load. Instead of writing boilerplate syntax, developers focus on system architecture, data structures, and integrations while letting LLMs generate code. In this guide, we outline the exact setup—Next.js 15, Tailwind v4, and Vercel—that enables solo founders to construct fully realized web applications in hours rather than weeks...",
       author: "Kasper Landsvig",
       readTime: "5 min read",
       publishedAt: "2026-06-12",
