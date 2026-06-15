@@ -18,15 +18,21 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
   const handleAddReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyContent || submitting) return;
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
 
     setSubmitting(true);
     try {
       const res = await fetch("/api/forum/reply", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-username": user.username
+        },
         body: JSON.stringify({
           threadId: thread.id,
-          author: user ? user.username : undefined,
           content: replyContent,
         }),
       });
@@ -45,10 +51,12 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
 
   const handleDeleteReply = async (replyId: string) => {
     if (!confirm("Er du sikker på, at du vil slette dette svar?")) return;
+    if (!user) return;
 
     try {
       const res = await fetch(`/api/forum?threadId=${thread.id}&replyId=${replyId}`, {
         method: "DELETE",
+        headers: { "x-username": user.username }
       });
 
       if (res.ok) {

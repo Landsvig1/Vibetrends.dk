@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProjects, createProject, deleteProject, db } from "@/lib/db";
+import { getProjects, createProject, deleteProject, getDb } from "@/lib/db";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -73,6 +73,7 @@ export async function DELETE(request: Request) {
   }
 
   // Authorization check
+  const db = await getDb();
   const project = db.showcase.find(p => p.id === id);
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });

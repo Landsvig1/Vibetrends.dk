@@ -1,23 +1,35 @@
 import { NextResponse } from "next/server";
 import { createThread } from "@/lib/db";
+import { z } from "zod";
+
+const threadSchema = z.object({
+  title: z.string().min(1).max(200),
+  category: z.enum(["General", "Prompts", "Showcase Discussion", "Setup & Config"]),
+  content: z.string().min(10).max(5000),
+});
 
 export async function POST(request: Request) {
   try {
-    const { title, author, category, content } = await request.json();
+    const username = request.headers.get("x-username");
+    if (!username) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!title || !category || !content) {
+    const body = await request.json();
+    const result = threadSchema.safeParse(body);
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Manglende påkrævede felter (title, category, content)" },
+        { error: "Invalid input", details: result.error.issues },
         { status: 400 }
       );
     }
 
-    // Fallback for username if guest
-    const finalAuthor = author || `vibecoder_${Math.random().toString(36).substring(2, 7)}`;
+    const { title, category, content } = result.data;
 
-    const thread = await createThread(title, finalAuthor, category, content);
+    const thread = await createThread(title, username, category, content);
     return NextResponse.json(thread, { status: 201 });
   } catch {
-    return NextResponse.json({ error: "Ugyldig JSON payload" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 }

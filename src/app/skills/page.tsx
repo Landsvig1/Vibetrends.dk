@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X, ExternalLink } from "lucide-react";
-import { db, Skill } from "@/lib/db";
+import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import dynamic from "next/dynamic";
 
@@ -24,6 +24,7 @@ const GithubIcon = ({ className }: { className?: string }) => (
 );
 
 export default function SkillsPage() {
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
@@ -39,7 +40,16 @@ export default function SkillsPage() {
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
-  const filteredSkills = db.skills.filter((skill) => {
+  // Fetch skills from API
+  useEffect(() => {
+    const url = selectedCategory === "All" ? "/api/skills" : `/api/skills?category=${encodeURIComponent(selectedCategory)}`;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => setSkills(data))
+      .catch((err) => console.error("Error fetching skills:", err));
+  }, [selectedCategory]);
+
+  const filteredSkills = skills.filter((skill) => {
     const matchesSearch =
       skill.title.toLowerCase().includes(search.toLowerCase()) ||
       skill.description.toLowerCase().includes(search.toLowerCase()) ||

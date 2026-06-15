@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSkills, db } from "@/lib/db";
+import { getSkills, getDb } from "@/lib/db";
 import { z } from "zod";
 
 const skillSchema = z.object({
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
     const { title, category, description, tags, githubUrl } = result.data;
 
+    const db = await getDb();
     const newSkill = {
       id: `s${db.skills.length + 1}`,
       title,

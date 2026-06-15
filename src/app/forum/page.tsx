@@ -70,14 +70,20 @@ export default function ForumPage() {
   const handleCreateThread = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!threadTitle || !threadContent) return;
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
 
     try {
       const res = await fetch("/api/forum/thread", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-username": user.username
+        },
         body: JSON.stringify({
           title: threadTitle,
-          author: user ? user.username : undefined,
           category: threadCategory,
           content: threadContent,
         }),
@@ -103,10 +109,12 @@ export default function ForumPage() {
   // Delete thread via API
   const handleDeleteThread = async (threadId: string) => {
     if (!confirm("Er du sikker på, at du vil slette denne tråd?")) return;
+    if (!user) return;
 
     try {
       const res = await fetch(`/api/forum?threadId=${threadId}`, {
         method: "DELETE",
+        headers: { "x-username": user.username }
       });
 
       if (res.ok) {
