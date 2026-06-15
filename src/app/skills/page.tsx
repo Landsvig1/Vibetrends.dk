@@ -207,7 +207,7 @@ export default function SkillsPage() {
 
       {/* Booking Modal */}
       {bookingSkill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-lg rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
             {/* Close */}
             <button
