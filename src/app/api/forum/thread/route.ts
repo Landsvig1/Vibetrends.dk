@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { validateHoneypot } from "@/lib/honeypot";
 import { createThread } from "@/lib/db";
 import { z } from "zod";
 
@@ -16,6 +17,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    if (!validateHoneypot(body)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
     const result = threadSchema.safeParse(body);
 
     if (!result.success) {

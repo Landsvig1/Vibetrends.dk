@@ -101,7 +101,7 @@
         {
           "id": "r2",
           "author": "CoderVibeX",
-          "content": "I use a file-slicing script. It exposes only the relevant functions to Claude's context rather than the whole codebase. Highly recommend checking out the tool marketplace for context management tools.",
+          "content": "I use a file-slicing script. It exposes only the relevant functions to Claude's context rather than the whole codebase. Highly recommend checking out the tool library for context management tools.",
           "createdAt": "2026-06-13T20:15:00Z"
         }
       ],

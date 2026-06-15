@@ -1,15 +1,22 @@
 {
   "name": "vibetrends.dk",
-  "purpose": "Hub and registry for Danish AI developers and Vibe Coders",
+  "purpose": "Danish hub and registry for AI developers, vibe coders, and automation experts.",
   "capabilities": {
-    "list_skills": "GET /api/skills - Exposes freelance AI developer profiles, categories, ratings, and pricing.",
-    "list_projects": "GET /api/showcase - Exposes vibe-coded showcase items, including core AI prompts.",
-    "book_freelancer": "POST /api/book - programmatic form delivery to hire AI consultants.",
-    "upvote_project": "POST /api/upvote - upvote showcase items programmatically."
+    "list_skills": "GET /api/skills - Community-shared AI workflows, scripts, and prompts.",
+    "list_projects": "GET /api/showcase - Vibe-coded projects with core prompts and tech stacks.",
+    "list_agents": "GET /api/agents - Registry of MCP servers and AI agent configurations.",
+    "list_threads": "GET /api/forum - Community discussions and help threads.",
+    "create_skill": "POST /api/skills - Contribute a new AI skill to the library.",
+    "create_project": "POST /api/showcase - Submit a project to the showcase.",
+    "create_thread": "POST /api/forum/thread - Start a new forum discussion.",
+    "add_reply": "POST /api/forum/reply - Reply to an existing forum thread.",
+    "upvote": "POST /api/upvote - Upvote projects, threads, or agents."
   },
   "schemas": {
     "SkillsList": "https://vibetrends.dk/api/skills",
-    "ShowcaseList": "https://vibetrends.dk/api/showcase"
+    "ShowcaseList": "https://vibetrends.dk/api/showcase",
+    "AgentsRegistry": "https://vibetrends.dk/api/agents",
+    "ForumIndex": "https://vibetrends.dk/api/forum"
   },
-  "licensing": "AEO optimized, machine-readable under 300 tokens."
+  "licensing": "AEO optimized, MIT license for code, community attribution for content."
 }

@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "policy": {
     "allowed_agents": ["*"],
     "rate_limits": {
@@ -8,28 +8,42 @@
     "capabilities": {
       "headless_browsing": true,
       "api_access": true,
-      "transactional_booking": true
+      "content_contribution": true
     },
     "paths": {
       "read_endpoints": [
         "/sitemap.xml",
         "/ara.json",
+        "/ai.txt",
         "/api/skills",
         "/api/showcase",
-        "/api/agents"
+        "/api/agents",
+        "/api/forum",
+        "/api/blog"
       ],
       "write_endpoints": {
-        "/api/book": {
-          "description": "Submit a booking request for a freelance Vibe Coder / AI developer",
+        "/api/skills": {
+          "description": "Share a new AI skill",
           "method": "POST",
-          "payload_format": "JSON",
-          "required_fields": ["email", "skillId", "message"]
+          "auth": "x-username header",
+          "required_fields": ["title", "category", "description"]
+        },
+        "/api/showcase": {
+          "description": "Submit a vibe-coded project",
+          "method": "POST",
+          "auth": "x-username header",
+          "required_fields": ["title", "description", "tools"]
+        },
+        "/api/forum/thread": {
+          "description": "Create a new forum discussion",
+          "method": "POST",
+          "auth": "x-username header",
+          "required_fields": ["title", "category", "content"]
         },
         "/api/upvote": {
-          "description": "Upvote a showcase project",
+          "description": "Upvote content",
           "method": "POST",
-          "payload_format": "JSON",
-          "required_fields": ["projectId"]
+          "payload_format": "JSON"
         }
       },
       "disallowed_paths": [

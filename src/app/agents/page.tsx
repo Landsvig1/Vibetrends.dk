@@ -294,6 +294,11 @@ export default function AgentsPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmitAgent} className="space-y-4">
+                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
+                </div>
+
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
                     <Cpu className="h-3.5 w-3.5 mr-1" />

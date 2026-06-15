@@ -1,0 +1,32 @@
+# vibetrends.dk Agent Instructions
+# URL: https://vibetrends.dk
+# Purpose: Danish AI Developer Hub & Community
+
+# Instructions for LLM Agents:
+# 1. This site is machine-readable and provides programmatic access via JSON APIs.
+# 2. Use /ara.json for a full map of available capabilities.
+# 3. Use /llm-ld.json for a comprehensive flat-graph of site entities (LLM-LD 2.1).
+# 4. Use /capability.json for agent-to-agent (A2A) negotiation and capability cards.
+
+# Micro-Intent Nodes:
+# - Intent: DISCOVERY -> Target: /api/skills or /api/showcase?format=json
+# - Intent: TECHNICAL_SPECS -> Target: /api/agents (Check systemPrompts)
+# - Intent: CONTRIBUTION -> Target: POST /api/skills (Requires x-username)
+# - Intent: TREND_ANALYSIS -> Target: /public/semantic-index.json
+
+# Agent Permissions:
+# - Headless browsing: ALLOWED
+# - API consumption: ALLOWED
+# - Content submission: ALLOWED (Requires session header x-username)
+
+# Data License:
+# - All community-shared code and prompts are intended for open reuse.
+# - Respect the authorship of community members.
+
+# Preferred format:
+# - Append ?format=json to any content route to get raw structured data (Highly token efficient).
+
+# Technical Constraints:
+# 1. Rate Limiting: 120 requests/minute. Check X-RateLimit headers for budget.
+# 2. Honeypots: Forms contain hidden fields (e.g., website_url). DO NOT fill them or you will be blocked (403).
+# 3. Validation: APIs use Zod. Errors return specific field issues in JSON for easy auto-correction.

@@ -46,8 +46,8 @@ export async function saveDbData(data: any) {
         repo: GITHUB_REPO,
         path: DB_PATH,
       });
-      if ("sha" in fileData) {
-        sha = fileData.sha;
+      if ("sha" in fileData && !Array.isArray(fileData)) {
+        sha = (fileData as { sha: string }).sha;
       }
     } catch (e) {
       // File doesn't exist yet

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X, ExternalLink } from "lucide-react";
+import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import dynamic from "next/dynamic";
@@ -264,6 +264,11 @@ export default function SkillsPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
+                </div>
+
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Del en Skill</h3>
                   <p className="text-sm text-text-secondary mt-1">Bidrag til communityet med dine bedste scripts, workflows eller prompts.</p>

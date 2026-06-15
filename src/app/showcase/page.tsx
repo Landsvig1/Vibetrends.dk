@@ -300,6 +300,11 @@ export default function ShowcasePage() {
               </div>
             ) : (
               <form onSubmit={handleSubmitProject} className="space-y-4">
+                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
+                </div>
+
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
                     <Sparkles className="h-3.5 w-3.5 mr-1" />

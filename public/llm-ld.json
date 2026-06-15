@@ -1,0 +1,40 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://vibetrends.dk/#website",
+      "name": "vibetrends.dk",
+      "url": "https://vibetrends.dk",
+      "description": "Danish AI Developer Hub & Vibe Coding Community",
+      "publisher": { "@id": "https://vibetrends.dk/#organization" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://vibetrends.dk/#organization",
+      "name": "VibeTrends Community",
+      "logo": "https://vibetrends.dk/icon.svg",
+      "sameAs": ["https://github.com/Landsvig1/Vibetrends.dk"]
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/skills",
+      "name": "AI Skills Library",
+      "contentType": "SoftwareSourceCode"
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/showcase",
+      "name": "Project Showcase",
+      "contentType": "SoftwareApplication"
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/agents",
+      "name": "Agent & MCP Registry",
+      "contentType": "AgentConfiguration"
+    }
+  ],
+  "llm_ld_version": "2.1",
+  "factual_integrity_hash": "verified_by_source"
+}

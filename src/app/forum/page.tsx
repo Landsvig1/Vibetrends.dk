@@ -270,6 +270,11 @@ export default function ForumPage() {
               </div>
             ) : (
               <form onSubmit={handleCreateThread} className="space-y-4">
+                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
+                </div>
+
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Opret tråd</span>
                   <h3 className="text-lg font-bold text-foreground mt-1">Start en ny diskussion</h3>

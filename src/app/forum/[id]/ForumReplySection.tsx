@@ -118,6 +118,11 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
 
       {/* Reply Input Form */}
       <form onSubmit={handleAddReply} className="space-y-4 pt-4">
+                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
+                <div style={{ display: 'none' }}>
+                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
+                </div>
+
         <div className="relative">
           <textarea
             required

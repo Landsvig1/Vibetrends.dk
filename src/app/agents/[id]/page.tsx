@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!agent) return { title: "Agent ikke fundet" };
 
   return {
-    title: `${agent.name} - AI Agent Marketplace`,
+    title: `${agent.name} - AI Agent Registry`,
     description: agent.description,
   };
 }

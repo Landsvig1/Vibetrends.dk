@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, getDb } from "@/lib/db";
 import { z } from "zod";
 
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    if (!validateHoneypot(body)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
     const result = skillSchema.safeParse(body);
 
     if (!result.success) {
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
       githubUrl: githubUrl || undefined
     };
 
-    db.skills.push(newSkill as any);
+    db.skills.unshift(newSkill);
 
     return NextResponse.json(newSkill, { status: 201 });
   } catch {

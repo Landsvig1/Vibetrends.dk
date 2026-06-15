@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "entity": "vibetrends.dk",
+  "role": "Community Hub & Resource Provider",
+  "capability_card": {
+    "discovery": {
+      "skills": "Browse community AI workflows (free)",
+      "showcase": "Explore vibe-coded project architecture",
+      "agents": "Access MCP server definitions"
+    },
+    "contribution": {
+      "open": true,
+      "requires_auth": "x-username header",
+      "format": "JSON/Zod"
+    },
+    "negotiation_protocol": "MIT-Open-Resource",
+    "support": "Forum-based human-in-the-loop fallback"
+  }
+}
