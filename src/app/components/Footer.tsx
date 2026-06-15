@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Terminal, Globe, ArrowUpRight } from "lucide-react";
+import { Globe, ArrowUpRight } from "lucide-react";
+import KoalaIcon from "./KoalaIcon";
 
 export default function Footer() {
   return (
@@ -9,8 +10,8 @@ export default function Footer() {
           {/* Brand section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded bg-gradient-to-br from-violet-600 to-cyan-500 text-foreground shadow-md shadow-violet-500/10">
-                <Terminal className="h-4 w-4" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition-all duration-300">
+                <KoalaIcon className="h-4 w-4" />
               </div>
               <span className="text-lg font-bold text-foreground">
                 vibetrends<span className="text-accent-primary font-mono">.dk</span>

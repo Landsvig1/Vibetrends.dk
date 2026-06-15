@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Terminal, Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import dynamic from "next/dynamic";
+import KoalaIcon from "./KoalaIcon";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
@@ -33,8 +34,8 @@ export default function Header() {
             <Link href="/" transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500 animate-pulse"></div>
-                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-foreground transition-all duration-300">
-                  <Terminal className="h-5 w-5" />
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition-all duration-300">
+                  <KoalaIcon className="h-5 w-5" />
                 </div>
               </div>
               <div className="flex flex-col">
@@ -88,7 +89,7 @@ export default function Header() {
                 <span className="text-xs text-text-secondary">@{user.username}</span>
                 <button
                   onClick={logout}
-                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-background cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-card-border cursor-pointer"
                 >
                   Log ud
                 </button>
@@ -180,4 +181,3 @@ export default function Header() {
     </>
   );
 }
-
