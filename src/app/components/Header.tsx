@@ -24,7 +24,8 @@ export default function Header() {
   ];
 
   return (
-    <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full glass-panel border-b border-card-border backdrop-blur-md">
+    <>
+      <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full glass-panel border-b border-card-border backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -87,7 +88,7 @@ export default function Header() {
                 <span className="text-xs text-text-secondary">@{user.username}</span>
                 <button
                   onClick={logout}
-                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-card-border cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-background cursor-pointer"
                 >
                   Log ud
                 </button>
@@ -174,7 +175,9 @@ export default function Header() {
           )}
         </div>
       )}
+      </header>
       {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
-    </header>
+    </>
   );
 }
+
