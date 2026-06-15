@@ -111,10 +111,10 @@ export default function TemplateSwitcher() {
       {/* Left panel: Info & Switcher tabs */}
       <div className="lg:col-span-5 space-y-6">
         <div className="space-y-3">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight leading-tight">
             Få notater i præcis det format, du mangler
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="text-sm sm:text-base text-text-secondary leading-relaxed">
             Skift mellem tilpassede skabeloner og se det strukturerede layout ændre sig med det samme. Optimeret til kundemøder, sprints og 1-on-1s.
           </p>
         </div>
@@ -131,15 +131,15 @@ export default function TemplateSwitcher() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border ${
                   isActive
-                    ? "text-white border-transparent"
-                    : "text-slate-400 border-white/5 hover:text-white hover:border-white/15"
+                    ? "text-foreground border-transparent"
+                    : "text-text-secondary border-card-border hover:text-foreground hover:border-card-border"
                 }`}
               >
                 {/* Active sliding indicator */}
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="absolute inset-0 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-full -z-10 shadow-lg shadow-violet-600/20"
+                    className="absolute inset-0 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-full -z-10 shadow-sm"
                     transition={{ type: "spring", stiffness: 380, damping: 35 }}
                   />
                 )}
@@ -152,21 +152,21 @@ export default function TemplateSwitcher() {
 
       {/* Right panel: Mac OS Mock App Window */}
       <div className="lg:col-span-7 w-full">
-        <div className="glass-card rounded-2xl overflow-hidden aspect-[4/3] flex flex-col w-full border border-white/10 shadow-2xl relative shadow-violet-950/10">
+        <div className="glass-card rounded-2xl overflow-hidden aspect-[4/3] flex flex-col w-full border border-card-border shadow-2xl relative shadow-violet-950/10">
           
           {/* Header controls bar */}
-          <div className="h-11 bg-slate-950/60 border-b border-white/5 flex items-center px-4 justify-between select-none">
+          <div className="h-11 bg-background border-b border-card-border flex items-center px-4 justify-between select-none">
             <div className="flex gap-2">
               <span className="w-3 h-3 rounded-full bg-rose-500/80" />
-              <span className="w-3 h-3 rounded-full bg-amber-500/80" />
-              <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
+              <span className="w-3 h-3 rounded-full bg-accent-light" />
+              <span className="w-3 h-3 rounded-full bg-accent-light" />
             </div>
-            <div className="text-[11px] font-mono text-slate-500 tracking-wider">notes.vibetrends.dk</div>
+            <div className="text-[11px] font-mono text-text-secondary tracking-wider">notes.vibetrends.dk</div>
             <div className="w-12" /> {/* Spacer */}
           </div>
 
           {/* Editor view body */}
-          <div className="flex-1 p-6 sm:p-8 overflow-y-auto bg-slate-950/20">
+          <div className="flex-1 p-6 sm:p-8 overflow-y-auto bg-background">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentTemplate.id}
@@ -178,43 +178,43 @@ export default function TemplateSwitcher() {
               >
                 {/* Note Header block */}
                 <motion.div variants={itemVariants} className="space-y-2.5">
-                  <h3 className="text-xl sm:text-2xl font-bold text-white leading-tight">
+                  <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-tight">
                     {currentTemplate.title}
                   </h3>
                   
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary">
                     <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                      <Calendar className="w-3.5 h-3.5 text-accent-primary" />
                       {currentTemplate.time}
                     </span>
-                    <span className="hidden sm:inline text-slate-600">&middot;</span>
+                    <span className="hidden sm:inline text-text-secondary">&middot;</span>
                     <span className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-violet-400" />
+                      <Users className="w-3.5 h-3.5 text-accent-primary" />
                       {currentTemplate.attendees}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-500/10 text-violet-300 border border-violet-500/10 ml-auto">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-light text-accent-primary border border-accent-primary/20 ml-auto">
                       SKABELON
                     </span>
                   </div>
                 </motion.div>
 
                 {/* Structured Sections list */}
-                <div className="space-y-5 pt-3 border-t border-white/5">
+                <div className="space-y-5 pt-3 border-t border-card-border">
                   {currentTemplate.sections.map((section, idx) => (
                     <motion.div
                       key={section.heading + idx}
                       variants={itemVariants}
                       className="space-y-3"
                     >
-                      <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <Clipboard className="w-3 h-3 text-cyan-500/80" />
+                      <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                        <Clipboard className="w-3 h-3 text-accent-primary/80" />
                         {section.heading}
                       </h4>
                       
                       <div className="space-y-2">
                         {section.lines.map((width, lineIdx) => (
                           <div key={lineIdx} className="flex items-center gap-2.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-700 flex-shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-text-secondary flex-shrink-0" />
                             <div
                               style={{ width: `${width}px` }}
                               className="h-2 rounded-full bg-gradient-to-r from-slate-900 to-slate-900/50 max-w-[85%] relative overflow-hidden"

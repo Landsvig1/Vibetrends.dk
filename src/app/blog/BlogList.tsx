@@ -40,8 +40,8 @@ export default function BlogList() {
   if (loading) {
     return (
       <div className="text-center py-16">
-        <BookOpen className="h-10 w-10 text-slate-600 animate-pulse mx-auto mb-4" />
-        <p className="text-slate-400 font-semibold">Indlæser historier...</p>
+        <BookOpen className="h-10 w-10 text-text-secondary animate-pulse mx-auto mb-4" />
+        <p className="text-text-secondary font-semibold">Indlæser historier...</p>
       </div>
     );
   }
@@ -51,13 +51,13 @@ export default function BlogList() {
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-500" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
           <input
             type="text"
             placeholder="Søg i artikler..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900/80 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
           />
         </div>
 
@@ -68,8 +68,8 @@ export default function BlogList() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedCategory === cat
-                  ? "bg-violet-600 text-white font-extrabold shadow-md shadow-violet-500/20"
-                  : "bg-white/5 border border-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                  ? "bg-violet-600 text-foreground font-extrabold shadow-md shadow-violet-500/20"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-background hover:text-foreground"
               }`}
             >
               {cat}
@@ -86,7 +86,7 @@ export default function BlogList() {
               href={`/blog/${post.id}`}
               className="rounded-xl glass-card overflow-hidden flex flex-col justify-between group h-full"
             >
-              <div className="h-56 relative bg-slate-900 overflow-hidden">
+              <div className="h-56 relative bg-background overflow-hidden">
                 <Image
                   src={post.imageUrl}
                   alt={post.title}
@@ -100,28 +100,28 @@ export default function BlogList() {
 
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span className="font-semibold text-violet-400">{post.category}</span>
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span className="font-semibold text-accent-primary">{post.category}</span>
                     <span className="flex items-center">
                       <Clock className="h-3.5 w-3.5 mr-1" />
                       {post.readTime}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                  <h3 className="text-xl font-bold text-foreground group-hover:text-accent-primary transition-colors leading-snug">
                     {post.title}
                   </h3>
-                  <p className="text-sm text-slate-300 line-clamp-3 leading-relaxed pt-1">
+                  <p className="text-sm text-text-secondary line-clamp-3 leading-relaxed pt-1">
                     {post.excerpt}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-white/5 text-xs text-slate-400">
+                <div className="flex items-center justify-between pt-4 border-t border-card-border text-xs text-text-secondary">
                   <div className="flex items-center space-x-1">
-                    <User className="h-3.5 w-3.5 text-slate-500" />
+                    <User className="h-3.5 w-3.5 text-text-secondary" />
                     <span>Af {post.author}</span>
                   </div>
                   <span className="flex items-center">
-                    <Calendar className="h-3.5 w-3.5 mr-1 text-slate-500" />
+                    <Calendar className="h-3.5 w-3.5 mr-1 text-text-secondary" />
                     {post.publishedAt}
                   </span>
                 </div>
@@ -130,9 +130,9 @@ export default function BlogList() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 rounded-xl border border-white/5 bg-slate-900/20">
-          <BookOpen className="h-10 w-10 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400 font-semibold">Ingen artikler fundet.</p>
+        <div className="text-center py-16 rounded-xl border border-card-border bg-background">
+          <BookOpen className="h-10 w-10 text-text-secondary mx-auto mb-4" />
+          <p className="text-text-secondary font-semibold">Ingen artikler fundet.</p>
         </div>
       )}
     </div>

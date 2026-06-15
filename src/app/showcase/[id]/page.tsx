@@ -45,7 +45,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     <div className="space-y-10">
       <Link
         href="/showcase"
-        className="flex items-center text-slate-400 hover:text-white text-sm font-semibold transition-colors"
+        className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Tilbage til showcase
@@ -54,7 +54,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Left: Project Media & Info */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="relative rounded-2xl overflow-hidden border border-white/5 bg-slate-900 aspect-video shadow-2xl">
+          <div className="relative rounded-2xl overflow-hidden border border-card-border bg-background aspect-video shadow-2xl">
             <Image
               src={project.imageUrl}
               alt={project.title}
@@ -64,38 +64,38 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
             <div className="absolute bottom-6 left-6 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-white/10">
+              <div className="h-12 w-12 rounded-full bg-violet-600 flex items-center justify-center text-foreground font-bold text-xl shadow-lg border-2 border-card-border">
                 {project.author[0]}
               </div>
               <div>
-                <h1 className="text-white font-bold text-xl">{project.title}</h1>
-                <p className="text-slate-300 text-sm">by @{project.author}</p>
+                <h1 className="text-foreground font-bold text-xl">{project.title}</h1>
+                <p className="text-text-secondary text-sm">by @{project.author}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Om projektet</h2>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+              <h2 className="text-2xl font-bold text-foreground">Om projektet</h2>
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{project.upvotes}</span>
               </div>
             </div>
             
-            <p className="text-slate-300 leading-relaxed text-lg">
+            <p className="text-text-secondary leading-relaxed text-lg">
               {project.description}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
               <div className="p-6 rounded-xl glass-card space-y-3">
-                <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-wider flex items-center">
+                <h3 className="text-sm font-bold text-accent-primary uppercase tracking-wider flex items-center">
                   <Sparkles className="h-4 w-4 mr-2" />
                   Tech Stack
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {project.tools.map(tool => (
-                    <span key={tool} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">
+                    <span key={tool} className="px-3 py-1 rounded-full bg-background border border-card-border text-text-secondary text-xs font-medium">
                       {tool}
                     </span>
                   ))}
@@ -108,7 +108,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                       href={project.demoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold transition-all shadow-lg shadow-violet-600/20"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition-all shadow-sm"
                     >
                       <ExternalLink className="h-4 w-4" />
                       Live Demo
@@ -118,7 +118,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                         href={project.githubUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-3 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors"
+                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-background transition-colors"
                       >
                         <GithubIcon className="h-5 w-5" />
                       </a>
@@ -131,27 +131,27 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
         {/* Right: Prompts & Details */}
         <div className="space-y-6">
-          <div className="p-6 rounded-2xl glass-panel border border-white/5 space-y-6 sticky top-24">
+          <div className="p-6 rounded-2xl glass-panel border border-card-border space-y-6 sticky top-24">
             <div className="flex items-center space-x-2">
-              <Code className="h-5 w-5 text-violet-400" />
-              <h3 className="text-lg font-bold text-white">Vibe Prompts</h3>
+              <Code className="h-5 w-5 text-accent-primary" />
+              <h3 className="text-lg font-bold text-foreground">Vibe Prompts</h3>
             </div>
             
             <div className="space-y-4">
               {project.prompts.map((prompt, index) => (
                 <div key={index} className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
                     Step {index + 1}
                   </span>
-                  <div className="p-4 rounded-xl bg-slate-950 border border-white/5 text-slate-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                  <div className="p-4 rounded-xl bg-background border border-card-border text-text-secondary text-xs font-mono whitespace-pre-wrap leading-relaxed">
                     {prompt}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="pt-6 border-t border-white/5">
-              <p className="text-xs text-slate-500 leading-relaxed italic">
+            <div className="pt-6 border-t border-card-border">
+              <p className="text-xs text-text-secondary leading-relaxed italic">
                 Disse prompts er hentet direkte fra skaberens workflow. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter.
               </p>
             </div>

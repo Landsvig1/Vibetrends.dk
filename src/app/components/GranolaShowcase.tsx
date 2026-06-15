@@ -202,7 +202,7 @@ export default function GranolaShowcase() {
           <div className="flex flex-wrap items-center gap-4">
             <button 
               onClick={startSimulation}
-              className="bg-[#2C4A26] hover:bg-[#1F361A] text-white rounded-full px-6 py-3.5 font-semibold text-sm transition-all shadow-md shadow-[#2C4A26]/10 flex items-center gap-2 cursor-pointer active:scale-95"
+              className="bg-[#2C4A26] hover:bg-[#1F361A] text-foreground rounded-full px-6 py-3.5 font-semibold text-sm transition-all shadow-md shadow-[#2C4A26]/10 flex items-center gap-2 cursor-pointer active:scale-95"
             >
               <span>Download for free</span>
               <ArrowDown className="w-4 h-4" />
@@ -252,8 +252,8 @@ export default function GranolaShowcase() {
               {simState === "calling" && (
                 <div className="flex-1 flex flex-col items-center justify-center space-y-3">
                   <div className="flex gap-2.5">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">K</div>
-                    <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">L</div>
+                    <div className="w-10 h-10 rounded-full bg-card-border animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">K</div>
+                    <div className="w-10 h-10 rounded-full bg-card-border animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">L</div>
                   </div>
                   <p className="text-xs font-mono text-[#5A5A57] animate-pulse">Forbinder lyd og transskribering...</p>
                 </div>
@@ -290,8 +290,8 @@ export default function GranolaShowcase() {
                       ))}
                       {simState === "transcribing" && (
                         <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-ping" />
-                          <div className="h-2 bg-slate-100 rounded-full w-2/3 animate-pulse" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-card-border animate-ping" />
+                          <div className="h-2 bg-card-border rounded-full w-2/3 animate-pulse" />
                         </div>
                       )}
                     </div>
@@ -405,7 +405,7 @@ export default function GranolaShowcase() {
                           <Calendar className="w-3.5 h-3.5 text-[#2C4A26]" />
                           {currentTemplate.time}
                         </span>
-                        <span className="text-slate-300">&middot;</span>
+                        <span className="text-text-secondary">&middot;</span>
                         <span className="flex items-center gap-1.5">
                           <Users className="w-3.5 h-3.5 text-[#2C4A26]" />
                           {currentTemplate.attendees}
@@ -483,7 +483,7 @@ export default function GranolaShowcase() {
 
           {/* Card 2: Business (Featured) */}
           <div className="bg-white border-2 border-[#2C4A26] rounded-2xl p-6 flex flex-col justify-between space-y-8 shadow-md relative">
-            <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-[#2C4A26] text-white text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+            <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-[#2C4A26] text-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
               Populær
             </div>
             <div className="space-y-4">
@@ -492,7 +492,7 @@ export default function GranolaShowcase() {
                 <p className="text-xs text-[#5A5A57]">Great for individuals or small teams</p>
               </div>
               <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$14 <span className="text-sm font-sans text-[#5A5A57]">per user / month</span></p>
-              <button className="w-full bg-[#2C4A26] hover:bg-[#1F361A] text-white font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors shadow-sm shadow-[#2C4A26]/10">
+              <button className="w-full bg-[#2C4A26] hover:bg-[#1F361A] text-foreground font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors shadow-sm shadow-[#2C4A26]/10">
                 Download for Mac
               </button>
             </div>

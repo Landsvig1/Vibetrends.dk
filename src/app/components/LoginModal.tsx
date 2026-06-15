@@ -21,61 +21,61 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-background rounded-lg transition-colors cursor-pointer"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="space-y-6">
           <div className="text-center space-y-2">
-            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Log ind</span>
-            <h3 className="text-xl font-bold text-white">Velkommen til vibetrends.dk</h3>
-            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Log ind</span>
+            <h3 className="text-xl font-bold text-foreground">Velkommen til vibetrends.dk</h3>
+            <p className="text-xs text-text-secondary max-w-xs mx-auto">
               Log ind for at få dit eget profilnavn, oprette tråde, indsende projekter eller slette dine bidrag.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">E-mail</label>
+              <label className="text-xs font-semibold text-text-secondary">E-mail</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="eksempel@vibe.dk"
-                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-950 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-sm"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full py-2 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold text-sm shadow cursor-pointer transition-all"
+              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all"
             >
               Fortsæt med E-mail
             </button>
           </form>
 
           <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-white/5"></div>
-            <span className="flex-shrink mx-4 text-slate-500 text-[10px] uppercase font-bold tracking-wider">Eller log ind med</span>
-            <div className="flex-grow border-t border-white/5"></div>
+            <div className="flex-grow border-t border-card-border"></div>
+            <span className="flex-shrink mx-4 text-text-secondary text-[10px] uppercase font-bold tracking-wider">Eller log ind med</span>
+            <div className="flex-grow border-t border-card-border"></div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleOAuth("google")}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-background text-foreground text-xs font-semibold transition-all cursor-pointer"
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4 text-red-400"
+                className="h-4 w-4 text-accent-primary"
                 stroke="currentColor"
                 strokeWidth="2"
                 fill="none"
@@ -92,11 +92,11 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={() => handleOAuth("github")}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold transition-all cursor-pointer"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-background text-foreground text-xs font-semibold transition-all cursor-pointer"
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4 text-slate-300"
+                className="h-4 w-4 text-text-secondary"
                 stroke="currentColor"
                 strokeWidth="2"
                 fill="none"

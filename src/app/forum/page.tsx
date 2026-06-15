@@ -122,16 +122,16 @@ export default function ForumPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 text-center md:text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-            Developer <span className="text-emerald-400">Forum</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+            Developer <span className="text-accent-primary">Forum</span>
           </h1>
-          <p className="text-slate-400 max-w-2xl">
+          <p className="text-text-secondary max-w-2xl">
             Stil spørgsmål, del dine færdige prompts og templates, eller diskuter de nyeste modeller med andre danske AI-byggere.
           </p>
         </div>
         <button
           onClick={() => setNewThreadOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold text-sm shadow-lg shadow-violet-600/10 hover:scale-[1.02] transition-all cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Opret tråd
@@ -142,7 +142,7 @@ export default function ForumPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar categories */}
         <div className="lg:col-span-1 space-y-2">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+          <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">
             Kategorier
           </h3>
           <div className="flex flex-wrap lg:flex-col gap-1.5">
@@ -152,8 +152,8 @@ export default function ForumPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   selectedCategory === cat
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-                    : "bg-white/5 border border-transparent text-slate-300 hover:bg-white/10 hover:text-white"
+                    ? "bg-accent-light text-accent-primary border border-accent-primary/20"
+                    : "bg-background border border-transparent text-text-secondary hover:bg-background hover:text-foreground"
                 }`}
               >
                 {cat}
@@ -175,7 +175,7 @@ export default function ForumPage() {
                 <div className="flex justify-between items-start gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/45 border border-emerald-500/15">
+                      <span className="text-xs font-semibold text-accent-primary px-2 py-0.5 rounded bg-accent-light border border-accent-primary/20">
                         {thread.category}
                       </span>
                       {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
@@ -185,17 +185,17 @@ export default function ForumPage() {
                             e.stopPropagation();
                             handleDeleteThread(thread.id);
                           }}
-                          className="flex items-center justify-center p-1.5 rounded-lg bg-slate-950/70 border border-white/10 hover:bg-red-500/20 hover:border-red-500/40 text-slate-300 hover:text-red-400 backdrop-blur-md transition-all cursor-pointer z-10"
+                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
                           title="Slet tråd"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors pt-1 leading-snug">
+                    <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors pt-1 leading-snug">
                       {thread.title}
                     </h3>
-                    <p className="text-sm text-slate-300 line-clamp-2 leading-relaxed pt-1">
+                    <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed pt-1">
                       {thread.content}
                     </p>
                   </div>
@@ -206,16 +206,16 @@ export default function ForumPage() {
                       e.stopPropagation();
                       handleUpvote(thread.id);
                     }}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950/70 border border-white/5 hover:border-rose-500/40 text-slate-300 hover:text-rose-400 backdrop-blur-md transition-all z-10"
+                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all z-10"
                   >
                     <Heart className="h-3.5 w-3.5 fill-current" />
                     <span className="text-xs font-bold font-mono">{thread.upvotes}</span>
                   </button>
                 </div>
 
-                <div className="flex items-center space-x-4 mt-6 pt-4 border-t border-white/5 text-xs text-slate-400">
+                <div className="flex items-center space-x-4 mt-6 pt-4 border-t border-card-border text-xs text-text-secondary">
                   <div className="flex items-center space-x-1">
-                    <User className="h-3.5 w-3.5 text-slate-500" />
+                    <User className="h-3.5 w-3.5 text-text-secondary" />
                     <span>@{thread.author}</span>
                   </div>
                   <span>&middot;</span>
@@ -229,10 +229,10 @@ export default function ForumPage() {
               </div>
             ))
           ) : (
-            <div className="text-center py-16 rounded-xl border border-white/5 bg-slate-900/20">
-              <MessageSquare className="h-10 w-10 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 font-semibold">Ingen tråde i denne kategori.</p>
-              <p className="text-slate-500 text-sm mt-1">Vær den første til at oprette en diskussion!</p>
+            <div className="text-center py-16 rounded-xl border border-card-border bg-background">
+              <MessageSquare className="h-10 w-10 text-text-secondary mx-auto mb-4" />
+              <p className="text-text-secondary font-semibold">Ingen tråde i denne kategori.</p>
+              <p className="text-text-secondary text-sm mt-1">Vær den første til at oprette en diskussion!</p>
             </div>
           )}
         </div>
@@ -240,42 +240,42 @@ export default function ForumPage() {
 
       {/* Start Thread Modal */}
       {newThreadOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background backdrop-blur-sm">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
             {/* Close */}
             <button
               onClick={() => setNewThreadOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-background rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
 
             {threadSuccess ? (
               <div className="text-center py-12 space-y-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 mx-auto">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-white">Diskussion oprettet!</h3>
-                <p className="text-sm text-slate-300 max-w-xs mx-auto">
+                <h3 className="text-lg font-bold text-foreground">Diskussion oprettet!</h3>
+                <p className="text-sm text-text-secondary max-w-xs mx-auto">
                   Din tråd er nu tilføjet til forummet.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleCreateThread} className="space-y-4">
                 <div>
-                  <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Opret tråd</span>
-                  <h3 className="text-lg font-bold text-white mt-1">Start en ny diskussion</h3>
+                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Opret tråd</span>
+                  <h3 className="text-lg font-bold text-foreground mt-1">Start en ny diskussion</h3>
                 </div>
 
                 {!user && (
-                  <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed space-y-2">
+                  <div className="p-3.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary text-xs leading-relaxed space-y-2">
                     <p>
                       <strong>Du er ikke logget ind.</strong> Hvis du fortsætter, vil din tråd blive udgivet under et tilfældigt gæstenavn.
                     </p>
                     <button
                       type="button"
                       onClick={() => setLoginModalOpen(true)}
-                      className="text-cyan-400 hover:text-cyan-300 font-bold underline transition-colors cursor-pointer"
+                      className="text-accent-primary hover:text-accent-primary font-bold underline transition-colors cursor-pointer"
                     >
                       Log ind med E-mail, Google eller GitHub
                     </button>
@@ -283,23 +283,23 @@ export default function ForumPage() {
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Emne Title</label>
+                  <label className="text-xs font-semibold text-text-secondary">Emne Title</label>
                   <input
                     type="text"
                     required
                     value={threadTitle}
                     onChange={(e) => setThreadTitle(e.target.value)}
                     placeholder="Fx 'Bedste .cursorrules opsætning til Tailwind v4'"
-                    className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Kategori</label>
+                  <label className="text-xs font-semibold text-text-secondary">Kategori</label>
                   <select
                     value={threadCategory}
                     onChange={(e) => setThreadCategory(e.target.value as ForumThread["category"])}
-                    className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/20 text-sm"
                   >
                     <option value="General">General</option>
                     <option value="Prompts">Prompts</option>
@@ -309,20 +309,20 @@ export default function ForumPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Indhold</label>
+                  <label className="text-xs font-semibold text-text-secondary">Indhold</label>
                   <textarea
                     required
                     rows={6}
                     value={threadContent}
                     onChange={(e) => setThreadContent(e.target.value)}
                     placeholder="Forklar dit spørgsmål eller del dine erfaringer..."
-                    className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 text-sm resize-none"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white font-bold text-sm shadow cursor-pointer transition-all"
+                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all"
                 >
                   Opret Diskussion
                 </button>

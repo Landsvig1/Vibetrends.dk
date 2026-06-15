@@ -32,7 +32,7 @@ export default function Header() {
             <Link href="/" transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500 animate-pulse"></div>
-                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 border border-white/10 text-white transition-all duration-300">
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-foreground transition-all duration-300">
                   <Terminal className="h-5 w-5" />
                 </div>
               </div>
