@@ -4,10 +4,13 @@ export const translations = {
   da: {
     // Header
     "nav.skills": "Skills",
-    "nav.showcase": "Showcase",
+    "nav.showcase": "Vibes",
     "nav.forum": "Forum",
     "nav.blog": "Blog",
-    "nav.agents": "Agents & MCP",
+    "nav.agents": "Agenter",
+    "nav.tools": "Tools",
+    "nav.mcp": "MCP",
+    "header.logo_subtitle": "AI-hub & fællesskab",
     "btn.showcase_project": "Vis dit projekt",
     "btn.login": "Log ind",
     "btn.logout": "Log ud",
@@ -32,7 +35,7 @@ export const translations = {
 
     // Home Page
     "home.badge": "Hubben for danske Vibe Coders & AI-byggere",
-    "home.hero_title": "Vibe Code & Ship Faster.",
+    "home.hero_title": "Vibe-kod & ship hurtigere.",
     "home.hero_desc": "Velkommen til vibetrends.dk. Markedspladser for AI-kompetencer, showcase af projekter, diskussionsforum, blogs og et agent-kartotek. Alt samlet på ét sted.",
     "home.btn_showcase": "Se Showcase",
     "home.btn_find_freelancer": "Find Freelancer",
@@ -209,10 +212,13 @@ export const translations = {
   en: {
     // Header
     "nav.skills": "Skills",
-    "nav.showcase": "Showcase",
+    "nav.showcase": "Vibes",
     "nav.forum": "Forum",
     "nav.blog": "Blog",
-    "nav.agents": "Agents & MCP",
+    "nav.agents": "Agents",
+    "nav.tools": "Tools",
+    "nav.mcp": "MCP",
+    "header.logo_subtitle": "AI Hub & Community",
     "btn.showcase_project": "Showcase Project",
     "btn.login": "Log in",
     "btn.logout": "Log out",

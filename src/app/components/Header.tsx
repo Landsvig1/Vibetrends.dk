@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X, ChevronDown } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
@@ -18,12 +18,27 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
 
+  const isItemActive = (item: any) => {
+    if (item.isDropdown) {
+      return item.items?.some((subItem: any) => pathname === subItem.href || pathname.startsWith(subItem.href)) ?? false;
+    }
+    return item.href ? (pathname === item.href || pathname.startsWith(item.href)) : false;
+  };
+
   const navItems = [
-    { name: t("nav.skills"), href: "/skills", icon: Briefcase },
-    { name: t("nav.showcase"), href: "/showcase", icon: Layers },
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
-    { name: t("nav.blog"), href: "/blog", icon: BookOpen },
+    {
+      name: t("nav.tools"),
+      icon: Briefcase,
+      isDropdown: true,
+      items: [
+        { name: t("nav.skills"), href: "/skills", icon: Briefcase },
+        { name: t("nav.mcp"), href: "/agents?category=MCP Server", icon: Cpu },
+      ]
+    },
+    { name: t("nav.showcase"), href: "/showcase", icon: Layers },
     { name: t("nav.agents"), href: "/agents", icon: Cpu },
+    { name: t("nav.blog"), href: "/blog", icon: BookOpen },
   ];
 
   return (
@@ -44,22 +59,64 @@ export default function Header() {
                 <span className="text-lg font-bold text-foreground transition-all duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
-                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Hub & Community</span>
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">{t("header.logo_subtitle")}</span>
               </div>
             </Link>
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex space-x-1">
+          <nav className="hidden md:flex items-center space-x-1">
             {navItems.map((item, idx) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
-              const activeIdx = navItems.findIndex((ni) => pathname.startsWith(ni.href));
+              const isActive = isItemActive(item);
+              const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
               const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
+              const Icon = item.icon;
+
+              if (item.isDropdown) {
+                return (
+                  <div key={item.name} className="relative group py-2">
+                    <button
+                      className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? "text-accent-primary bg-background border-b-2 border-accent-primary"
+                          : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                      <ChevronDown className="h-3.5 w-3.5 opacity-60 group-hover:rotate-180 transition-transform duration-200" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                      {item.items?.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            transitionTypes={[directionType]}
+                            className={`flex items-center space-x-2 px-4 py-2 text-sm transition-colors ${
+                              isSubActive
+                                ? "text-accent-primary bg-accent-light font-semibold"
+                                : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                            }`}
+                          >
+                            <SubIcon className="h-4 w-4" />
+                            <span>{subItem.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  key={item.href!}
+                  href={item.href!}
                   transitionTypes={[directionType]}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     isActive
@@ -153,14 +210,48 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1">
           {navItems.map((item, idx) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
-            const activeIdx = navItems.findIndex((ni) => pathname.startsWith(ni.href));
+            const isActive = isItemActive(item);
+            const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
             const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
+            const Icon = item.icon;
+
+            if (item.isDropdown) {
+              return (
+                <div key={item.name} className="space-y-1 py-1">
+                  <div className="flex items-center space-x-2 px-3 py-1.5 text-xs font-bold text-text-secondary/60 uppercase tracking-widest">
+                    <Icon className="h-4 w-4" />
+                    <span>{item.name}</span>
+                  </div>
+                  <div className="pl-4 space-y-1 border-l border-card-border ml-4">
+                    {item.items?.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          transitionTypes={[directionType]}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                            isSubActive
+                              ? "bg-accent-light text-accent-primary font-semibold border-l-2 border-accent-primary"
+                              : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                          }`}
+                        >
+                          <SubIcon className="h-4 w-4" />
+                          <span>{subItem.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={item.href!}
+                href={item.href!}
                 transitionTypes={[directionType]}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-all ${

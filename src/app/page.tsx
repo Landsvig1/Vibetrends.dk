@@ -40,7 +40,15 @@ export default async function Home() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
-          Vibe Code & <span className="text-accent-primary italic">Ship Faster</span>.
+          {lang === "da" ? (
+            <>
+              Vibe-kod & <span className="text-accent-primary italic">ship hurtigere</span>.
+            </>
+          ) : (
+            <>
+              Vibe Code & <span className="text-accent-primary italic">Ship Faster</span>.
+            </>
+          )}
         </h1>
         
         <p className="mt-6 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">

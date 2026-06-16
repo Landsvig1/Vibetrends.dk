@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Code, Globe, CheckCircle2 } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -10,15 +10,24 @@ import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
 
-export default function AgentsPage() {
+function AgentsPageContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Read query parameters to set selected category reactively
+  useEffect(() => {
+    if (categoryParam === "mcp" || categoryParam === "MCP Server") {
+      setSelectedCategory("MCP Server");
+    }
+  }, [categoryParam]);
 
   // Add agent form states
   const [addOpen, setAddOpen] = useState(false);
@@ -399,5 +408,17 @@ export default function AgentsPage() {
       )}
       {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
     </div>
+  );
+}
+
+export default function AgentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="text-text-secondary font-semibold">Indlæser...</div>
+      </div>
+    }>
+      <AgentsPageContent />
+    </Suspense>
   );
 }
