@@ -3,10 +3,15 @@ import Link from "next/link";
 import { ArrowLeft, Clock, Calendar, User } from "lucide-react";
 import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const post = await getBlogPostById(id);
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
+  const post = await getBlogPostById(id, lang);
   if (!post) return { title: "Artikel ikke fundet" };
 
   return {
@@ -17,7 +22,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const post = await getBlogPostById(id);
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
+  const post = await getBlogPostById(id, lang);
 
   if (!post) {
     notFound();
@@ -30,7 +40,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til alle artikler
+        {t("blog.detail.back")}
       </Link>
 
       <article className="max-w-3xl mx-auto rounded-xl glass-panel overflow-hidden border border-card-border shadow-2xl">
@@ -85,9 +95,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             </div>
 
             <div className="mt-12 p-6 rounded-xl bg-violet-600/5 border border-accent-primary/20 text-sm">
-              <h4 className="font-bold text-foreground mb-2">Om denne serie</h4>
+              <h4 className="font-bold text-foreground mb-2">
+                {lang === "da" ? "Om denne serie" : "About this series"}
+              </h4>
               <p className="text-text-secondary">
-                Dette er en del af en løbende artikelserie på vibetrends.dk. Vi dykker ned i de værktøjer og metoder, som solo-foundere og &quot;vibe coders&quot; bruger til at bygge software hurtigere end nogensinde før.
+                {lang === "da" 
+                  ? "Dette er en del af en løbende artikelserie på vibetrends.dk. Vi dykker ned i de værktøjer og metoder, som solo-foundere og \"vibe coders\" bruger til at bygge software hurtigere end nogensinde før."
+                  : "This is part of an ongoing article series on vibetrends.dk. We dive into the tools and methods that solo founders and \"vibe coders\" use to build software faster than ever before."
+                }
               </p>
             </div>
           </div>
@@ -100,8 +115,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           {post.author[0]}
         </div>
         <div className="flex-1">
-          <h4 className="text-lg font-bold text-foreground">Skrevet af {post.author}</h4>
-          <p className="text-sm text-text-secondary">Bidragsyder på vibetrends.dk og passioneret AI-udvikler.</p>
+          <h4 className="text-lg font-bold text-foreground">{t("blog.detail.author")} {post.author}</h4>
+          <p className="text-sm text-text-secondary">
+            {lang === "da" 
+              ? "Bidragsyder på vibetrends.dk og passioneret AI-udvikler."
+              : "Contributor on vibetrends.dk and passionate AI developer."
+            }
+          </p>
         </div>
       </div>
     </div>

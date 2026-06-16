@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T22:01:55.896Z",
+  "generatedAt": "2026-06-16T21:00:29.932Z",
   "summary": {
     "skills_count": 3,
     "showcase_count": 3,
@@ -35,32 +35,26 @@
   "entities": [
     {
       "type": "skill",
-      "name": "Custom Cursor rules (.cursorrules) Optimization",
       "id": "s1"
     },
     {
       "type": "skill",
-      "name": "Multi-Agent Workflow Design (LangGraph / CrewAI)",
       "id": "s2"
     },
     {
       "type": "skill",
-      "name": "Supabase Database & RLS Policy Auditing",
       "id": "s3"
     },
     {
       "type": "project",
-      "name": "AutoNewsletter Generator",
       "id": "p1"
     },
     {
       "type": "project",
-      "name": "Simply DNS API Client GUI",
       "id": "p2"
     },
     {
       "type": "project",
-      "name": "GitAgent - AI Commit & Branch Assistant",
       "id": "p3"
     },
     {

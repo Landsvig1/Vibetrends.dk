@@ -51,15 +51,21 @@ export const metadata: Metadata = {
 import RouteTransitionProvider from "./components/RouteTransitionProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "./components/AuthProvider";
+import { cookies } from "next/headers";
+import { LanguageProvider } from "./components/LanguageProvider";
+import { Language } from "@/lib/translations";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
   return (
     <html
-      lang="en"
+      lang={lang}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -79,13 +85,15 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-accent-light selection:text-text-primary">
-        <AuthProvider>
-          <Header />
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-            <RouteTransitionProvider>{children}</RouteTransitionProvider>
-          </main>
-          <Footer />
-        </AuthProvider>
+        <LanguageProvider initialLanguage={lang}>
+          <AuthProvider>
+            <Header />
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+              <RouteTransitionProvider>{children}</RouteTransitionProvider>
+            </main>
+            <Footer />
+          </AuthProvider>
+        </LanguageProvider>
         <Analytics />
       </body>
     </html>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2 } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
+import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
@@ -13,6 +14,7 @@ export default function ForumPage() {
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   const router = useRouter();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -32,7 +34,7 @@ export default function ForumPage() {
         setThreads(data);
       })
       .catch((err) => console.error("Error fetching threads:", err));
-  }, [selectedCategory]);
+  }, [selectedCategory, language]);
 
   const categories: ("All" | ForumThread["category"])[] = [
     "All",
@@ -108,7 +110,7 @@ export default function ForumPage() {
 
   // Delete thread via API
   const handleDeleteThread = async (threadId: string) => {
-    if (!confirm("Er du sikker på, at du vil slette denne tråd?")) return;
+    if (!confirm(t("forum.confirm_delete_thread"))) return;
     if (!user) return;
 
     try {
@@ -134,7 +136,7 @@ export default function ForumPage() {
             Developer <span className="text-accent-primary">Forum</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
-            Stil spørgsmål, del dine færdige prompts og templates, eller diskuter de nyeste modeller med andre danske AI-byggere.
+            {t("forum.desc")}
           </p>
         </div>
         <button
@@ -142,7 +144,7 @@ export default function ForumPage() {
           className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
-          Opret tråd
+          {t("forum.btn_create")}
         </button>
       </div>
 
@@ -151,7 +153,7 @@ export default function ForumPage() {
         {/* Sidebar categories */}
         <div className="lg:col-span-1 space-y-2">
           <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">
-            Kategorier
+            {t("forum.categories")}
           </h3>
           <div className="flex flex-wrap lg:flex-col gap-1.5">
             {categories.map((cat) => (
@@ -164,7 +166,7 @@ export default function ForumPage() {
                     : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
                 }`}
               >
-                {cat}
+                {cat === "All" ? (language === "da" ? "Alle" : "All") : cat}
               </button>
             ))}
           </div>
@@ -194,7 +196,7 @@ export default function ForumPage() {
                             handleDeleteThread(thread.id);
                           }}
                           className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
-                          title="Slet tråd"
+                          title={language === "da" ? "Slet tråd" : "Delete thread"}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -229,7 +231,7 @@ export default function ForumPage() {
                   <span>&middot;</span>
                   <span className="flex items-center">
                     <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                    {thread.replies.length} svar
+                    {thread.replies.length} {t("forum.replies")}
                   </span>
                   <span>&middot;</span>
                   <span>{new Date(thread.createdAt).toLocaleDateString()}</span>
@@ -239,8 +241,8 @@ export default function ForumPage() {
           ) : (
             <div className="text-center py-16 rounded-xl border border-card-border bg-background">
               <MessageSquare className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-              <p className="text-text-secondary font-semibold">Ingen tråde i denne kategori.</p>
-              <p className="text-text-secondary text-sm mt-1">Vær den første til at oprette en diskussion!</p>
+              <p className="text-text-secondary font-semibold">{t("forum.empty")}</p>
+              <p className="text-text-secondary text-sm mt-1">{t("forum.empty_sub")}</p>
             </div>
           )}
         </div>
@@ -263,9 +265,9 @@ export default function ForumPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">Diskussion oprettet!</h3>
+                <h3 className="text-lg font-bold text-foreground">{t("forum.modal.success_title")}</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  Din tråd er nu tilføjet til forummet.
+                  {t("forum.modal.success_desc")}
                 </p>
               </div>
             ) : (
@@ -276,39 +278,39 @@ export default function ForumPage() {
                 </div>
 
                 <div>
-                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Opret tråd</span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">Start en ny diskussion</h3>
+                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">{t("forum.modal.badge")}</span>
+                  <h3 className="text-lg font-bold text-foreground mt-1">{t("forum.modal.title")}</h3>
                 </div>
 
                 {!user && (
                   <div className="p-3.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary text-xs leading-relaxed space-y-2">
                     <p>
-                      <strong>Du er ikke logget ind.</strong> Hvis du fortsætter, vil din tråd blive udgivet under et tilfældigt gæstenavn.
+                      <strong>{t("auth.not_logged_in")}</strong> {t("auth.guest_warning")}
                     </p>
                     <button
                       type="button"
                       onClick={() => setLoginModalOpen(true)}
                       className="text-accent-primary hover:text-accent-primary font-bold underline transition-colors cursor-pointer"
                     >
-                      Log ind med E-mail, Google eller GitHub
+                      {t("auth.login_link")}
                     </button>
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Emne Title</label>
+                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_title")}</label>
                   <input
                     type="text"
                     required
                     value={threadTitle}
                     onChange={(e) => setThreadTitle(e.target.value)}
-                    placeholder="Fx 'Bedste .cursorrules opsætning til Tailwind v4'"
+                    placeholder={t("forum.modal.placeholder_title")}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Kategori</label>
+                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_category")}</label>
                   <select
                     value={threadCategory}
                     onChange={(e) => setThreadCategory(e.target.value as ForumThread["category"])}
@@ -322,13 +324,13 @@ export default function ForumPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Indhold</label>
+                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_content")}</label>
                   <textarea
                     required
                     rows={6}
                     value={threadContent}
                     onChange={(e) => setThreadContent(e.target.value)}
-                    placeholder="Forklar dit spørgsmål eller del dine erfaringer..."
+                    placeholder={t("forum.modal.placeholder_content")}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
@@ -337,7 +339,7 @@ export default function ForumPage() {
                   type="submit"
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all"
                 >
-                  Opret Diskussion
+                  {t("forum.modal.btn_submit")}
                 </button>
               </form>
             )}

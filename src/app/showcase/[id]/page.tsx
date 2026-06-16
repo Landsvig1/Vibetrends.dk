@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, Heart, ExternalLink, Code, Sparkles } from "lucide-react";
 import { getProjects } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 
 // Custom Github Icon matching Lucide style
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -22,7 +24,10 @@ const GithubIcon = ({ className }: { className?: string }) => (
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const projects = await getProjects();
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
+  const projects = await getProjects(undefined, lang);
   const project = projects.find(p => p.id === id);
   if (!project) return { title: "Projekt ikke fundet" };
 
@@ -34,7 +39,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const projects = await getProjects();
+  
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
+  const projects = await getProjects(undefined, lang);
   const project = projects.find(p => p.id === id);
 
   if (!project) {
@@ -69,7 +80,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til showcase
+        {t("showcase.detail.back")}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -90,14 +101,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               </div>
               <div>
                 <h1 className="text-foreground font-bold text-xl">{project.title}</h1>
-                <p className="text-text-secondary text-sm">by @{project.author}</p>
+                <p className="text-text-secondary text-sm">{t("showcase.by")} @{project.author}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-foreground">Om projektet</h2>
+              <h2 className="text-2xl font-bold text-foreground">
+                {lang === "da" ? "Om projektet" : "About the project"}
+              </h2>
               <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{project.upvotes}</span>
@@ -112,7 +125,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <div className="p-6 rounded-xl glass-card space-y-3">
                 <h3 className="text-sm font-bold text-accent-primary uppercase tracking-wider flex items-center">
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Tech Stack
+                  {t("showcase.detail.tools")}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {project.tools.map(tool => (
@@ -132,7 +145,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition-all shadow-sm"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      Live Demo
+                      {t("showcase.detail.visit")}
                     </a>
                     {project.githubUrl && (
                       <a
@@ -155,25 +168,34 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <div className="p-6 rounded-2xl glass-panel border border-card-border space-y-6 sticky top-24">
             <div className="flex items-center space-x-2">
               <Code className="h-5 w-5 text-accent-primary" />
-              <h3 className="text-lg font-bold text-foreground">Vibe Prompts</h3>
+              <h3 className="text-lg font-bold text-foreground">
+                {t("showcase.detail.prompts")}
+              </h3>
             </div>
             
             <div className="space-y-4">
-              {project.prompts.map((prompt, index) => (
-                <div key={index} className="space-y-2">
-                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                    Step {index + 1}
-                  </span>
-                  <div className="p-4 rounded-xl bg-background border border-card-border text-text-secondary text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                    {prompt}
+              {project.prompts.length > 0 ? (
+                project.prompts.map((prompt, index) => (
+                  <div key={index} className="space-y-2">
+                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
+                      Step {index + 1}
+                    </span>
+                    <div className="p-4 rounded-xl bg-background border border-card-border text-text-secondary text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                      {prompt}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-text-secondary italic">{t("showcase.detail.no_prompts")}</p>
+              )}
             </div>
 
             <div className="pt-6 border-t border-card-border">
               <p className="text-xs text-text-secondary leading-relaxed italic">
-                Disse prompts er hentet direkte fra skaberens workflow. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter.
+                {lang === "da" 
+                  ? "Disse prompts er hentet direkte fra skaberens workflow. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter."
+                  : "These prompts are fetched directly from the creator's workflow. Copy them to recreate similar features in your own projects."
+                }
               </p>
             </div>
           </div>

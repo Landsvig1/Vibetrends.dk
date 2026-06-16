@@ -38,7 +38,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // Check title in detail view - using regex for flexibility
     const detailHeading = page.locator('h1');
     await expect(detailHeading).toContainText(projectTitle.trim());
-    await expect(page.getByText(/Vibe Prompts/i)).toBeVisible();
+    await expect(page.getByText(/Prompts/i).first()).toBeVisible();
   });
 
   test('should navigate to Forum and check tråde', async ({ page }) => {
@@ -94,5 +94,36 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // Check for user badge
     await expect(page.getByText('@testuser_vibe')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Log ud' })).toBeVisible();
+  });
+
+  test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
+    await page.goto('/');
+
+    // 1. By default, it should be in Danish. Check a Danish phrase or link.
+    await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
+    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
+
+    // 2. Click the EN language toggle button in the header
+    await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
+
+    // 3. Verify it switches to English instantly
+    await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
+    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible();
+
+    // 4. Verify cookie 'vibe_lang' is set to 'en'
+    const cookies = await context.cookies();
+    const langCookie = cookies.find(c => c.name === 'vibe_lang');
+    expect(langCookie).toBeDefined();
+    expect(langCookie?.value).toBe('en');
+
+    // 5. Reload page to test server-side persistence
+    await page.reload();
+    await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
+    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible();
+
+    // 6. Click DA toggle back
+    await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
+    await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
+    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
   });
 });

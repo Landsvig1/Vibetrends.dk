@@ -6,15 +6,22 @@ import {
   Clock 
 } from "lucide-react";
 import { getSkills, getProjects, getThreads, getBlogPosts, getAgents } from "@/lib/db";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 import GranolaShowcase from "@/app/components/GranolaShowcase";
 
 export default async function Home() {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
   // Fetch data on server
-  const skills = await getSkills();
-  const projects = await getProjects();
-  const threads = await getThreads();
-  const posts = await getBlogPosts();
-  const agents = await getAgents();
+  const skills = await getSkills(undefined, undefined, lang);
+  const projects = await getProjects(undefined, lang);
+  const threads = await getThreads(undefined, lang);
+  const posts = await getBlogPosts(lang);
+  const agents = await getAgents(undefined, undefined, lang);
 
   // Pick featured items
   const featuredProject = projects[0];
@@ -29,7 +36,7 @@ export default async function Home() {
         
         <div className="pill-badge mb-6">
           <Sparkles className="h-3.5 w-3.5 text-accent-primary" />
-          <span>Hubben for danske Vibe Coders & AI-byggere</span>
+          <span>{t("home.badge")}</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
@@ -37,7 +44,7 @@ export default async function Home() {
         </h1>
         
         <p className="mt-6 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">
-          Velkommen til vibetrends.dk. Markedspladser for AI-kompetencer, showcase af projekter, diskussionsforum, blogs og et agent-kartotek. Alt samlet på ét sted.
+          {t("home.hero_desc")}
         </p>
 
         <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -45,14 +52,14 @@ export default async function Home() {
             href="/showcase"
             className="btn-primary"
           >
-            Se Showcase
+            {t("home.btn_showcase")}
             <Layers className="ml-2 h-4 w-4" />
           </Link>
           <Link
             href="/skills"
             className="btn-secondary"
           >
-            Find Freelancer
+            {t("home.btn_find_freelancer")}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </div>
@@ -62,19 +69,19 @@ export default async function Home() {
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 rounded-2xl glass-panel">
         <div className="text-center space-y-2 border-r border-card-border">
           <p className="text-3xl font-extrabold text-foreground font-mono">{projects.length}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Projekter Vist</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.projects")}</p>
         </div>
         <div className="text-center space-y-2 md:border-r border-card-border">
           <p className="text-3xl font-extrabold text-foreground font-mono">{skills.length}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Community Skills</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.skills")}</p>
         </div>
         <div className="text-center space-y-2 border-r border-card-border">
           <p className="text-3xl font-extrabold text-foreground font-mono">{threads.length}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Forum Tråde</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.threads")}</p>
         </div>
         <div className="text-center space-y-2">
           <p className="text-3xl font-extrabold text-foreground font-mono">{agents.length}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Registrerede Agenter</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.agents")}</p>
         </div>
       </section>
 
@@ -85,10 +92,10 @@ export default async function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center">
               <Layers className="mr-2 h-5 w-5 text-accent-primary" />
-              Udvalgt Projekt
+              {t("home.section.featured_project")}
             </h2>
             <Link href="/showcase" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              Se alle
+              {t("home.see_all")}
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </div>
@@ -130,7 +137,7 @@ export default async function Home() {
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-card-border text-xs text-text-secondary">
-                  <span>Af {featuredProject.author}</span>
+                  <span>{t("home.by")} {featuredProject.author}</span>
                   <span className="flex items-center font-medium">
                     <Heart className="h-3.5 w-3.5 mr-1 text-accent-primary" />
                     {featuredProject.upvotes} upvotes
@@ -146,10 +153,10 @@ export default async function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center">
               <Briefcase className="mr-2 h-5 w-5 text-accent-primary" />
-              Community Skills
+              {t("home.section.featured_skills")}
             </h2>
             <Link href="/skills" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              Se alle
+              {t("home.see_all")}
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </div>
@@ -181,7 +188,7 @@ export default async function Home() {
 
               <div className="flex items-center justify-between pt-4 border-t border-card-border">
                 <div>
-                  <p className="text-xs text-text-secondary">Freelancer</p>
+                  <p className="text-xs text-text-secondary">{t("home.freelancer")}</p>
                   <p className="text-sm font-semibold">{featuredSkill.vibeCoder}</p>
                 </div>
                 <Link
@@ -189,7 +196,7 @@ export default async function Home() {
                   className="btn-secondary"
                   style={{ padding: '6px 12px', fontSize: '0.75rem' }}
                 >
-                  Book nu
+                  {t("home.book_now")}
                 </Link>
               </div>
             </div>
@@ -204,10 +211,10 @@ export default async function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center">
               <MessageSquare className="mr-2 h-5 w-5 text-accent-primary" />
-              Aktive Diskussioner
+              {t("home.section.forum")}
             </h2>
             <Link href="/forum" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              Gå til Forum
+              {t("home.go_to_forum")}
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </div>
@@ -234,11 +241,11 @@ export default async function Home() {
                   </span>
                 </div>
                 <div className="flex items-center space-x-4 mt-4 pt-3 border-t border-card-border text-xs text-text-secondary">
-                  <span>Tråd af @{thread.author}</span>
+                  <span>{t("home.thread_by")} @{thread.author}</span>
                   <span>&middot;</span>
                   <span className="flex items-center">
                     <MessageSquare className="h-3 w-3 mr-1" />
-                    {thread.replies.length} svar
+                    {thread.replies.length} {t("home.replies")}
                   </span>
                 </div>
               </Link>
@@ -251,10 +258,10 @@ export default async function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center">
               <Cpu className="mr-2 h-5 w-5 text-accent-primary" />
-              Seneste Guides
+              {t("home.section.blog")}
             </h2>
             <Link href="/blog" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              Læs blog
+              {t("home.read_blog")}
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>
           </div>
@@ -288,7 +295,7 @@ export default async function Home() {
                   href="/blog"
                   className="inline-flex items-center text-xs font-semibold text-accent-primary hover:opacity-80 pt-2"
                 >
-                  Læs artiklen
+                  {t("home.read_article")}
                   <ArrowRight className="ml-1 h-3 w-3" />
                 </Link>
               </div>
@@ -307,7 +314,7 @@ export default async function Home() {
             <div className="space-y-3">
               <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded bg-background text-text-secondary border border-card-border text-xs font-bold">
                 <Cpu className="h-3.5 w-3.5 mr-1" />
-                Populær Agent / MCP
+                {t("home.popular_agent")}
               </div>
               <h2 className="text-2xl font-bold">{featuredAgent.name}</h2>
               <p className="text-sm text-text-secondary max-w-xl">{featuredAgent.description}</p>
@@ -320,7 +327,7 @@ export default async function Home() {
                 href="/agents"
                 className="btn-secondary text-xs"
               >
-                Gå til Agent Registry
+                {t("home.go_to_agents")}
               </Link>
             </div>
           </div>

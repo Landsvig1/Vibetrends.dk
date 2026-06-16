@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import { Globe, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { useLanguage } from "./LanguageProvider";
 import KoalaIcon from "./KoalaIcon";
 
 export default function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer style={{ viewTransitionName: "site-footer" }} className="mt-auto border-t border-card-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -18,7 +23,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-text-secondary max-w-xs">
-              The premier hub for Danish AI developers, builders, and vibe coders to share prompts, templates, and agent tools.
+              {t("footer.desc")}
             </p>
           </div>
 
@@ -26,46 +31,46 @@ export default function Footer() {
           <div className="mt-8 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
-                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Platform</h3>
+                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.platform")}</h3>
                 <ul className="mt-4 space-y-2">
                   <li>
                     <Link href="/skills" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Skills Bibliotek
+                      {t("footer.skills")}
                     </Link>
                   </li>
                   <li>
                     <Link href="/showcase" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Project Showcase
+                      {t("footer.showcase")}
                     </Link>
                   </li>
                   <li>
                     <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Developer Forum
+                      {t("footer.forum")}
                     </Link>
                   </li>
                 </ul>
               </div>
               <div className="mt-8 md:mt-0">
-                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Resources</h3>
+                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.resources")}</h3>
                 <ul className="mt-4 space-y-2">
                   <li>
                     <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Blog & Guides
+                      {t("footer.blog")}
                     </Link>
                   </li>
                   <li>
                     <Link href="/agents" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Agent & MCP Registry
+                      {t("footer.agents")}
                     </Link>
                   </li>
                   <li>
                     <Link href="/privacy" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Privatlivspolitik
+                      {t("footer.privacy")}
                     </Link>
                   </li>
                   <li>
                     <Link href="/terms" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      Brugervilkår
+                      {t("footer.terms")}
                     </Link>
                   </li>
                 </ul>
@@ -74,7 +79,7 @@ export default function Footer() {
 
             {/* Brands sections */}
             <div>
-              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Sponsored by</h3>
+              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.sponsored")}</h3>
               <ul className="mt-4 space-y-3">
                 <li>
                   <a
@@ -84,7 +89,7 @@ export default function Footer() {
                     className="group inline-flex items-center space-x-1 text-sm text-text-secondary hover:text-accent-primary transition-colors"
                   >
                     <span>aiauto.dk</span>
-                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">(AI Automation Agency)</span>
+                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">({t("footer.agency")})</span>
                     <ArrowUpRight className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
                   </a>
                 </li>
@@ -96,7 +101,7 @@ export default function Footer() {
                     className="group inline-flex items-center space-x-1 text-sm text-text-secondary hover:text-accent-primary transition-colors"
                   >
                     <span>landsvig.com</span>
-                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">(Personal Portal)</span>
+                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">({t("footer.personal")})</span>
                     <ArrowUpRight className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
                   </a>
                 </li>
@@ -107,13 +112,10 @@ export default function Footer() {
 
         <div className="mt-12 border-t border-card-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-text-secondary">
-            &copy; {new Date().getFullYear()} vibetrends.dk. All rights reserved. Made in Brøndby, Denmark.
+            &copy; {new Date().getFullYear()} vibetrends.dk. {t("footer.rights")}
           </p>
           <div className="flex space-x-6">
-            <span className="text-xs text-text-secondary flex items-center">
-              <Globe className="h-3 w-3 mr-1" />
-              Hosting via Vercel &middot; DNS via Simply.com
-            </span>
+            <span className="text-xs text-text-secondary flex items-center" dangerouslySetInnerHTML={{ __html: t("footer.hosting") }} />
           </div>
         </div>
       </div>

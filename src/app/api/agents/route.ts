@@ -13,12 +13,17 @@ const agentSchema = z.object({
   tags: z.array(z.string()).max(10).optional(),
 });
 
+import { cookies } from "next/headers";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
   const category = searchParams.get("category") || undefined;
 
-  const agents = await getAgents(search, category);
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
+
+  const agents = await getAgents(search, category, lang);
   return NextResponse.json(agents, {
     headers: {
       "Cache-Control": "public, max-age=10, stale-while-revalidate=5",

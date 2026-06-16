@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2 } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
+import { useLanguage } from "../components/LanguageProvider";
 
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
   const [search, setSearch] = useState("");
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   const router = useRouter();
   
   // Submit modal states
@@ -28,7 +30,7 @@ export default function ShowcasePage() {
       .then((res) => res.json())
       .then((data) => setProjects(data))
       .catch((err) => console.error("Error fetching projects:", err));
-  }, []);
+  }, [language]);
 
   // Filter projects by search
   const filteredProjects = projects.filter((project) => {
@@ -106,7 +108,7 @@ export default function ShowcasePage() {
   // Delete project handler
   const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Er du sikker på, at du vil slette dette projekt?")) return;
+    if (!confirm(t("showcase.detail.confirm_delete"))) return;
 
     try {
       const res = await fetch(`/api/showcase?projectId=${id}`, {
@@ -162,7 +164,7 @@ export default function ShowcasePage() {
             Project <span className="text-accent-primary">Showcase</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
-            Se hvad andre har bygget udelukkende ved hjælp af AI-prompts og vibe coding. Lær af deres prompts, se their tech stacks, og bliv inspireret.
+            {t("showcase.desc")}
           </p>
         </div>
         <button
@@ -170,7 +172,7 @@ export default function ShowcasePage() {
           className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
-          Indsend dit projekt
+          {t("showcase.btn_submit")}
         </button>
       </div>
 
@@ -179,7 +181,7 @@ export default function ShowcasePage() {
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
         <input
           type="text"
-          placeholder="Søg i projekter, redskaber eller forfattere..."
+          placeholder={t("showcase.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
@@ -231,7 +233,7 @@ export default function ShowcasePage() {
                   <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight">
                     {project.title}
                   </h3>
-                  <p className="text-xs text-text-secondary">Bygget af: {project.author}</p>
+                  <p className="text-xs text-text-secondary">{t("showcase.by")}: {project.author}</p>
                   <p className="text-sm text-text-secondary line-clamp-3 pt-1">
                     {project.description}
                   </p>
@@ -255,7 +257,7 @@ export default function ShowcasePage() {
                     className="flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg bg-violet-600/10 border border-accent-primary/20 group-hover:bg-violet-600/20 text-accent-primary text-xs font-semibold transition-colors"
                   >
                     <Code className="h-3.5 w-3.5" />
-                    <span>Se Detaljer & Prompts</span>
+                    <span>{t("showcase.details")}</span>
                   </div>
 
                   <div
@@ -271,8 +273,8 @@ export default function ShowcasePage() {
       ) : (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <Code className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">Ingen projekter fundet.</p>
-          <p className="text-text-secondary text-sm mt-1">Søg efter et andet emne eller tilføj dit eget projekt.</p>
+          <p className="text-text-secondary font-semibold">{t("showcase.empty")}</p>
+          <p className="text-text-secondary text-sm mt-1">{t("showcase.empty_sub")}</p>
         </div>
       )}
 
@@ -293,9 +295,9 @@ export default function ShowcasePage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6 animate-bounce" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">Projektet er udgivet!</h3>
+                <h3 className="text-lg font-bold text-foreground">{t("showcase.modal.success_title")}</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  Tillykke, dit projekt er nu tilføjet til det lokale showcase! Andre kan se og stemme på dit projekt med det samme.
+                  {t("showcase.modal.success_desc")}
                 </p>
               </div>
             ) : (
@@ -308,13 +310,13 @@ export default function ShowcasePage() {
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
                     <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    Vis dit projekt frem
+                    {t("showcase.modal.badge")}
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">Udgiv dit vibe-kodede produkt</h3>
+                  <h3 className="text-lg font-bold text-foreground mt-1">{t("showcase.modal.title")}</h3>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Projekt Navn</label>
+                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_title")}</label>
                   <input
                     type="text"
                     required
@@ -326,30 +328,30 @@ export default function ShowcasePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
+                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_desc")}</label>
                   <textarea
                     required
                     rows={3}
                     value={subDesc}
                     onChange={(e) => setSubDesc(e.target.value)}
-                    placeholder="Hvad kan projektet og hvorfor byggede du det?"
+                    placeholder={t("showcase.modal.placeholder_desc")}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">Tech Stack (komma-separeret)</label>
+                    <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_tech")}</label>
                     <input
                       type="text"
                       value={subTools}
                       onChange={(e) => setSubTools(e.target.value)}
-                      placeholder="Next.js 15, Tailwind v4, Claude"
+                      placeholder={t("showcase.modal.placeholder_tech")}
                       className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">Demo Link</label>
+                    <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_demo")}</label>
                     <input
                       type="url"
                       value={subDemo}
@@ -362,14 +364,14 @@ export default function ShowcasePage() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary flex items-center justify-between">
-                    <span>Core Prompts (En linje pr. prompt)</span>
+                    <span>{t("showcase.modal.label_prompts")}</span>
                     <span className="text-[10px] text-text-secondary font-normal">Valgfri</span>
                   </label>
                   <textarea
                     rows={3}
                     value={subPrompts}
                     onChange={(e) => setSubPrompts(e.target.value)}
-                    placeholder="Prompt 1: Byg en domain manager...&#10;Prompt 2: Tilføj et dark-mode layout..."
+                    placeholder={t("showcase.modal.placeholder_prompts")}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
@@ -379,7 +381,7 @@ export default function ShowcasePage() {
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Udgiv til Showcase
+                  {t("showcase.modal.btn_submit")}
                 </button>
               </form>
             )}

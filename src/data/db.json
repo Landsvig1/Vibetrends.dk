@@ -2,37 +2,46 @@
   "skills": [
     {
       "id": "s1",
-      "title": "Custom Cursor rules (.cursorrules) Optimization",
+      "title_da": "Optimering af Custom Cursor-regler (.cursorrules)",
+      "title_en": "Custom Cursor rules (.cursorrules) Optimization",
       "category": "Prompting",
       "vibeCoder": "Lars",
-      "vibeCoderTitle": "Lead AI Automator at aiauto.dk",
+      "vibeCoderTitle_da": "Ledende AI-automatiseringsekspert hos aiauto.dk",
+      "vibeCoderTitle_en": "Lead AI Automator at aiauto.dk",
       "rating": 4.9,
       "reviewsCount": 38,
-      "description": "Fine-tune your local Cursor workflow. I design custom .cursorrules tailored for Next.js, Tailwind v4, and Supabase integration to reduce agent hallucinations by 80%.",
+      "description_da": "Finjuster din lokale Cursor-arbejdsgang. Jeg designer tilpassede .cursorrules skræddersyet til Next.js, Tailwind v4 og Supabase-integration for at reducere agent-hallucinationer med 80%.",
+      "description_en": "Fine-tune your local Cursor workflow. I design custom .cursorrules tailored for Next.js, Tailwind v4, and Supabase integration to reduce agent hallucinations by 80%.",
       "tags": ["Cursor", "Next.js", "Workspace Rules"],
       "githubUrl": "https://github.com/lars/cursorrules-vibe"
     },
     {
       "id": "s2",
-      "title": "Multi-Agent Workflow Design (LangGraph / CrewAI)",
+      "title_da": "Design af Multi-Agent arbejdsgange (LangGraph / CrewAI)",
+      "title_en": "Multi-Agent Workflow Design (LangGraph / CrewAI)",
       "category": "Agents",
       "vibeCoder": "Sofie",
-      "vibeCoderTitle": "Autonomous Agent Architect",
+      "vibeCoderTitle_da": "Autonom Agent Arkitekt",
+      "vibeCoderTitle_en": "Autonomous Agent Architect",
       "rating": 4.8,
       "reviewsCount": 14,
-      "description": "Get a production-ready multi-agent system. I build sequential and hierarchical agent structures that do web scraping, lead generation, and automated follow-ups.",
+      "description_da": "Få et produktionsklart multi-agent system. Jeg bygger sekventielle og hierarkiske agentstrukturer, der udfører webscraping, leadgenerering og automatiske opfølgninger.",
+      "description_en": "Get a production-ready multi-agent system. I build sequential and hierarchical agent structures that do web scraping, lead generation, and automated follow-ups.",
       "tags": ["CrewAI", "LangGraph", "Python"],
       "githubUrl": "https://github.com/sofie/multi-agent-vibe"
     },
     {
       "id": "s3",
-      "title": "Supabase Database & RLS Policy Auditing",
+      "title_da": "Supabase Database & RLS-politik revision",
+      "title_en": "Supabase Database & RLS Policy Auditing",
       "category": "Automation",
       "vibeCoder": "Christian",
-      "vibeCoderTitle": "Supabase Expert & Backend Engineer",
+      "vibeCoderTitle_da": "Supabase-ekspert & Backend-udvikler",
+      "vibeCoderTitle_en": "Supabase Expert & Backend Engineer",
       "rating": 5.0,
       "reviewsCount": 22,
-      "description": "Ensure your database is secure. I review and write PostgreSQL Row-Level Security (RLS) policies, database triggers, and edge functions to secure your user data.",
+      "description_da": "Sørg for, at din database er sikker. Jeg gennemgår og skriver PostgreSQL Row-Level Security (RLS) politikker, database-triggere og edge-funktioner for at sikre dine brugerdata.",
+      "description_en": "Ensure your database is secure. I review and write PostgreSQL Row-Level Security (RLS) policies, database triggers, and edge functions to secure your user data.",
       "tags": ["Supabase", "Postgres", "Security"],
       "githubUrl": "https://github.com/christian/supabase-vibe"
     }
@@ -40,9 +49,11 @@
   "showcase": [
     {
       "id": "p1",
-      "title": "AutoNewsletter Generator",
+      "title_da": "AutoNewsletter Generator",
+      "title_en": "AutoNewsletter Generator",
       "author": "Frederik",
-      "description": "A fully autonomous newsletter builder that reads RSS feeds, synthesizes topics using Claude 3.5 Sonnet, formats them in clean HTML, and sends them via Resend.",
+      "description_da": "En fuldt autonom nyhedsbrevsgenerator, der læser RSS-feeds, syntetiserer emner med Claude 3.5 Sonnet, formaterer dem i ren HTML og sender dem via Resend.",
+      "description_en": "A fully autonomous newsletter builder that reads RSS feeds, synthesizes topics using Claude 3.5 Sonnet, formats them in clean HTML, and sends them via Resend.",
       "tools": ["Next.js 15", "Resend", "Claude 3.5 Sonnet", "Supabase"],
       "prompts": [
         "Create a Next.js cron route that fetches RSS feeds, filters for AI news, generates summaries in HTML using Claude, and emails it using Resend.",
@@ -55,9 +66,11 @@
     },
     {
       "id": "p2",
-      "title": "Simply DNS API Client GUI",
+      "title_da": "Simply DNS API Client GUI",
+      "title_en": "Simply DNS API Client GUI",
       "author": "Mikkel",
-      "description": "A sleek Tailwind UI tool that hooks into the Simply.com DNS API to manage Danish domains, configure SRV and TXT records, and check propagation status.",
+      "description_da": "Et elegant Tailwind UI-værktøj, der kobler sig på Simply.com DNS API'en til administration af danske domæner, konfiguration af SRV- og TXT-records samt tjek af udbredelsesstatus.",
+      "description_en": "A sleek Tailwind UI tool that hooks into the Simply.com DNS API to manage Danish domains, configure SRV and TXT records, and check propagation status.",
       "tools": ["Vite", "Tailwind v4", "Simply.com API"],
       "prompts": [
         "Build a clean single page React application with a domain overview. Implement domain record modifications using the Simply.com REST API endpoints.",
@@ -69,9 +82,11 @@
     },
     {
       "id": "p3",
-      "title": "GitAgent - AI Commit & Branch Assistant",
+      "title_da": "GitAgent - AI Commit & Branch Assistent",
+      "title_en": "GitAgent - AI Commit & Branch Assistant",
       "author": "Emil",
-      "description": "CLI tool that analyzes git diffs, writes semantic and clean commit messages under 72 chars, and suggests branch names following git conventions.",
+      "description_da": "Et CLI-værktøj, der analyserer git diffs, skriver semantiske og rene commit-beskeder under 72 tegn, og foreslår branch-navne efter gængse git-konventioner.",
+      "description_en": "CLI tool that analyzes git diffs, writes semantic and clean commit messages under 72 chars, and suggests branch names following git conventions.",
       "tools": ["Node.js", "Commander.js", "Gemini 2.5 Pro"],
       "prompts": [
         "Write a node script that executes git diff, parses changes, calls Gemini API to summarize changes into a short commit message, and prints it.",
@@ -86,22 +101,26 @@
   "forum": [
     {
       "id": "t1",
-      "title": "How to handle Claude 3.5 token limits when vibe-coding large files?",
+      "title_da": "Hvordan håndterer man Claude 3.5 token-grænser under vibe-kodning af store filer?",
+      "title_en": "How to handle Claude 3.5 token limits when vibe-coding large files?",
       "author": "Jeppe",
       "category": "Setup & Config",
-      "content": "Hi all! I am building a dashboard with about 1200 lines of code. Claude keeps failing halfway through edits due to max token limits. What is your strategy? Do you split your code into smaller custom hooks, or use a specific system prompt structure to force concise diff responses?",
+      "content_da": "Hej alle! Jeg bygger et dashboard med omkring 1200 linjers kode. Claude fejler hele tiden halvvejs igennem redigeringer på grund af max token-grænser. Hvad er jeres strategi? Opdeler I koden i mindre custom hooks, eller bruger I en specifik system-prompt struktur til at fremtvinge præcise diff-svar?",
+      "content_en": "Hi all! I am building a dashboard with about 1200 lines of code. Claude keeps failing halfway through edits due to max token limits. What is your strategy? Do you split your code into smaller custom hooks, or use a specific system prompt structure to force concise diff responses?",
       "upvotes": 42,
       "replies": [
         {
           "id": "r1",
           "author": "Lars",
-          "content": "Absolutely split it up. Standard rule of vibe coding: keep files under 200 lines if possible. Split your components, abstract business logic to hooks, and instruct the model to write diffs instead of replacing the entire file.",
+          "content_da": "Helt sikkert opdel det. Standardregel for vibe-kodning: Hold filer under 200 linjer, hvis muligt. Split dine komponenter op, abstraher forretningslogik til hooks, og instruer modellen til at skrive diffs i stedet for at erstatte hele filen.",
+          "content_en": "Absolutely split it up. Standard rule of vibe coding: keep files under 200 lines if possible. Split your components, abstract business logic to hooks, and instruct the model to write diffs instead of replacing the entire file.",
           "createdAt": "2026-06-13T18:30:00Z"
         },
         {
           "id": "r2",
           "author": "CoderVibeX",
-          "content": "I use a file-slicing script. It exposes only the relevant functions to Claude's context rather than the whole codebase. Highly recommend checking out the tool library for context management tools.",
+          "content_da": "Jeg bruger et fil-opdelingsscript. Det eksponerer kun de relevante funktioner for Claudes kontekst frem for hele kodebasen. Kan varmt anbefale at tjekke værktøjsbiblioteket for context management værktøjer.",
+          "content_en": "I use a file-slicing script. It exposes only the relevant functions to Claude's context rather than the whole codebase. Highly recommend checking out the tool library for context management tools.",
           "createdAt": "2026-06-13T20:15:00Z"
         }
       ],
@@ -109,16 +128,19 @@
     },
     {
       "id": "t2",
-      "title": "Shared .cursorrules for Next.js 15 App Router & Tailwind CSS 4",
+      "title_da": "Delte .cursorrules for Next.js 15 App Router & Tailwind CSS 4",
+      "title_en": "Shared .cursorrules for Next.js 15 App Router & Tailwind CSS 4",
       "author": "VibeMasterDk",
       "category": "Prompts",
-      "content": "Here is my ultimate `.cursorrules` file that forces the editor to write React 19 server actions correctly and enforces Tailwind v4's new theme syntax. Prevents the model from writing Tailwind v3 style configurations. Enjoy!",
+      "content_da": "Her er min ultimative `.cursorrules` fil, der tvinger editoren til at skrive React 19 server actions korrekt og håndhæver Tailwind v4's nye theme-syntaks. Forhindrer modellen i at skrive Tailwind v3-konfigurationer. God fornøjelse!",
+      "content_en": "Here is my ultimate `.cursorrules` file that forces the editor to write React 19 server actions correctly and enforces Tailwind v4's new theme syntax. Prevents the model from writing Tailwind v3 style configurations. Enjoy!",
       "upvotes": 83,
       "replies": [
         {
           "id": "r3",
           "author": "Christian",
-          "content": "This is pure gold. Tailwind v4 theme syntax in CSS is so new that models constantly hallucinate tailwind.config.js configurations. Adding this to my workspace immediately.",
+          "content_da": "Dette er rent guld. Tailwind v4 theme-syntaks i CSS er så ny, at modeller konstant hallucinerer tailwind.config.js-opsætninger. Tilføjer dette til mit workspace med det samme.",
+          "content_en": "This is pure gold. Tailwind v4 theme syntax in CSS is so new that models constantly hallucinate tailwind.config.js configurations. Adding this to my workspace immediately.",
           "createdAt": "2026-06-13T12:00:00Z"
         }
       ],
@@ -128,9 +150,12 @@
   "blog": [
     {
       "id": "b1",
-      "title": "The Rise of the Vibe Coder: From Idea to Live App in 3 Hours",
-      "excerpt": "Vibe coding is changing how solo founders build. Discover the stack, tools, and prompts that let you ship real products with zero manual coding.",
-      "content": "Vibe coding isn't about ignoring software engineering; it's about shifting the cognitive load. Instead of writing boilerplate syntax, developers focus on system architecture, data structures, and integrations while letting LLMs generate code. In this guide, we outline the exact setup—Next.js 15, Tailwind v4, and Vercel—that enables solo founders to construct fully realized web applications in hours rather than weeks...",
+      "title_da": "Vibe Coderens fremmarch: Fra idé til live app på 3 timer",
+      "title_en": "The Rise of the Vibe Coder: From Idea to Live App in 3 Hours",
+      "excerpt_da": "Vibe-kodning ændrer, hvordan solo-stiftere bygger. Opdag stacken, værktøjerne og prompts, der lader dig udgive rigtige produkter med nul manuel kodning.",
+      "excerpt_en": "Vibe coding is changing how solo founders build. Discover the stack, tools, and prompts that let you ship real products with zero manual coding.",
+      "content_da": "Vibe-kodning handler ikke om at ignorere softwareudvikling; det handler om at flytte den kognitive belastning. I stedet for at skrive boilerplate-kode fokuserer udviklere på systemarkitektur, datastrukturer og integrationer, mens de lader LLM'er generere koden. I denne guide skitserer vi den præcise opsætning – Next.js 15, Tailwind v4 og Vercel – der gør det muligt for solo-stiftere at bygge fuldt funktionelle webapplikationer på timer i stedet for uger...",
+      "content_en": "Vibe coding isn't about ignoring software engineering; it's about shifting the cognitive load. Instead of writing boilerplate syntax, developers focus on system architecture, data structures, and integrations while letting LLMs generate code. In this guide, we outline the exact setup—Next.js 15, Tailwind v4, and Vercel—that enables solo founders to construct fully realized web applications in hours rather than weeks...",
       "author": "Kasper",
       "readTime": "5 min read",
       "publishedAt": "2026-06-12",
@@ -139,9 +164,12 @@
     },
     {
       "id": "b2",
-      "title": "Why Vibe Coding is the Ultimate Backend for AI-Driven MVPs",
-      "excerpt": "Explore how Git-as-a-backend and automated workflows make GitHub the top choice for vibe coding projects.",
-      "content": "When vibe coding, you want a backend that is solid, secure, and fast to setup. GitHub provides a fully-fledged JSON database with direct API clients. We'll show you how to generate database schemas using natural language, setup database webhooks to trigger AI actions...",
+      "title_da": "Hvorfor Vibe-kodning er den ultimative backend for AI-drevne MVP'er",
+      "title_en": "Why Vibe Coding is the Ultimate Backend for AI-Driven MVPs",
+      "excerpt_da": "Udforsk hvordan Git-som-backend og automatiserede arbejdsgange gør GitHub til det bedste valg for vibe-kodningsprojekter.",
+      "excerpt_en": "Explore how Git-as-a-backend and automated workflows make GitHub the top choice for vibe coding projects.",
+      "content_da": "Når du vibe-koder, vil du have en backend, der er solid, sikker og hurtig at sætte op. GitHub leverer en fuldgyldig JSON-database med direkte API-klienter. Vi viser dig, hvordan du genererer databaseskemaer ved hjælp af naturligt sprog, opsætter database-webhooks til at udløse AI-handlinger...",
+      "content_en": "When vibe coding, you want a backend that is solid, secure, and fast to setup. GitHub provides a fully-fledged JSON database with direct API clients. We'll show you how to generate database schemas using natural language, setup database webhooks to trigger AI actions...",
       "author": "Sofie",
       "readTime": "7 min read",
       "publishedAt": "2026-06-10",
@@ -155,9 +183,11 @@
       "name": "SimplyDNS MCP Server",
       "developer": "aiauto.dk",
       "category": "MCP Server",
-      "description": "Model Context Protocol (MCP) server that grants AI agents the ability to read, edit, and create DNS records directly on Simply.com Danish registrar accounts.",
+      "description_da": "Model Context Protocol (MCP) server, der giver AI-agenter mulighed for at læse, redigere og oprette DNS-records direkte på Simply.com-konti hos den danske registrar.",
+      "description_en": "Model Context Protocol (MCP) server that grants AI agents the ability to read, edit, and create DNS records directly on Simply.com Danish registrar accounts.",
       "installCommand": "npx -y @aiauto/mcp-simplydns --apiKey YOUR_KEY",
-      "systemPrompt": "You are an AI assistant configured with SimplyDNS MCP tools. You can query domain details, create A, CNAME, TXT, and MX records, and verify DNS changes.",
+      "systemPrompt_da": "Du er en AI-assistent konfigureret med SimplyDNS MCP-værktøjer. Du kan forespørge om domæneoplysninger, oprette A-, CNAME-, TXT- og MX-records og verificere DNS-ændringer.",
+      "systemPrompt_en": "You are an AI assistant configured with SimplyDNS MCP tools. You can query domain details, create A, CNAME, TXT, and MX records, and verify DNS changes.",
       "upvotes": 68,
       "tags": ["Simply.com", "MCP", "Node"]
     },
@@ -166,9 +196,11 @@
       "name": "TDD Vibe-Agent",
       "developer": "VibeLabs",
       "category": "DevTools",
-      "description": "A custom system agent configured to run test-driven workflows: writes a failing unit test, implements the feature code, refactors, and runs Vitest automatically.",
+      "description_da": "En tilpasset systemagent konfigureret til at køre testdrevne arbejdsgange: skriver en fejlende enhedstest, implementerer funktionskoden, refaktorerer og kører Vitest automatisk.",
+      "description_en": "A custom system agent configured to run test-driven workflows: writes a failing unit test, implements the feature code, refactors, and runs Vitest automatically.",
       "installCommand": "npm install -g tdd-vibe-agent",
-      "systemPrompt": "Strictly adhere to TDD principles. 1. Read requirement 2. Write failing test 3. Implement minimal code to pass 4. Run tests and verify 5. Refactor and clean.",
+      "systemPrompt_da": "Overhold TDD-principperne strengt. 1. Læs krav 2. Skriv fejlende test 3. Implementer minimal kode for at bestå 4. Kør test og verificer 5. Refaktorer og ryd op.",
+      "systemPrompt_en": "Strictly adhere to TDD principles. 1. Read requirement 2. Write failing test 3. Implement minimal code to pass 4. Run tests and verify 5. Refactor and clean.",
       "upvotes": 124,
       "tags": ["TDD", "Testing", "CLI"]
     }

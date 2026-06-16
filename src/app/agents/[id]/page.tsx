@@ -2,11 +2,16 @@ import Link from "next/link";
 import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Code, Globe, ShieldCheck } from "lucide-react";
 import { getAgents } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const agents = await getAgents();
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
+  const agents = await getAgents(undefined, undefined, lang);
   const agent = agents.find(a => a.id === id);
   if (!agent) return { title: "Agent ikke fundet" };
 
@@ -18,7 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const agents = await getAgents();
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
+  const agents = await getAgents(undefined, undefined, lang);
   const agent = agents.find(a => a.id === id);
 
   if (!agent) {
@@ -55,7 +65,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til registry
+        {t("agents.detail.back")}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -99,12 +109,14 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <div className="flex items-center space-x-4 pt-6 border-t border-card-border text-xs text-text-secondary relative z-10">
                <div className="flex items-center space-x-2">
                  <User className="h-4 w-4" />
-                 <span>Udgivet af <span className="text-text-secondary font-bold">{agent.developer}</span></span>
+                 <span>{lang === "da" ? "Udgivet af" : "Published by"} <span className="text-text-secondary font-bold">@{agent.developer}</span></span>
                </div>
                <span className="text-text-secondary">&middot;</span>
                <div className="flex items-center space-x-2">
                  <ShieldCheck className="h-4 w-4 text-accent-primary" />
-                 <span className="text-accent-primary/80">Verificeret Vibe Tool</span>
+                 <span className="text-accent-primary/80">
+                   {lang === "da" ? "Verificeret Vibe Tool" : "Verified Vibe Tool"}
+                 </span>
                </div>
             </div>
           </div>
@@ -114,7 +126,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
             <div className="flex items-center justify-between">
                <h3 className="text-lg font-bold text-foreground flex items-center">
                  <Terminal className="h-5 w-5 mr-2 text-accent-primary" />
-                 System Prompt
+                 {t("agents.detail.prompt")}
                </h3>
                <span className="text-[10px] text-text-secondary font-mono uppercase tracking-widest bg-background px-2 py-1 rounded border border-card-border">
                  Raw Output
@@ -141,15 +153,30 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <ul className="space-y-3 text-xs text-text-secondary leading-relaxed">
                  <li className="flex gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
-                    <span>Optimeret til Claude 3.5 Sonnet & GPT-4o.</span>
+                    <span>
+                      {lang === "da" 
+                        ? "Optimeret til Claude 3.5 Sonnet & GPT-4o." 
+                        : "Optimized for Claude 3.5 Sonnet & GPT-4o."
+                      }
+                    </span>
                  </li>
                  <li className="flex gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
-                    <span>Understøtter Cursor & Windsurf workflows.</span>
+                    <span>
+                      {lang === "da" 
+                        ? "Understøtter Cursor & Windsurf workflows." 
+                        : "Supports Cursor & Windsurf workflows."
+                      }
+                    </span>
                  </li>
                  <li className="flex gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
-                    <span>Lokal eksekvering via CLI understøttet.</span>
+                    <span>
+                      {lang === "da" 
+                        ? "Lokal eksekvering via CLI understøttet." 
+                        : "Local execution via CLI supported."
+                      }
+                    </span>
                  </li>
               </ul>
            </div>

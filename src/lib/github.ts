@@ -32,7 +32,7 @@ export async function getDbData() {
   return initialDbData;
 }
 
-export async function saveDbData(data: any) {
+export async function saveDbData(data: unknown) {
   if (!GITHUB_ACCESS_TOKEN) {
     console.warn("GITHUB_ACCESS_TOKEN not set, data will not be persisted to GitHub");
     return false;
@@ -49,7 +49,7 @@ export async function saveDbData(data: any) {
       if ("sha" in fileData && !Array.isArray(fileData)) {
         sha = (fileData as { sha: string }).sha;
       }
-    } catch (e) {
+    } catch {
       // File doesn't exist yet
     }
 

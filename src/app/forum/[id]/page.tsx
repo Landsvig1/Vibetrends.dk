@@ -2,11 +2,16 @@ import Link from "next/link";
 import { ArrowLeft, Heart } from "lucide-react";
 import { getThreads } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 import ForumReplySection from "./ForumReplySection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const threads = await getThreads();
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
+  const threads = await getThreads(undefined, lang);
   const thread = threads.find(t => t.id === id);
   if (!thread) return { title: "Tråd ikke fundet" };
 
@@ -18,7 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function ForumThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const threads = await getThreads();
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
+  const threads = await getThreads(undefined, lang);
   const thread = threads.find(t => t.id === id);
 
   if (!thread) {
@@ -32,7 +42,7 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til forum
+        {t("forum.detail.back")}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -65,7 +75,7 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
                 <span className="font-bold text-foreground">@{thread.author}</span>
               </div>
               <span className="text-text-secondary">&middot;</span>
-              <span>{new Date(thread.createdAt).toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' })}</span>
+              <span>{new Date(thread.createdAt).toLocaleString(lang === "da" ? 'da-DK' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</span>
             </div>
           </div>
 
@@ -81,11 +91,11 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
             </h4>
             <div className="space-y-3">
                <div className="flex justify-between text-xs">
-                 <span className="text-text-secondary">Svar i alt</span>
+                 <span className="text-text-secondary">{lang === "da" ? "Svar i alt" : "Total replies"}</span>
                  <span className="text-foreground font-mono">{thread.replies.length}</span>
                </div>
                <div className="flex justify-between text-xs">
-                 <span className="text-text-secondary">Visninger</span>
+                 <span className="text-text-secondary">{lang === "da" ? "Visninger" : "Views"}</span>
                  <span className="text-foreground font-mono">{Math.floor(thread.upvotes * 4.5)}</span>
                </div>
             </div>
@@ -94,7 +104,10 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
           <div className="rounded-xl glass-panel p-6 bg-violet-600/5 border border-accent-primary/20">
             <h4 className="text-sm font-bold text-foreground mb-2">Vibe Coding Tip</h4>
             <p className="text-xs text-text-secondary leading-relaxed">
-              Husk at du kan indsende dine egne projekter i Showcase-sektionen og få feedback her i forummet.
+              {lang === "da" 
+                ? "Husk at du kan indsende dine egne projekter i Showcase-sektionen og få feedback her i forummet."
+                : "Remember that you can submit your own projects to the Showcase section and get feedback here in the forum."
+              }
             </p>
           </div>
         </div>

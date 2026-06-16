@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Users, Clipboard, ArrowDown, Play, RotateCcw, Check, Sparkles } from "lucide-react";
+import { useLanguage } from "./LanguageProvider";
 
 // Types
 interface NoteSection {
@@ -86,6 +87,7 @@ const serifStyle = { fontFamily: "'Instrument Serif', Georgia, serif" };
 const sansStyle = { fontFamily: "'Plus Jakarta Sans', sans-serif" };
 
 export default function GranolaShowcase() {
+  const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState<string>("discovery");
   
   // Simulation states for the Live Call Simulator
@@ -99,16 +101,25 @@ export default function GranolaShowcase() {
   useEffect(() => {
     if (simState !== "transcribing") return;
 
-    const transcriptSentences = [
+    const transcriptSentences = language === "da" ? [
       "Kasper: Så vi vil bygge et community for danske AI-byggere...",
       "Line: Ja, et sted med showcases, skills og et agent-kartotek.",
       "Kasper: Helt sikkert. Vi skal bruge lynhurtig Next.js og fed dark-mode styling.",
       "Line: Perfekt, lad os vibe-code det i aften!"
+    ] : [
+      "Kasper: So we want to build a community for Danish AI builders...",
+      "Line: Yes, a place with showcases, skills, and an agent registry.",
+      "Kasper: Absolutely. We need blazing fast Next.js and cool dark-mode styling.",
+      "Line: Perfect, let's vibe-code it tonight!"
     ];
 
-    const targetNotes = [
+    const targetNotes = language === "da" ? [
       "Ide: Dansk AI-bygger & Vibe Coder community-hub",
       "Features: Projekter, skills, forum, blogs, agent-kartotek",
+      "Tech stack: Next.js + Tailwind CSS 4 + Framer Motion"
+    ] : [
+      "Idea: Danish AI builder & Vibe Coder community hub",
+      "Features: Projects, skills, forum, blogs, agent registry",
       "Tech stack: Next.js + Tailwind CSS 4 + Framer Motion"
     ];
 
@@ -148,7 +159,7 @@ export default function GranolaShowcase() {
     }, 40);
 
     return () => clearInterval(textInterval);
-  }, [simState]);
+  }, [simState, language]);
 
   const startSimulation = () => {
     setSimText("");
@@ -185,29 +196,38 @@ export default function GranolaShowcase() {
         <div className="lg:col-span-6 space-y-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#2C4A26]/15 bg-[#F0F4EF] text-xs font-semibold text-[#2C4A26]">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Genopbygget med 100% Granola-vibe</span>
+            <span>{language === "da" ? "Genopbygget med 100% Granola-vibe" : "Rebuilt with 100% Granola vibe"}</span>
           </div>
 
           <h1 
             style={serifStyle} 
             className="text-5xl sm:text-6xl xl:text-7xl font-light leading-[1.02] tracking-tight text-[#1E1E1E]"
           >
-            The AI notepad for people in <span className="italic">back-to-back</span> meetings
+            {language === "da" ? (
+              <>AI-notesbogen til folk i <span className="italic">tætpakkede</span> møder</>
+            ) : (
+              <>The AI notepad for people in <span className="italic">back-to-back</span> meetings</>
+            )}
           </h1>
 
           <p className="text-base sm:text-lg text-[#5A5A57] max-w-md leading-relaxed">
-            Notes, actions and memory. Handled for you, quietly. Du forbliver til stede i mødet, mens AI ordner referatet.
+            {language === "da"
+              ? "Notater, handlinger og hukommelse. Håndteret for dig, helt stille. Du forbliver til stede i mødet, mens AI ordner referatet."
+              : "Notes, actions and memory. Handled for you, quietly. You stay present in the meeting while AI takes care of the notes."
+            }
           </p>
 
           <div className="flex flex-wrap items-center gap-4">
             <button 
               onClick={startSimulation}
-              className="bg-[#2C4A26] hover:bg-[#1F361A] text-foreground rounded-full px-6 py-3.5 font-semibold text-sm transition-all shadow-md shadow-[#2C4A26]/10 flex items-center gap-2 cursor-pointer active:scale-95"
+              className="bg-[#2C4A26] hover:bg-[#1F361A] text-white rounded-full px-6 py-3.5 font-semibold text-sm transition-all shadow-md shadow-[#2C4A26]/10 flex items-center gap-2 cursor-pointer active:scale-95"
             >
-              <span>Download for free</span>
+              <span>{language === "da" ? "Hent helt gratis" : "Download for free"}</span>
               <ArrowDown className="w-4 h-4" />
             </button>
-            <p className="text-xs text-[#5A5A57]">Til macOS, Windows, iPhone</p>
+            <p className="text-xs text-[#5A5A57]">
+              {language === "da" ? "Til macOS, Windows, iPhone" : "For macOS, Windows, iPhone"}
+            </p>
           </div>
         </div>
 
@@ -236,14 +256,18 @@ export default function GranolaShowcase() {
                     <Play className="w-5 h-5 fill-[#2C4A26]" />
                   </div>
                   <div className="space-y-1">
-                    <p className="font-semibold text-sm text-[#1E1E1E]">Test Møde Simulator</p>
-                    <p className="text-xs text-[#5A5A57]">Klik for at starte et simuleret online opkald</p>
+                    <p className="font-semibold text-sm text-[#1E1E1E]">
+                      {language === "da" ? "Test Møde Simulator" : "Test Meeting Simulator"}
+                    </p>
+                    <p className="text-xs text-[#5A5A57]">
+                      {language === "da" ? "Klik for at starte et simuleret online opkald" : "Click to start a simulated online call"}
+                    </p>
                   </div>
                   <button 
                     onClick={startSimulation}
                     className="text-xs font-semibold px-4 py-2 border border-[#E6E3DC] rounded-full hover:bg-[#FAF9F6] transition-colors cursor-pointer"
                   >
-                    Start simulation
+                    {language === "da" ? "Start simulation" : "Start simulation"}
                   </button>
                 </div>
               )}
@@ -255,7 +279,9 @@ export default function GranolaShowcase() {
                     <div className="w-10 h-10 rounded-full bg-card-border animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">K</div>
                     <div className="w-10 h-10 rounded-full bg-card-border animate-pulse border border-[#E6E3DC] flex items-center justify-center text-xs font-bold">L</div>
                   </div>
-                  <p className="text-xs font-mono text-[#5A5A57] animate-pulse">Forbinder lyd og transskribering...</p>
+                  <p className="text-xs font-mono text-[#5A5A57] animate-pulse">
+                    {language === "da" ? "Forbinder lyd og transskribering..." : "Connecting audio and transcription..."}
+                  </p>
                 </div>
               )}
 
@@ -264,7 +290,9 @@ export default function GranolaShowcase() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
                   {/* Left: Raw Audio Transcription */}
                   <div className="border border-[#E6E3DC] rounded-xl p-3 bg-[#FAF9F6] flex flex-col h-full max-h-[180px]">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#5A5A57] mb-2">Opkaldslyd (Rå tekst)</p>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#5A5A57] mb-2 font-mono">
+                      {language === "da" ? "Opkaldslyd (Rå tekst)" : "Call Audio (Raw text)"}
+                    </p>
                     <pre className="text-[11px] font-mono whitespace-pre-wrap overflow-y-auto flex-1 text-[#1E1E1E] leading-relaxed">
                       {simText}
                     </pre>
@@ -272,9 +300,9 @@ export default function GranolaShowcase() {
                   
                   {/* Right: Organized Structured Notes */}
                   <div className="border border-[#2C4A26]/20 rounded-xl p-3 bg-white flex flex-col h-full max-h-[180px] shadow-sm">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#2C4A26] mb-2 flex items-center gap-1">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#2C4A26] mb-2 flex items-center gap-1 font-mono">
                       <Sparkles className="w-3 h-3 text-[#2C4A26]" />
-                      Organiseret AI reference
+                      {language === "da" ? "Organiseret AI reference" : "Organized AI reference"}
                     </p>
                     <div className="flex-1 overflow-y-auto space-y-3">
                       {simNotes.map((note, idx) => (
@@ -305,14 +333,17 @@ export default function GranolaShowcase() {
             {(simState === "transcribing" || simState === "completed") && (
               <div className="pt-2 border-t border-[#FAF9F6] flex justify-between items-center">
                 <span className="text-[10px] text-[#5A5A57] font-semibold">
-                  {simState === "transcribing" ? "🔴 Live transskribering..." : "✅ Analyse fuldført!"}
+                  {simState === "transcribing" 
+                    ? (language === "da" ? "🔴 Live transskribering..." : "🔴 Live transcribing...") 
+                    : (language === "da" ? "✅ Analyse fuldført!" : "✅ Analysis completed!")
+                  }
                 </span>
                 <button 
                   onClick={resetSimulation}
                   className="text-xs font-semibold text-[#2C4A26] hover:text-[#1F361A] flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  Nulstil
+                  {language === "da" ? "Nulstil" : "Reset"}
                 </button>
               </div>
             )}
@@ -331,10 +362,13 @@ export default function GranolaShowcase() {
                 style={serifStyle} 
                 className="text-4xl sm:text-5xl font-light leading-none text-[#1E1E1E]"
               >
-                Get notes in the format your team needs
+                {language === "da" ? "Få notater i det format, dit team har brug for" : "Get notes in the format your team needs"}
               </h2>
               <p className="text-sm sm:text-base text-[#5A5A57] leading-relaxed">
-                Skift mellem skabeloner for at se strukturen ændre sig. Vores skabeloner trækker de vigtigste takeaways ud baseret på mødets kontekst.
+                {language === "da" 
+                  ? "Skift mellem skabeloner for at se strukturen ændre sig. Vores skabeloner trækker de vigtigste takeaways ud baseret på mødets kontekst."
+                  : "Switch between templates to see the structure change. Our templates extract the key takeaways based on the meeting's context."
+                }
               </p>
             </div>
 
@@ -453,10 +487,13 @@ export default function GranolaShowcase() {
             style={serifStyle} 
             className="text-4xl sm:text-5xl font-light text-[#1E1E1E]"
           >
-            Pricing plans
+            {language === "da" ? "Prisplaner" : "Pricing plans"}
           </h2>
           <p className="text-sm text-[#5A5A57] max-w-sm mx-auto">
-            Helt gennemskuelige priser. Vælg planen der matcher dit team og dine behov.
+            {language === "da" 
+              ? "Helt gennemskuelige priser. Vælg planen der matcher dit team og dine behov."
+              : "Completely transparent pricing. Choose the plan that matches your team and needs."
+            }
           </p>
         </div>
 
@@ -466,42 +503,50 @@ export default function GranolaShowcase() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold text-lg text-[#1E1E1E]">Basic</h3>
-                <p className="text-xs text-[#5A5A57]">Great for a free taste of Granola</p>
+                <p className="text-xs text-[#5A5A57]">
+                  {language === "da" ? "Perfekt til en gratis smagsprøve på Granola" : "Great for a free taste of Granola"}
+                </p>
               </div>
-              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$0 <span className="text-sm font-sans text-[#5A5A57]">per user / month</span></p>
+              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$0 <span className="text-sm font-sans text-[#5A5A57]">
+                {language === "da" ? "per bruger / måned" : "per user / month"}
+              </span></p>
               <button className="w-full bg-[#FAF9F6] border border-[#E6E3DC] text-[#1E1E1E] hover:bg-[#F3F1ED] font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors">
-                Download for Mac
+                {language === "da" ? "Hent til Mac" : "Download for Mac"}
               </button>
             </div>
             
             <ul className="space-y-3 pt-6 border-t border-[#FAF9F6]">
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> AI meeting notes</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> See limited meeting history</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Shared folders</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "AI mødenotater" : "AI meeting notes"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Se begrænset mødehistorik" : "See limited meeting history"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Delte mapper" : "Shared folders"}</li>
             </ul>
           </div>
 
           {/* Card 2: Business (Featured) */}
           <div className="bg-white border-2 border-[#2C4A26] rounded-2xl p-6 flex flex-col justify-between space-y-8 shadow-md relative">
-            <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-[#2C4A26] text-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-              Populær
+            <div className="absolute top-0 right-6 transform -translate-y-1/2 bg-[#2C4A26] text-white text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+              {language === "da" ? "Populær" : "Popular"}
             </div>
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold text-lg text-[#1E1E1E]">Business</h3>
-                <p className="text-xs text-[#5A5A57]">Great for individuals or small teams</p>
+                <p className="text-xs text-[#5A5A57]">
+                  {language === "da" ? "Perfekt til enkeltpersoner eller små teams" : "Great for individuals or small teams"}
+                </p>
               </div>
-              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$14 <span className="text-sm font-sans text-[#5A5A57]">per user / month</span></p>
-              <button className="w-full bg-[#2C4A26] hover:bg-[#1F361A] text-foreground font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors shadow-sm shadow-[#2C4A26]/10">
-                Download for Mac
+              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$14 <span className="text-sm font-sans text-[#5A5A57]">
+                {language === "da" ? "per bruger / måned" : "per user / month"}
+              </span></p>
+              <button className="w-full bg-[#2C4A26] hover:bg-[#1F361A] text-white font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors shadow-sm shadow-[#2C4A26]/10">
+                {language === "da" ? "Hent til Mac" : "Download for Mac"}
               </button>
             </div>
             
             <ul className="space-y-3 pt-6 border-t border-[#FAF9F6]">
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Everything in Basic, plus</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Unlimited meeting notes</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Advanced AI models integration</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Notion, Attio, Slack integrations</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Alt i Basic, plus" : "Everything in Basic, plus"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Ubegrænsede mødenotater" : "Unlimited meeting notes"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Avanceret AI-modelintegration" : "Advanced AI models integration"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Notion, Attio, Slack integrationer" : "Notion, Attio, Slack integrations"}</li>
             </ul>
           </div>
 
@@ -510,18 +555,22 @@ export default function GranolaShowcase() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold text-lg text-[#1E1E1E]">Enterprise</h3>
-                <p className="text-xs text-[#5A5A57]">Great for larger organizations</p>
+                <p className="text-xs text-[#5A5A57]">
+                  {language === "da" ? "Perfekt til større organisationer" : "Great for larger organizations"}
+                </p>
               </div>
-              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$35 <span className="text-sm font-sans text-[#5A5A57]">per user / month</span></p>
+              <p style={serifStyle} className="text-4xl font-light text-[#1E1E1E]">$35 <span className="text-sm font-sans text-[#5A5A57]">
+                {language === "da" ? "per bruger / måned" : "per user / month"}
+              </span></p>
               <button className="w-full bg-[#FAF9F6] border border-[#E6E3DC] text-[#1E1E1E] hover:bg-[#F3F1ED] font-semibold text-xs py-3 rounded-full cursor-pointer transition-colors">
-                Sign-up in app
+                {language === "da" ? "Tilmeld i appen" : "Sign-up in app"}
               </button>
             </div>
             
             <ul className="space-y-3 pt-6 border-t border-[#FAF9F6]">
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Everything included in Business</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Single sign-on (SSO)</li>
-              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> Priority support & admin controls</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Alt inkluderet i Business" : "Everything included in Business"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Single sign-on (SSO)" : "Single sign-on (SSO)"}</li>
+              <li className="flex gap-2 text-xs text-[#1E1E1E]"><Check className="w-3.5 h-3.5 text-[#2C4A26] shrink-0" /> {language === "da" ? "Prioriteret support & administrator-kontrol" : "Priority support & admin controls"}</li>
             </ul>
           </div>
         </div>

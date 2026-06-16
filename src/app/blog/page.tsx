@@ -1,13 +1,26 @@
 import { Suspense } from "react";
 import BlogList from "./BlogList";
 import { BookOpen } from "lucide-react";
+import { cookies } from "next/headers";
+import { translations, Language } from "@/lib/translations";
 
-export const metadata = {
-  title: "Blog - Vibe Trends",
-  description: "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow.",
-};
+export async function generateMetadata() {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  return {
+    title: lang === "da" ? "Blog - vibetrends.dk" : "Blog - vibetrends.dk",
+    description: lang === "da" 
+      ? "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow."
+      : "Guides, tutorials, and deep-dive articles on how to maximize your AI workflow.",
+  };
+}
 
-export default function BlogPage() {
+export default async function BlogPage() {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+  const tDict = translations[lang] || translations.da;
+  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
+
   return (
     <div className="space-y-10">
       <div className="space-y-4 text-center md:text-left">
@@ -15,14 +28,14 @@ export default function BlogPage() {
           Vibe Trends <span className="text-accent-primary">Blog</span>
         </h1>
         <p className="text-text-secondary max-w-2xl">
-          Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow, opsætter agenter og vibe koder projekter.
+          {t("blog.desc")}
         </p>
       </div>
 
       <Suspense fallback={
         <div className="text-center py-16">
           <BookOpen className="h-10 w-10 text-text-secondary animate-pulse mx-auto mb-4" />
-          <p className="text-text-secondary">Henter artikler...</p>
+          <p className="text-text-secondary">{t("blog.fetching")}</p>
         </div>
       }>
         <BlogList />
@@ -30,4 +43,3 @@ export default function BlogPage() {
     </div>
   );
 }
-

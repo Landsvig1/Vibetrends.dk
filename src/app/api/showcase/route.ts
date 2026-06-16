@@ -13,11 +13,16 @@ const projectSchema = z.object({
   githubUrl: z.string().url().max(200).optional(),
 });
 
+import { cookies } from "next/headers";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
 
-  const projects = await getProjects(search);
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
+
+  const projects = await getProjects(search, lang);
   return NextResponse.json(projects, {
     headers: {
       "Cache-Control": "public, max-age=10, stale-while-revalidate=5",

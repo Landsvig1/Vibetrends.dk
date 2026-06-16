@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X } from "lucide-react";
 import { useAuth } from "./AuthProvider";
+import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import KoalaIcon from "./KoalaIcon";
 
@@ -15,13 +16,14 @@ export default function Header() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
 
   const navItems = [
-    { name: "Skills", href: "/skills", icon: Briefcase },
-    { name: "Showcase", href: "/showcase", icon: Layers },
-    { name: "Forum", href: "/forum", icon: MessageSquare },
-    { name: "Blog", href: "/blog", icon: BookOpen },
-    { name: "Agents & MCP", href: "/agents", icon: Cpu },
+    { name: t("nav.skills"), href: "/skills", icon: Briefcase },
+    { name: t("nav.showcase"), href: "/showcase", icon: Layers },
+    { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
+    { name: t("nav.blog"), href: "/blog", icon: BookOpen },
+    { name: t("nav.agents"), href: "/agents", icon: Cpu },
   ];
 
   return (
@@ -56,7 +58,7 @@ export default function Header() {
               const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   href={item.href}
                   transitionTypes={[directionType]}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
@@ -72,8 +74,32 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Action button */}
+          {/* Action button & Mini language toggle */}
           <div className="hidden md:flex items-center space-x-4">
+            {/* MINI LANGUAGE TOGGLE */}
+            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+              <button
+                onClick={() => setLanguage("da")}
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                  language === "da"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-secondary hover:text-foreground"
+                }`}
+              >
+                DA
+              </button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                  language === "en"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-secondary hover:text-foreground"
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
             <Link
               href="/showcase"
               transitionTypes={["nav-forward"]}
@@ -81,7 +107,7 @@ export default function Header() {
               style={{ padding: '8px 16px' }}
             >
               <Sparkles className="h-4 w-4" />
-              Showcase Project
+              {t("btn.showcase_project")}
             </Link>
 
             {user ? (
@@ -91,7 +117,7 @@ export default function Header() {
                   onClick={logout}
                   className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-card-border cursor-pointer"
                 >
-                  Log ud
+                  {t("btn.logout")}
                 </button>
               </div>
             ) : (
@@ -100,7 +126,7 @@ export default function Header() {
                 className="btn-secondary text-xs"
                 style={{ padding: '8px 16px' }}
               >
-                Log ind
+                {t("btn.login")}
               </button>
             )}
           </div>
@@ -112,7 +138,7 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-card-border hover:text-foreground focus:outline-none"
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">{t("header.sr_menu")}</span>
               {mobileMenuOpen ? (
                 <X className="block h-6 w-6" aria-hidden="true" />
               ) : (
@@ -133,7 +159,7 @@ export default function Header() {
             const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
             return (
               <Link
-                key={item.name}
+                key={item.href}
                 href={item.href}
                 transitionTypes={[directionType]}
                 onClick={() => setMobileMenuOpen(false)}
@@ -148,6 +174,34 @@ export default function Header() {
               </Link>
             );
           })}
+          
+          {/* Mobile Language Toggle */}
+          <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
+            <span className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
+            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+              <button
+                onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
+                className={`px-2 py-1 rounded cursor-pointer transition-all ${
+                  language === "da"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-secondary hover:text-foreground"
+                }`}
+              >
+                DA
+              </button>
+              <button
+                onClick={() => { setLanguage("en"); setMobileMenuOpen(false); }}
+                className={`px-2 py-1 rounded cursor-pointer transition-all ${
+                  language === "en"
+                    ? "bg-accent-primary text-white"
+                    : "text-text-secondary hover:text-foreground"
+                }`}
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
           {user ? (
             <div className="pt-4 pb-2 border-t border-card-border flex items-center justify-between px-3">
               <span className="text-sm text-text-secondary">@{user.username}</span>
@@ -158,7 +212,7 @@ export default function Header() {
                 }}
                 className="px-3 py-1 text-xs rounded border border-card-border text-text-secondary hover:text-foreground"
               >
-                Log ud
+                {t("btn.logout")}
               </button>
             </div>
           ) : (
@@ -170,7 +224,7 @@ export default function Header() {
                 }}
                 className="w-full py-2.5 rounded-lg border border-card-border text-foreground text-sm font-semibold hover:bg-card-border cursor-pointer"
               >
-                Log ind
+                {t("btn.login")}
               </button>
             </div>
           )}

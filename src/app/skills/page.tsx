@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
+import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
@@ -28,6 +29,7 @@ export default function SkillsPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -41,13 +43,14 @@ export default function SkillsPage() {
   const [subUrl, setSubUrl] = useState("");
 
   // Fetch skills from API
+  // Triggered when selectedCategory changes (or language, in case language changes and refetches)
   useEffect(() => {
     const url = selectedCategory === "All" ? "/api/skills" : `/api/skills?category=${encodeURIComponent(selectedCategory)}`;
     fetch(url)
       .then((res) => res.json())
       .then((data) => setSkills(data))
       .catch((err) => console.error("Error fetching skills:", err));
-  }, [selectedCategory]);
+  }, [selectedCategory, language]);
 
   const filteredSkills = skills.filter((skill) => {
     const matchesSearch =
@@ -130,10 +133,10 @@ export default function SkillsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-4 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Skills <span className="text-accent-primary">Bibliotek</span>
+            Skills <span className="text-accent-primary">{language === "da" ? "Bibliotek" : "Library"}</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
-            Udforsk og del smarte workflows, agents og automatiserings-scripts fra det danske Vibe Coding community. 100% gratis og open source.
+            {t("skills.desc")}
           </p>
         </div>
         <button
@@ -141,7 +144,7 @@ export default function SkillsPage() {
           className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
         >
           <PlusCircle className="h-5 w-5" />
-          Del en Skill
+          {t("skills.btn_share")}
         </button>
       </div>
 
@@ -152,7 +155,7 @@ export default function SkillsPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
           <input
             type="text"
-            placeholder="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
+            placeholder={t("skills.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
@@ -171,7 +174,7 @@ export default function SkillsPage() {
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
               }`}
             >
-              {category}
+              {category === "All" ? (language === "da" ? "Alle" : "All") : category}
             </button>
           ))}
         </div>
@@ -225,7 +228,7 @@ export default function SkillsPage() {
                     className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
                   >
                     <GithubIcon className="h-4 w-4" />
-                    Se på GitHub
+                    {t("skills.github")}
                   </a>
                 )}
               </div>
@@ -235,8 +238,8 @@ export default function SkillsPage() {
       ) : (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">Ingen skills matcher din søgning.</p>
-          <p className="text-text-secondary text-sm mt-1">Prøv at søge efter noget andet eller nulstil filtre.</p>
+          <p className="text-text-secondary font-semibold">{t("skills.empty")}</p>
+          <p className="text-text-secondary text-sm mt-1">{t("skills.empty_sub")}</p>
         </div>
       )}
 
@@ -257,9 +260,9 @@ export default function SkillsPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">Skill Delt!</h3>
+                <h3 className="text-lg font-bold text-foreground">{t("skills.modal.success_title")}</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  Mange tak for at bidrage til fællesskabet! Din skill er nu tilgængelig i biblioteket.
+                  {t("skills.modal.success_desc")}
                 </p>
               </div>
             ) : (
@@ -270,25 +273,25 @@ export default function SkillsPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">Del en Skill</h3>
-                  <p className="text-sm text-text-secondary mt-1">Bidrag til communityet med dine bedste scripts, workflows eller prompts.</p>
+                  <h3 className="text-lg font-bold text-foreground">{t("skills.modal.title")}</h3>
+                  <p className="text-sm text-text-secondary mt-1">{t("skills.modal.desc")}</p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">Titel</label>
+                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_title")}</label>
                     <input
                       required
                       value={subTitle}
                       onChange={(e) => setSubTitle(e.target.value)}
-                      placeholder="fx Next.js 15 Cursor Rules"
+                      placeholder={t("skills.modal.placeholder_title")}
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">Kategori</label>
+                      <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_category")}</label>
                       <select
                         value={subCat}
                         onChange={(e) => setSubCat(e.target.value)}
@@ -301,7 +304,7 @@ export default function SkillsPage() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">GitHub / Repo Link (valgfrit)</label>
+                      <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_github")}</label>
                       <input
                         type="url"
                         value={subUrl}
@@ -313,23 +316,23 @@ export default function SkillsPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
+                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_desc")}</label>
                     <textarea
                       required
                       rows={3}
                       value={subDesc}
                       onChange={(e) => setSubDesc(e.target.value)}
-                      placeholder="Hvad gør denne skill, og hvordan bruger man den?"
+                      placeholder={t("skills.modal.placeholder_desc")}
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm resize-none"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">Tags (kommasepareret)</label>
+                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_tags")}</label>
                     <input
                       value={subTags}
                       onChange={(e) => setSubTags(e.target.value)}
-                      placeholder="fx Cursor, Supabase, Workflow"
+                      placeholder={t("skills.modal.placeholder_tags")}
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
                     />
                   </div>
@@ -340,7 +343,7 @@ export default function SkillsPage() {
                     type="submit"
                     className="flex items-center justify-center px-6 py-2.5 rounded-lg btn-primary text-sm"
                   >
-                    Udgiv Skill
+                    {t("skills.modal.btn_submit")}
                   </button>
                 </div>
               </form>
