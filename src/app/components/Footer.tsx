@@ -28,57 +28,55 @@ export default function Footer() {
           </div>
 
           {/* Links sections */}
-          <div className="mt-8 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
-            <div className="md:grid md:grid-cols-2 md:gap-8">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.platform")}</h3>
-                <ul className="mt-4 space-y-2">
-                  <li>
-                    <Link href="/skills" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.skills")}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/showcase" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.showcase")}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.forum")}
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div className="mt-8 md:mt-0">
-                <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.resources")}</h3>
-                <ul className="mt-4 space-y-2">
-                  <li>
-                    <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.blog")}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/agents" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.agents")}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/privacy" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.privacy")}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/terms" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                      {t("footer.terms")}
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-8 xl:col-span-2 xl:mt-0">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.platform")}</h3>
+              <ul className="mt-4 space-y-2">
+                <li>
+                  <Link href="/skills" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.skills")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/showcase" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.showcase")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.forum")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.resources")}</h3>
+              <ul className="mt-4 space-y-2">
+                <li>
+                  <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.blog")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/agents" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.agents")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.privacy")}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.terms")}
+                  </Link>
+                </li>
+              </ul>
             </div>
 
             {/* Brands sections */}
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.sponsored")}</h3>
               <ul className="mt-4 space-y-3">
                 <li>

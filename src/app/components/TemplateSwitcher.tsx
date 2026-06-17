@@ -119,8 +119,8 @@ export default function TemplateSwitcher() {
           </p>
         </div>
 
-        {/* Vertical Tab buttons with shared layout transition */}
-        <div className="flex flex-col gap-2.5 items-start" role="tablist">
+        {/* Horizontal/Vertical scroll Tab buttons with shared layout transition */}
+        <div className="flex flex-row lg:flex-col gap-2.5 items-start overflow-x-auto w-full pb-2 scrollbar-none snap-x" role="tablist">
           {TEMPLATE_DATA.map((tab) => {
             const isActive = tab.id === activeTab;
             return (
@@ -129,9 +129,9 @@ export default function TemplateSwitcher() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border ${
+                className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border snap-center shrink-0 ${
                   isActive
-                    ? "text-foreground border-transparent"
+                    ? "text-white border-transparent"
                     : "text-text-secondary border-card-border hover:text-foreground hover:border-card-border"
                 }`}
               >
@@ -152,7 +152,7 @@ export default function TemplateSwitcher() {
 
       {/* Right panel: Mac OS Mock App Window */}
       <div className="lg:col-span-7 w-full">
-        <div className="glass-card rounded-2xl overflow-hidden aspect-[4/3] flex flex-col w-full border border-card-border shadow-2xl relative shadow-violet-950/10">
+        <div className="glass-card rounded-2xl overflow-hidden aspect-auto min-h-[350px] lg:aspect-[4/3] flex flex-col w-full border border-card-border shadow-2xl relative shadow-violet-950/10">
           
           {/* Header controls bar */}
           <div className="h-11 bg-background border-b border-card-border flex items-center px-4 justify-between select-none">

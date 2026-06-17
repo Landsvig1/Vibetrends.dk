@@ -181,12 +181,12 @@ function AgentsPageContent() {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex overflow-x-auto gap-2 pb-2 w-full scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
                 selectedCategory === cat
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"

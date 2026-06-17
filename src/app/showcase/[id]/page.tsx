@@ -96,12 +96,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
             <div className="absolute bottom-6 left-6 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-violet-600 flex items-center justify-center text-foreground font-bold text-xl shadow-lg border-2 border-card-border">
+              <div className="h-12 w-12 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-card-border">
                 {project.author[0]}
               </div>
               <div>
-                <h1 className="text-foreground font-bold text-xl">{project.title}</h1>
-                <p className="text-text-secondary text-sm">{t("showcase.by")} @{project.author}</p>
+                <h1 className="text-white font-bold text-xl">{project.title}</h1>
+                <p className="text-slate-300 text-sm">{t("showcase.by")} @{project.author}</p>
               </div>
             </div>
           </div>

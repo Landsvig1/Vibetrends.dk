@@ -1,4 +1,6 @@
 import { Octokit } from "@octokit/rest";
+import fs from "fs";
+import path from "path";
 
 const GITHUB_ACCESS_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
 const GITHUB_OWNER = process.env.GITHUB_OWNER || "kasperlandsvig";
@@ -8,9 +10,22 @@ const DB_PATH = "src/data/db.json";
 const octokit = new Octokit({ auth: GITHUB_ACCESS_TOKEN });
 
 export async function getDbData() {
-  // If we are in build time or no token, we can't fetch from GitHub API reliably without hitting limits
-  // or we might want to just read from the local file if it exists.
-  // However, for Path B in the skill, we fetch from GitHub.
+  const loadLocalFallback = () => {
+    try {
+      const localDbPath = path.join(process.cwd(), "src/data/db.json");
+      if (fs.existsSync(localDbPath)) {
+        return JSON.parse(fs.readFileSync(localDbPath, "utf-8"));
+      }
+    } catch (err) {
+      console.error("Failed to load local DB data:", err);
+    }
+    return { skills: [], showcase: [], forum: [], blog: [], agents: [] };
+  };
+
+  // If we are in build time or no token, we can't fetch from GitHub API reliably
+  if (!GITHUB_ACCESS_TOKEN) {
+    return loadLocalFallback();
+  }
   
   try {
     const { data } = await octokit.rest.repos.getContent({
@@ -27,9 +42,7 @@ export async function getDbData() {
     console.error("Failed to fetch DB from GitHub, falling back to local initial data", error);
   }
   
-  // Fallback to initial data if file doesn't exist on GitHub yet
-  const initialDbData = (await import("../data/db.json")).default;
-  return initialDbData;
+  return loadLocalFallback();
 }
 
 export async function saveDbData(data: unknown) {

@@ -272,7 +272,7 @@ export default function Header() {
             <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
                 onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
-                className={`px-2 py-1 rounded cursor-pointer transition-all ${
+                className={`px-3.5 py-2 rounded cursor-pointer transition-all ${
                   language === "da"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
@@ -282,7 +282,7 @@ export default function Header() {
               </button>
               <button
                 onClick={() => { setLanguage("en"); setMobileMenuOpen(false); }}
-                className={`px-2 py-1 rounded cursor-pointer transition-all ${
+                className={`px-3.5 py-2 rounded cursor-pointer transition-all ${
                   language === "en"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"

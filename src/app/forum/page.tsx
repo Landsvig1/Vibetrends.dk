@@ -155,12 +155,12 @@ export default function ForumPage() {
           <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">
             {t("forum.categories")}
           </h3>
-          <div className="flex flex-wrap lg:flex-col gap-1.5">
+          <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto w-full pb-2 scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
                   selectedCategory === cat
                     ? "bg-accent-light text-accent-primary border border-accent-primary/20"
                     : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"

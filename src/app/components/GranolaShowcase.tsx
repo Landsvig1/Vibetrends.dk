@@ -233,7 +233,7 @@ export default function GranolaShowcase() {
 
         {/* Hero Interactive Simulator Collage */}
         <div className="lg:col-span-6 w-full flex items-center justify-center">
-          <div className="relative w-full max-w-md aspect-[4/3] rounded-2xl border border-[#E6E3DC] bg-white shadow-xl overflow-hidden p-6 flex flex-col justify-between">
+          <div className="relative w-full max-w-md aspect-auto min-h-[380px] sm:aspect-[4/3] rounded-2xl border border-[#E6E3DC] bg-white shadow-xl overflow-hidden p-6 flex flex-col justify-between">
             
             {/* Window bar */}
             <div className="flex justify-between items-center pb-4 border-b border-[#FAF9F6]">
@@ -372,7 +372,7 @@ export default function GranolaShowcase() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 items-start" role="tablist">
+            <div className="flex flex-row md:flex-col gap-2 items-start overflow-x-auto w-full pb-2 scrollbar-none snap-x" role="tablist">
               {TEMPLATE_DATA.map((tab) => {
                 const isActive = tab.id === activeTab;
                 return (
@@ -381,7 +381,7 @@ export default function GranolaShowcase() {
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border ${
+                    className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border snap-center shrink-0 ${
                       isActive
                         ? "text-[#FAF9F6] border-transparent"
                         : "text-[#5A5A57] border-[#E6E3DC] hover:text-[#1E1E1E] hover:border-[#C0BFB8]"
@@ -404,7 +404,7 @@ export default function GranolaShowcase() {
 
           {/* Card Mockup Editor */}
           <div className="lg:col-span-7 w-full">
-            <div className="bg-white rounded-2xl overflow-hidden aspect-[4/3] flex flex-col w-full border border-[#E6E3DC] shadow-xl relative">
+            <div className="bg-white rounded-2xl overflow-hidden aspect-auto min-h-[380px] sm:aspect-[4/3] flex flex-col w-full border border-[#E6E3DC] shadow-xl relative">
               
               {/* Header controls bar */}
               <div className="h-11 bg-[#FAF9F6] border-b border-[#E6E3DC] flex items-center px-4 justify-between select-none">
