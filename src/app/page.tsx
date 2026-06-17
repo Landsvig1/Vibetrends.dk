@@ -8,7 +8,6 @@ import {
 import { getSkills, getProjects, getThreads, getBlogPosts, getAgents } from "@/lib/db";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
-import GranolaShowcase from "@/app/components/GranolaShowcase";
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -311,9 +310,6 @@ export default async function Home() {
           )}
         </div>
       </section>
-
-      {/* Granola Showcase Vibe Vision Feature */}
-      <GranolaShowcase />
 
       {/* Agents & MCP Banner */}
       {featuredAgent && (
