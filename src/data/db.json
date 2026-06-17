@@ -12,7 +12,11 @@
       "reviewsCount": 38,
       "description_da": "Finjuster din lokale Cursor-arbejdsgang. Jeg designer tilpassede .cursorrules skræddersyet til Next.js, Tailwind v4 og Supabase-integration for at reducere agent-hallucinationer med 80%.",
       "description_en": "Fine-tune your local Cursor workflow. I design custom .cursorrules tailored for Next.js, Tailwind v4, and Supabase integration to reduce agent hallucinations by 80%.",
-      "tags": ["Cursor", "Next.js", "Workspace Rules"],
+      "tags": [
+        "Cursor",
+        "Next.js",
+        "Workspace Rules"
+      ],
       "githubUrl": "https://github.com/lars/cursorrules-vibe"
     },
     {
@@ -27,7 +31,11 @@
       "reviewsCount": 14,
       "description_da": "Få et produktionsklart multi-agent system. Jeg bygger sekventielle og hierarkiske agentstrukturer, der udfører webscraping, leadgenerering og automatiske opfølgninger.",
       "description_en": "Get a production-ready multi-agent system. I build sequential and hierarchical agent structures that do web scraping, lead generation, and automated follow-ups.",
-      "tags": ["CrewAI", "LangGraph", "Python"],
+      "tags": [
+        "CrewAI",
+        "LangGraph",
+        "Python"
+      ],
       "githubUrl": "https://github.com/sofie/multi-agent-vibe"
     },
     {
@@ -38,11 +46,15 @@
       "vibeCoder": "Christian",
       "vibeCoderTitle_da": "Supabase-ekspert & Backend-udvikler",
       "vibeCoderTitle_en": "Supabase Expert & Backend Engineer",
-      "rating": 5.0,
+      "rating": 5,
       "reviewsCount": 22,
       "description_da": "Sørg for, at din database er sikker. Jeg gennemgår og skriver PostgreSQL Row-Level Security (RLS) politikker, database-triggere og edge-funktioner for at sikre dine brugerdata.",
       "description_en": "Ensure your database is secure. I review and write PostgreSQL Row-Level Security (RLS) policies, database triggers, and edge functions to secure your user data.",
-      "tags": ["Supabase", "Postgres", "Security"],
+      "tags": [
+        "Supabase",
+        "Postgres",
+        "Security"
+      ],
       "githubUrl": "https://github.com/christian/supabase-vibe"
     }
   ],
@@ -54,7 +66,12 @@
       "author": "Frederik",
       "description_da": "En fuldt autonom nyhedsbrevsgenerator, der læser RSS-feeds, syntetiserer emner med Claude 3.5 Sonnet, formaterer dem i ren HTML og sender dem via Resend.",
       "description_en": "A fully autonomous newsletter builder that reads RSS feeds, synthesizes topics using Claude 3.5 Sonnet, formats them in clean HTML, and sends them via Resend.",
-      "tools": ["Next.js 15", "Resend", "Claude 3.5 Sonnet", "Supabase"],
+      "tools": [
+        "Next.js 15",
+        "Resend",
+        "Claude 3.5 Sonnet",
+        "Supabase"
+      ],
       "prompts": [
         "Create a Next.js cron route that fetches RSS feeds, filters for AI news, generates summaries in HTML using Claude, and emails it using Resend.",
         "Add a styling layer to the dashboard showing a beautiful dark-mode chart of click-through rates."
@@ -71,7 +88,11 @@
       "author": "Mikkel",
       "description_da": "Et elegant Tailwind UI-værktøj, der kobler sig på Simply.com DNS API'en til administration af danske domæner, konfiguration af SRV- og TXT-records samt tjek af udbredelsesstatus.",
       "description_en": "A sleek Tailwind UI tool that hooks into the Simply.com DNS API to manage Danish domains, configure SRV and TXT records, and check propagation status.",
-      "tools": ["Vite", "Tailwind v4", "Simply.com API"],
+      "tools": [
+        "Vite",
+        "Tailwind v4",
+        "Simply.com API"
+      ],
       "prompts": [
         "Build a clean single page React application with a domain overview. Implement domain record modifications using the Simply.com REST API endpoints.",
         "Add a dynamic search filter and loading skeleton grids for domain updates."
@@ -87,7 +108,11 @@
       "author": "Emil",
       "description_da": "Et CLI-værktøj, der analyserer git diffs, skriver semantiske og rene commit-beskeder under 72 tegn, og foreslår branch-navne efter gængse git-konventioner.",
       "description_en": "CLI tool that analyzes git diffs, writes semantic and clean commit messages under 72 chars, and suggests branch names following git conventions.",
-      "tools": ["Node.js", "Commander.js", "Gemini 2.5 Pro"],
+      "tools": [
+        "Node.js",
+        "Commander.js",
+        "Gemini 2.5 Pro"
+      ],
       "prompts": [
         "Write a node script that executes git diff, parses changes, calls Gemini API to summarize changes into a short commit message, and prints it.",
         "Implement options for --dry-run and --amend flags."
@@ -188,8 +213,12 @@
       "installCommand": "npx -y @aiauto/mcp-simplydns --apiKey YOUR_KEY",
       "systemPrompt_da": "Du er en AI-assistent konfigureret med SimplyDNS MCP-værktøjer. Du kan forespørge om domæneoplysninger, oprette A-, CNAME-, TXT- og MX-records og verificere DNS-ændringer.",
       "systemPrompt_en": "You are an AI assistant configured with SimplyDNS MCP tools. You can query domain details, create A, CNAME, TXT, and MX records, and verify DNS changes.",
-      "upvotes": 68,
-      "tags": ["Simply.com", "MCP", "Node"]
+      "upvotes": 69,
+      "tags": [
+        "Simply.com",
+        "MCP",
+        "Node"
+      ]
     },
     {
       "id": "a2",
@@ -202,7 +231,11 @@
       "systemPrompt_da": "Overhold TDD-principperne strengt. 1. Læs krav 2. Skriv fejlende test 3. Implementer minimal kode for at bestå 4. Kør test og verificer 5. Refaktorer og ryd op.",
       "systemPrompt_en": "Strictly adhere to TDD principles. 1. Read requirement 2. Write failing test 3. Implement minimal code to pass 4. Run tests and verify 5. Refactor and clean.",
       "upvotes": 124,
-      "tags": ["TDD", "Testing", "CLI"]
+      "tags": [
+        "TDD",
+        "Testing",
+        "CLI"
+      ]
     }
   ]
 }
