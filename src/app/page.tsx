@@ -42,7 +42,7 @@ export default async function Home() {
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {lang === "da" ? (
             <>
-              Vibe-kod & <span className="text-accent-primary italic">ship hurtigere</span>.
+              Tools til dig og <span className="text-accent-primary italic">dine agenter</span>.
             </>
           ) : (
             <>

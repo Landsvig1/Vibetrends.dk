@@ -8,7 +8,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page).toHaveTitle(/vibetrends.dk/i);
     
     // Check Hero
-    await expect(page.getByText('Vibe-kod & ship hurtigere')).toBeVisible();
+    await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
     
     // Check Navigation
     const navItems = ['Forum', 'Tools', 'Vibes', 'Agenter', 'Blog'];

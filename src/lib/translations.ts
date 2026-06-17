@@ -35,7 +35,7 @@ export const translations = {
 
     // Home Page
     "home.badge": "Hubben for danske Vibe Coders & AI-byggere",
-    "home.hero_title": "Vibe-kod & ship hurtigere.",
+    "home.hero_title": "Tools til dig og dine agenter.",
     "home.hero_desc": "Velkommen til vibetrends.dk. Markedspladser for AI-kompetencer, showcase af projekter, diskussionsforum, blogs og et agent-kartotek. Alt samlet på ét sted.",
     "home.btn_showcase": "Se Showcase",
     "home.btn_find_freelancer": "Find Freelancer",
