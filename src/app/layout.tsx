@@ -55,6 +55,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { cookies } from "next/headers";
 import { LanguageProvider } from "./components/LanguageProvider";
 import { Language } from "@/lib/translations";
+import { jsonLdScript } from "@/lib/jsonLd";
 
 export default function RootLayout({
   children,
@@ -72,7 +73,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLdScript({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "vibetrends.dk",

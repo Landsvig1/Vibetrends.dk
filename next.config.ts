@@ -1,5 +1,35 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+
+// Browser-side Supabase calls (magic-link sign-in, session refresh) hit the
+// project origin directly, so it must be allowed in connect-src.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseWs = supabaseUrl.replace(/^https:/, 'wss:');
+
+// 'unsafe-inline' is required by Next.js App Router hydration scripts (no nonce
+// in static/PPR mode). 'unsafe-eval' is only needed for dev tooling/HMR, so it
+// is dropped in production.
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  'https://va.vercel-scripts.com',
+  ...(isProd ? [] : ["'unsafe-eval'"]),
+].join(' ');
+
+const csp = [
+  "default-src 'self'",
+  `script-src ${scriptSrc}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' blob: data: https://images.unsplash.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  `connect-src 'self' https://vitals.vercel-insights.com ${supabaseUrl} ${supabaseWs}`.trim(),
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
 const securityHeaders = [
   {
     key: 'X-DNS-Prefetch-Control',
@@ -9,9 +39,10 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=63072000; includeSubDomains; preload'
   },
+  // Legacy header; with a modern CSP it can introduce bugs, so disable it.
   {
     key: 'X-XSS-Protection',
-    value: '1; mode=block'
+    value: '0'
   },
   {
     key: 'X-Frame-Options',
@@ -27,7 +58,7 @@ const securityHeaders = [
   },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data: https://images.unsplash.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://vitals.vercel-insights.com; frame-ancestors 'none';"
+    value: csp
   },
   {
     key: 'Permissions-Policy',

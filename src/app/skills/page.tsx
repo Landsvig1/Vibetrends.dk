@@ -5,6 +5,7 @@ import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-rea
 import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
+import { jsonLdScript } from "@/lib/jsonLd";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
@@ -124,7 +125,7 @@ export default function SkillsPage() {
     <div className="space-y-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">

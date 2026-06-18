@@ -5,6 +5,7 @@ import { getProjects } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
+import { jsonLdScript } from "@/lib/jsonLd";
 
 // Custom Github Icon matching Lucide style
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -87,7 +88,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLdScript({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
             "name": project.title,

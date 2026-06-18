@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
+import { jsonLdScript } from "@/lib/jsonLd";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -77,7 +78,7 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLdScript({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
             "name": agent.name,

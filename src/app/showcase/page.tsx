@@ -7,6 +7,7 @@ import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, 
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
+import { jsonLdScript } from "@/lib/jsonLd";
 
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
@@ -154,7 +155,7 @@ export default function ShowcasePage() {
     <div className="space-y-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

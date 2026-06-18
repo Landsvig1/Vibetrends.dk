@@ -1,27 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Simple blocklist for malicious bots
-const BLOCKED_AGENTS = [
-  'GPTBot',
-  'ClaudeBot',
-  'AhrefsBot',
-  'MJ12bot',
-];
-
 export function proxy(request: NextRequest) {
   const { searchParams, pathname } = request.nextUrl;
   const format = searchParams.get('format');
-  const userAgent = request.headers.get('user-agent') || '';
-  
-  // 1. Basic Bot/DDoS protection at the Edge
-  if (BLOCKED_AGENTS.some(bot => userAgent.includes(bot))) {
-    // Note: Blocking common crawlers can be useful if they bypass your AI rules
-  }
 
   let response = NextResponse.next();
 
-  // 2. Format Switching (?format=json)
+  // 1. Format switching (?format=json) — content negotiation for agents.
   if (format === 'json') {
     const routeMap: Record<string, string> = {
       '/skills': '/api/skills',
@@ -39,13 +25,17 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // 3. Agent Metadata Headers
+  // 2. Agent metadata + open read access. The public API is read-only data, so
+  //    allow cross-origin reads (no credentials) for browser-based agents/tools.
+  //    Mutations stay protected by the Supabase session cookie in each handler,
+  //    which a wildcard ACAO cannot expose (credentialed reads require an exact
+  //    origin, which we never send).
   if (pathname.startsWith('/api') || format === 'json') {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
     response.headers.set('X-Agent-Help', 'See /ai.txt for instructions or /ara.json for API mapping');
     response.headers.set('X-Capability-Card', '/capability.json');
     response.headers.set('X-LLM-LD', '/llm-ld.json');
-    response.headers.set('X-RateLimit-Limit', '120');
-    response.headers.set('X-RateLimit-Reset-Action', 'Wait 60s if 429 received');
   }
 
   return response;
