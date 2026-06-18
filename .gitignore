@@ -15,6 +15,9 @@
 /playwright-report
 /test-results
 
+# generated at build from Supabase (scripts/generate-index.js)
+/public/semantic-index.json
+
 # next.js
 /.next/
 /out/
