@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getProjects, createProject, deleteProject, getDb } from "@/lib/db";
+import { getProjects, createProject, deleteProject } from "@/lib/db";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -74,7 +74,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
+  const { searchParams = new URL(request.url).searchParams } = new URL(request.url);
   const id = searchParams.get("projectId");
 
   if (!id) {
@@ -82,8 +82,8 @@ export async function DELETE(request: Request) {
   }
 
   // Authorization check
-  const db = await getDb();
-  const project = db.showcase.find(p => p.id === id);
+  const projects = await getProjects();
+  const project = projects.find(p => p.id === id);
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }

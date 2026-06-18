@@ -1,4 +1,4 @@
-import { getDbData, saveDbData } from "./github";
+import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
 
 export interface Skill {
   id: string;
@@ -68,392 +68,535 @@ export interface Agent {
   tags: string[];
 }
 
-export interface RawSkill extends Skill {
-  title_da?: string;
-  title_en?: string;
-  vibeCoderTitle_da?: string;
-  vibeCoderTitle_en?: string;
-  description_da?: string;
-  description_en?: string;
+// Database row shapes (snake_case, bilingual columns)
+interface SkillRow {
+  id: string;
+  title_da: string;
+  title_en: string;
+  category: Skill["category"];
+  vibe_coder: string;
+  vibe_coder_title_da: string;
+  vibe_coder_title_en: string;
+  rating: number | string;
+  reviews_count: number;
+  description_da: string;
+  description_en: string;
+  tags: string[] | null;
+  github_url: string | null;
 }
 
-export interface RawShowcaseProject extends ShowcaseProject {
-  title_da?: string;
-  title_en?: string;
-  description_da?: string;
-  description_en?: string;
+interface ShowcaseRow {
+  id: string;
+  title_da: string;
+  title_en: string;
+  author: string;
+  description_da: string;
+  description_en: string;
+  tools: string[] | null;
+  prompts: string[] | null;
+  upvotes: number | null;
+  demo_url: string | null;
+  github_url: string | null;
+  image_url: string | null;
 }
 
-export interface RawForumReply extends ForumReply {
-  content_da?: string;
-  content_en?: string;
+interface ThreadRow {
+  id: string;
+  title_da: string;
+  title_en: string;
+  author: string;
+  category: ForumThread["category"];
+  content_da: string;
+  content_en: string;
+  upvotes: number | null;
+  created_at: string;
 }
 
-export interface RawForumThread extends ForumThread {
-  title_da?: string;
-  title_en?: string;
-  content_da?: string;
-  content_en?: string;
-  replies: RawForumReply[];
+interface ReplyRow {
+  id: string;
+  thread_id: string;
+  author: string;
+  content_da: string;
+  content_en: string;
+  created_at: string;
 }
 
-export interface RawBlogPost extends BlogPost {
-  title_da?: string;
-  title_en?: string;
-  excerpt_da?: string;
-  excerpt_en?: string;
-  content_da?: string;
-  content_en?: string;
+interface BlogPostRow {
+  id: string;
+  title_da: string;
+  title_en: string;
+  excerpt_da: string;
+  excerpt_en: string;
+  content_da: string;
+  content_en: string;
+  author: string;
+  read_time: string;
+  published_at: string;
+  image_url: string;
+  category: BlogPost["category"];
 }
 
-export interface RawAgent extends Agent {
-  description_da?: string;
-  description_en?: string;
-  systemPrompt_da?: string;
-  systemPrompt_en?: string;
+interface AgentRow {
+  id: string;
+  name: string;
+  developer: string;
+  category: Agent["category"];
+  description_da: string;
+  description_en: string;
+  install_command: string;
+  system_prompt_da: string;
+  system_prompt_en: string;
+  upvotes: number | null;
+  tags: string[] | null;
 }
 
-export interface DbState {
-  skills: RawSkill[];
-  showcase: RawShowcaseProject[];
-  forum: RawForumThread[];
-  blog: RawBlogPost[];
-  agents: RawAgent[];
-}
-
-// Singleton for DB state
-let dbCache: DbState | null = null;
-
-export async function getDb(): Promise<DbState> {
-  if (!dbCache) {
-    dbCache = await getDbData();
-  }
-  return dbCache!;
-}
-
-async function persist() {
-  if (dbCache) {
-    await saveDbData(dbCache);
-  }
-}
-
-// Language helper translators
-function translateSkill(s: RawSkill, lang: 'da' | 'en'): Skill {
+// Map database entities to frontend camelCase objects
+function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
   return {
-    ...s,
-    title: lang === 'en' ? (s.title_en || s.title) : (s.title_da || s.title),
-    vibeCoderTitle: lang === 'en' ? (s.vibeCoderTitle_en || s.vibeCoderTitle) : (s.vibeCoderTitle_da || s.vibeCoderTitle),
-    description: lang === 'en' ? (s.description_en || s.description) : (s.description_da || s.description),
+    id: s.id,
+    title: lang === 'en' ? s.title_en : s.title_da,
+    category: s.category,
+    vibeCoder: s.vibe_coder,
+    vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,
+    rating: Number(s.rating),
+    reviewsCount: s.reviews_count,
+    description: lang === 'en' ? s.description_en : s.description_da,
+    tags: s.tags || [],
+    githubUrl: s.github_url || undefined,
   };
 }
 
-function translateProject(p: RawShowcaseProject, lang: 'da' | 'en'): ShowcaseProject {
+function mapProject(p: ShowcaseRow, lang: 'da' | 'en'): ShowcaseProject {
   return {
-    ...p,
-    title: lang === 'en' ? (p.title_en || p.title) : (p.title_da || p.title),
-    description: lang === 'en' ? (p.description_en || p.description) : (p.description_da || p.description),
+    id: p.id,
+    title: lang === 'en' ? p.title_en : p.title_da,
+    author: p.author,
+    description: lang === 'en' ? p.description_en : p.description_da,
+    tools: p.tools || [],
+    prompts: p.prompts || [],
+    upvotes: p.upvotes || 0,
+    demoUrl: p.demo_url || '',
+    githubUrl: p.github_url || undefined,
+    imageUrl: p.image_url || '/images/autonewsletter.jpg',
   };
 }
 
-function translateThread(t: RawForumThread, lang: 'da' | 'en'): ForumThread {
+function mapThread(t: ThreadRow, replies: ReplyRow[], lang: 'da' | 'en'): ForumThread {
   return {
-    ...t,
-    title: lang === 'en' ? (t.title_en || t.title) : (t.title_da || t.title),
-    content: lang === 'en' ? (t.content_en || t.content) : (t.content_da || t.content),
-    replies: (t.replies || []).map((r) => ({
-      ...r,
-      content: lang === 'en' ? (r.content_en || r.content) : (r.content_da || r.content),
+    id: t.id,
+    title: lang === 'en' ? t.title_en : t.title_da,
+    author: t.author,
+    category: t.category,
+    content: lang === 'en' ? t.content_en : t.content_da,
+    upvotes: t.upvotes || 0,
+    replies: (replies || []).map(r => ({
+      id: r.id,
+      author: r.author,
+      content: lang === 'en' ? r.content_en : r.content_da,
+      createdAt: r.created_at,
     })),
+    createdAt: t.created_at,
   };
 }
 
-function translateBlogPost(b: RawBlogPost, lang: 'da' | 'en'): BlogPost {
+function mapBlogPost(b: BlogPostRow, lang: 'da' | 'en'): BlogPost {
   return {
-    ...b,
-    title: lang === 'en' ? (b.title_en || b.title) : (b.title_da || b.title),
-    excerpt: lang === 'en' ? (b.excerpt_en || b.excerpt) : (b.excerpt_da || b.excerpt),
-    content: lang === 'en' ? (b.content_en || b.content) : (b.content_da || b.content),
+    id: b.id,
+    title: lang === 'en' ? b.title_en : b.title_da,
+    excerpt: lang === 'en' ? b.excerpt_en : b.excerpt_da,
+    content: lang === 'en' ? b.content_en : b.content_da,
+    author: b.author,
+    readTime: b.read_time,
+    publishedAt: b.published_at,
+    imageUrl: b.image_url,
+    category: b.category,
   };
 }
 
-function translateAgent(a: RawAgent, lang: 'da' | 'en'): Agent {
+function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
   return {
-    ...a,
-    description: lang === 'en' ? (a.description_en || a.description) : (a.description_da || a.description),
-    systemPrompt: lang === 'en' ? (a.systemPrompt_en || a.systemPrompt) : (a.systemPrompt_da || a.systemPrompt),
+    id: a.id,
+    name: a.name,
+    developer: a.developer,
+    category: a.category,
+    description: lang === 'en' ? a.description_en : a.description_da,
+    installCommand: a.install_command,
+    systemPrompt: lang === 'en' ? a.system_prompt_en : a.system_prompt_da,
+    upvotes: a.upvotes || 0,
+    tags: a.tags || [],
   };
 }
 
-// Mock database API functions
+// DB API functions utilizing Supabase
+
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  let list = db.skills;
+  let query = supabasePublic.from('skills').select('*');
+  
   if (category && category !== "All") {
-    list = list.filter(s => s.category === category);
+    query = query.eq('category', category);
   }
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  let list = data.map(s => mapSkill(s, lang));
+
   if (search) {
     const q = search.toLowerCase();
-    list = list.filter(s => {
-      const translated = translateSkill(s, lang);
-      return translated.title.toLowerCase().includes(q) || 
-             translated.description.toLowerCase().includes(q) || 
-             translated.tags.some(t => t.toLowerCase().includes(q));
-    });
+    list = list.filter(s => 
+      s.title.toLowerCase().includes(q) || 
+      s.description.toLowerCase().includes(q) || 
+      s.tags.some(t => t.toLowerCase().includes(q))
+    );
   }
-  return list.map(s => translateSkill(s, lang));
+
+  return list;
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  let list = db.showcase;
+  const query = supabasePublic.from('showcase').select('*').order('upvotes', { ascending: false });
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  let list = data.map(p => mapProject(p, lang));
+
   if (search) {
     const q = search.toLowerCase();
-    list = list.filter(p => {
-      const translated = translateProject(p, lang);
-      return translated.title.toLowerCase().includes(q) || 
-             translated.description.toLowerCase().includes(q) || 
-             translated.tools.some(t => t.toLowerCase().includes(q));
-    });
+    list = list.filter(p => 
+      p.title.toLowerCase().includes(q) || 
+      p.description.toLowerCase().includes(q) || 
+      p.tools.some(t => t.toLowerCase().includes(q))
+    );
   }
-  // Sorted by upvotes
-  return [...list].map(p => translateProject(p, lang)).sort((a, b) => b.upvotes - a.upvotes);
+
+  return list;
 }
 
 export async function upvoteProject(id: string) {
-  const db = await getDb();
-  const proj = db.showcase.find(p => p.id === id);
-  if (proj) {
-    proj.upvotes += 1;
-    await persist();
-    return proj.upvotes;
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn('Cannot upvote: User is not authenticated');
+    return 0;
   }
-  return 0;
+
+  // Attempt to insert join table row (toggle pattern)
+  const { error } = await supabase.from('showcase_upvotes').insert({
+    user_id: user.id,
+    project_id: id,
+  });
+
+  if (error && error.code === '23505') {
+    // Unique violation constraint -> user already upvoted -> toggle it off (delete it)
+    await supabase
+      .from('showcase_upvotes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('project_id', id);
+  }
+
+  // Query updated count
+  const { data } = await supabasePublic
+    .from('showcase')
+    .select('upvotes')
+    .eq('id', id)
+    .single();
+
+  return data?.upvotes || 0;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  let list = db.forum;
+  let query = supabasePublic.from('forum_threads').select('*').order('upvotes', { ascending: false });
+  
   if (category && category !== "All") {
-    list = list.filter(t => t.category === category);
+    query = query.eq('category', category);
   }
-  return [...list].map(t => translateThread(t, lang)).sort((a, b) => b.upvotes - a.upvotes);
+
+  const { data: threads, error: threadErr } = await query;
+  if (threadErr || !threads) return [];
+
+  const { data: replies, error: replyErr } = await supabasePublic.from('forum_replies').select('*').order('created_at', { ascending: true });
+  if (replyErr) return [];
+
+  return threads.map(t => {
+    const threadReplies = (replies || []).filter(r => r.thread_id === t.id);
+    return mapThread(t, threadReplies, lang);
+  });
 }
 
 export async function upvoteThread(id: string) {
-  const db = await getDb();
-  const thread = db.forum.find(t => t.id === id);
-  if (thread) {
-    thread.upvotes += 1;
-    await persist();
-    return thread.upvotes;
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn('Cannot upvote thread: User is not authenticated');
+    return 0;
   }
-  return 0;
+
+  const { error } = await supabase.from('thread_upvotes').insert({
+    user_id: user.id,
+    thread_id: id,
+  });
+
+  if (error && error.code === '23505') {
+    await supabase
+      .from('thread_upvotes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('thread_id', id);
+  }
+
+  const { data } = await supabasePublic
+    .from('forum_threads')
+    .select('upvotes')
+    .eq('id', id)
+    .single();
+
+  return data?.upvotes || 0;
 }
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
-  const db = await getDb();
-  const newT: ForumThread = {
-    id: "t_" + Date.now(),
-    title,
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const newId = 't_' + Date.now();
+  const { data, error } = await supabase.from('forum_threads').insert({
+    id: newId,
+    title_da: title,
+    title_en: title,
     author,
     category,
-    content,
+    content_da: content,
+    content_en: content,
     upvotes: 1,
-    replies: [],
-    createdAt: new Date().toISOString()
-  };
-  // Store default in both to prevent empty spaces
-  const rawT = newT as RawForumThread;
-  rawT.title_da = title;
-  rawT.title_en = title;
-  rawT.content_da = content;
-  rawT.content_en = content;
+    user_id: user?.id || null,
+  }).select().single();
 
-  db.forum.push(rawT);
-  await persist();
-  return newT;
+  if (error || !data) {
+    console.error('Failed to create thread:', error);
+    throw new Error('Kunne ikke oprette tråd');
+  }
+
+  return mapThread(data, [], 'da');
 }
 
 export async function addReply(threadId: string, author: string, content: string) {
-  const db = await getDb();
-  const thread = db.forum.find(t => t.id === threadId);
-  if (thread) {
-    const newR: ForumReply = {
-      id: "r_" + Date.now(),
-      author,
-      content,
-      createdAt: new Date().toISOString()
-    };
-    const rawR = newR as RawForumReply;
-    rawR.content_da = content;
-    rawR.content_en = content;
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-    thread.replies.push(rawR);
-    await persist();
-    return translateThread(thread, 'da'); // Return translated in da as fallback
+  const newId = 'r_' + Date.now();
+  const { error } = await supabase.from('forum_replies').insert({
+    id: newId,
+    thread_id: threadId,
+    author,
+    content_da: content,
+    content_en: content,
+    user_id: user?.id || null,
+  });
+
+  if (error) {
+    console.error('Failed to create reply:', error);
+    return null;
   }
-  return null;
+
+  // Return the parent thread populated with all replies
+  const { data: thread } = await supabasePublic.from('forum_threads').select('*').eq('id', threadId).single();
+  const { data: replies } = await supabasePublic.from('forum_replies').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+
+  if (!thread) return null;
+  return mapThread(thread, replies || [], 'da');
 }
 
 export async function getBlogPosts(lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  return db.blog.map(b => translateBlogPost(b, lang));
+  const { data, error } = await supabasePublic.from('blog_posts').select('*');
+  if (error || !data) return [];
+  return data.map(b => mapBlogPost(b, lang));
 }
 
 export async function getBlogPostById(id: string, lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  const post = db.blog.find(b => b.id === id);
-  return post ? translateBlogPost(post, lang) : null;
+  const { data, error } = await supabasePublic.from('blog_posts').select('*').eq('id', id).single();
+  if (error || !data) return null;
+  return mapBlogPost(data, lang);
 }
 
 export async function getAgents(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
-  const db = await getDb();
-  let list = db.agents;
+  let query = supabasePublic.from('agents').select('*').order('upvotes', { ascending: false });
+
   if (category && category !== "All") {
-    list = list.filter(a => a.category === category);
+    query = query.eq('category', category);
   }
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  let list = data.map(a => mapAgent(a, lang));
+
   if (search) {
     const q = search.toLowerCase();
-    list = list.filter(a => {
-      const translated = translateAgent(a, lang);
-      return translated.name.toLowerCase().includes(q) || 
-             translated.description.toLowerCase().includes(q) || 
-             translated.tags.some(t => t.toLowerCase().includes(q));
-    });
+    list = list.filter(a => 
+      a.name.toLowerCase().includes(q) || 
+      a.description.toLowerCase().includes(q) || 
+      a.tags.some(t => t.toLowerCase().includes(q))
+    );
   }
-  return [...list].map(a => translateAgent(a, lang)).sort((a, b) => b.upvotes - a.upvotes);
+
+  return list;
 }
 
 export async function upvoteAgent(id: string) {
-  const db = await getDb();
-  const agent = db.agents.find(a => a.id === id);
-  if (agent) {
-    agent.upvotes += 1;
-    await persist();
-    return agent.upvotes;
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn('Cannot upvote agent: User is not authenticated');
+    return 0;
   }
-  return 0;
+
+  const { error } = await supabase.from('agent_upvotes').insert({
+    user_id: user.id,
+    agent_id: id,
+  });
+
+  if (error && error.code === '23505') {
+    await supabase
+      .from('agent_upvotes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('agent_id', id);
+  }
+
+  const { data } = await supabasePublic
+    .from('agents')
+    .select('upvotes')
+    .eq('id', id)
+    .single();
+
+  return data?.upvotes || 0;
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string) {
-  const db = await getDb();
-  const newP: ShowcaseProject = {
-    id: "p_" + Date.now(),
-    title,
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const newId = 'p_' + Date.now();
+  const { data, error } = await supabase.from('showcase').insert({
+    id: newId,
+    title_da: title,
+    title_en: title,
     author,
-    description,
+    description_da: description,
+    description_en: description,
     tools,
     prompts,
     upvotes: 1,
-    demoUrl,
-    githubUrl,
-    imageUrl: "/images/autonewsletter.jpg",
-  };
-  const rawP = newP as RawShowcaseProject;
-  rawP.title_da = title;
-  rawP.title_en = title;
-  rawP.description_da = description;
-  rawP.description_en = description;
+    demo_url: demoUrl,
+    github_url: githubUrl,
+    image_url: '/images/autonewsletter.jpg',
+    user_id: user?.id || null,
+  }).select().single();
 
-  db.showcase.unshift(rawP);
-  await persist();
-  return newP;
+  if (error || !data) {
+    console.error('Failed to create project:', error);
+    throw new Error('Kunne ikke oprette projekt');
+  }
+
+  return mapProject(data, 'da');
 }
 
 export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string) {
-  const db = await getDb();
-  const newS: Skill = {
-    id: "s_" + Date.now(),
-    title,
-    category,
-    vibeCoder,
-    vibeCoderTitle: "Community Contributor",
-    rating: 5.0,
-    reviewsCount: 0,
-    description,
-    tags,
-    githubUrl
-  };
-  const rawS = newS as RawSkill;
-  rawS.title_da = title;
-  rawS.title_en = title;
-  rawS.description_da = description;
-  rawS.description_en = description;
-  rawS.vibeCoderTitle_da = "Community-bidragyder";
-  rawS.vibeCoderTitle_en = "Community Contributor";
+  const supabase = await createSupabaseServerClient();
 
-  db.skills.unshift(rawS);
-  await persist();
-  return newS;
+  const newId = 's_' + Date.now();
+  const { data, error } = await supabase.from('skills').insert({
+    id: newId,
+    title_da: title,
+    title_en: title,
+    vibe_coder: vibeCoder,
+    vibe_coder_title_da: 'Community-bidragyder',
+    vibe_coder_title_en: 'Community Contributor',
+    rating: 5.0,
+    reviews_count: 0,
+    description_da: description,
+    description_en: description,
+    category,
+    tags,
+    github_url: githubUrl,
+  }).select().single();
+
+  if (error || !data) {
+    console.error('Failed to create skill:', error);
+    throw new Error('Kunne ikke oprette skill');
+  }
+
+  return mapSkill(data, 'da');
 }
 
 export async function deleteProject(id: string) {
-  const db = await getDb();
-  const index = db.showcase.findIndex(p => p.id === id);
-  if (index !== -1) {
-    db.showcase.splice(index, 1);
-    await persist();
-    return true;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from('showcase').delete().eq('id', id);
+  if (error) {
+    console.error('Failed to delete project:', error);
+    return false;
   }
-  return false;
+  return true;
 }
 
 export async function deleteThread(id: string) {
-  const db = await getDb();
-  const index = db.forum.findIndex(t => t.id === id);
-  if (index !== -1) {
-    db.forum.splice(index, 1);
-    await persist();
-    return true;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from('forum_threads').delete().eq('id', id);
+  if (error) {
+    console.error('Failed to delete thread:', error);
+    return false;
   }
-  return false;
+  return true;
 }
 
 export async function deleteReply(threadId: string, replyId: string) {
-  const db = await getDb();
-  const thread = db.forum.find(t => t.id === threadId);
-  if (thread) {
-    const index = thread.replies.findIndex(r => r.id === replyId);
-    if (index !== -1) {
-      thread.replies.splice(index, 1);
-      await persist();
-      return true;
-    }
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from('forum_replies').delete().eq('id', replyId);
+  if (error) {
+    console.error('Failed to delete reply:', error);
+    return false;
   }
-  return false;
+  return true;
 }
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[]) {
-  const db = await getDb();
-  const newA: Agent = {
-    id: "a_" + Date.now(),
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const newId = 'a_' + Date.now();
+  const { data, error } = await supabase.from('agents').insert({
+    id: newId,
     name,
     developer,
     category,
-    description,
-    installCommand,
-    systemPrompt,
+    description_da: description,
+    description_en: description,
+    install_command: installCommand,
+    system_prompt_da: systemPrompt,
+    system_prompt_en: systemPrompt,
     upvotes: 1,
     tags,
-  };
-  const rawA = newA as RawAgent;
-  rawA.description_da = description;
-  rawA.description_en = description;
-  rawA.systemPrompt_da = systemPrompt;
-  rawA.systemPrompt_en = systemPrompt;
+    user_id: user?.id || null,
+  }).select().single();
 
-  db.agents.unshift(rawA);
-  await persist();
-  return newA;
+  if (error || !data) {
+    console.error('Failed to create agent:', error);
+    throw new Error('Kunne ikke oprette agent');
+  }
+
+  return mapAgent(data, 'da');
 }
 
 export async function deleteAgent(id: string) {
-  const db = await getDb();
-  const index = db.agents.findIndex(a => a.id === id);
-  if (index !== -1) {
-    db.agents.splice(index, 1);
-    await persist();
-    return true;
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from('agents').delete().eq('id', id);
+  if (error) {
+    console.error('Failed to delete agent:', error);
+    return false;
   }
-  return false;
+  return true;
 }

@@ -36,8 +36,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   experimental: {
     viewTransition: true,
+    instantNavigationDevToolsToggle: true,
   },
   images: {
     remotePatterns: [

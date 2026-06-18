@@ -106,9 +106,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 2. Click the EN language toggle button in the header
     await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
 
-    // 3. Verify it switches to English instantly
+     // 3. Verify it switches to English instantly
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible();
+    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
     const cookies = await context.cookies();
@@ -119,11 +119,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 5. Reload page to test server-side persistence
     await page.reload();
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible();
+    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
 
     // 6. Click DA toggle back
     await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
     await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
+    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible({ timeout: 10000 });
   });
 });

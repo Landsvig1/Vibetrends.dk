@@ -13,21 +13,25 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 function AgentsPageContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const isMcpParam = categoryParam === "mcp" || categoryParam === "MCP Server";
+  const [selectedCategory, setSelectedCategory] = useState(isMcpParam ? "MCP Server" : "All");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Read query parameters to set selected category reactively
-  useEffect(() => {
-    if (categoryParam === "mcp" || categoryParam === "MCP Server") {
+  // Sync selected category when the query parameter changes (e.g. nav link clicked
+  // while already on this page). Adjusting state during render avoids an effect.
+  const [prevCategoryParam, setPrevCategoryParam] = useState(categoryParam);
+  if (categoryParam !== prevCategoryParam) {
+    setPrevCategoryParam(categoryParam);
+    if (isMcpParam) {
       setSelectedCategory("MCP Server");
     }
-  }, [categoryParam]);
+  }
 
   // Add agent form states
   const [addOpen, setAddOpen] = useState(false);

@@ -1,23 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail } from "lucide-react";
+import { X, Mail, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 
 export default function LoginModal({ onClose }: { onClose: () => void }) {
-  const { login } = useAuth();
+  const { loginWithEmail, loginWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    login(email, "email");
-    onClose();
+    setLoading(true);
+    setMessage("");
+    try {
+      await loginWithEmail(email);
+      setMessage("Vi har sendt et logind-link (magic link) til din e-mail. Tjek venligst din indbakke!");
+    } catch (error) {
+      console.error(error);
+      setMessage("Kunne ikke sende logind-link. Prøv igen.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleOAuth = (provider: "google" | "github") => {
-    login(`${provider}@vibetrends.dk`, provider);
-    onClose();
+  const handleOAuth = async (provider: "google" | "github") => {
+    setLoading(true);
+    setMessage("");
+    try {
+      await loginWithOAuth(provider);
+    } catch (error) {
+      console.error(error);
+      setMessage(`Logind med ${provider} fejlede. Prøv igen.`);
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,6 +57,12 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
 
+          {message && (
+            <div className={`p-3 rounded-lg text-xs font-medium text-center ${message.includes("Tjek") || message.includes("sendt") ? "bg-accent-primary/10 text-accent-primary" : "bg-red-500/10 text-red-500"}`}>
+              {message}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-text-secondary">E-mail</label>
@@ -50,15 +74,24 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="eksempel@vibe.dk"
-                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                  disabled={loading}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm disabled:opacity-50"
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all"
+              disabled={loading}
+              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
             >
-              Fortsæt med E-mail
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Sender...</span>
+                </>
+              ) : (
+                <span>Fortsæt med E-mail</span>
+              )}
             </button>
           </form>
 
@@ -71,7 +104,8 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleOAuth("google")}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer"
+              disabled={loading}
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -92,7 +126,8 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={() => handleOAuth("github")}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer"
+              disabled={loading}
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"

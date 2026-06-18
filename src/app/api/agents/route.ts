@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getAgents, createAgent, deleteAgent, getDb } from "@/lib/db";
+import { getAgents, createAgent, deleteAgent } from "@/lib/db";
 import { z } from "zod";
 
 const agentSchema = z.object({
@@ -83,8 +83,8 @@ export async function DELETE(request: Request) {
   }
 
   // Authorization check
-  const db = await getDb();
-  const agent = db.agents.find(a => a.id === id);
+  const agents = await getAgents();
+  const agent = agents.find(a => a.id === id);
   if (!agent) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }

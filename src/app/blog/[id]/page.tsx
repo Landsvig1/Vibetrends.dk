@@ -20,7 +20,32 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
+import { Suspense } from "react";
+
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [
+    {
+      cookies: [{ name: "vibe_lang", value: "da" }],
+      params: { id: "b1" }
+    }
+  ]
+};
+
 export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={
+      <div className="space-y-10 animate-pulse">
+        <div className="h-6 bg-card-border/50 rounded w-24"></div>
+        <div className="max-w-3xl mx-auto rounded-xl glass-panel overflow-hidden border border-card-border shadow-2xl h-96 bg-card-border/20"></div>
+      </div>
+    }>
+      <BlogPostContent params={params} />
+    </Suspense>
+  );
+}
+
+async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getSkills, getDb } from "@/lib/db";
+import { getSkills, createSkill } from "@/lib/db";
 import { z } from "zod";
 
 const skillSchema = z.object({
@@ -51,24 +51,18 @@ export async function POST(request: Request) {
 
     const { title, category, description, tags, githubUrl } = result.data;
 
-    const db = await getDb();
-    const newSkill = {
-      id: `s${db.skills.length + 1}`,
+    const newSkill = await createSkill(
       title,
-      category,
-      vibeCoder: username,
-      vibeCoderTitle: "Community Contributor",
-      rating: 5.0,
-      reviewsCount: 0,
+      username,
       description,
-      tags: tags || [],
-      githubUrl: githubUrl || undefined
-    };
-
-    db.skills.unshift(newSkill);
+      category,
+      tags || [],
+      githubUrl || undefined
+    );
 
     return NextResponse.json(newSkill, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  } catch (error) {
+    console.error('Failed to create skill API:', error);
+    return NextResponse.json({ error: "Invalid JSON payload or creation failed" }, { status: 400 });
   }
 }

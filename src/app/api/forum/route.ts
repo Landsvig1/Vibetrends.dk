@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getThreads, deleteThread, deleteReply, getDb } from "@/lib/db";
+import { getThreads, deleteThread, deleteReply } from "@/lib/db";
 
 import { cookies } from "next/headers";
 
@@ -32,11 +32,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "threadId is required" }, { status: 400 });
   }
 
-  const db = await getDb();
+  const threads = await getThreads();
 
   if (replyId) {
     // Authorization check for reply
-    const thread = db.forum.find(t => t.id === threadId);
+    const thread = threads.find(t => t.id === threadId);
     const reply = thread?.replies.find(r => r.id === replyId);
     if (!reply) {
       return NextResponse.json({ error: "Reply not found" }, { status: 404 });
@@ -52,7 +52,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true, message: "Reply deleted" });
   } else {
     // Authorization check for thread
-    const thread = db.forum.find(t => t.id === threadId);
+    const thread = threads.find(t => t.id === threadId);
     if (!thread) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }

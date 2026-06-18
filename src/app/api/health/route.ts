@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { supabasePublic } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
-    // Check if we can reach the DB (GitHub)
-    await getDb();
+    // Check if we can reach the DB (Supabase)
+    const { error } = await supabasePublic.from('skills').select('id').limit(1);
+    if (error) throw error;
     
     return NextResponse.json({
       status: "healthy",

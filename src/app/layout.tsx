@@ -48,6 +48,7 @@ export const metadata: Metadata = {
   },
 };
 
+import { Suspense } from "react";
 import RouteTransitionProvider from "./components/RouteTransitionProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "./components/AuthProvider";
@@ -55,17 +56,14 @@ import { cookies } from "next/headers";
 import { LanguageProvider } from "./components/LanguageProvider";
 import { Language } from "@/lib/translations";
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   return (
     <html
-      lang={lang}
+      lang="da"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -85,17 +83,37 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-accent-light selection:text-text-primary">
-        <LanguageProvider initialLanguage={lang}>
-          <AuthProvider>
-            <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-              <RouteTransitionProvider>{children}</RouteTransitionProvider>
-            </main>
-            <Footer />
-          </AuthProvider>
-        </LanguageProvider>
+        <Suspense fallback={
+          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-pulse">
+            <div className="h-10 bg-card-border/20 rounded w-1/4 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-card-border/20 rounded w-3/4"></div>
+              <div className="h-4 bg-card-border/20 rounded w-1/2"></div>
+            </div>
+          </main>
+        }>
+          <RootLayoutInner>{children}</RootLayoutInner>
+        </Suspense>
         <Analytics />
       </body>
     </html>
   );
 }
+
+async function RootLayoutInner({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
+
+  return (
+    <LanguageProvider initialLanguage={lang}>
+      <AuthProvider>
+        <Header />
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+          <RouteTransitionProvider>{children}</RouteTransitionProvider>
+        </main>
+        <Footer />
+      </AuthProvider>
+    </LanguageProvider>
+  );
+}
+
