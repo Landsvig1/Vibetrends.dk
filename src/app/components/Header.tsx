@@ -3,13 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X, ChevronDown } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, Menu, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import KoalaIcon from "./KoalaIcon";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
+
+interface NavSubItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+interface NavItem {
+  name: string;
+  href?: string;
+  icon: LucideIcon;
+  isDropdown?: boolean;
+  items?: NavSubItem[];
+}
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,14 +32,14 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
 
-  const isItemActive = (item: any) => {
+  const isItemActive = (item: NavItem) => {
     if (item.isDropdown) {
-      return item.items?.some((subItem: any) => pathname === subItem.href || pathname.startsWith(subItem.href)) ?? false;
+      return item.items?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href)) ?? false;
     }
     return item.href ? (pathname === item.href || pathname.startsWith(item.href)) : false;
   };
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
     {
       name: t("nav.tools"),
