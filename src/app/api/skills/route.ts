@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const skillSchema = z.object({
@@ -31,8 +32,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const username = request.headers.get("x-username");
-    if (!username) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
     const newSkill = await createSkill(
       title,
-      username,
+      user.username,
       description,
       category,
       tags || [],

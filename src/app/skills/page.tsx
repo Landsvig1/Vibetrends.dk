@@ -73,10 +73,7 @@ export default function SkillsPage() {
     try {
       const res = await fetch("/api/skills", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-username": user.username
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: subTitle,
           category: subCat,

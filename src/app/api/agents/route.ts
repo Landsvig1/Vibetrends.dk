@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getAgents, createAgent, deleteAgent } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const agentSchema = z.object({
   name: z.string().min(1).max(100),
-  developer: z.string().optional(),
   category: z.enum(["DevTools", "Writing", "Browsing", "MCP Server"]),
   description: z.string().min(10).max(500),
   installCommand: z.string().optional(),
@@ -33,8 +33,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const username = request.headers.get("x-username");
-    if (!username) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -51,11 +51,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, developer, category, description, installCommand, systemPrompt, tags } = result.data;
+    const { name, category, description, installCommand, systemPrompt, tags } = result.data;
 
     const agent = await createAgent(
       name,
-      developer || username,
+      user.username,
       category,
       description,
       installCommand || "",
@@ -70,8 +70,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const username = request.headers.get("x-username");
-  if (!username) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -82,20 +82,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "agentId is required" }, { status: 400 });
   }
 
-  // Authorization check
-  const agents = await getAgents();
-  const agent = agents.find(a => a.id === id);
-  if (!agent) {
-    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  }
-  
-  if (agent.developer !== username) {
-    return NextResponse.json({ error: "Forbidden: You do not own this agent" }, { status: 403 });
-  }
-
-  const success = await deleteAgent(id);
-  if (!success) {
-    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  // Ownership is enforced by RLS; a false result means not found or not owned.
+  const deleted = await deleteAgent(id);
+  if (!deleted) {
+    return NextResponse.json({ error: "Agent not found or not owned" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true, message: "Agent deleted" });

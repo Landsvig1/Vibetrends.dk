@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getProjects, createProject, deleteProject } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const projectSchema = z.object({
   title: z.string().min(1).max(100),
-  author: z.string().optional(),
   description: z.string().min(10).max(500),
   tools: z.array(z.string()).max(10).optional(),
   prompts: z.array(z.string()).optional(),
@@ -32,8 +32,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const username = request.headers.get("x-username");
-    if (!username) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,11 +50,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, author, description, tools, prompts, demoUrl, githubUrl } = result.data;
+    const { title, description, tools, prompts, demoUrl, githubUrl } = result.data;
 
     const project = await createProject(
       title,
-      author || username,
+      user.username,
       description,
       tools || [],
       prompts || [],
@@ -69,32 +69,22 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const username = request.headers.get("x-username");
-  if (!username) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams = new URL(request.url).searchParams } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const id = searchParams.get("projectId");
 
   if (!id) {
     return NextResponse.json({ error: "projectId is required" }, { status: 400 });
   }
 
-  // Authorization check
-  const projects = await getProjects();
-  const project = projects.find(p => p.id === id);
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
-  
-  if (project.author !== username) {
-    return NextResponse.json({ error: "Forbidden: You do not own this project" }, { status: 403 });
-  }
-
-  const success = await deleteProject(id);
-  if (!success) {
-    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  // Ownership is enforced by RLS; a false result means not found or not owned.
+  const deleted = await deleteProject(id);
+  if (!deleted) {
+    return NextResponse.json({ error: "Project not found or not owned" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true, message: "Project deleted" });

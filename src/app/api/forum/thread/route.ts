@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { createThread } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const threadSchema = z.object({
@@ -11,8 +12,8 @@ const threadSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const username = request.headers.get("x-username");
-    if (!username) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
 
     const { title, category, content } = result.data;
 
-    const thread = await createThread(title, username, category, content);
+    const thread = await createThread(title, user.username, category, content);
     return NextResponse.json(thread, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });

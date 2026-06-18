@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getThreads, deleteThread, deleteReply } from "@/lib/db";
+import { getAuthUser } from "@/lib/supabase-server";
 
 import { cookies } from "next/headers";
 
@@ -19,8 +20,8 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const username = request.headers.get("x-username");
-  if (!username) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -32,37 +33,17 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "threadId is required" }, { status: 400 });
   }
 
-  const threads = await getThreads();
-
+  // Ownership is enforced by RLS; a false result means not found or not owned.
   if (replyId) {
-    // Authorization check for reply
-    const thread = threads.find(t => t.id === threadId);
-    const reply = thread?.replies.find(r => r.id === replyId);
-    if (!reply) {
-      return NextResponse.json({ error: "Reply not found" }, { status: 404 });
-    }
-    if (reply.author !== username) {
-      return NextResponse.json({ error: "Forbidden: You do not own this reply" }, { status: 403 });
-    }
-
-    const success = await deleteReply(threadId, replyId);
-    if (!success) {
-      return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    const deleted = await deleteReply(threadId, replyId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Reply not found or not owned" }, { status: 404 });
     }
     return NextResponse.json({ success: true, message: "Reply deleted" });
   } else {
-    // Authorization check for thread
-    const thread = threads.find(t => t.id === threadId);
-    if (!thread) {
-      return NextResponse.json({ error: "Thread not found" }, { status: 404 });
-    }
-    if (thread.author !== username) {
-      return NextResponse.json({ error: "Forbidden: You do not own this thread" }, { status: 403 });
-    }
-
-    const success = await deleteThread(threadId);
-    if (!success) {
-      return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    const deleted = await deleteThread(threadId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Thread not found or not owned" }, { status: 404 });
     }
     return NextResponse.json({ success: true, message: "Thread deleted" });
   }

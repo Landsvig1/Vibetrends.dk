@@ -80,10 +80,7 @@ export default function ForumPage() {
     try {
       const res = await fetch("/api/forum/thread", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-username": user.username
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: threadTitle,
           category: threadCategory,
@@ -116,7 +113,6 @@ export default function ForumPage() {
     try {
       const res = await fetch(`/api/forum?threadId=${threadId}`, {
         method: "DELETE",
-        headers: { "x-username": user.username }
       });
 
       if (res.ok) {

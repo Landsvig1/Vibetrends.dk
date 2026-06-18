@@ -535,32 +535,33 @@ export async function createSkill(title: string, vibeCoder: string, description:
 
 export async function deleteProject(id: string) {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from('showcase').delete().eq('id', id);
+  const { data, error } = await supabase.from('showcase').delete().eq('id', id).select('id');
   if (error) {
     console.error('Failed to delete project:', error);
     return false;
   }
-  return true;
+  // RLS restricts deletes to the owner; an empty result means not found or not owned.
+  return (data?.length ?? 0) > 0;
 }
 
 export async function deleteThread(id: string) {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from('forum_threads').delete().eq('id', id);
+  const { data, error } = await supabase.from('forum_threads').delete().eq('id', id).select('id');
   if (error) {
     console.error('Failed to delete thread:', error);
     return false;
   }
-  return true;
+  return (data?.length ?? 0) > 0;
 }
 
 export async function deleteReply(threadId: string, replyId: string) {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from('forum_replies').delete().eq('id', replyId);
+  const { data, error } = await supabase.from('forum_replies').delete().eq('id', replyId).select('id');
   if (error) {
     console.error('Failed to delete reply:', error);
     return false;
   }
-  return true;
+  return (data?.length ?? 0) > 0;
 }
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[]) {
@@ -593,10 +594,10 @@ export async function createAgent(name: string, developer: string, category: Age
 
 export async function deleteAgent(id: string) {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from('agents').delete().eq('id', id);
+  const { data, error } = await supabase.from('agents').delete().eq('id', id).select('id');
   if (error) {
     console.error('Failed to delete agent:', error);
     return false;
   }
-  return true;
+  return (data?.length ?? 0) > 0;
 }
