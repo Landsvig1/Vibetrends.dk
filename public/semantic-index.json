@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T07:43:07.857Z",
+  "generatedAt": "2026-06-18T19:48:13.895Z",
   "summary": {
     "skills_count": 3,
     "showcase_count": 3,
@@ -35,26 +35,32 @@
   "entities": [
     {
       "type": "skill",
+      "name": "Optimering af Custom Cursor-regler (.cursorrules)",
       "id": "s1"
     },
     {
       "type": "skill",
+      "name": "Design af Multi-Agent arbejdsgange (LangGraph / CrewAI)",
       "id": "s2"
     },
     {
       "type": "skill",
+      "name": "Supabase Database & RLS-politik revision",
       "id": "s3"
     },
     {
       "type": "project",
+      "name": "AutoNewsletter Generator",
       "id": "p1"
     },
     {
       "type": "project",
+      "name": "Simply DNS API Client GUI",
       "id": "p2"
     },
     {
       "type": "project",
+      "name": "GitAgent - AI Commit & Branch Assistent",
       "id": "p3"
     },
     {
