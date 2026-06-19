@@ -100,7 +100,7 @@ export default async function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-foreground">4. Ændring af vilkår</h2>
           <p>
-            We forbeholder os retten til løbende at ændre eller opdatere disse brugervilkår uden forudgående varsel. Det er dit eget ansvar at holde dig opdateret med de gældende vilkår.
+            Vi forbeholder os retten til løbende at ændre eller opdatere disse brugervilkår uden forudgående varsel. Det er dit eget ansvar at holde dig opdateret med de gældende vilkår.
           </p>
         </section>
       </div>

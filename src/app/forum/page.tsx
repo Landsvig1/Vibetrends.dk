@@ -137,7 +137,7 @@ export default function ForumPage() {
         </div>
         <button
           onClick={() => setNewThreadOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {t("forum.btn_create")}
@@ -156,7 +156,7 @@ export default function ForumPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
+                className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
                   selectedCategory === cat
                     ? "bg-accent-light text-accent-primary border border-accent-primary/20"
                     : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
@@ -175,8 +175,17 @@ export default function ForumPage() {
               <div
                 key={thread.id}
                 data-testid="thread-card"
+                role="link"
+                tabIndex={0}
+                aria-label={thread.title}
                 onClick={() => router.push(`/forum/${thread.id}`)}
-                className="block rounded-xl glass-card p-6 flex flex-col justify-between cursor-pointer group hover:-translate-y-0.5 transition-all"
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    router.push(`/forum/${thread.id}`);
+                  }
+                }}
+                className="block rounded-xl glass-card p-6 flex flex-col justify-between cursor-pointer group hover:-translate-y-0.5 transition"
               >
                 <div className="flex justify-between items-start gap-4">
                   <div className="space-y-2">
@@ -191,10 +200,11 @@ export default function ForumPage() {
                             e.stopPropagation();
                             handleDeleteThread(thread.id);
                           }}
-                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
+                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                          aria-label={language === "da" ? "Slet tråd" : "Delete thread"}
                           title={language === "da" ? "Slet tråd" : "Delete thread"}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
                       )}
                     </div>
@@ -212,9 +222,10 @@ export default function ForumPage() {
                       e.stopPropagation();
                       handleUpvote(thread.id);
                     }}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all z-10"
+                    aria-label={`Upvote ${thread.title}`}
+                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-10"
                   >
-                    <Heart className="h-3.5 w-3.5 fill-current" />
+                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                     <span className="text-xs font-bold font-mono">{thread.upvotes}</span>
                   </button>
                 </div>
@@ -246,14 +257,15 @@ export default function ForumPage() {
 
       {/* Start Thread Modal */}
       {newThreadOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label={t("forum.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
             {/* Close */}
             <button
               onClick={() => setNewThreadOpen(false)}
+              aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
 
             {threadSuccess ? (
@@ -333,7 +345,7 @@ export default function ForumPage() {
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all"
+                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition"
                 >
                   {t("forum.modal.btn_submit")}
                 </button>

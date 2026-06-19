@@ -150,13 +150,14 @@ export default function SkillsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
+            aria-label={t("skills.search")}
             placeholder={t("skills.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -166,7 +167,7 @@ export default function SkillsPage() {
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
                 selectedCategory === category
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
@@ -223,7 +224,7 @@ export default function SkillsPage() {
                     href={skill.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
                   >
                     <GithubIcon className="h-4 w-4" />
                     {t("skills.github")}

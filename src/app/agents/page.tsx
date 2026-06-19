@@ -165,7 +165,7 @@ function AgentsPageContent() {
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {t("agents.btn_register")}
@@ -175,13 +175,14 @@ function AgentsPageContent() {
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
+            aria-label={t("agents.search")}
             placeholder={t("agents.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -190,7 +191,7 @@ function AgentsPageContent() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
                 selectedCategory === cat
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
@@ -209,8 +210,17 @@ function AgentsPageContent() {
             <div
               key={agent.id}
               data-testid="agent-card"
+              role="link"
+              tabIndex={0}
+              aria-label={agent.name}
               onClick={() => router.push(`/agents/${agent.id}`)}
-              className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 cursor-pointer group hover:-translate-y-0.5 transition-all"
+              onKeyDown={(e) => {
+                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  router.push(`/agents/${agent.id}`);
+                }
+              }}
+              className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 cursor-pointer group hover:-translate-y-0.5 transition"
             >
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
@@ -223,9 +233,10 @@ function AgentsPageContent() {
                       {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id, e); }}
-                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
+                          aria-label={t("agents.confirm_delete")}
+                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
                       )}
                     </div>
@@ -236,9 +247,10 @@ function AgentsPageContent() {
 
                   <button
                     onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all z-10"
+                    aria-label={`Upvote ${agent.name}`}
+                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-10"
                   >
-                    <Heart className="h-3.5 w-3.5 fill-current" />
+                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                     <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
                   </button>
                 </div>
@@ -251,12 +263,13 @@ function AgentsPageContent() {
                   <span className="truncate pr-8">{agent.installCommand}</span>
                   <button
                     onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
+                    aria-label={copiedId === agent.id ? "Kopieret" : "Kopiér installationskommando"}
                     className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-10"
                   >
                     {copiedId === agent.id ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-accent-primary" />
+                      <CheckCircle className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
                     ) : (
-                      <Copy className="h-3.5 w-3.5" />
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -288,13 +301,14 @@ function AgentsPageContent() {
 
       {/* Add Agent / MCP Modal */}
       {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label={t("agents.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
             <button
               onClick={() => setAddOpen(false)}
+              aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
 
             {addSuccess ? (
@@ -393,7 +407,7 @@ function AgentsPageContent() {
                     rows={4}
                     value={addPrompt}
                     onChange={(e) => setAddPrompt(e.target.value)}
-                    placeholder="Raw text prompt..."
+                    placeholder="Raw text prompt…"
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none font-mono"
                   />
                 </div>
@@ -419,7 +433,7 @@ export default function AgentsPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-text-secondary font-semibold">Indlæser...</div>
+        <div className="text-text-secondary font-semibold">Indlæser…</div>
       </div>
     }>
       <AgentsPageContent />

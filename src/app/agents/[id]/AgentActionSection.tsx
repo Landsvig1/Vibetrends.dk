@@ -63,12 +63,13 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
               <span className="truncate pr-4">{agent.installCommand}</span>
               <button
                 onClick={() => handleCopyCommand(agent.installCommand, "install")}
-                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-all active:scale-95 cursor-pointer"
+                aria-label={copiedId === "install" ? "Kopieret" : "Kopiér installationskommando"}
+                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition active:scale-95 cursor-pointer"
               >
                 {copiedId === "install" ? (
-                  <CheckCircle className="h-4 w-4 text-accent-primary" />
+                  <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
            </div>
@@ -77,7 +78,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
         <div className="grid grid-cols-1 gap-3 pt-2">
            <button
              onClick={handleUpvote}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-primary font-bold hover:bg-rose-500/20 transition-all active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-primary font-bold hover:bg-rose-500/20 transition active:scale-[0.98] cursor-pointer"
            >
              <Heart className="h-4 w-4 fill-current" />
              {language === "da" ? "Upvote Agent" : "Upvote Agent"}
@@ -85,7 +86,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
            
            <button
              onClick={() => handleCopyCommand(agent.systemPrompt, "prompt")}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-violet-600/10 border border-accent-primary/20 text-accent-primary font-bold hover:bg-violet-600/20 transition-all active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-violet-600/10 border border-accent-primary/20 text-accent-primary font-bold hover:bg-violet-600/20 transition active:scale-[0.98] cursor-pointer"
            >
              <Terminal className="h-4 w-4" />
              {copiedId === "prompt" ? t("agents.detail.prompt_copied") : t("agents.detail.copy_prompt")}
@@ -96,7 +97,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
           <div className="pt-4 border-t border-card-border">
             <button
               onClick={handleDeleteAgent}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary/70 hover:text-accent-primary hover:bg-accent-light transition-all text-xs font-bold cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary/70 hover:text-accent-primary hover:bg-accent-light transition text-xs font-bold cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
               {language === "da" ? "Afregistrer Agent" : "Unregister Agent"}

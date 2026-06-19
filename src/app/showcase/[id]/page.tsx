@@ -173,7 +173,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                       href={project.demoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition-all shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition shadow-sm"
                     >
                       <ExternalLink className="h-4 w-4" />
                       {t("showcase.detail.visit")}

@@ -15,7 +15,7 @@ export default function Footer() {
           {/* Brand section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition-all duration-300">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition duration-300">
                 <KoalaIcon className="h-4 w-4" />
               </div>
               <span className="text-lg font-bold text-foreground">

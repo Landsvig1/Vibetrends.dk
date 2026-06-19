@@ -129,7 +129,7 @@ export default function TemplateSwitcher() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border snap-center shrink-0 ${
+                className={`relative px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition duration-300 outline-none select-none cursor-pointer flex items-center gap-2 border snap-center shrink-0 ${
                   isActive
                     ? "text-white border-transparent"
                     : "text-text-secondary border-card-border hover:text-foreground hover:border-card-border"
