@@ -42,7 +42,7 @@ export default async function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-foreground">2. No Tracking Cookies</h2>
             <p>
-              We value your privacy. Therefore, vibetrends.dk uses **no personally identifiable tracking cookies** or third-party cookies. We only collect anonymous usage statistics via Vercel Web Analytics, which does not store cookies on your device or save personal information (IP addresses are completely anonymized).
+              We value your privacy. Therefore, vibetrends.dk uses <strong>no personally identifiable tracking cookies</strong> or third-party cookies. We only collect anonymous usage statistics via Vercel Web Analytics, which does not store cookies on your device or save personal information (IP addresses are completely anonymized).
             </p>
           </section>
 
@@ -102,7 +102,7 @@ export default async function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-foreground">2. Ingen sporingscookies</h2>
           <p>
-            Vi vægter dit privatliv højt. Derfor benytter vibetrends.dk **ingen personhenførbare sporingscookies** eller tredjepartscookies. Vi indsamler udelukkende anonyme brugsstatistikker via Vercel Web Analytics, som ikke lagrer cookies på din enhed eller gemmer personlige oplysninger (IP-adresser anonymiseres fuldstændigt).
+            Vi vægter dit privatliv højt. Derfor benytter vibetrends.dk <strong>ingen personhenførbare sporingscookies</strong> eller tredjepartscookies. Vi indsamler udelukkende anonyme brugsstatistikker via Vercel Web Analytics, som ikke lagrer cookies på din enhed eller gemmer personlige oplysninger (IP-adresser anonymiseres fuldstændigt).
           </p>
         </section>
 

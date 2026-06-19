@@ -39,13 +39,14 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-label="Log ind" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
         <button
           onClick={onClose}
+          aria-label="Luk"
           className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5" aria-hidden="true" />
         </button>
 
         <div className="space-y-6">
@@ -58,18 +59,22 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {message && (
-            <div className={`p-3 rounded-lg text-xs font-medium text-center ${message.includes("Tjek") || message.includes("sendt") ? "bg-accent-primary/10 text-accent-primary" : "bg-red-500/10 text-red-500"}`}>
+            <div role="status" aria-live="polite" className={`p-3 rounded-lg text-xs font-medium text-center ${message.includes("Tjek") || message.includes("sendt") ? "bg-accent-primary/10 text-accent-primary" : "bg-red-500/10 text-red-500"}`}>
               {message}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-text-secondary">E-mail</label>
+              <label htmlFor="login-email" className="text-xs font-semibold text-text-secondary">E-mail</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-secondary" aria-hidden="true" />
                 <input
+                  id="login-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
+                  spellCheck={false}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -82,12 +87,12 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Sender...</span>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Sender…</span>
                 </>
               ) : (
                 <span>Fortsæt med E-mail</span>
@@ -105,10 +110,11 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => handleOAuth("google")}
               disabled={loading}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"
+                aria-hidden="true"
                 className="h-4 w-4 text-accent-primary"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -127,10 +133,11 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => handleOAuth("github")}
               disabled={loading}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"
+                aria-hidden="true"
                 className="h-4 w-4 text-text-secondary"
                 stroke="currentColor"
                 strokeWidth="2"

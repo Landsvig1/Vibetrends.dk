@@ -53,13 +53,14 @@ export default function BlogList() {
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
+            aria-label={t("blog.search")}
             placeholder={t("blog.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -68,7 +69,7 @@ export default function BlogList() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer snap-center shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
                 selectedCategory === cat
                   ? "bg-violet-600 text-white font-extrabold shadow-md shadow-violet-500/20"
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
@@ -95,7 +96,7 @@ export default function BlogList() {
                   fill
                   sizes="(max-w-7xl) 50vw, 100vw"
                   priority={index === 0}
-                  className="object-cover opacity-70 group-hover:scale-105 transition-all duration-500"
+                  className="object-cover opacity-70 group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
               </div>

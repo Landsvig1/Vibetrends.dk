@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./components/Header";
@@ -46,6 +46,11 @@ export const metadata: Metadata = {
     description: "Dansk community og markedsplads for vibe coding og AI agenter.",
     images: ["/images/og-default.jpg"],
   },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light",
+  themeColor: "#FAF9F6",
 };
 
 import { Suspense } from "react";

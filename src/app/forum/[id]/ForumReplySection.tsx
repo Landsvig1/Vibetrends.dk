@@ -86,10 +86,11 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
                 {user && (reply.author === user.username || reply.author.startsWith("vibecoder_")) && (
                   <button
                     onClick={() => handleDeleteReply(reply.id)}
-                    className="absolute top-4 right-4 flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary transition-all opacity-0 group-hover/reply:opacity-100"
+                    className="absolute top-4 right-4 flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary transition opacity-0 group-hover/reply:opacity-100 focus-visible:opacity-100"
+                    aria-label={language === "da" ? "Slet svar" : "Delete reply"}
                     title={language === "da" ? "Slet svar" : "Delete reply"}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 )}
                 
@@ -154,10 +155,10 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
         <button
           type="submit"
           disabled={submitting}
-          className="flex items-center justify-center px-6 py-3 rounded-xl btn-primary text-foreground font-bold text-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center px-6 py-3 rounded-xl btn-primary text-foreground font-bold text-sm shadow-sm transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? (language === "da" ? "Sender..." : "Sending...") : t("forum.detail.btn_reply")}
-          <Send className="h-4 w-4 ml-2" />
+          {submitting ? (language === "da" ? "Sender…" : "Sending…") : t("forum.detail.btn_reply")}
+          <Send className="h-4 w-4 ml-2" aria-hidden="true" />
         </button>
       </form>
 

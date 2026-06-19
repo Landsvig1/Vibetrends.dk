@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2 } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -14,8 +14,7 @@ export default function ShowcasePage() {
   const [search, setSearch] = useState("");
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const router = useRouter();
-  
+
   // Submit modal states
   const [submitOpen, setSubmitOpen] = useState(false);
   const [subTitle, setSubTitle] = useState("");
@@ -169,7 +168,7 @@ export default function ShowcasePage() {
         </div>
         <button
           onClick={() => setSubmitOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition-all cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {t("showcase.btn_submit")}
@@ -178,13 +177,14 @@ export default function ShowcasePage() {
 
       {/* Search Bar */}
       <div className="relative max-w-md mx-auto md:mx-0">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
         <input
           type="text"
+          aria-label={t("showcase.search")}
           placeholder={t("showcase.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition-all text-sm"
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
         />
       </div>
 
@@ -192,12 +192,16 @@ export default function ShowcasePage() {
       {filteredProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project, index) => (
-            <div 
-              key={project.id} 
+            <div
+              key={project.id}
               data-testid="project-card"
-              onClick={() => router.push(`/showcase/${project.id}`)}
-              className="rounded-xl glass-card overflow-hidden flex flex-col justify-between group cursor-pointer"
+              className="relative rounded-xl glass-card overflow-hidden flex flex-col justify-between group"
             >
+              <Link
+                href={`/showcase/${project.id}`}
+                aria-label={project.title}
+                className="absolute inset-0 z-10"
+              />
               <div className="h-44 relative bg-background overflow-hidden">
                 <Image
                   src={project.imageUrl}
@@ -205,7 +209,7 @@ export default function ShowcasePage() {
                   fill
                   sizes="(max-w-7xl) 33vw, 100vw"
                   priority={index < 2}
-                  className="object-cover opacity-75 group-hover:scale-[1.03] transition-all duration-500"
+                  className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                 
@@ -213,17 +217,19 @@ export default function ShowcasePage() {
                 {user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym") && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id, e); }}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
+                    aria-label={t("showcase.detail.confirm_delete")}
+                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
 
                 <button
                   onClick={(e) => { e.stopPropagation(); handleUpvote(project.id, e); }}
-                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition-all cursor-pointer z-10"
+                  aria-label={`Upvote ${project.title}`}
+                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                 >
-                  <Heart className="h-3.5 w-3.5 fill-current" />
+                  <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{project.upvotes}</span>
                 </button>
               </div>
@@ -280,14 +286,15 @@ export default function ShowcasePage() {
 
       {/* Submission Modal */}
       {submitOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
+        <div role="dialog" aria-modal="true" aria-label={t("showcase.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
             {/* Close */}
             <button
               onClick={() => setSubmitOpen(false)}
+              aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
 
             {subSuccess ? (

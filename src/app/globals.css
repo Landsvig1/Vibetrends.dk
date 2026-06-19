@@ -47,7 +47,9 @@ body {
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover,
@@ -57,7 +59,12 @@ body {
 }
 
 a:focus-visible,
-button:focus-visible {
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="link"]:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 4px;
 }
@@ -83,7 +90,7 @@ button:focus-visible {
   border-radius: 99px;
   padding: 10px 20px;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
 }
 
 .btn-primary:hover {
@@ -97,7 +104,7 @@ button:focus-visible {
   border-radius: 99px;
   padding: 10px 20px;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .btn-secondary:hover {
@@ -186,5 +193,20 @@ button:focus-visible {
   ::view-transition-group(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+
+  /* Disable non-essential motion globally */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .glass-card:hover,
+  .glass-card:focus-within {
+    transform: none;
   }
 }

@@ -116,7 +116,7 @@ export default async function Home() {
                   fill
                   sizes="(max-w-7xl) 50vw, 100vw"
                   priority
-                  className="object-cover opacity-80 group-hover:scale-105 transition-all duration-500"
+                  className="object-cover opacity-80 group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
                 <div className="absolute bottom-4 left-4 flex items-center space-x-2">

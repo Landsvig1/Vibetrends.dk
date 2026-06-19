@@ -65,12 +65,12 @@ export default function Header() {
             <Link href="/" transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500 animate-pulse"></div>
-                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition-all duration-300">
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition duration-300">
                   <KoalaIcon className="h-5 w-5" />
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-foreground transition-all duration-300 leading-tight">
+                <span className="text-lg font-bold text-foreground transition duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
                 <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">{t("header.logo_subtitle")}</span>
@@ -90,19 +90,20 @@ export default function Header() {
                 return (
                   <div key={item.name} className="relative group py-2">
                     <button
-                      className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer ${
+                      aria-haspopup="true"
+                      className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
                         isActive
                           ? "text-accent-primary bg-background border-b-2 border-accent-primary"
                           : "text-text-secondary hover:text-foreground hover:bg-card-border"
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4 w-4" aria-hidden="true" />
                       <span>{item.name}</span>
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60 group-hover:rotate-180 transition-transform duration-200" />
+                      <ChevronDown className="h-3.5 w-3.5 opacity-60 group-hover:rotate-180 transition-transform duration-200" aria-hidden="true" />
                     </button>
-                    
-                    {/* Dropdown Menu */}
-                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+
+                    {/* Dropdown Menu — opens on hover and on keyboard focus */}
+                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block group-focus-within:block animate-in fade-in slide-in-from-top-2 duration-150 z-50">
                       {item.items?.map((subItem) => {
                         const SubIcon = subItem.icon;
                         const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
@@ -132,7 +133,7 @@ export default function Header() {
                   key={item.href!}
                   href={item.href!}
                   transitionTypes={[directionType]}
-                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
                     isActive
                       ? "text-accent-primary bg-background border-b-2 border-accent-primary"
                       : "text-text-secondary hover:text-foreground hover:bg-card-border"
@@ -148,10 +149,11 @@ export default function Header() {
           {/* Action button & Mini language toggle */}
           <div className="hidden md:flex items-center space-x-4">
             {/* MINI LANGUAGE TOGGLE */}
-            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
                 onClick={() => setLanguage("da")}
-                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                aria-pressed={language === "da"}
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
                   language === "da"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
@@ -161,7 +163,8 @@ export default function Header() {
               </button>
               <button
                 onClick={() => setLanguage("en")}
-                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                aria-pressed={language === "en"}
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
                   language === "en"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
@@ -207,7 +210,9 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-card-border hover:text-foreground focus:outline-none"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu"
+              className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-card-border hover:text-foreground"
             >
               <span className="sr-only">{t("header.sr_menu")}</span>
               {mobileMenuOpen ? (
@@ -222,7 +227,7 @@ export default function Header() {
 
       {/* Mobile menu panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1">
+        <div id="mobile-menu" className="md:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1">
           {navItems.map((item, idx) => {
             const isActive = isItemActive(item);
             const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
@@ -246,7 +251,7 @@ export default function Header() {
                           href={subItem.href}
                           transitionTypes={[directionType]}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition ${
                             isSubActive
                               ? "bg-accent-light text-accent-primary font-semibold border-l-2 border-accent-primary"
                               : "text-text-secondary hover:text-foreground hover:bg-card-border"
@@ -268,7 +273,7 @@ export default function Header() {
                 href={item.href!}
                 transitionTypes={[directionType]}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-all ${
+                className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition ${
                   isActive
                     ? "bg-accent-light text-accent-primary border-l-4 border-accent-primary"
                     : "text-text-secondary hover:text-foreground hover:bg-card-border"
@@ -282,11 +287,12 @@ export default function Header() {
           
           {/* Mobile Language Toggle */}
           <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
-            <span className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
-            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <span id="mobile-lang-label" className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
+            <div role="group" aria-labelledby="mobile-lang-label" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
                 onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
-                className={`px-3.5 py-2 rounded cursor-pointer transition-all ${
+                aria-pressed={language === "da"}
+                className={`px-3.5 py-2 rounded cursor-pointer transition ${
                   language === "da"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
@@ -296,7 +302,8 @@ export default function Header() {
               </button>
               <button
                 onClick={() => { setLanguage("en"); setMobileMenuOpen(false); }}
-                className={`px-3.5 py-2 rounded cursor-pointer transition-all ${
+                aria-pressed={language === "en"}
+                className={`px-3.5 py-2 rounded cursor-pointer transition ${
                   language === "en"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
