@@ -301,8 +301,8 @@ function AgentsPageContent() {
 
       {/* Add Agent / MCP Modal */}
       {addOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("agents.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
+        <div role="dialog" aria-modal="true" aria-label={t("agents.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
             <button
               onClick={() => setAddOpen(false)}
               aria-label="Luk"

@@ -244,14 +244,15 @@ export default function SkillsPage() {
 
       {/* Submit Modal */}
       {submitOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in duration-200">
+        <div role="dialog" aria-modal="true" aria-label={t("skills.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
             {/* Close */}
             <button
               onClick={() => setSubmitOpen(false)}
+              aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
 
             {submitSuccess ? (

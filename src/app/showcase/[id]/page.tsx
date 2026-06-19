@@ -183,9 +183,10 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                         href={project.githubUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label="GitHub"
                         className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors"
                       >
-                        <GithubIcon className="h-5 w-5" />
+                        <GithubIcon className="h-5 w-5" aria-hidden="true" />
                       </a>
                     )}
                  </div>
