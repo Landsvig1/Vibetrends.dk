@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useQueryState, parseAsString } from "nuqs";
 import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2 } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -12,7 +13,7 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 
 export default function ForumPage() {
   const [threads, setThreads] = useState<ForumThread[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);

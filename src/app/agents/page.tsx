@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Code, Globe, CheckCircle2 } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -13,25 +13,14 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 
 function AgentsPageContent() {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [search, setSearch] = useState("");
+  // Search and category live in the URL so filtered views are shareable and
+  // survive reload/back. Nav links like /agents?category=MCP Server deep-link here.
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const searchParams = useSearchParams();
-  const categoryParam = searchParams.get("category");
-  const isMcpParam = categoryParam === "mcp" || categoryParam === "MCP Server";
-  const [selectedCategory, setSelectedCategory] = useState(isMcpParam ? "MCP Server" : "All");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // Sync selected category when the query parameter changes (e.g. nav link clicked
-  // while already on this page). Adjusting state during render avoids an effect.
-  const [prevCategoryParam, setPrevCategoryParam] = useState(categoryParam);
-  if (categoryParam !== prevCategoryParam) {
-    setPrevCategoryParam(categoryParam);
-    if (isMcpParam) {
-      setSelectedCategory("MCP Server");
-    }
-  }
 
   // Add agent form states
   const [addOpen, setAddOpen] = useState(false);

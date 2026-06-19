@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function KoalaIcon({ className = "w-6 h-6", ...props }: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className={className} {...props}>
       {/* Left Ear */}
       <circle cx="25" cy="35" r="20" fill="currentColor" />
       <circle cx="25" cy="35" r="10" fill="var(--background)" />

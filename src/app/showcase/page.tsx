@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2 } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -11,7 +12,7 @@ import { jsonLdScript } from "@/lib/jsonLd";
 
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
 

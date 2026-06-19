@@ -78,6 +78,23 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText(/Hurtig Installation/i)).toBeVisible();
   });
 
+  test('should sync filters and search to the URL (deep-linkable)', async ({ page }) => {
+    // Read direction: a deep-linked search term populates the input from the URL.
+    await page.goto('/skills?q=automation');
+    await expect(page.locator('input[type="text"]').first()).toHaveValue('automation');
+
+    // Read direction: a deep-linked category is reflected as the active filter.
+    await page.goto('/agents?category=MCP Server');
+    await expect(
+      page.getByRole('button', { name: 'MCP Server', exact: true })
+    ).toHaveClass(/bg-accent-primary/);
+
+    // Write direction: choosing a category pushes it into the query string.
+    await page.goto('/agents');
+    await page.getByRole('button', { name: 'DevTools', exact: true }).click();
+    await expect(page).toHaveURL(/[?&]category=DevTools/);
+  });
+
   test('should simulate login and verify user state', async ({ page }) => {
     await page.goto('/');
     
@@ -103,12 +120,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
     await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
 
-    // 2. Click the EN language toggle button in the header
-    await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-
-     // 3. Verify it switches to English instantly
-    await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
+    // 2 & 3. Click EN and verify it switches to English. Retry the whole
+    // interaction so a click landing before React hydration (which would be
+    // silently dropped) doesn't flake the test — real users can't click that fast.
+    await expect(async () => {
+      await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
+      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 3000 });
+    }).toPass({ timeout: 15000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
     const cookies = await context.cookies();
@@ -121,9 +140,12 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
     await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
 
-    // 6. Click DA toggle back
-    await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-    await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible({ timeout: 10000 });
+    // 6. Click DA toggle back. Same retry rationale as step 2 — this click
+    // comes right after a reload, so hydration may not be finished yet.
+    await expect(async () => {
+      await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
+      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible({ timeout: 3000 });
+    }).toPass({ timeout: 15000 });
   });
 });

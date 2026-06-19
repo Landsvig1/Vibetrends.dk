@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryState, parseAsString } from "nuqs";
 import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -13,6 +14,7 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 24 24"
+    aria-hidden="true"
     className={className}
     stroke="currentColor"
     strokeWidth="2"
@@ -27,8 +29,8 @@ const GithubIcon = ({ className }: { className?: string }) => (
 
 export default function SkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   
