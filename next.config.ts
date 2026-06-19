@@ -88,17 +88,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async redirects() {
-    return [
-      // MCP servers moved from a query-param filter on /agents to a first-class /mcp.
-      {
-        source: '/agents',
-        has: [{ type: 'query', key: 'category', value: 'MCP Server' }],
-        destination: '/mcp',
-        permanent: true,
-      },
-    ];
-  },
 };
 
 export default nextConfig;

@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent) return { title: "Agent ikke fundet" };
+  if (!agent || agent.category === "MCP Server") return { title: "Agent ikke fundet" };
 
   return {
     title: `${agent.name} - AI Agent Registry`,
@@ -53,7 +53,8 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent) {
+  // MCP servers live at /mcp/[id]; keep the routes strictly scoped.
+  if (!agent || agent.category === "MCP Server") {
     notFound();
   }
 

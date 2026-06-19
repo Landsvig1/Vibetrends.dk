@@ -10,5 +10,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const upvotes = await upvoteProject(id);
+  if (upvotes === null) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
   return NextResponse.json({ success: true, upvotes });
 }

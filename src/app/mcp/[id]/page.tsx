@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent) return { title: "MCP-server ikke fundet" };
+  if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
 
   return {
     title: `${agent.name} - MCP Server Registry`,
@@ -53,7 +53,8 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent) {
+  // Only MCP servers belong here; everything else is a regular agent at /agents/[id].
+  if (!agent || agent.category !== "MCP Server") {
     notFound();
   }
 

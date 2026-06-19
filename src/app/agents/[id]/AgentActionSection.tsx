@@ -7,7 +7,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { useRouter } from "next/navigation";
 
-export default function AgentActionSection({ agent: initialAgent }: { agent: Agent }) {
+export default function AgentActionSection({ agent: initialAgent, backHref = "/agents" }: { agent: Agent; backHref?: string }) {
   const [agent, setAgent] = useState<Agent>(initialAgent);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -41,7 +41,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
       });
 
       if (res.ok) {
-        router.push("/agents");
+        router.push(backHref);
       }
     } catch (err) {
       console.error("Error deleting agent:", err);

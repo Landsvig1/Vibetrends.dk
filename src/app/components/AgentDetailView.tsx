@@ -127,7 +127,7 @@ export default function AgentDetailView({
 
         {/* Right: Actions & Stats */}
         <div className="space-y-6">
-           <AgentActionSection agent={agent} />
+           <AgentActionSection agent={agent} backHref={backHref} />
 
            <div className="p-6 rounded-2xl glass-card border border-card-border space-y-4">
               <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center">

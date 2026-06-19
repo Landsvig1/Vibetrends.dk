@@ -316,7 +316,9 @@ export async function upvoteProject(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
@@ -377,7 +379,9 @@ export async function upvoteThread(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
@@ -507,7 +511,9 @@ export async function upvoteAgent(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string) {
