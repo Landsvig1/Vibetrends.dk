@@ -6,3 +6,42 @@
 export function jsonLdScript(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
+
+/** schema.org Article for a blog post detail page. */
+export function articleJsonLd(opts: {
+  title: string;
+  description: string;
+  author: string;
+  url: string;
+  datePublished?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: opts.title,
+    description: opts.description,
+    author: { "@type": "Person", name: opts.author },
+    url: opts.url,
+    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
+    publisher: { "@type": "Organization", name: "vibetrends.dk" },
+  };
+}
+
+/** schema.org SoftwareApplication for an agent / MCP server detail page. */
+export function softwareAppJsonLd(opts: {
+  name: string;
+  description: string;
+  developer: string;
+  url: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: opts.name,
+    description: opts.description,
+    applicationCategory: "DeveloperApplication",
+    author: { "@type": "Organization", name: opts.developer },
+    url: opts.url,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  };
+}
