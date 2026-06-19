@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQueryState, parseAsString } from "nuqs";
 import { BookOpen, Clock, Calendar, User, Search } from "lucide-react";
 import { BlogPost } from "@/lib/db";
 import { useLanguage } from "../components/LanguageProvider";
 
 export default function BlogList() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [loading, setLoading] = useState(true);
   const { language, t } = useLanguage();
 

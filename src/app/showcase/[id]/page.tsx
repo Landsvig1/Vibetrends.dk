@@ -11,6 +11,7 @@ import { jsonLdScript } from "@/lib/jsonLd";
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 24 24"
+    aria-hidden="true"
     className={className}
     stroke="currentColor"
     strokeWidth="2"
@@ -186,7 +187,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                         aria-label="GitHub"
                         className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors"
                       >
-                        <GithubIcon className="h-5 w-5" aria-hidden="true" />
+                        <GithubIcon className="h-5 w-5" />
                       </a>
                     )}
                  </div>
