@@ -74,6 +74,10 @@ function makeBuilder(
       ops.filters.push(["neq", col, val]);
       return builder;
     },
+    in(col: string, vals: unknown[]) {
+      ops.filters.push(["in", col, vals]);
+      return builder;
+    },
     order(col: string, opt: unknown) {
       ops.filters.push(["order", col, opt]);
       return builder;
@@ -281,6 +285,26 @@ describe("getThreads reply mapping", () => {
     };
     const [t] = await db.getThreads();
     expect(t.replies).toEqual([]);
+  });
+
+  it("scopes the reply fetch to the returned thread ids (no full-table scan)", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "forum_threads")
+        return { data: [thread, { ...thread, id: "t2" }], error: null };
+      return { data: [], error: null };
+    };
+    await db.getThreads();
+    const replyCall = state.publicCalls.find((c) => c.table === "forum_replies")!;
+    expect(replyCall.filters).toContainEqual(["in", "thread_id", ["t1", "t2"]]);
+  });
+
+  it("does not query replies at all when there are no threads", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "forum_threads") return { data: [], error: null };
+      return { data: [], error: null };
+    };
+    expect(await db.getThreads()).toEqual([]);
+    expect(state.publicCalls.some((c) => c.table === "forum_replies")).toBe(false);
   });
 });
 

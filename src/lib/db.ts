@@ -331,7 +331,17 @@ export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
   const { data: threads, error: threadErr } = await query;
   if (threadErr || !threads) return [];
 
-  const { data: replies, error: replyErr } = await supabasePublic.from('forum_replies').select('*').order('created_at', { ascending: true });
+  // Scope the reply fetch to the threads we actually return. The previous
+  // implementation read the entire forum_replies table on every call (including
+  // category-filtered list views and the homepage snapshot) and grouped in JS.
+  const threadIds = threads.map(t => t.id);
+  if (threadIds.length === 0) return [];
+
+  const { data: replies, error: replyErr } = await supabasePublic
+    .from('forum_replies')
+    .select('*')
+    .in('thread_id', threadIds)
+    .order('created_at', { ascending: true });
   if (replyErr) return [];
 
   return threads.map(t => {
