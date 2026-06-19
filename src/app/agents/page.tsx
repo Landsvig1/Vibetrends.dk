@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Code, Globe, CheckCircle2 } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -15,7 +16,6 @@ function AgentsPageContent() {
   const [search, setSearch] = useState("");
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
   const isMcpParam = categoryParam === "mcp" || categoryParam === "MCP Server";
@@ -210,18 +210,13 @@ function AgentsPageContent() {
             <div
               key={agent.id}
               data-testid="agent-card"
-              role="link"
-              tabIndex={0}
-              aria-label={agent.name}
-              onClick={() => router.push(`/agents/${agent.id}`)}
-              onKeyDown={(e) => {
-                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                  e.preventDefault();
-                  router.push(`/agents/${agent.id}`);
-                }
-              }}
-              className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 cursor-pointer group hover:-translate-y-0.5 transition"
+              className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition"
             >
+              <Link
+                href={`/agents/${agent.id}`}
+                aria-label={agent.name}
+                className="absolute inset-0 z-10 rounded-xl"
+              />
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
@@ -234,7 +229,7 @@ function AgentsPageContent() {
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id, e); }}
                           aria-label={t("agents.confirm_delete")}
-                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                          className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                         >
                           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
@@ -248,7 +243,7 @@ function AgentsPageContent() {
                   <button
                     onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
                     aria-label={`Upvote ${agent.name}`}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-10"
+                    className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
                   >
                     <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                     <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
@@ -264,7 +259,7 @@ function AgentsPageContent() {
                   <button
                     onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
                     aria-label={copiedId === agent.id ? "Kopieret" : "Kopiér installationskommando"}
-                    className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-10"
+                    className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-20"
                   >
                     {copiedId === agent.id ? (
                       <CheckCircle className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />

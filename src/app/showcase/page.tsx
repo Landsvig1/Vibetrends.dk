@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2 } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -14,8 +14,7 @@ export default function ShowcasePage() {
   const [search, setSearch] = useState("");
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const router = useRouter();
-  
+
   // Submit modal states
   const [submitOpen, setSubmitOpen] = useState(false);
   const [subTitle, setSubTitle] = useState("");
@@ -196,18 +195,13 @@ export default function ShowcasePage() {
             <div
               key={project.id}
               data-testid="project-card"
-              role="link"
-              tabIndex={0}
-              aria-label={project.title}
-              onClick={() => router.push(`/showcase/${project.id}`)}
-              onKeyDown={(e) => {
-                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                  e.preventDefault();
-                  router.push(`/showcase/${project.id}`);
-                }
-              }}
-              className="rounded-xl glass-card overflow-hidden flex flex-col justify-between group cursor-pointer"
+              className="relative rounded-xl glass-card overflow-hidden flex flex-col justify-between group"
             >
+              <Link
+                href={`/showcase/${project.id}`}
+                aria-label={project.title}
+                className="absolute inset-0 z-10"
+              />
               <div className="h-44 relative bg-background overflow-hidden">
                 <Image
                   src={project.imageUrl}
@@ -224,7 +218,7 @@ export default function ShowcasePage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id, e); }}
                     aria-label={t("showcase.detail.confirm_delete")}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -233,7 +227,7 @@ export default function ShowcasePage() {
                 <button
                   onClick={(e) => { e.stopPropagation(); handleUpvote(project.id, e); }}
                   aria-label={`Upvote ${project.title}`}
-                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                 >
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{project.upvotes}</span>

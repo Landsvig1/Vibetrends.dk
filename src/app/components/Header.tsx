@@ -149,11 +149,10 @@ export default function Header() {
           {/* Action button & Mini language toggle */}
           <div className="hidden md:flex items-center space-x-4">
             {/* MINI LANGUAGE TOGGLE */}
-            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
                 onClick={() => setLanguage("da")}
                 aria-pressed={language === "da"}
-                aria-label="Skift sprog til dansk"
                 className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
                   language === "da"
                     ? "bg-accent-primary text-white"
@@ -165,7 +164,6 @@ export default function Header() {
               <button
                 onClick={() => setLanguage("en")}
                 aria-pressed={language === "en"}
-                aria-label="Switch language to English"
                 className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
                   language === "en"
                     ? "bg-accent-primary text-white"
@@ -289,12 +287,11 @@ export default function Header() {
           
           {/* Mobile Language Toggle */}
           <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
-            <span className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
-            <div className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <span id="mobile-lang-label" className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
+            <div role="group" aria-labelledby="mobile-lang-label" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
                 onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
                 aria-pressed={language === "da"}
-                aria-label="Skift sprog til dansk"
                 className={`px-3.5 py-2 rounded cursor-pointer transition ${
                   language === "da"
                     ? "bg-accent-primary text-white"
@@ -306,7 +303,6 @@ export default function Header() {
               <button
                 onClick={() => { setLanguage("en"); setMobileMenuOpen(false); }}
                 aria-pressed={language === "en"}
-                aria-label="Switch language to English"
                 className={`px-3.5 py-2 rounded cursor-pointer transition ${
                   language === "en"
                     ? "bg-accent-primary text-white"

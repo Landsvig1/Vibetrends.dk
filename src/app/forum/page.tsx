@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2 } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -15,7 +15,6 @@ export default function ForumPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  const router = useRouter();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // New Thread form states
@@ -175,18 +174,13 @@ export default function ForumPage() {
               <div
                 key={thread.id}
                 data-testid="thread-card"
-                role="link"
-                tabIndex={0}
-                aria-label={thread.title}
-                onClick={() => router.push(`/forum/${thread.id}`)}
-                onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    router.push(`/forum/${thread.id}`);
-                  }
-                }}
-                className="block rounded-xl glass-card p-6 flex flex-col justify-between cursor-pointer group hover:-translate-y-0.5 transition"
+                className="relative block rounded-xl glass-card p-6 flex flex-col justify-between group hover:-translate-y-0.5 transition"
               >
+                <Link
+                  href={`/forum/${thread.id}`}
+                  aria-label={thread.title}
+                  className="absolute inset-0 z-10 rounded-xl"
+                />
                 <div className="flex justify-between items-start gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -200,7 +194,7 @@ export default function ForumPage() {
                             e.stopPropagation();
                             handleDeleteThread(thread.id);
                           }}
-                          className="flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                          className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                           aria-label={language === "da" ? "Slet tråd" : "Delete thread"}
                           title={language === "da" ? "Slet tråd" : "Delete thread"}
                         >
@@ -223,7 +217,7 @@ export default function ForumPage() {
                       handleUpvote(thread.id);
                     }}
                     aria-label={`Upvote ${thread.title}`}
-                    className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-10"
+                    className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
                   >
                     <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                     <span className="text-xs font-bold font-mono">{thread.upvotes}</span>
@@ -257,7 +251,7 @@ export default function ForumPage() {
 
       {/* Start Thread Modal */}
       {newThreadOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("forum.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain">
+        <div role="dialog" aria-modal="true" aria-label={t("forum.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
             {/* Close */}
             <button

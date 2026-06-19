@@ -66,7 +66,7 @@ textarea:focus-visible,
 [role="button"]:focus-visible,
 [role="link"]:focus-visible {
   outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+  outline-offset: 4px;
 }
 
 /* Pill Badges & Buttons */

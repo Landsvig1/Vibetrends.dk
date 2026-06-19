@@ -39,7 +39,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Log ind" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain">
+    <div role="dialog" aria-modal="true" aria-label="Log ind" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
         <button
           onClick={onClose}
