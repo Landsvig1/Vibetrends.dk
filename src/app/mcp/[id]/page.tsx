@@ -11,10 +11,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent) return { title: "Agent ikke fundet" };
+  if (!agent) return { title: "MCP-server ikke fundet" };
 
   return {
-    title: `${agent.name} - AI Agent Registry`,
+    title: `${agent.name} - MCP Server Registry`,
     description: agent.description,
   };
 }
@@ -24,12 +24,12 @@ export const unstable_instant = {
   samples: [
     {
       cookies: [{ name: "vibe_lang", value: "da" }],
-      params: { id: "a2" }
+      params: { id: "a1" }
     }
   ]
 };
 
-export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function McpDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -42,12 +42,12 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
     }>
-      <AgentDetailContent params={params} />
+      <McpDetailContent params={params} />
     </Suspense>
   );
 }
 
-async function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
+async function McpDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
@@ -57,5 +57,5 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
     notFound();
   }
 
-  return <AgentDetailView agent={agent} lang={lang} backHref="/agents" />;
+  return <AgentDetailView agent={agent} lang={lang} backHref="/mcp" />;
 }

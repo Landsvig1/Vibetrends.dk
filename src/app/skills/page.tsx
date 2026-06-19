@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQueryState, parseAsString } from "nuqs";
+import Link from "next/link";
 import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
@@ -185,14 +186,19 @@ export default function SkillsPage() {
       {filteredSkills.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredSkills.map((skill) => (
-            <div key={skill.id} className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6">
+            <div key={skill.id} data-testid="skill-card" className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition">
+              <Link
+                href={`/skills/${skill.id}`}
+                aria-label={skill.title}
+                className="absolute inset-0 z-10 rounded-xl"
+              />
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="px-2 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
                       {skill.category}
                     </span>
-                    <h3 className="text-lg font-bold text-foreground mt-2 leading-tight">
+                    <h3 className="text-lg font-bold text-foreground mt-2 leading-tight group-hover:text-accent-primary transition-colors">
                       {skill.title}
                     </h3>
                   </div>
@@ -226,7 +232,8 @@ export default function SkillsPage() {
                     href={skill.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
                   >
                     <GithubIcon className="h-4 w-4" />
                     {t("skills.github")}

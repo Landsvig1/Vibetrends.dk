@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
-import { getThreads, deleteThread, deleteReply } from "@/lib/db";
+import { validateHoneypot } from "@/lib/honeypot";
+import { getThreads, createThread } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
-
 import { cookies } from "next/headers";
+import { z } from "zod";
+
+const threadSchema = z.object({
+  title: z.string().min(1).max(200),
+  category: z.enum(["General", "Prompts", "Showcase Discussion", "Setup & Config"]),
+  content: z.string().min(10).max(5000),
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -19,32 +26,31 @@ export async function GET(request: Request) {
   });
 }
 
-export async function DELETE(request: Request) {
-  const user = await getAuthUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const threadId = searchParams.get("threadId");
-  const replyId = searchParams.get("replyId");
-
-  if (!threadId) {
-    return NextResponse.json({ error: "threadId is required" }, { status: 400 });
-  }
-
-  // Ownership is enforced by RLS; a false result means not found or not owned.
-  if (replyId) {
-    const deleted = await deleteReply(threadId, replyId);
-    if (!deleted) {
-      return NextResponse.json({ error: "Reply not found or not owned" }, { status: 404 });
+export async function POST(request: Request) {
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json({ success: true, message: "Reply deleted" });
-  } else {
-    const deleted = await deleteThread(threadId);
-    if (!deleted) {
-      return NextResponse.json({ error: "Thread not found or not owned" }, { status: 404 });
+
+    const body = await request.json();
+    if (!validateHoneypot(body)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
-    return NextResponse.json({ success: true, message: "Thread deleted" });
+    const result = threadSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: result.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { title, category, content } = result.data;
+
+    const thread = await createThread(title, user.username, category, content);
+    return NextResponse.json(thread, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 }

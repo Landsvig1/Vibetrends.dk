@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Heart } from "lucide-react";
-import { getThreads } from "@/lib/db";
+import { getThreadById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
@@ -11,8 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const threads = await getThreads(undefined, lang);
-  const thread = threads.find(t => t.id === id);
+  const thread = await getThreadById(id, lang);
   if (!thread) return { title: "Tråd ikke fundet" };
 
   return {
@@ -58,8 +57,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
   const tDict = translations[lang] || translations.da;
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  const threads = await getThreads(undefined, lang);
-  const thread = threads.find(t => t.id === id);
+  const thread = await getThreadById(id, lang);
 
   if (!thread) {
     notFound();

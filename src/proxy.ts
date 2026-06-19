@@ -13,6 +13,7 @@ export function proxy(request: NextRequest) {
       '/skills': '/api/skills',
       '/showcase': '/api/showcase',
       '/agents': '/api/agents',
+      '/mcp': '/api/agents',
       '/forum': '/api/forum',
     };
 
@@ -21,6 +22,8 @@ export function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = apiPath;
       url.searchParams.delete('format');
+      // MCP servers are agents filtered by category.
+      if (pathname === '/mcp') url.searchParams.set('category', 'MCP Server');
       response = NextResponse.rewrite(url);
     }
   }
@@ -42,5 +45,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/skills', '/showcase', '/agents', '/forum', '/api/:path*'],
+  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/forum', '/api/:path*'],
 };

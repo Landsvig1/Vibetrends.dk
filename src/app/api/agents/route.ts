@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getAgents, createAgent, deleteAgent } from "@/lib/db";
+import { getAgents, createAgent } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
@@ -67,26 +67,4 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
-}
-
-export async function DELETE(request: Request) {
-  const user = await getAuthUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("agentId");
-
-  if (!id) {
-    return NextResponse.json({ error: "agentId is required" }, { status: 400 });
-  }
-
-  // Ownership is enforced by RLS; a false result means not found or not owned.
-  const deleted = await deleteAgent(id);
-  if (!deleted) {
-    return NextResponse.json({ error: "Agent not found or not owned" }, { status: 404 });
-  }
-
-  return NextResponse.json({ success: true, message: "Agent deleted" });
 }

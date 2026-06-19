@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://vibetrends.dk";
-  const routes = ["", "/skills", "/showcase", "/forum", "/blog", "/agents"];
+  const routes = ["", "/skills", "/showcase", "/forum", "/blog", "/agents", "/mcp"];
 
   return routes.map((route) => ({
     url: `${baseUrl}${route}`,
