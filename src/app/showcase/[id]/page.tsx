@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { jsonLdScript } from "@/lib/jsonLd";
+import { entityMetadata } from "@/lib/seo";
 
 // Custom Github Icon matching Lucide style
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -32,10 +33,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const project = await getProjectById(id, lang);
   if (!project) return { title: "Projekt ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${project.title} - Vibe Coding Showcase`,
     description: project.description,
-  };
+    path: `/showcase/${id}`,
+    lang,
+    type: "article",
+  });
 }
 
 import { Suspense } from "react";

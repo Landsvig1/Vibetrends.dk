@@ -4,6 +4,7 @@ import { getThreadById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 import ForumReplySection from "./ForumReplySection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -14,10 +15,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const thread = await getThreadById(id, lang);
   if (!thread) return { title: "Tråd ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${thread.title} - Vibe Trends Forum`,
     description: thread.content.substring(0, 160),
-  };
+    path: `/forum/${id}`,
+    lang,
+    type: "article",
+  });
 }
 
 import { Suspense } from "react";

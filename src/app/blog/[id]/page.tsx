@@ -5,6 +5,7 @@ import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,10 +15,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const post = await getBlogPostById(id, lang);
   if (!post) return { title: "Artikel ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${post.title} - Vibe Trends Blog`,
     description: post.excerpt,
-  };
+    path: `/blog/${id}`,
+    lang,
+    type: "article",
+  });
 }
 
 import { Suspense } from "react";
