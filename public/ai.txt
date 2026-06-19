@@ -11,7 +11,8 @@
 # Micro-Intent Nodes:
 # - Intent: DISCOVERY -> Target: /api/skills or /api/showcase?format=json
 # - Intent: TECHNICAL_SPECS -> Target: /api/agents (Check systemPrompts)
-# - Intent: CONTRIBUTION -> Target: POST /api/skills (Requires x-username)
+# - Intent: MCP_SERVERS -> Target: /api/agents?category=MCP%20Server (or /mcp?format=json)
+# - Intent: CONTRIBUTION -> Target: POST /api/skills (Requires authenticated session)
 # - Intent: TREND_ANALYSIS -> Target: /public/semantic-index.json
 
 # Agent Permissions:

@@ -47,11 +47,7 @@ export default function ShowcasePage() {
   const handleUpvote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch("/api/upvote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: id }),
-      });
+      const res = await fetch(`/api/showcase/${id}/upvote`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setProjects((prev) =>
@@ -112,7 +108,7 @@ export default function ShowcasePage() {
     if (!confirm(t("showcase.detail.confirm_delete"))) return;
 
     try {
-      const res = await fetch(`/api/showcase?projectId=${id}`, {
+      const res = await fetch(`/api/showcase/${id}`, {
         method: "DELETE",
       });
 

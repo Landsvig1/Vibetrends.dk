@@ -7,7 +7,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { useRouter } from "next/navigation";
 
-export default function AgentActionSection({ agent: initialAgent }: { agent: Agent }) {
+export default function AgentActionSection({ agent: initialAgent, backHref = "/agents" }: { agent: Agent; backHref?: string }) {
   const [agent, setAgent] = useState<Agent>(initialAgent);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -22,11 +22,7 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
 
   const handleUpvote = async () => {
     try {
-      const res = await fetch("/api/upvote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: agent.id }),
-      });
+      const res = await fetch(`/api/agents/${agent.id}/upvote`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setAgent(prev => ({ ...prev, upvotes: data.upvotes }));
@@ -40,12 +36,12 @@ export default function AgentActionSection({ agent: initialAgent }: { agent: Age
     if (!confirm(t("agents.confirm_delete"))) return;
 
     try {
-      const res = await fetch(`/api/agents?agentId=${agent.id}`, {
+      const res = await fetch(`/api/agents/${agent.id}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
-        router.push("/agents");
+        router.push(backHref);
       }
     } catch (err) {
       console.error("Error deleting agent:", err);

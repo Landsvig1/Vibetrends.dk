@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Heart, ExternalLink, Code, Sparkles } from "lucide-react";
-import { getProjects } from "@/lib/db";
+import { getProjectById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
@@ -29,8 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const projects = await getProjects(undefined, lang);
-  const project = projects.find(p => p.id === id);
+  const project = await getProjectById(id, lang);
   if (!project) return { title: "Projekt ikke fundet" };
 
   return {
@@ -77,8 +76,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
   const tDict = translations[lang] || translations.da;
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  const projects = await getProjects(undefined, lang);
-  const project = projects.find(p => p.id === id);
+  const project = await getProjectById(id, lang);
 
   if (!project) {
     notFound();

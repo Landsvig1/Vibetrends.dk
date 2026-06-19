@@ -41,17 +41,10 @@ export default function Header() {
 
   const navItems: NavItem[] = [
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
-    {
-      name: t("nav.tools"),
-      icon: Briefcase,
-      isDropdown: true,
-      items: [
-        { name: t("nav.skills"), href: "/skills", icon: Briefcase },
-        { name: t("nav.mcp"), href: "/agents?category=MCP Server", icon: Cpu },
-      ]
-    },
+    { name: t("nav.skills"), href: "/skills", icon: Briefcase },
+    { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
+    { name: t("nav.agents"), href: "/agents", icon: Sparkles },
     { name: t("nav.showcase"), href: "/showcase", icon: Layers },
-    { name: t("nav.agents"), href: "/agents", icon: Cpu },
     { name: t("nav.blog"), href: "/blog", icon: BookOpen },
   ];
 

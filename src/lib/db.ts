@@ -253,6 +253,12 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
   return list;
 }
 
+export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
+  if (error || !data) return null;
+  return mapSkill(data, lang);
+}
+
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
   const query = supabasePublic.from('showcase').select('*').order('upvotes', { ascending: false });
 
@@ -271,6 +277,12 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
   }
 
   return list;
+}
+
+export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic.from('showcase').select('*').eq('id', id).single();
+  if (error || !data) return null;
+  return mapProject(data, lang);
 }
 
 export async function upvoteProject(id: string) {
@@ -304,7 +316,9 @@ export async function upvoteProject(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
@@ -324,6 +338,17 @@ export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
     const threadReplies = (replies || []).filter(r => r.thread_id === t.id);
     return mapThread(t, threadReplies, lang);
   });
+}
+
+export async function getThreadById(id: string, lang: 'da' | 'en' = 'da') {
+  const { data: thread, error } = await supabasePublic.from('forum_threads').select('*').eq('id', id).single();
+  if (error || !thread) return null;
+  const { data: replies } = await supabasePublic
+    .from('forum_replies')
+    .select('*')
+    .eq('thread_id', id)
+    .order('created_at', { ascending: true });
+  return mapThread(thread, replies || [], lang);
 }
 
 export async function upvoteThread(id: string) {
@@ -354,7 +379,9 @@ export async function upvoteThread(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
@@ -426,6 +453,9 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
 
   if (category && category !== "All") {
     query = query.eq('category', category);
+  } else {
+    // /agents excludes MCP servers — they live at /mcp.
+    query = query.neq('category', 'MCP Server');
   }
 
   const { data, error } = await query;
@@ -443,6 +473,14 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
   }
 
   return list;
+}
+
+// MCP servers are stored in the agents table with category 'MCP Server';
+// list views fetch them via /api/agents?category=MCP Server.
+export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic.from('agents').select('*').eq('id', id).single();
+  if (error || !data) return null;
+  return mapAgent(data, lang);
 }
 
 export async function upvoteAgent(id: string) {
@@ -473,7 +511,9 @@ export async function upvoteAgent(id: string) {
     .eq('id', id)
     .single();
 
-  return data?.upvotes || 0;
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string) {

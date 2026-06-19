@@ -52,11 +52,7 @@ export default function ForumPage() {
   // Handle upvote via API
   const handleUpvote = async (id: string) => {
     try {
-      const res = await fetch("/api/upvote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: id }),
-      });
+      const res = await fetch(`/api/forum/${id}/upvote`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setThreads((prev) =>
@@ -78,7 +74,7 @@ export default function ForumPage() {
     }
 
     try {
-      const res = await fetch("/api/forum/thread", {
+      const res = await fetch("/api/forum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,7 +107,7 @@ export default function ForumPage() {
     if (!user) return;
 
     try {
-      const res = await fetch(`/api/forum?threadId=${threadId}`, {
+      const res = await fetch(`/api/forum/${threadId}`, {
         method: "DELETE",
       });
 

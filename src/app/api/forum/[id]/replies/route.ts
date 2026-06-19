@@ -5,17 +5,17 @@ import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const replySchema = z.object({
-  threadId: z.string(),
   content: z.string().min(1).max(5000),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id: threadId } = await params;
     const body = await request.json();
     if (!validateHoneypot(body)) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -29,9 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { threadId, content } = result.data;
-
-    const thread = await addReply(threadId, user.username, content);
+    const thread = await addReply(threadId, user.username, result.data.content);
     if (!thread) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }

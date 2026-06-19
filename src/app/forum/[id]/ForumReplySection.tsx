@@ -27,13 +27,10 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/forum/reply", {
+      const res = await fetch(`/api/forum/${thread.id}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          threadId: thread.id,
-          content: replyContent,
-        }),
+        body: JSON.stringify({ content: replyContent }),
       });
 
       if (res.ok) {
@@ -56,7 +53,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
     if (!user) return;
 
     try {
-      const res = await fetch(`/api/forum?threadId=${thread.id}&replyId=${replyId}`, {
+      const res = await fetch(`/api/forum/${thread.id}/replies/${replyId}`, {
         method: "DELETE",
       });
 

@@ -3,6 +3,16 @@ import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
   const { searchParams, pathname } = request.nextUrl;
+
+  // MCP servers moved from a query-param filter on /agents to a first-class /mcp.
+  // searchParams.get() returns the decoded value, so this matches the encoded form too.
+  if (pathname === '/agents' && searchParams.get('category') === 'MCP Server') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/mcp';
+    url.searchParams.delete('category');
+    return NextResponse.redirect(url, 308);
+  }
+
   const format = searchParams.get('format');
 
   let response = NextResponse.next();
@@ -13,6 +23,9 @@ export function proxy(request: NextRequest) {
       '/skills': '/api/skills',
       '/showcase': '/api/showcase',
       '/agents': '/api/agents',
+      // /mcp has its own param-free JSON route: rewrite() keeps the original
+      // request query, so we can't inject ?category onto /api/agents here.
+      '/mcp': '/api/mcp-servers',
       '/forum': '/api/forum',
     };
 
@@ -42,5 +55,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/skills', '/showcase', '/agents', '/forum', '/api/:path*'],
+  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/forum', '/api/:path*'],
 };
