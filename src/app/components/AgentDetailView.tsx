@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Code, Globe, ShieldCheck } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { translations, Language } from "@/lib/translations";
-import AgentActionSection from "../agents/[id]/AgentActionSection";
+import AgentActionSection from "./AgentActionSection";
 import { jsonLdScript } from "@/lib/jsonLd";
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).

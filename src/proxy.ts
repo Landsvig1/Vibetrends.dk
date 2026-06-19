@@ -23,7 +23,9 @@ export function proxy(request: NextRequest) {
       '/skills': '/api/skills',
       '/showcase': '/api/showcase',
       '/agents': '/api/agents',
-      '/mcp': '/api/agents',
+      // /mcp has its own param-free JSON route: rewrite() keeps the original
+      // request query, so we can't inject ?category onto /api/agents here.
+      '/mcp': '/api/mcp-servers',
       '/forum': '/api/forum',
     };
 
@@ -32,8 +34,6 @@ export function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = apiPath;
       url.searchParams.delete('format');
-      // MCP servers are agents filtered by category.
-      if (pathname === '/mcp') url.searchParams.set('category', 'MCP Server');
       response = NextResponse.rewrite(url);
     }
   }
