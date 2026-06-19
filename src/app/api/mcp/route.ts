@@ -24,6 +24,7 @@ const TOOLS = [
           enum: ["Prompting", "Agents", "Automation", "Fullstack"],
           description: "Valgfri kategori-filtrering",
         },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },
     },
   },
@@ -34,6 +35,7 @@ const TOOLS = [
       type: "object",
       properties: {
         query: { type: "string", description: "Søgeterm" },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },
     },
   },
@@ -44,6 +46,7 @@ const TOOLS = [
       type: "object",
       properties: {
         query: { type: "string", description: "Søgeterm" },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },
     },
   },
@@ -70,16 +73,26 @@ function textContent(data: unknown) {
   return { content: [{ type: "text", text: JSON.stringify(data) }] };
 }
 
+// Tool arguments arrive untyped from the client; coerce defensively so a
+// malformed value yields an empty search rather than throwing into -32603.
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function asLang(v: unknown): "da" | "en" {
+  return v === "en" ? "en" : "da";
+}
+
 async function callTool(name: string, args: Record<string, unknown>) {
+  const query = asString(args.query);
+  const lang = asLang(args.lang);
   switch (name) {
     case "search_skills":
-      return textContent(
-        await getSkills(args.query as string | undefined, args.category as string | undefined)
-      );
+      return textContent(await getSkills(query, asString(args.category), lang));
     case "search_showcase":
-      return textContent(await getProjects(args.query as string | undefined));
+      return textContent(await getProjects(query, lang));
     case "search_agents":
-      return textContent(await getAgents(args.query as string | undefined));
+      return textContent(await getAgents(query, undefined, lang));
     default:
       return null;
   }
@@ -106,6 +119,17 @@ export async function POST(request: Request) {
 
   if (typeof body !== "object" || body === null || (body as { jsonrpc?: string }).jsonrpc !== "2.0") {
     return rpcError(null, INVALID_REQUEST, "Invalid Request: expected JSON-RPC 2.0");
+  }
+
+  // A JSON-RPC notification is a request with no `id` member (distinct from an
+  // explicit null id). The spec — and the MCP handshake's notifications/initialized
+  // — require the server to send no response. Acknowledge with 202, no body.
+  const isNotification =
+    !("id" in (body as object)) ||
+    (typeof (body as { method?: unknown }).method === "string" &&
+      (body as { method: string }).method.startsWith("notifications/"));
+  if (isNotification) {
+    return new NextResponse(null, { status: 202 });
   }
 
   const { id = null, method, params } = body as {

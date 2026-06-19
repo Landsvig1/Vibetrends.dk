@@ -696,7 +696,11 @@ export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
-  const { data, error } = await supabasePublic.from('skills').select('*').limit(limit);
+  const { data, error } = await supabasePublic
+    .from('skills')
+    .select('*')
+    .order('rating', { ascending: false })
+    .limit(limit);
   if (error || !data) return [];
   return data.map(s => mapSkill(s, lang));
 }
@@ -713,7 +717,11 @@ export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getLatestPosts(limit = 1, lang: 'da' | 'en' = 'da') {
-  const { data, error } = await supabasePublic.from('blog_posts').select('*').limit(limit);
+  const { data, error } = await supabasePublic
+    .from('blog_posts')
+    .select('*')
+    .order('published_at', { ascending: false })
+    .limit(limit);
   if (error || !data) return [];
   return data.map(b => mapBlogPost(b, lang));
 }

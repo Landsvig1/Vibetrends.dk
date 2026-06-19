@@ -25,7 +25,7 @@ describe("GET /api/mcp (discovery)", () => {
   it("advertises the protocol version and tools", async () => {
     const res = await GET();
     const body = await res.json();
-    expect(body.protocolVersion).toBeTruthy();
+    expect(body.protocolVersion).toBe("2025-06-18");
     expect(body.tools).toHaveLength(3);
   });
 });
@@ -56,9 +56,58 @@ describe("POST /api/mcp (JSON-RPC)", () => {
       rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai" } } })
     );
     const body = await res.json();
-    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined);
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da");
     expect(body.result.content[0].type).toBe("text");
     expect(JSON.parse(body.result.content[0].text)).toEqual([{ id: "s1", title: "Skill One" }]);
+  });
+
+  it("tools/call search_showcase dispatches to getProjects", async () => {
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 31, method: "tools/call", params: { name: "search_showcase", arguments: { query: "x" } } })
+    );
+    const body = await res.json();
+    expect(db.getProjects).toHaveBeenCalledWith("x", "da");
+    expect(body.result.content[0].type).toBe("text");
+  });
+
+  it("tools/call search_agents dispatches to getAgents", async () => {
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 32, method: "tools/call", params: { name: "search_agents", arguments: {} } })
+    );
+    const body = await res.json();
+    expect(db.getAgents).toHaveBeenCalledWith(undefined, undefined, "da");
+    expect(body.result.content[0].type).toBe("text");
+  });
+
+  it("tools/call forwards the lang argument to the data layer", async () => {
+    await POST(
+      rpc({ jsonrpc: "2.0", id: 33, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai", lang: "en" } } })
+    );
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "en");
+  });
+
+  it("coerces a non-string query rather than throwing", async () => {
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 34, method: "tools/call", params: { name: "search_skills", arguments: { query: 42 } } })
+    );
+    const body = await res.json();
+    expect(db.getSkills).toHaveBeenCalledWith(undefined, undefined, "da");
+    expect(body.result.content[0].type).toBe("text");
+  });
+
+  it("a thrown data-layer error surfaces as INTERNAL_ERROR (-32603)", async () => {
+    vi.mocked(db.getSkills).mockRejectedValueOnce(new Error("db down"));
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 35, method: "tools/call", params: { name: "search_skills", arguments: {} } })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32603);
+  });
+
+  it("a notification (no id) gets 202 with no body, not an error", async () => {
+    const res = await POST(rpc({ jsonrpc: "2.0", method: "notifications/initialized" }));
+    expect(res.status).toBe(202);
+    expect(await res.text()).toBe("");
   });
 
   it("tools/call with an unknown tool returns a method-not-found error", async () => {
