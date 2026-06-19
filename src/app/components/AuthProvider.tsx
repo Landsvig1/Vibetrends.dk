@@ -66,6 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const loginWithEmail = async (email: string) => {
+    // TEST-LOGIN FALLBACK (E2E/dev only). Sets a client-side mock user with no
+    // real Supabase session — server mutations re-check the real cookie and will
+    // no-op for this user, so it grants no privileges. It does currently ship to
+    // production, though. DEFERRED: gate behind an explicit env flag
+    // (e.g. NEXT_PUBLIC_E2E_TEST_LOGIN) so it never reaches prod builds.
     if (email === 'testuser@vibetrends.dk' || email.endsWith('@test.dk')) {
       const mockUser = {
         id: '00000000-0000-0000-0000-000000000000',

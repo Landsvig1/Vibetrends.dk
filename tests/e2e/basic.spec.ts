@@ -95,20 +95,28 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page).toHaveURL(/[?&]category=DevTools/);
   });
 
-  test('should simulate login and verify user state', async ({ page }) => {
+  // NOTE ON FIDELITY: this exercises the *client-side test-login fallback* in
+  // AuthProvider (the `testuser@vibetrends.dk` / `@test.dk` branch), NOT a real
+  // Supabase magic-link session. It proves the modal flow and the logged-in UI
+  // state render correctly; it does NOT prove server-side auth, because the mock
+  // user has no session cookie. Server mutations (upvote/create) re-check the
+  // real cookie via getAuthUser() and would no-op for this mock user.
+  //
+  // DEFERRED (needs real Supabase auth in CI):
+  //   - an upvote toggle round-trip end-to-end (covered at the unit layer in
+  //     src/lib/__tests__/db.test.ts: upvoteProject toggle + null-vs-0).
+  //   - gating the client-side test-login backdoor out of production builds.
+  test('renders logged-in UI via the client-side test-login fallback', async ({ page }) => {
     await page.goto('/');
-    
-    // Click Log ind
+
     await page.getByRole('button', { name: 'Log ind' }).click();
-    
-    // Check Modal
     await expect(page.getByRole('heading', { name: 'Velkommen til vibetrends.dk' })).toBeVisible();
-    
-    // Enter email
+
     await page.getByPlaceholder('eksempel@vibe.dk').fill('testuser@vibetrends.dk');
     await page.getByRole('button', { name: 'Fortsæt med E-mail' }).click();
-    
-    // Check for user badge
+
+    // `testuser_vibe` matches the username getAuthUser() derives server-side
+    // (email local-part, non-alphanumerics → '_', suffixed `_vibe`).
     await expect(page.getByText('@testuser_vibe')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Log ud' })).toBeVisible();
   });
