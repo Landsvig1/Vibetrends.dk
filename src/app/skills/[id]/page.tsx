@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
 import { jsonLdScript } from "@/lib/jsonLd";
+import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -15,10 +16,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const skill = await getSkillById(id, lang);
   if (!skill) return { title: "Skill ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${skill.title} - Skills Library`,
     description: skill.description,
-  };
+    path: `/skills/${id}`,
+    lang,
+  });
 }
 
 export const unstable_instant = {

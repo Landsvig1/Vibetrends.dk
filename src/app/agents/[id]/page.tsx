@@ -2,6 +2,8 @@ import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
+import { jsonLdScript, softwareAppJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
@@ -13,10 +15,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const agent = await getAgentById(id, lang);
   if (!agent || agent.category === "MCP Server") return { title: "Agent ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${agent.name} - AI Agent Registry`,
     description: agent.description,
-  };
+    path: `/agents/${id}`,
+    lang,
+  });
 }
 
 export const unstable_instant = {
@@ -58,5 +62,22 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
     notFound();
   }
 
-  return <AgentDetailView agent={agent} lang={lang} backHref="/agents" />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            softwareAppJsonLd({
+              name: agent.name,
+              description: agent.description,
+              developer: agent.developer,
+              url: `https://vibetrends.dk/agents/${id}`,
+            })
+          ),
+        }}
+      />
+      <AgentDetailView agent={agent} lang={lang} backHref="/agents" />
+    </>
+  );
 }

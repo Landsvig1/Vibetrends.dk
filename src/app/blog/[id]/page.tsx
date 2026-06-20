@@ -5,6 +5,8 @@ import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
+import { jsonLdScript, articleJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,10 +16,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const post = await getBlogPostById(id, lang);
   if (!post) return { title: "Artikel ikke fundet" };
 
-  return {
+  return entityMetadata({
     title: `${post.title} - Vibe Trends Blog`,
     description: post.excerpt,
-  };
+    path: `/blog/${id}`,
+    lang,
+    type: "article",
+  });
 }
 
 import { Suspense } from "react";
@@ -60,6 +65,20 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
 
   return (
     <div className="space-y-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            articleJsonLd({
+              title: post.title,
+              description: post.excerpt,
+              author: post.author,
+              url: `https://vibetrends.dk/blog/${id}`,
+              datePublished: post.publishedAt,
+            })
+          ),
+        }}
+      />
       <Link
         href="/blog"
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
