@@ -249,6 +249,65 @@ describe("upvoteProject toggle and null-vs-0 semantics", () => {
   });
 });
 
+describe("upvoteThread / upvoteAgent mirror the toggle semantics on the right tables", () => {
+  it("upvoteThread inserts into thread_upvotes then returns the new count", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 4 }, error: null });
+    const result = await db.upvoteThread("t1");
+    const insert = state.serverCalls.find((c) => c.table === "thread_upvotes");
+    expect(insert?.method).toBe("insert");
+    expect(insert?.payload).toEqual({ user_id: "u1", thread_id: "t1" });
+    expect(result).toBe(4);
+  });
+
+  it("upvoteThread toggles off on 23505 via a delete keyed by thread_id", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = (ops) =>
+      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
+    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
+    const result = await db.upvoteThread("t1");
+    const del = state.serverCalls.find((c) => c.method === "delete");
+    expect(del?.table).toBe("thread_upvotes");
+    expect(del?.filters).toContainEqual(["eq", "thread_id", "t1"]);
+    expect(result).toBe(0);
+  });
+
+  it("upvoteThread returns 0 and does not insert when unauthenticated", async () => {
+    state.user = null;
+    expect(await db.upvoteThread("t1")).toBe(0);
+    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("upvoteAgent inserts into agent_upvotes keyed by agent_id", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 7 }, error: null });
+    const result = await db.upvoteAgent("a1");
+    const insert = state.serverCalls.find((c) => c.table === "agent_upvotes");
+    expect(insert?.payload).toEqual({ user_id: "u1", agent_id: "a1" });
+    expect(result).toBe(7);
+  });
+
+  it("upvoteAgent toggles off on 23505 via a delete keyed by agent_id", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = (ops) =>
+      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
+    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
+    await db.upvoteAgent("a1");
+    const del = state.serverCalls.find((c) => c.method === "delete");
+    expect(del?.table).toBe("agent_upvotes");
+    expect(del?.filters).toContainEqual(["eq", "agent_id", "a1"]);
+  });
+
+  it("upvoteAgent returns null when the agent row is missing", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: null, error: null });
+    expect(await db.upvoteAgent("a1")).toBeNull();
+  });
+});
+
 describe("getThreads reply mapping", () => {
   const thread = {
     id: "t1",
@@ -347,6 +406,27 @@ describe("homepage-optimized reads", () => {
     await db.getTopAgents(1);
     const call = state.publicCalls.find((c) => c.table === "agents")!;
     expect(call.filters).toContainEqual(["neq", "category", "MCP Server"]);
+    expect(call.filters).toContainEqual(["limit", 1]);
+  });
+
+  it("getTopSkills orders by rating desc and limits", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    const res = await db.getTopSkills(1, "da");
+    expect(res).toHaveLength(1);
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["order", "rating", { ascending: false }]);
+    expect(call.filters).toContainEqual(["limit", 1]);
+  });
+
+  it("getLatestPosts orders by published_at desc and limits", async () => {
+    state.publicHandler = () => ({
+      data: [{ id: "b1", title_da: "T", title_en: "T", excerpt_da: "e", excerpt_en: "e", content_da: "c", content_en: "c", author: "a", read_time: "2 min", published_at: "2026-01-01", image_url: "/x.jpg", category: "Guides" }],
+      error: null,
+    });
+    const res = await db.getLatestPosts(1, "da");
+    expect(res).toHaveLength(1);
+    const call = state.publicCalls.find((c) => c.table === "blog_posts")!;
+    expect(call.filters).toContainEqual(["order", "published_at", { ascending: false }]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
