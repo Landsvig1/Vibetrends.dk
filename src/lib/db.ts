@@ -321,17 +321,31 @@ export async function upvoteProject(id: string) {
   return data.upvotes ?? 0;
 }
 
-export async function getThreads(category?: string, lang: 'da' | 'en' = 'da') {
+export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number) {
   let query = supabasePublic.from('forum_threads').select('*').order('upvotes', { ascending: false });
-  
+
   if (category && category !== "All") {
     query = query.eq('category', category);
+  }
+
+  if (limit !== undefined) {
+    query = query.limit(limit);
   }
 
   const { data: threads, error: threadErr } = await query;
   if (threadErr || !threads) return [];
 
-  const { data: replies, error: replyErr } = await supabasePublic.from('forum_replies').select('*').order('created_at', { ascending: true });
+  // Scope the reply fetch to the threads we actually return. The previous
+  // implementation read the entire forum_replies table on every call (including
+  // category-filtered list views and the homepage snapshot) and grouped in JS.
+  const threadIds = threads.map(t => t.id);
+  if (threadIds.length === 0) return [];
+
+  const { data: replies, error: replyErr } = await supabasePublic
+    .from('forum_replies')
+    .select('*')
+    .in('thread_id', threadIds)
+    .order('created_at', { ascending: true });
   if (replyErr) return [];
 
   return threads.map(t => {
@@ -640,4 +654,66 @@ export async function deleteAgent(id: string) {
     return false;
   }
   return (data?.length ?? 0) > 0;
+}
+
+// Homepage-optimized reads — fetch only counts and the few featured rows the
+// landing page renders, instead of materializing every full dataset just to
+// read `.length` and `[0]`.
+
+export interface EntityCounts {
+  skills: number;
+  showcase: number;
+  threads: number;
+  agents: number;
+}
+
+export async function getCounts(): Promise<EntityCounts> {
+  const head = { count: 'exact' as const, head: true };
+  const [skills, showcase, threads, agents] = await Promise.all([
+    supabasePublic.from('skills').select('*', head),
+    supabasePublic.from('showcase').select('*', head),
+    supabasePublic.from('forum_threads').select('*', head),
+    // The /agents surface and the homepage stat both exclude MCP servers.
+    supabasePublic.from('agents').select('*', head).neq('category', 'MCP Server'),
+  ]);
+
+  return {
+    skills: skills.count ?? 0,
+    showcase: showcase.count ?? 0,
+    threads: threads.count ?? 0,
+    agents: agents.count ?? 0,
+  };
+}
+
+export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic
+    .from('showcase')
+    .select('*')
+    .order('upvotes', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map(p => mapProject(p, lang));
+}
+
+export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic.from('skills').select('*').limit(limit);
+  if (error || !data) return [];
+  return data.map(s => mapSkill(s, lang));
+}
+
+export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic
+    .from('agents')
+    .select('*')
+    .neq('category', 'MCP Server')
+    .order('upvotes', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map(a => mapAgent(a, lang));
+}
+
+export async function getLatestPosts(limit = 1, lang: 'da' | 'en' = 'da') {
+  const { data, error } = await supabasePublic.from('blog_posts').select('*').limit(limit);
+  if (error || !data) return [];
+  return data.map(b => mapBlogPost(b, lang));
 }

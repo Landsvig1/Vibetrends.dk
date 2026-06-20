@@ -5,7 +5,7 @@ import {
   MessageSquare, Cpu, Layers, Briefcase, 
   Clock 
 } from "lucide-react";
-import { getSkills, getProjects, getThreads, getBlogPosts, getAgents } from "@/lib/db";
+import { getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts, getThreads } from "@/lib/db";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 
@@ -15,18 +15,18 @@ export default async function Home() {
   const tDict = translations[lang] || translations.da;
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  // Fetch data on server
-  const skills = await getSkills(undefined, undefined, lang);
-  const projects = await getProjects(undefined, lang);
-  const threads = await getThreads(undefined, lang);
-  const posts = await getBlogPosts(lang);
-  const agents = await getAgents(undefined, undefined, lang);
-
-  // Pick featured items
-  const featuredProject = projects[0];
-  const featuredSkill = skills[0];
-  const featuredAgent = agents[0];
-  const latestPost = posts[0];
+  // Fetch only what the landing page renders: counts for the stats band, the
+  // top featured item per section, and the two most-upvoted threads (with their
+  // replies) for the forum snapshot.
+  const [counts, [featuredProject], [featuredSkill], [featuredAgent], [latestPost], threads] =
+    await Promise.all([
+      getCounts(),
+      getTopProjects(1, lang),
+      getTopSkills(1, lang),
+      getTopAgents(1, lang),
+      getLatestPosts(1, lang),
+      getThreads(undefined, lang, 2),
+    ]);
 
   return (
     <div className="space-y-16">
@@ -75,19 +75,19 @@ export default async function Home() {
       {/* Stats Counter */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 rounded-2xl glass-panel">
         <div className="text-center space-y-2 border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{projects.length}</p>
+          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.showcase}</p>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.projects")}</p>
         </div>
         <div className="text-center space-y-2 md:border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{skills.length}</p>
+          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.skills}</p>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.skills")}</p>
         </div>
         <div className="text-center space-y-2 border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{threads.length}</p>
+          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.threads}</p>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.threads")}</p>
         </div>
         <div className="text-center space-y-2">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{agents.length}</p>
+          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.agents}</p>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.agents")}</p>
         </div>
       </section>
@@ -227,7 +227,7 @@ export default async function Home() {
           </div>
 
           <div className="space-y-3">
-            {threads.slice(0, 2).map((thread) => (
+            {threads.map((thread) => (
               <Link 
                 key={thread.id} 
                 href="/forum"

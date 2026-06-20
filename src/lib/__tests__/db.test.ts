@@ -15,12 +15,13 @@ interface BuilderOps {
   table: string;
   method: "select" | "insert" | "delete" | "update";
   select?: string;
+  selectOpts?: unknown;
   payload?: unknown;
   single: boolean;
   filters: Array<[string, ...unknown[]]>;
 }
 
-type Handler = (ops: BuilderOps) => { data: unknown; error: unknown };
+type Handler = (ops: BuilderOps) => { data?: unknown; error: unknown; count?: number };
 
 const state = vi.hoisted(() => {
   return {
@@ -33,11 +34,7 @@ const state = vi.hoisted(() => {
   };
 });
 
-function makeBuilder(
-  table: string,
-  sink: BuilderOps[],
-  handler: (ops: BuilderOps) => { data: unknown; error: unknown }
-) {
+function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
   const ops: BuilderOps = { table, method: "select", filters: [], single: false };
   let recorded = false;
   const record = () => {
@@ -48,8 +45,13 @@ function makeBuilder(
   };
 
   const builder: Record<string, unknown> = {
-    select(cols?: string) {
+    select(cols?: string, opts?: unknown) {
       ops.select = cols;
+      ops.selectOpts = opts;
+      return builder;
+    },
+    limit(n: number) {
+      ops.filters.push(["limit", n]);
       return builder;
     },
     insert(payload: unknown) {
@@ -72,6 +74,10 @@ function makeBuilder(
     },
     neq(col: string, val: unknown) {
       ops.filters.push(["neq", col, val]);
+      return builder;
+    },
+    in(col: string, vals: unknown[]) {
+      ops.filters.push(["in", col, vals]);
       return builder;
     },
     order(col: string, opt: unknown) {
@@ -281,6 +287,77 @@ describe("getThreads reply mapping", () => {
     };
     const [t] = await db.getThreads();
     expect(t.replies).toEqual([]);
+  });
+
+  it("scopes the reply fetch to the returned thread ids (no full-table scan)", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "forum_threads")
+        return { data: [thread, { ...thread, id: "t2" }], error: null };
+      return { data: [], error: null };
+    };
+    await db.getThreads();
+    const replyCall = state.publicCalls.find((c) => c.table === "forum_replies")!;
+    expect(replyCall.filters).toContainEqual(["in", "thread_id", ["t1", "t2"]]);
+  });
+
+  it("does not query replies at all when there are no threads", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "forum_threads") return { data: [], error: null };
+      return { data: [], error: null };
+    };
+    expect(await db.getThreads()).toEqual([]);
+    expect(state.publicCalls.some((c) => c.table === "forum_replies")).toBe(false);
+  });
+});
+
+describe("homepage-optimized reads", () => {
+  it("getCounts requests head-only exact counts and excludes MCP agents", async () => {
+    state.publicHandler = (ops) => {
+      const counts: Record<string, number> = {
+        skills: 3,
+        showcase: 5,
+        forum_threads: 7,
+        agents: 9,
+      };
+      return { count: counts[ops.table] ?? 0, error: null };
+    };
+    const counts = await db.getCounts();
+    expect(counts).toEqual({ skills: 3, showcase: 5, threads: 7, agents: 9 });
+
+    const skillsCall = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(skillsCall.selectOpts).toEqual({ count: "exact", head: true });
+    const agentsCall = state.publicCalls.find((c) => c.table === "agents")!;
+    expect(agentsCall.filters).toContainEqual(["neq", "category", "MCP Server"]);
+  });
+
+  it("getTopProjects orders by upvotes desc and limits", async () => {
+    state.publicHandler = () => ({
+      data: [{ id: "p1", title_da: "P", title_en: "P", author: "a", description_da: "d", description_en: "d", tools: null, prompts: null, upvotes: 9, demo_url: null, github_url: null, image_url: null }],
+      error: null,
+    });
+    const res = await db.getTopProjects(1, "da");
+    expect(res).toHaveLength(1);
+    const call = state.publicCalls.find((c) => c.table === "showcase")!;
+    expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
+    expect(call.filters).toContainEqual(["limit", 1]);
+  });
+
+  it("getTopAgents excludes MCP servers and limits", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getTopAgents(1);
+    const call = state.publicCalls.find((c) => c.table === "agents")!;
+    expect(call.filters).toContainEqual(["neq", "category", "MCP Server"]);
+    expect(call.filters).toContainEqual(["limit", 1]);
+  });
+
+  it("getThreads applies a limit when one is given", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "forum_threads"
+        ? { data: [{ id: "t1", title_da: "T", title_en: "T", author: "a", category: "General", content_da: "c", content_en: "c", upvotes: 1, created_at: "2026-01-01" }], error: null }
+        : { data: [], error: null };
+    await db.getThreads(undefined, "da", 2);
+    const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
+    expect(call.filters).toContainEqual(["limit", 2]);
   });
 });
 
