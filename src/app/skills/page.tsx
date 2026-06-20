@@ -5,6 +5,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
 import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
 import { Skill } from "@/lib/db";
+import { TOPICS, TOPIC_SLUGS } from "@/lib/topics";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
@@ -42,7 +43,7 @@ export default function SkillsPage() {
   // Form states
   const [subTitle, setSubTitle] = useState("");
   const [subDesc, setSubDesc] = useState("");
-  const [subCat, setSubCat] = useState("Prompting");
+  const [subCat, setSubCat] = useState<string>(TOPIC_SLUGS[0]);
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
@@ -68,7 +69,15 @@ export default function SkillsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const categories = ["All", "Prompting", "Agents", "Automation", "Fullstack"];
+  // Filter chips derive from the single taxonomy source of truth (topics.ts),
+  // plus the "All" sentinel. Value is the slug; label is localized.
+  const topicFilters = [
+    { value: "All", label: language === "da" ? "Alle" : "All" },
+    ...TOPICS.map((topic) => ({
+      value: topic.slug,
+      label: language === "da" ? topic.labelDa : topic.labelEn,
+    })),
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,17 +175,17 @@ export default function SkillsPage() {
 
         {/* Categories */}
         <div className="flex overflow-x-auto gap-2 pb-2 w-full scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
-          {categories.map((category) => (
+          {topicFilters.map((topic) => (
             <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
+              key={topic.value}
+              onClick={() => setSelectedCategory(topic.value)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
-                selectedCategory === category
+                selectedCategory === topic.value
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
                   : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
               }`}
             >
-              {category === "All" ? (language === "da" ? "Alle" : "All") : category}
+              {topic.label}
             </button>
           ))}
         </div>
@@ -196,7 +205,7 @@ export default function SkillsPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="px-2 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
-                      {skill.category}
+                      {skill.categoryLabel}
                     </span>
                     <h3 className="text-lg font-bold text-foreground mt-2 leading-tight group-hover:text-accent-primary transition-colors">
                       {skill.title}
@@ -306,10 +315,11 @@ export default function SkillsPage() {
                         onChange={(e) => setSubCat(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/30 text-sm"
                       >
-                        <option value="Prompting">Prompting</option>
-                        <option value="Agents">Agents</option>
-                        <option value="Automation">Automation</option>
-                        <option value="Fullstack">Fullstack</option>
+                        {TOPICS.map((topic) => (
+                          <option key={topic.slug} value={topic.slug}>
+                            {language === "da" ? topic.labelDa : topic.labelEn}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="space-y-1">

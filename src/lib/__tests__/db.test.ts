@@ -163,6 +163,21 @@ describe("mappers (language + null coalescing)", () => {
     state.publicHandler = () => ({ data: null, error: { message: "boom" } });
     expect(await db.getSkills()).toEqual([]);
   });
+
+  it("resolves categoryLabel from the topic slug, localized", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, category: "agent-workflows" }], error: null });
+    const [da] = await db.getSkills();
+    expect(da.category).toBe("agent-workflows"); // canonical slug preserved
+    expect(da.categoryLabel).toBe("Agent-workflows"); // da label
+    const [en] = await db.getSkills(undefined, undefined, "en");
+    expect(en.categoryLabel).toBe("Agent workflows"); // en label
+  });
+
+  it("falls back to the raw value for an unknown/legacy category", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, category: "Legacy" }], error: null });
+    const [skill] = await db.getSkills();
+    expect(skill.categoryLabel).toBe("Legacy");
+  });
 });
 
 describe("category guards and search filters", () => {

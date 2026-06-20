@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSkills, getProjects, getAgents } from "@/lib/db";
+import { TOPIC_SLUGS } from "@/lib/topics";
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -21,8 +22,8 @@ const TOOLS = [
         query: { type: "string", description: "Søgeterm" },
         category: {
           type: "string",
-          enum: ["Prompting", "Agents", "Automation", "Fullstack"],
-          description: "Valgfri kategori-filtrering",
+          enum: [...TOPIC_SLUGS],
+          description: "Valgfri emne-filtrering (skills.sh topic-slug)",
         },
         lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },

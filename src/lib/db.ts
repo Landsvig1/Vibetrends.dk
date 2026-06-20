@@ -1,9 +1,13 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
+import { topicLabel, type TopicSlug } from "./topics";
 
 export interface Skill {
   id: string;
+  /** Canonical topic slug (see src/lib/topics.ts). */
+  category: TopicSlug | string;
+  /** Localized topic label resolved from `category` for display. */
+  categoryLabel: string;
   title: string;
-  category: "Prompting" | "Agents" | "Automation" | "Fullstack";
   vibeCoder: string;
   vibeCoderTitle: string;
   rating: number;
@@ -73,7 +77,7 @@ interface SkillRow {
   id: string;
   title_da: string;
   title_en: string;
-  category: Skill["category"];
+  category: string;
   vibe_coder: string;
   vibe_coder_title_da: string;
   vibe_coder_title_en: string;
@@ -156,6 +160,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     id: s.id,
     title: lang === 'en' ? s.title_en : s.title_da,
     category: s.category,
+    categoryLabel: topicLabel(s.category, lang),
     vibeCoder: s.vibe_coder,
     vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,
     rating: Number(s.rating),
