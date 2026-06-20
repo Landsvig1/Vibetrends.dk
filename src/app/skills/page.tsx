@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
-import { Search, Star, Briefcase, PlusCircle, CheckCircle2, X } from "lucide-react";
+import { Search, Briefcase, PlusCircle, CheckCircle2, X, Flame, TrendingUp, ArrowRight } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { TOPICS, TOPIC_SLUGS } from "@/lib/topics";
+import { TopicIcon } from "../components/TopicIcon";
+import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
@@ -13,29 +15,16 @@ import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
 
-const GithubIcon = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className={className}
-    stroke="currentColor"
-    strokeWidth="2"
-    fill="none"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-    <path d="M9 18c-4.51 2-5-2-7-2" />
-  </svg>
-);
-
 export default function SkillsPage() {
-  const [skills, setSkills] = useState<Skill[]>([]);
+  // Full catalog drives search + per-topic counts; the view board is fetched
+  // lazily only when Hot/Trending is active.
+  const [allSkills, setAllSkills] = useState<Skill[]>([]);
+  const [viewSkills, setViewSkills] = useState<Skill[]>([]);
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
+  const [view, setView] = useQueryState("view", parseAsString.withDefault("all"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
-  
+
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -47,42 +36,56 @@ export default function SkillsPage() {
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
-  // Fetch skills from API
-  // Triggered when selectedCategory changes (or language, in case language changes and refetches)
   useEffect(() => {
-    const url = selectedCategory === "All" ? "/api/skills" : `/api/skills?category=${encodeURIComponent(selectedCategory)}`;
-    fetch(url)
+    fetch("/api/skills")
       .then((res) => res.json())
-      .then((data) => setSkills(data))
+      .then((data) => setAllSkills(data))
       .catch((err) => console.error("Error fetching skills:", err));
-  }, [selectedCategory, language]);
+  }, [language]);
 
-  const filteredSkills = skills.filter((skill) => {
-    const matchesSearch =
-      skill.title.toLowerCase().includes(search.toLowerCase()) ||
-      skill.description.toLowerCase().includes(search.toLowerCase()) ||
-      skill.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    if (view !== "hot" && view !== "trending") return;
+    fetch(`/api/skills?view=${view}`)
+      .then((res) => res.json())
+      .then((data) => setViewSkills(data))
+      .catch((err) => console.error("Error fetching skills:", err));
+  }, [view, language]);
 
-    const matchesCategory =
-      selectedCategory === "All" || skill.category === selectedCategory;
+  const counts = TOPICS.reduce<Record<string, number>>((acc, topic) => {
+    acc[topic.slug] = allSkills.filter((s) => s.category === topic.slug).length;
+    return acc;
+  }, {});
 
-    return matchesSearch && matchesCategory;
-  });
+  const searchActive = search.trim() !== "";
+  const matchesSearch = (skill: Skill) => {
+    const q = search.toLowerCase();
+    return (
+      skill.title.toLowerCase().includes(q) ||
+      skill.description.toLowerCase().includes(q) ||
+      skill.categoryLabel.toLowerCase().includes(q) ||
+      skill.tags.some((tag) => tag.toLowerCase().includes(q))
+    );
+  };
 
-  // Filter chips derive from the single taxonomy source of truth (topics.ts),
-  // plus the "All" sentinel. Value is the slug; label is localized.
-  const topicFilters = [
-    { value: "All", label: language === "da" ? "Alle" : "All" },
-    ...TOPICS.map((topic) => ({
-      value: topic.slug,
-      label: language === "da" ? topic.labelDa : topic.labelEn,
-    })),
+  // Search overrides the view. Otherwise Hot/Trending render their ranked board
+  // and the default "all" view shows the topic cards (no skill grid).
+  const gridSkills = searchActive
+    ? allSkills.filter(matchesSearch)
+    : view === "hot" || view === "trending"
+      ? viewSkills
+      : [];
+  const showTopicCards = !searchActive && view === "all";
+
+  const viewTabs: { value: string; label: string; icon: typeof Flame | null }[] = [
+    { value: "all", label: language === "da" ? "Emner" : "Topics", icon: null },
+    { value: "hot", label: "Hot", icon: Flame },
+    { value: "trending", label: language === "da" ? "Trender" : "Trending", icon: TrendingUp },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
+
     try {
       const res = await fetch("/api/skills", {
         method: "POST",
@@ -91,7 +94,7 @@ export default function SkillsPage() {
           title: subTitle,
           category: subCat,
           description: subDesc,
-          tags: subTags.split(",").map((t) => t.trim()).filter(Boolean),
+          tags: subTags.split(",").map((tag) => tag.trim()).filter(Boolean),
           githubUrl: subUrl,
         }),
       });
@@ -117,8 +120,8 @@ export default function SkillsPage() {
     "@type": "ItemList",
     "name": "Community Skills Bibliotek",
     "description": "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
-    "numberOfItems": filteredSkills.length,
-    "itemListElement": filteredSkills.map((skill, index) => ({
+    "numberOfItems": allSkills.length,
+    "itemListElement": allSkills.map((skill, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "item": {
@@ -127,10 +130,10 @@ export default function SkillsPage() {
         "description": skill.description,
         "author": {
           "@type": "Person",
-          "name": skill.vibeCoder
-        }
-      }
-    }))
+          "name": skill.vibeCoder,
+        },
+      },
+    })),
   };
 
   return (
@@ -158,9 +161,8 @@ export default function SkillsPage() {
         </button>
       </div>
 
-      {/* Filters & Search */}
+      {/* Search + view tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Search */}
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
@@ -173,92 +175,77 @@ export default function SkillsPage() {
           />
         </div>
 
-        {/* Categories */}
-        <div className="flex overflow-x-auto gap-2 pb-2 w-full scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
-          {topicFilters.map((topic) => (
-            <button
-              key={topic.value}
-              onClick={() => setSelectedCategory(topic.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
-                selectedCategory === topic.value
-                  ? "bg-accent-primary text-white font-extrabold shadow-md"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
-              }`}
-            >
-              {topic.label}
-            </button>
-          ))}
+        <div className="flex gap-2">
+          {viewTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setView(tab.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  view === tab.value && !searchActive
+                    ? "bg-accent-primary text-white font-extrabold shadow-md"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                }`}
+              >
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Grid List */}
-      {filteredSkills.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredSkills.map((skill) => (
-            <div key={skill.id} data-testid="skill-card" className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition">
-              <Link
-                href={`/skills/${skill.id}`}
-                aria-label={skill.title}
-                className="absolute inset-0 z-10 rounded-xl"
-              />
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="px-2 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
-                      {skill.categoryLabel}
-                    </span>
-                    <h3 className="text-lg font-bold text-foreground mt-2 leading-tight group-hover:text-accent-primary transition-colors">
-                      {skill.title}
-                    </h3>
-                  </div>
+      {/* Topic cards (default view) */}
+      {showTopicCards && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {TOPICS.map((topic) => (
+            <Link
+              key={topic.slug}
+              href={`/skills/topic/${topic.slug}`}
+              className="group relative rounded-xl glass-card p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition"
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: `${topic.accent}1a`, color: topic.accent }}
+                >
+                  <TopicIcon name={topic.icon} className="h-5 w-5" />
                 </div>
+                <span className="text-xs font-mono text-text-secondary">{counts[topic.slug] ?? 0}</span>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-foreground group-hover:text-accent-primary transition-colors">
+                  {language === "da" ? topic.labelDa : topic.labelEn}
+                </h3>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  {skill.description}
+                  {language === "da" ? topic.descDa : topic.descEn}
                 </p>
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {skill.tags.map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
               </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-card-border">
-                <div>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-sm font-semibold text-foreground">{skill.vibeCoder}</span>
-                    <div className="flex items-center text-accent-primary text-xs">
-                      <Star className="h-3.5 w-3.5 fill-accent-primary mr-0.5" />
-                      <span className="font-bold">{skill.rating}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
-                </div>
-                
-                {skill.githubUrl && (
-                  <a
-                    href={skill.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
-                  >
-                    <GithubIcon className="h-4 w-4" />
-                    {t("skills.github")}
-                  </a>
-                )}
-              </div>
-            </div>
+              <span className="inline-flex items-center text-xs font-semibold text-accent-primary mt-auto">
+                {language === "da" ? "Udforsk" : "Explore"}
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </span>
+            </Link>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-          <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">{t("skills.empty")}</p>
-          <p className="text-text-secondary text-sm mt-1">{t("skills.empty_sub")}</p>
-        </div>
       )}
+
+      {/* Skill grid (search / Hot / Trending) */}
+      {!showTopicCards &&
+        (gridSkills.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {gridSkills.map((skill) => (
+              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 rounded-xl border border-card-border bg-background">
+            <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
+            <p className="text-text-secondary font-semibold">{t("skills.empty")}</p>
+            <p className="text-text-secondary text-sm mt-1">{t("skills.empty_sub")}</p>
+          </div>
+        ))}
 
       {/* Submit Modal */}
       {submitOpen && (

@@ -15,7 +15,11 @@ export interface Skill {
   description: string;
   tags: string[];
   githubUrl?: string;
+  /** Attribution for seeded/imported entries (e.g. the upstream repo URL). */
+  source?: string;
 }
+
+export type SkillView = "hot" | "trending";
 
 export interface ShowcaseProject {
   id: string;
@@ -87,6 +91,9 @@ interface SkillRow {
   description_en: string;
   tags: string[] | null;
   github_url: string | null;
+  source?: string | null;
+  hot_rank?: number | null;
+  trending_rank?: number | null;
 }
 
 interface ShowcaseRow {
@@ -168,6 +175,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     description: lang === 'en' ? s.description_en : s.description_da,
     tags: s.tags || [],
     githubUrl: s.github_url || undefined,
+    source: s.source || undefined,
   };
 }
 
@@ -234,11 +242,20 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
 
 // DB API functions utilizing Supabase
 
-export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
+export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
   let query = supabasePublic.from('skills').select('*');
-  
+
   if (category && category !== "All") {
     query = query.eq('category', category);
+  }
+
+  // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.
+  // This is the seam the own-signal engine replaces later (plan Phase 4) — the
+  // signature and callers stay identical when the body swaps to computed ranks.
+  if (view === 'hot') {
+    query = query.not('hot_rank', 'is', null).order('hot_rank', { ascending: true });
+  } else if (view === 'trending') {
+    query = query.not('trending_rank', 'is', null).order('trending_rank', { ascending: true });
   }
 
   const { data, error } = await query;

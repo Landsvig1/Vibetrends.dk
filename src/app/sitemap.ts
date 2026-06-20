@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import { getSkills, getProjects, getAgents, getBlogPosts, getThreads } from "@/lib/db";
+import { TOPIC_SLUGS } from "@/lib/topics";
 
 const baseUrl = "https://vibetrends.dk";
 
@@ -33,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const detailEntries: MetadataRoute.Sitemap = [
+    ...TOPIC_SLUGS.map((slug) => `/skills/topic/${slug}`),
     ...skills.map((s) => `/skills/${s.id}`),
     ...projects.map((p) => `/showcase/${p.id}`),
     ...agents.map((a) => `/agents/${a.id}`),

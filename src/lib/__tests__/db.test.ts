@@ -80,6 +80,10 @@ function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
       ops.filters.push(["in", col, vals]);
       return builder;
     },
+    not(col: string, op: string, val: unknown) {
+      ops.filters.push(["not", col, op, val]);
+      return builder;
+    },
     order(col: string, opt: unknown) {
       ops.filters.push(["order", col, opt]);
       return builder;
@@ -177,6 +181,39 @@ describe("mappers (language + null coalescing)", () => {
     state.publicHandler = () => ({ data: [{ ...skillRow, category: "Legacy" }], error: null });
     const [skill] = await db.getSkills();
     expect(skill.categoryLabel).toBe("Legacy");
+  });
+
+  it("maps source attribution when present", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, source: "https://github.com/x/y" }], error: null });
+    const [skill] = await db.getSkills();
+    expect(skill.source).toBe("https://github.com/x/y");
+  });
+});
+
+describe("Hot/Trending view seam (snapshot ranks)", () => {
+  it("view=hot restricts to non-null hot_rank and orders by it ascending", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills(undefined, undefined, "da", "hot");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
+    expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
+  });
+
+  it("view=trending restricts to non-null trending_rank and orders by it ascending", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills(undefined, "nextjs", "da", "trending");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["eq", "category", "nextjs"]);
+    expect(call.filters).toContainEqual(["not", "trending_rank", "is", null]);
+    expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
+  });
+
+  it("no view leaves the query unranked (no not/order filters)", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills();
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters.some((f) => f[0] === "not")).toBe(false);
+    expect(call.filters.some((f) => f[0] === "order")).toBe(false);
   });
 });
 
