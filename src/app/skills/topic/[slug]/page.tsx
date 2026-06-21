@@ -1,22 +1,31 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { ArrowLeft, ArrowRight, Flame, TrendingUp } from "lucide-react";
-import { getSkills, type SkillView } from "@/lib/db";
-import { getTopic, TOPIC_SLUGS } from "@/lib/topics";
-import { Language } from "@/lib/translations";
+import { getSkills, parseSkillView } from "@/lib/db";
+import { getTopic } from "@/lib/topics";
+import { translations, Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
-import { jsonLdScript } from "@/lib/jsonLd";
+import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import { TopicIcon } from "@/app/components/TopicIcon";
 import { SkillCard } from "@/app/components/SkillCard";
 
-export function generateStaticParams() {
-  return TOPIC_SLUGS.map((slug) => ({ slug }));
-}
+// No generateStaticParams: the page reads the vibe_lang cookie and searchParams,
+// both request-time APIs that opt the route into dynamic rendering — matching
+// every other cookie-based detail route here (skills/[id], blog/[id], ...).
+// Topic URLs are still crawlable via the sitemap.
 
-function parseView(v: string | string[] | undefined): SkillView | undefined {
-  return v === "hot" || v === "trending" ? v : undefined;
-}
+export const unstable_instant = {
+  prefetch: "runtime",
+  samples: [
+    {
+      cookies: [{ name: "vibe_lang", value: "da" }],
+      params: { slug: "nextjs" },
+      searchParams: { view: null },
+    },
+  ],
+};
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -36,7 +45,32 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   });
 }
 
-export default async function TopicPage({
+export default function TopicPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-10 animate-pulse">
+          <div className="h-6 bg-card-border/50 rounded w-24"></div>
+          <div className="rounded-2xl glass-panel border border-card-border bg-card-border/10 h-40"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-xl glass-card bg-card-border/10 h-48"></div>
+            <div className="rounded-xl glass-card bg-card-border/10 h-48"></div>
+          </div>
+        </div>
+      }
+    >
+      <TopicContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function TopicContent({
   params,
   searchParams,
 }: {
@@ -48,7 +82,7 @@ export default async function TopicPage({
   if (!topic) notFound();
 
   const sp = await searchParams;
-  const view = parseView(sp.view);
+  const view = parseSkillView(sp.view);
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
@@ -56,41 +90,33 @@ export default async function TopicPage({
 
   const label = isDa ? topic.labelDa : topic.labelEn;
   const desc = isDa ? topic.descDa : topic.descEn;
-  const githubLabel = isDa ? "Se på GitHub" : "View on GitHub";
+  const githubLabel = translations[lang]["skills.github"];
 
-  // The grid (respecting the active view) and the topic's top Hot pick for the
-  // hero highlight, fetched together.
-  const [skills, hotInTopic] = await Promise.all([
-    getSkills(undefined, slug, lang, view),
-    getSkills(undefined, slug, lang, "hot"),
+  // `base` is the full topic catalog (view-independent) — it drives the hero
+  // count, the JSON-LD, and the default grid. When a view is active we fetch the
+  // ranked board too; otherwise we fetch the Hot board only to pick the featured
+  // card. This avoids the previous duplicate identical query when view === 'hot'.
+  type SkillList = Awaited<ReturnType<typeof getSkills>>;
+  const [base, viewList, hotList] = await Promise.all([
+    getSkills(undefined, slug, lang),
+    view ? getSkills(undefined, slug, lang, view) : Promise.resolve<SkillList>([]),
+    view ? Promise.resolve<SkillList>([]) : getSkills(undefined, slug, lang, "hot"),
   ]);
-  const featured = hotInTopic[0] ?? skills[0];
-  const showFeatured = !view && featured;
 
-  const tabs: { value: SkillView | "all"; label: string; icon: typeof Flame | null; href: string }[] = [
+  const total = base.length;
+  const featured = view ? undefined : hotList[0] ?? base[0];
+  // Default grid excludes the featured card so the top pick is not shown twice.
+  const gridSkills = view ? viewList : base.filter((s) => s.id !== featured?.id);
+  const hasAny = view ? viewList.length > 0 : base.length > 0;
+
+  const jsonLd = skillsListJsonLd(base, `${label} skills`, desc);
+
+  const tabs: { value: "all" | "hot" | "trending"; label: string; icon: typeof Flame | null; href: string }[] = [
     { value: "all", label: isDa ? "Alle" : "All", icon: null, href: `/skills/topic/${slug}` },
     { value: "hot", label: "Hot", icon: Flame, href: `/skills/topic/${slug}?view=hot` },
     { value: "trending", label: isDa ? "Trender" : "Trending", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
   ];
   const activeTab = view ?? "all";
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: `${label} skills`,
-    description: desc,
-    numberOfItems: skills.length,
-    itemListElement: skills.map((skill, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      item: {
-        "@type": "SoftwareSourceCode",
-        name: skill.title,
-        description: skill.description,
-        author: { "@type": "Person", name: skill.vibeCoder },
-      },
-    })),
-  };
 
   return (
     <div className="space-y-10">
@@ -119,7 +145,7 @@ export default async function TopicPage({
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">{label}</h1>
             <span className="px-2 py-0.5 text-xs font-mono rounded bg-background text-text-secondary border border-card-border">
-              {skills.length} skills
+              {total} skills
             </span>
           </div>
           <p className="text-text-secondary max-w-2xl">{desc}</p>
@@ -148,7 +174,7 @@ export default async function TopicPage({
       </div>
 
       {/* Featured pick (default view only) */}
-      {showFeatured && (
+      {featured && (
         <div className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center">
             <Flame className="h-4 w-4 mr-2 text-accent-primary" />
@@ -159,13 +185,15 @@ export default async function TopicPage({
       )}
 
       {/* Grid */}
-      {skills.length > 0 ? (
+      {gridSkills.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {skills.map((skill) => (
+          {gridSkills.map((skill) => (
             <SkillCard key={skill.id} skill={skill} githubLabel={githubLabel} />
           ))}
         </div>
-      ) : (
+      )}
+
+      {!hasAny && (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <p className="text-text-secondary font-semibold">
             {isDa ? "Ingen skills i dette emne endnu." : "No skills in this topic yet."}

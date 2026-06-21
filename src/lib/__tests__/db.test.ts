@@ -115,12 +115,13 @@ vi.mock("@/lib/supabase-server", () => {
 });
 
 import * as db from "@/lib/db";
+import { topicLabel, TOPIC_SLUGS } from "@/lib/topics";
 
 const skillRow = {
   id: "s1",
   title_da: "Titel DA",
   title_en: "Title EN",
-  category: "Prompting",
+  category: "agent-workflows",
   vibe_coder: "alice",
   vibe_coder_title_da: "Bidragyder",
   vibe_coder_title_en: "Contributor",
@@ -172,9 +173,9 @@ describe("mappers (language + null coalescing)", () => {
     state.publicHandler = () => ({ data: [{ ...skillRow, category: "agent-workflows" }], error: null });
     const [da] = await db.getSkills();
     expect(da.category).toBe("agent-workflows"); // canonical slug preserved
-    expect(da.categoryLabel).toBe("Agent-workflows"); // da label
+    expect(da.categoryLabel).toBe(topicLabel("agent-workflows", "da"));
     const [en] = await db.getSkills(undefined, undefined, "en");
-    expect(en.categoryLabel).toBe("Agent workflows"); // en label
+    expect(en.categoryLabel).toBe(topicLabel("agent-workflows", "en"));
   });
 
   it("falls back to the raw value for an unknown/legacy category", async () => {
@@ -215,14 +216,61 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters.some((f) => f[0] === "not")).toBe(false);
     expect(call.filters.some((f) => f[0] === "order")).toBe(false);
   });
+
+  it("view=hot combined with a category filters by both (symmetric with trending)", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills(undefined, "nextjs", "da", "hot");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["eq", "category", "nextjs"]);
+    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
+    expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
+  });
+
+  it("search post-filters in JS on top of the view query (search + view combined)", async () => {
+    const rows = [
+      { ...skillRow, id: "a", title_da: "React patterns", title_en: "React patterns" },
+      { ...skillRow, id: "b", title_da: "Andet", title_en: "Other", description_da: "x", description_en: "x", tags: [] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("react", undefined, "da", "hot");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]); // view at query time
+    expect(results.map((r) => r.id)).toEqual(["a"]); // search in JS after
+  });
+});
+
+describe("parseSkillView", () => {
+  it("accepts hot/trending, rejects everything else", () => {
+    expect(db.parseSkillView("hot")).toBe("hot");
+    expect(db.parseSkillView("trending")).toBe("trending");
+    expect(db.parseSkillView("popular")).toBeUndefined();
+    expect(db.parseSkillView(undefined)).toBeUndefined();
+    expect(db.parseSkillView(["hot"])).toBeUndefined();
+  });
+});
+
+describe("topic taxonomy labels", () => {
+  it("every TOPIC_SLUG resolves to non-empty da and en labels", () => {
+    for (const slug of TOPIC_SLUGS) {
+      expect(topicLabel(slug, "da")).toBeTruthy();
+      expect(topicLabel(slug, "en")).toBeTruthy();
+    }
+  });
+
+  it("localizes slugs whose da/en labels diverge", () => {
+    expect(topicLabel("mobile", "da")).toBe("Mobil");
+    expect(topicLabel("mobile", "en")).toBe("Mobile");
+    expect(topicLabel("testing", "da")).toBe("Test");
+    expect(topicLabel("testing", "en")).toBe("Testing");
+  });
 });
 
 describe("category guards and search filters", () => {
   it("getSkills applies eq('category') for a concrete category", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "Prompting");
+    await db.getSkills(undefined, "agent-workflows");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "Prompting"]);
+    expect(call.filters).toContainEqual(["eq", "category", "agent-workflows"]);
   });
 
   it("getSkills does NOT filter category for 'All'", async () => {

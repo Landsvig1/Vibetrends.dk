@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getSkills, createSkill } from "@/lib/db";
+import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
 import { TOPIC_SLUGS } from "@/lib/topics";
 import { z } from "zod";
@@ -19,8 +19,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
   const category = searchParams.get("category") || undefined;
-  const viewParam = searchParams.get("view");
-  const view = viewParam === "hot" || viewParam === "trending" ? viewParam : undefined;
+  const view = parseSkillView(searchParams.get("view"));
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';

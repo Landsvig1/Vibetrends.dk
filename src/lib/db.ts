@@ -4,7 +4,7 @@ import { topicLabel, type TopicSlug } from "./topics";
 export interface Skill {
   id: string;
   /** Canonical topic slug (see src/lib/topics.ts). */
-  category: TopicSlug | string;
+  category: TopicSlug;
   /** Localized topic label resolved from `category` for display. */
   categoryLabel: string;
   title: string;
@@ -20,6 +20,13 @@ export interface Skill {
 }
 
 export type SkillView = "hot" | "trending";
+
+/** Coerce an untrusted value to a valid SkillView, or undefined. Shared by the
+ * REST route, the MCP tool, and the topic landing page so the whitelist lives
+ * in one place. */
+export function parseSkillView(v: unknown): SkillView | undefined {
+  return v === "hot" || v === "trending" ? v : undefined;
+}
 
 export interface ShowcaseProject {
   id: string;
@@ -166,7 +173,9 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
   return {
     id: s.id,
     title: lang === 'en' ? s.title_en : s.title_da,
-    category: s.category,
+    // DB rows are migrated to slugs; topicLabel still falls back safely for any
+    // legacy value, so the cast documents intent without losing that guard.
+    category: s.category as TopicSlug,
     categoryLabel: topicLabel(s.category, lang),
     vibeCoder: s.vibe_coder,
     vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,

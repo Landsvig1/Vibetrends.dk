@@ -10,7 +10,7 @@ import { TopicIcon } from "../components/TopicIcon";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
-import { jsonLdScript } from "@/lib/jsonLd";
+import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
@@ -115,26 +115,11 @@ export default function SkillsPage() {
     }
   };
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "name": "Community Skills Bibliotek",
-    "description": "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
-    "numberOfItems": allSkills.length,
-    "itemListElement": allSkills.map((skill, index) => ({
-      "@type": "ListItem",
-      "position": index + 1,
-      "item": {
-        "@type": "SoftwareSourceCode",
-        "name": skill.title,
-        "description": skill.description,
-        "author": {
-          "@type": "Person",
-          "name": skill.vibeCoder,
-        },
-      },
-    })),
-  };
+  const jsonLd = skillsListJsonLd(
+    allSkills,
+    "Community Skills Bibliotek",
+    "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
+  );
 
   return (
     <div className="space-y-10">
