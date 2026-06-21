@@ -174,7 +174,7 @@ export default async function Home() {
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                      {featuredSkill.category}
+                      {featuredSkill.categoryLabel}
                     </span>
                     <h3 className="text-lg font-bold mt-2 leading-tight">
                       {featuredSkill.title}

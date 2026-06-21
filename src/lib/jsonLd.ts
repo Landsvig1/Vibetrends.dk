@@ -27,6 +27,31 @@ export function articleJsonLd(opts: {
   };
 }
 
+/** schema.org ItemList of skills, shared by the Skills hub and topic landings. */
+export function skillsListJsonLd(
+  skills: { title: string; description: string; vibeCoder: string }[],
+  name: string,
+  description: string,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    description,
+    numberOfItems: skills.length,
+    itemListElement: skills.map((skill, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "SoftwareSourceCode",
+        name: skill.title,
+        description: skill.description,
+        author: { "@type": "Person", name: skill.vibeCoder },
+      },
+    })),
+  };
+}
+
 /** schema.org SoftwareApplication for an agent / MCP server detail page. */
 export function softwareAppJsonLd(opts: {
   name: string;

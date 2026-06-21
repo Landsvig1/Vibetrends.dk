@@ -4,6 +4,7 @@ vi.mock("@/lib/db", () => ({
   getSkills: vi.fn(async () => [{ id: "s1", title: "Skill One" }]),
   getProjects: vi.fn(async () => [{ id: "p1", title: "Project One" }]),
   getAgents: vi.fn(async () => [{ id: "a1", name: "Agent One" }]),
+  parseSkillView: (v: unknown) => (v === "hot" || v === "trending" ? v : undefined),
 }));
 
 import { POST, GET } from "@/app/api/mcp/route";
@@ -26,7 +27,7 @@ describe("GET /api/mcp (discovery)", () => {
     const res = await GET();
     const body = await res.json();
     expect(body.protocolVersion).toBe("2025-06-18");
-    expect(body.tools).toHaveLength(3);
+    expect(body.tools).toHaveLength(4);
   });
 });
 
@@ -40,13 +41,14 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     expect(body.result.capabilities.tools).toBeDefined();
   });
 
-  it("tools/list returns the three tools with an inputSchema", async () => {
+  it("tools/list returns the tools with an inputSchema", async () => {
     const res = await POST(rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }));
     const body = await res.json();
     expect(body.result.tools.map((t: { name: string }) => t.name)).toEqual([
       "search_skills",
       "search_showcase",
       "search_agents",
+      "list_topics",
     ]);
     expect(body.result.tools[0].inputSchema.type).toBe("object");
   });
@@ -56,7 +58,7 @@ describe("POST /api/mcp (JSON-RPC)", () => {
       rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai" } } })
     );
     const body = await res.json();
-    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da");
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da", undefined);
     expect(body.result.content[0].type).toBe("text");
     expect(JSON.parse(body.result.content[0].text)).toEqual([{ id: "s1", title: "Skill One" }]);
   });
@@ -83,7 +85,7 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     await POST(
       rpc({ jsonrpc: "2.0", id: 33, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai", lang: "en" } } })
     );
-    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "en");
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "en", undefined);
   });
 
   it("coerces a non-string query rather than throwing", async () => {
@@ -91,8 +93,34 @@ describe("POST /api/mcp (JSON-RPC)", () => {
       rpc({ jsonrpc: "2.0", id: 34, method: "tools/call", params: { name: "search_skills", arguments: { query: 42 } } })
     );
     const body = await res.json();
-    expect(db.getSkills).toHaveBeenCalledWith(undefined, undefined, "da");
+    expect(db.getSkills).toHaveBeenCalledWith(undefined, undefined, "da", undefined);
     expect(body.result.content[0].type).toBe("text");
+  });
+
+  it("forwards a valid view argument to the data layer", async () => {
+    await POST(
+      rpc({ jsonrpc: "2.0", id: 36, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai", view: "hot" } } })
+    );
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da", "hot");
+  });
+
+  it("drops an invalid view argument (silently ignores non-whitelisted values)", async () => {
+    await POST(
+      rpc({ jsonrpc: "2.0", id: 37, method: "tools/call", params: { name: "search_skills", arguments: { query: "ai", view: "bogus" } } })
+    );
+    expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da", undefined);
+  });
+
+  it("tools/call list_topics returns the 8-topic taxonomy as text content", async () => {
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 38, method: "tools/call", params: { name: "list_topics", arguments: {} } })
+    );
+    const body = await res.json();
+    const topics = JSON.parse(body.result.content[0].text);
+    expect(topics).toHaveLength(8);
+    expect(topics.map((t: { slug: string }) => t.slug)).toContain("nextjs");
+    expect(topics[0]).toHaveProperty("labelDa");
+    expect(topics[0]).toHaveProperty("labelEn");
   });
 
   it("a thrown data-layer error surfaces as INTERNAL_ERROR (-32603)", async () => {

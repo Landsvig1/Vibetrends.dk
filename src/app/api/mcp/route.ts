@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSkills, getProjects, getAgents } from "@/lib/db";
+import { getSkills, getProjects, getAgents, parseSkillView } from "@/lib/db";
+import { TOPIC_SLUGS, TOPICS } from "@/lib/topics";
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -21,8 +22,13 @@ const TOOLS = [
         query: { type: "string", description: "Søgeterm" },
         category: {
           type: "string",
-          enum: ["Prompting", "Agents", "Automation", "Fullstack"],
-          description: "Valgfri kategori-filtrering",
+          enum: [...TOPIC_SLUGS],
+          description: "Valgfri emne-filtrering (skills.sh topic-slug)",
+        },
+        view: {
+          type: "string",
+          enum: ["hot", "trending"],
+          description: "Valgfri rangliste: hot (seneste momentum) eller trending. Udelad for hele kataloget.",
         },
         lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },
@@ -48,6 +54,14 @@ const TOOLS = [
         query: { type: "string", description: "Søgeterm" },
         lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },
+    },
+  },
+  {
+    name: "list_topics",
+    description: "Vis de 8 emner i Skills-biblioteket med dansk/engelsk label, beskrivelse og slug — samme taksonomi som /skills-emnekortene.",
+    inputSchema: {
+      type: "object",
+      properties: {},
     },
   },
 ] as const;
@@ -88,11 +102,21 @@ async function callTool(name: string, args: Record<string, unknown>) {
   const lang = asLang(args.lang);
   switch (name) {
     case "search_skills":
-      return textContent(await getSkills(query, asString(args.category), lang));
+      return textContent(await getSkills(query, asString(args.category), lang, parseSkillView(args.view)));
     case "search_showcase":
       return textContent(await getProjects(query, lang));
     case "search_agents":
       return textContent(await getAgents(query, undefined, lang));
+    case "list_topics":
+      return textContent(
+        TOPICS.map((t) => ({
+          slug: t.slug,
+          labelDa: t.labelDa,
+          labelEn: t.labelEn,
+          descDa: t.descDa,
+          descEn: t.descEn,
+        })),
+      );
     default:
       return null;
   }

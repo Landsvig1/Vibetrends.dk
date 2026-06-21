@@ -1,9 +1,13 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
+import { topicLabel, type TopicSlug } from "./topics";
 
 export interface Skill {
   id: string;
+  /** Canonical topic slug (see src/lib/topics.ts). */
+  category: TopicSlug;
+  /** Localized topic label resolved from `category` for display. */
+  categoryLabel: string;
   title: string;
-  category: "Prompting" | "Agents" | "Automation" | "Fullstack";
   vibeCoder: string;
   vibeCoderTitle: string;
   rating: number;
@@ -11,6 +15,17 @@ export interface Skill {
   description: string;
   tags: string[];
   githubUrl?: string;
+  /** Attribution for seeded/imported entries (e.g. the upstream repo URL). */
+  source?: string;
+}
+
+export type SkillView = "hot" | "trending";
+
+/** Coerce an untrusted value to a valid SkillView, or undefined. Shared by the
+ * REST route, the MCP tool, and the topic landing page so the whitelist lives
+ * in one place. */
+export function parseSkillView(v: unknown): SkillView | undefined {
+  return v === "hot" || v === "trending" ? v : undefined;
 }
 
 export interface ShowcaseProject {
@@ -73,7 +88,7 @@ interface SkillRow {
   id: string;
   title_da: string;
   title_en: string;
-  category: Skill["category"];
+  category: string;
   vibe_coder: string;
   vibe_coder_title_da: string;
   vibe_coder_title_en: string;
@@ -83,6 +98,9 @@ interface SkillRow {
   description_en: string;
   tags: string[] | null;
   github_url: string | null;
+  source?: string | null;
+  hot_rank?: number | null;
+  trending_rank?: number | null;
 }
 
 interface ShowcaseRow {
@@ -155,7 +173,10 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
   return {
     id: s.id,
     title: lang === 'en' ? s.title_en : s.title_da,
-    category: s.category,
+    // DB rows are migrated to slugs; topicLabel still falls back safely for any
+    // legacy value, so the cast documents intent without losing that guard.
+    category: s.category as TopicSlug,
+    categoryLabel: topicLabel(s.category, lang),
     vibeCoder: s.vibe_coder,
     vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,
     rating: Number(s.rating),
@@ -163,6 +184,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     description: lang === 'en' ? s.description_en : s.description_da,
     tags: s.tags || [],
     githubUrl: s.github_url || undefined,
+    source: s.source || undefined,
   };
 }
 
@@ -229,11 +251,20 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
 
 // DB API functions utilizing Supabase
 
-export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
+export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
   let query = supabasePublic.from('skills').select('*');
-  
+
   if (category && category !== "All") {
     query = query.eq('category', category);
+  }
+
+  // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.
+  // This is the seam the own-signal engine replaces later (plan Phase 4) — the
+  // signature and callers stay identical when the body swaps to computed ranks.
+  if (view === 'hot') {
+    query = query.not('hot_rank', 'is', null).order('hot_rank', { ascending: true });
+  } else if (view === 'trending') {
+    query = query.not('trending_rank', 'is', null).order('trending_rank', { ascending: true });
   }
 
   const { data, error } = await query;

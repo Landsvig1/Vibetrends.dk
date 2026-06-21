@@ -88,7 +88,7 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-3">
                 <span className="px-2.5 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
-                  {skill.category}
+                  {skill.categoryLabel}
                 </span>
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground leading-tight">
                   {skill.title}
@@ -137,7 +137,7 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">{lang === "da" ? "Kategori" : "Category"}</span>
-                <span className="text-foreground font-mono">{skill.category}</span>
+                <span className="text-foreground font-mono">{skill.categoryLabel}</span>
               </div>
             </div>
             {skill.githubUrl && (

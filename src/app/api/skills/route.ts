@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
-import { getSkills, createSkill } from "@/lib/db";
+import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
+import { TOPIC_SLUGS } from "@/lib/topics";
 import { z } from "zod";
 
 const skillSchema = z.object({
   title: z.string().min(1).max(100),
-  category: z.enum(["Prompting", "Agents", "Automation", "Fullstack"]),
+  category: z.enum(TOPIC_SLUGS),
   description: z.string().min(10).max(1000),
   tags: z.array(z.string()).max(10).optional(),
   githubUrl: z.string().url().max(200).optional().or(z.literal("")),
@@ -18,11 +19,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
   const category = searchParams.get("category") || undefined;
+  const view = parseSkillView(searchParams.get("view"));
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
 
-  const skills = await getSkills(search, category, lang);
+  const skills = await getSkills(search, category, lang, view);
   return NextResponse.json(skills, {
     headers: {
       "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
