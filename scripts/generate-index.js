@@ -19,7 +19,7 @@ async function generateIndex() {
   const [skills, showcase, agents, threads] = await Promise.all([
     supabase.from('skills').select('id, title_da, tags'),
     supabase.from('showcase').select('id, title_da, tools'),
-    supabase.from('agents').select('id, name, tags'),
+    supabase.from('agents').select('id, name, tags, category'),
     supabase.from('forum_threads').select('id'),
   ]);
 
@@ -34,23 +34,31 @@ async function generateIndex() {
   const a = agents.data || [];
   const t = threads.data || [];
 
+  // The agents table now carries the feed-vs-host taxonomy. Feed types are
+  // surfaced; hosts (connection targets, not catalog items) are excluded.
+  const toolClis = a.filter((x) => x.category === 'Tool CLI');
+  const mcpServers = a.filter((x) => x.category === 'MCP Server');
+
   const index = {
     generatedAt: new Date().toISOString(),
     summary: {
       skills_count: s.length,
       showcase_count: p.length,
-      agents_count: a.length,
+      tool_clis_count: toolClis.length,
+      mcp_servers_count: mcpServers.length,
       forum_threads_count: t.length,
     },
     top_keywords: Array.from(new Set([
       ...s.flatMap((x) => x.tags || []),
       ...p.flatMap((x) => x.tools || []),
-      ...a.flatMap((x) => x.tags || []),
+      ...toolClis.flatMap((x) => x.tags || []),
+      ...mcpServers.flatMap((x) => x.tags || []),
     ])).slice(0, 50),
     entities: [
       ...s.map((x) => ({ type: 'skill', name: x.title_da, id: x.id })),
       ...p.map((x) => ({ type: 'project', name: x.title_da, id: x.id })),
-      ...a.map((x) => ({ type: 'agent', name: x.name, id: x.id })),
+      ...toolClis.map((x) => ({ type: 'tool-cli', name: x.name, id: x.id })),
+      ...mcpServers.map((x) => ({ type: 'mcp-server', name: x.name, id: x.id })),
     ],
   };
 

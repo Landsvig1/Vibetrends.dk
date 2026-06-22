@@ -6,7 +6,8 @@
     "discovery": {
       "skills": "Browse community AI workflows (free)",
       "showcase": "Explore vibe-coded project architecture",
-      "agents": "Access MCP server definitions"
+      "tool_clis": "CLI tools your agent can invoke (one step from your host)",
+      "mcp": "MCP capabilities one step from your setup"
     },
     "contribution": {
       "open": true,

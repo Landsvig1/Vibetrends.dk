@@ -23,9 +23,11 @@ export function proxy(request: NextRequest) {
       '/skills': '/api/skills',
       '/showcase': '/api/showcase',
       '/agents': '/api/agents',
-      // /mcp has its own param-free JSON route: rewrite() keeps the original
-      // request query, so we can't inject ?category onto /api/agents here.
+      // /mcp and /tool-clis each have a param-free JSON route: rewrite() keeps
+      // the original request query, so we can't inject ?category onto
+      // /api/agents here.
       '/mcp': '/api/mcp-servers',
+      '/tool-clis': '/api/tool-clis',
       '/forum': '/api/forum',
     };
 
@@ -55,5 +57,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/forum', '/api/:path*'],
+  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/tool-clis', '/forum', '/api/:path*'],
 };
