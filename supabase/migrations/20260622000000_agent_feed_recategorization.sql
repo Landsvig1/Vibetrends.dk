@@ -74,3 +74,34 @@ where category in ('DevTools', 'Writing', 'Browsing');
 update public.agents
 set category = 'Tool CLI'
 where category not in ('Tool CLI', 'MCP Server', 'Host');
+
+-- 4. Index the category column: every agents list query now filters on it
+--    (getAgents/getToolClis/getCounts/getTopAgents) and orders by upvotes. The
+--    composite covers both the category filter and the upvotes-desc ordering.
+create index if not exists agents_category_upvotes_idx
+  on public.agents (category, upvotes desc);
+
+-- ---------------------------------------------------------------------------
+-- POST-MIGRATION VERIFICATION (run manually after applying; not executed here)
+-- ---------------------------------------------------------------------------
+--   -- Category distribution — sanity-check the split:
+--   select category, count(*) as n from public.agents group by category order by n desc;
+--   -- Must return 0 — no legacy values left on any row:
+--   select count(*) from public.agents where category in ('DevTools','Writing','Browsing');
+--   -- Must return 0 — every row has a reversibility snapshot:
+--   select count(*) from public.agents where category_legacy is null;
+--   -- Must return 0 — nothing on a non-canonical category:
+--   select count(*) from public.agents where category not in ('Tool CLI','MCP Server','Host');
+--   -- Compare to the pre-migration total — rows are recategorized, never deleted.
+--   select count(*) as total_rows from public.agents;
+--
+-- PRE-APPLY: also spot-check hosts mis-filed as MCP Server (step 1 skips them):
+--   select id, name, category from public.agents
+--   where category = 'MCP Server'
+--     and lower(trim(name)) in (
+--       'claude code','cursor','gemini','gemini cli','windsurf','github copilot',
+--       'copilot','cline','aider','codex','continue','zed','amp','cody','devin'
+--     );
+--
+-- ROLLBACK (reverses the recategorization using the snapshot):
+--   update public.agents set category = category_legacy where category_legacy is not null;

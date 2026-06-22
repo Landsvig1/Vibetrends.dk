@@ -221,7 +221,7 @@ export default function SkillsPage() {
         (gridSkills.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {gridSkills.map((skill) => (
-              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} />
+              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} connectLabel={t("skills.connect")} />
             ))}
           </div>
         ) : (

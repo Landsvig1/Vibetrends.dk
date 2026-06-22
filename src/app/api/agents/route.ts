@@ -4,7 +4,8 @@ import { getAgents, createAgent } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
-const agentSchema = z.object({
+// Exported for unit testing the submission contract (validation boundary).
+export const agentSchema = z.object({
   name: z.string().min(1).max(100),
   // Feed-worthy categories only — hosts are connection targets, not submittable
   // catalog items (R2).

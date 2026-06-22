@@ -91,6 +91,7 @@ async function TopicContent({
   const label = isDa ? topic.labelDa : topic.labelEn;
   const desc = isDa ? topic.descDa : topic.descEn;
   const githubLabel = translations[lang]["skills.github"];
+  const connectLabel = translations[lang]["skills.connect"];
 
   // `base` is the full topic catalog (view-independent) — it drives the hero
   // count, the JSON-LD, and the default grid. When a view is active we fetch the
@@ -180,7 +181,7 @@ async function TopicContent({
             <Flame className="h-4 w-4 mr-2 text-accent-primary" />
             {isDa ? "Mest populære" : "Most popular"}
           </h2>
-          <SkillCard skill={featured} githubLabel={githubLabel} />
+          <SkillCard skill={featured} githubLabel={githubLabel} connectLabel={connectLabel} />
         </div>
       )}
 
@@ -188,7 +189,7 @@ async function TopicContent({
       {gridSkills.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {gridSkills.map((skill) => (
-            <SkillCard key={skill.id} skill={skill} githubLabel={githubLabel} />
+            <SkillCard key={skill.id} skill={skill} githubLabel={githubLabel} connectLabel={connectLabel} />
           ))}
         </div>
       )}

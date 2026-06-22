@@ -29,7 +29,6 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
   const [agents, setAgents] = useState<Agent[]>([]);
   // Search/category live in the URL so filtered views are shareable.
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -126,27 +125,20 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
     }
   };
 
-  // Feed types each map to a single agents-table category, so the explorer no
-  // longer shows sub-category chips for any scope.
-  const categories: string[] = [];
+  // Each feed type maps to a single agents-table category, so the explorer has
+  // no sub-category chips — filtering is search-only. categoryIcons still labels
+  // each card's category badge.
   const categoryIcons = {
     "Tool CLI": <Terminal className="h-4 w-4" />,
     "MCP Server": <Cpu className="h-4 w-4" />,
     "Host": <Globe className="h-4 w-4" />,
   };
 
-  const filteredAgents = agents.filter((agent) => {
-    // With no sub-category chips, a stale ?category= in the URL (e.g. a legacy
-    // /agents?category=DevTools bookmark) must not filter the grid to empty —
-    // there is no chip to clear it. Treat category as a no-op when no chips exist.
-    const matchesCategory =
-      isMcp || categories.length === 0 || selectedCategory === "All" || agent.category === selectedCategory;
-    const matchesSearch =
-      agent.name.toLowerCase().includes(search.toLowerCase()) ||
-      agent.description.toLowerCase().includes(search.toLowerCase()) ||
-      agent.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+  const filteredAgents = agents.filter((agent) =>
+    agent.name.toLowerCase().includes(search.toLowerCase()) ||
+    agent.description.toLowerCase().includes(search.toLowerCase()) ||
+    agent.tags.some((t) => t.toLowerCase().includes(search.toLowerCase())),
+  );
 
   return (
     <div className="space-y-10">
@@ -200,24 +192,6 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
-
-        {categories.length > 0 && (
-          <div className="flex overflow-x-auto gap-2 pb-2 w-full scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
-                  selectedCategory === cat
-                    ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
-                }`}
-              >
-                {cat === "All" ? (language === "da" ? "Alle" : "All") : cat}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Grid */}

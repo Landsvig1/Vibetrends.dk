@@ -20,7 +20,7 @@ export default function ConnectBlock({
   const [host, setHost] = useState<string>(HOSTS[0].slug);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const recipe = buildConnectRecipe(feedType, item, host);
+  const recipe = buildConnectRecipe(feedType, item, host, lang);
 
   const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);

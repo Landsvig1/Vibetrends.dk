@@ -240,12 +240,24 @@ function mapBlogPost(b: BlogPostRow, lang: 'da' | 'en'): BlogPost {
   };
 }
 
+const AGENT_CATEGORIES = ['Tool CLI', 'MCP Server', 'Host'] as const;
+
+// Narrow the widened DB string to the union, defaulting any legacy value
+// ('DevTools'/'Writing'/'Browsing') that survives the recategorization-window
+// to 'Tool CLI' rather than leaking a non-union string through a bare cast.
+// This guard can be removed once the migration is confirmed in every env.
+function toAgentCategory(value: string): Agent["category"] {
+  return (AGENT_CATEGORIES as readonly string[]).includes(value)
+    ? (value as Agent["category"])
+    : 'Tool CLI';
+}
+
 function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
   return {
     id: a.id,
     name: a.name,
     developer: a.developer,
-    category: a.category as Agent["category"],
+    category: toAgentCategory(a.category),
     description: lang === 'en' ? a.description_en : a.description_da,
     installCommand: a.install_command,
     systemPrompt: lang === 'en' ? a.system_prompt_en : a.system_prompt_da,
