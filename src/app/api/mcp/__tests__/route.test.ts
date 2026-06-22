@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   getSkills: vi.fn(async () => [{ id: "s1", title: "Skill One" }]),
   getProjects: vi.fn(async () => [{ id: "p1", title: "Project One" }]),
-  getAgents: vi.fn(async () => [{ id: "a1", name: "Agent One" }]),
+  getAgents: vi.fn(async () => [{ id: "m1", name: "MCP One" }]),
+  getToolClis: vi.fn(async () => [{ id: "a1", name: "Tool CLI One" }]),
   parseSkillView: (v: unknown) => (v === "hot" || v === "trending" ? v : undefined),
 }));
 
@@ -27,7 +28,7 @@ describe("GET /api/mcp (discovery)", () => {
     const res = await GET();
     const body = await res.json();
     expect(body.protocolVersion).toBe("2025-06-18");
-    expect(body.tools).toHaveLength(4);
+    expect(body.tools).toHaveLength(7);
   });
 });
 
@@ -48,7 +49,10 @@ describe("POST /api/mcp (JSON-RPC)", () => {
       "search_skills",
       "search_showcase",
       "search_agents",
+      "search_tool_clis",
+      "search_mcp_servers",
       "list_topics",
+      "list_feed_types",
     ]);
     expect(body.result.tools[0].inputSchema.type).toBe("object");
   });
@@ -72,13 +76,40 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     expect(body.result.content[0].type).toBe("text");
   });
 
-  it("tools/call search_agents dispatches to getAgents", async () => {
+  it("tools/call search_agents dispatches to getToolClis (feed items only, no hosts)", async () => {
     const res = await POST(
       rpc({ jsonrpc: "2.0", id: 32, method: "tools/call", params: { name: "search_agents", arguments: {} } })
     );
     const body = await res.json();
-    expect(db.getAgents).toHaveBeenCalledWith(undefined, undefined, "da");
+    // getToolClis excludes Host (and MCP Server) rows, so hosts never surface.
+    expect(db.getToolClis).toHaveBeenCalledWith(undefined, "da");
+    expect(db.getAgents).not.toHaveBeenCalled();
     expect(body.result.content[0].type).toBe("text");
+  });
+
+  it("tools/call search_tool_clis dispatches to getToolClis", async () => {
+    await POST(
+      rpc({ jsonrpc: "2.0", id: 39, method: "tools/call", params: { name: "search_tool_clis", arguments: { query: "scrape" } } })
+    );
+    expect(db.getToolClis).toHaveBeenCalledWith("scrape", "da");
+  });
+
+  it("tools/call search_mcp_servers dispatches to getAgents with the MCP Server category", async () => {
+    await POST(
+      rpc({ jsonrpc: "2.0", id: 40, method: "tools/call", params: { name: "search_mcp_servers", arguments: { query: "pg" } } })
+    );
+    expect(db.getAgents).toHaveBeenCalledWith("pg", "MCP Server", "da");
+  });
+
+  it("tools/call list_feed_types returns the feed-vs-host taxonomy as text content", async () => {
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 41, method: "tools/call", params: { name: "list_feed_types", arguments: {} } })
+    );
+    const body = await res.json();
+    const feedTypes = JSON.parse(body.result.content[0].text);
+    expect(feedTypes).toHaveLength(3);
+    expect(feedTypes.map((f: { slug: string }) => f.slug)).toEqual(["skills", "mcp-servers", "tool-clis"]);
+    expect(feedTypes[0]).toHaveProperty("href");
   });
 
   it("tools/call forwards the lang argument to the data layer", async () => {

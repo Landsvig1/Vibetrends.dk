@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSkills, getProjects, getAgents, parseSkillView } from "@/lib/db";
+import { getSkills, getProjects, getAgents, getToolClis, parseSkillView } from "@/lib/db";
 import { TOPIC_SLUGS, TOPICS } from "@/lib/topics";
+import { FEED_TYPES } from "@/lib/feedTypes";
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -47,7 +48,30 @@ const TOOLS = [
   },
   {
     name: "search_agents",
-    description: "Find MCP servere og AI agenter i kartoteket.",
+    description:
+      "Find feed-elementer (tool-CLI'er) i kataloget. Hosts (Claude Code, Cursor, Gemini) er forbindelsesmål og returneres aldrig som katalog-resultater. Alias for search_tool_clis.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Søgeterm" },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
+      },
+    },
+  },
+  {
+    name: "search_tool_clis",
+    description: "Søg i tool-CLI-feedet — CLI-værktøjer en agent kan kalde. Hosts udelades.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Søgeterm" },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
+      },
+    },
+  },
+  {
+    name: "search_mcp_servers",
+    description: "Søg i MCP-server-feedet — MCP-kapabiliteter ét trin fra din opsætning.",
     inputSchema: {
       type: "object",
       properties: {
@@ -59,6 +83,14 @@ const TOOLS = [
   {
     name: "list_topics",
     description: "Vis de 8 emner i Skills-biblioteket med dansk/engelsk label, beskrivelse og slug — samme taksonomi som /skills-emnekortene.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "list_feed_types",
+    description: "Vis feed-typerne (skills, MCP-servere, tool-CLI'er) — kapabiliteter du kobler på en host. Samme feed-vs-host-taksonomi som navigationen.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -106,7 +138,12 @@ async function callTool(name: string, args: Record<string, unknown>) {
     case "search_showcase":
       return textContent(await getProjects(query, lang));
     case "search_agents":
-      return textContent(await getAgents(query, undefined, lang));
+    case "search_tool_clis":
+      // Feed items only. getToolClis excludes Host (and MCP Server) rows, so
+      // hosts never appear as catalog results.
+      return textContent(await getToolClis(query, lang));
+    case "search_mcp_servers":
+      return textContent(await getAgents(query, "MCP Server", lang));
     case "list_topics":
       return textContent(
         TOPICS.map((t) => ({
@@ -115,6 +152,17 @@ async function callTool(name: string, args: Record<string, unknown>) {
           labelEn: t.labelEn,
           descDa: t.descDa,
           descEn: t.descEn,
+        })),
+      );
+    case "list_feed_types":
+      return textContent(
+        FEED_TYPES.map((f) => ({
+          slug: f.slug,
+          labelDa: f.labelDa,
+          labelEn: f.labelEn,
+          descDa: f.descDa,
+          descEn: f.descEn,
+          href: f.href,
         })),
       );
     default:
