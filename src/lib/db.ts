@@ -78,7 +78,7 @@ export interface Agent {
   // Feed-vs-host taxonomy (src/lib/feedTypes.ts). "Host" rows are retained but
   // excluded from every catalog surface — they are connection targets, not
   // catalog items.
-  category: "Tool CLI" | "MCP Server" | "Host";
+  category: "CLI" | "MCP Server" | "Host";
   description: string;
   installCommand: string;
   systemPrompt: string;
@@ -240,16 +240,16 @@ function mapBlogPost(b: BlogPostRow, lang: 'da' | 'en'): BlogPost {
   };
 }
 
-const AGENT_CATEGORIES = ['Tool CLI', 'MCP Server', 'Host'] as const;
+const AGENT_CATEGORIES = ['CLI', 'MCP Server', 'Host'] as const;
 
 // Narrow the widened DB string to the union, defaulting any legacy value
 // ('DevTools'/'Writing'/'Browsing') that survives the recategorization-window
-// to 'Tool CLI' rather than leaking a non-union string through a bare cast.
+// to 'CLI' rather than leaking a non-union string through a bare cast.
 // This guard can be removed once the migration is confirmed in every env.
 function toAgentCategory(value: string): Agent["category"] {
   return (AGENT_CATEGORIES as readonly string[]).includes(value)
     ? (value as Agent["category"])
-    : 'Tool CLI';
+    : 'CLI';
 }
 
 function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
@@ -542,10 +542,10 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
   return list;
 }
 
-// Tool-CLIs are stored in the agents table with category 'Tool CLI'.
-// Convenience accessor for the /tool-clis feed surface and /api/tool-clis.
-export async function getToolClis(search?: string, lang: 'da' | 'en' = 'da') {
-  return getAgents(search, 'Tool CLI', lang);
+// CLIs are stored in the agents table with category 'CLI'.
+// Convenience accessor for the /cli feed surface and /api/cli.
+export async function getCli(search?: string, lang: 'da' | 'en' = 'da') {
+  return getAgents(search, 'CLI', lang);
 }
 
 // MCP servers are stored in the agents table with category 'MCP Server';
@@ -733,7 +733,7 @@ export async function getCounts(): Promise<EntityCounts> {
     supabasePublic.from('skills').select('*', head),
     supabasePublic.from('showcase').select('*', head),
     supabasePublic.from('forum_threads').select('*', head),
-    // The tool-CLI feed count excludes MCP servers (own surface) and hosts
+    // The CLI feed count excludes MCP servers (own surface) and hosts
     // (connection targets, not catalog items).
     supabasePublic.from('agents').select('*', head).neq('category', 'MCP Server').neq('category', 'Host'),
   ]);

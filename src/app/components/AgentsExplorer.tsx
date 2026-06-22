@@ -12,19 +12,19 @@ import dynamic from "next/dynamic";
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
 // Shared explorer for the feed surfaces backed by the `agents` table: the
-// MCP-server feed (category 'MCP Server'), the tool-CLI feed (category
-// 'Tool CLI'), and the demoted Agents view. The `scope` prop controls the API
+// MCP-server feed (category 'MCP Server'), the CLI feed (category
+// 'CLI'), and the demoted Agents view. The `scope` prop controls the API
 // filter, detail-link base, and copy. Host rows are excluded by the data layer.
-export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "tool-clis" }) {
+export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "cli" }) {
   const isMcp = scope === "mcp";
-  const isToolCli = scope === "tool-clis";
-  const detailBase = isMcp ? "/mcp" : isToolCli ? "/tool-clis" : "/agents";
+  const isCli = scope === "cli";
+  const detailBase = isMcp ? "/mcp" : isCli ? "/cli" : "/agents";
   const fetchUrl = isMcp
     ? "/api/agents?category=MCP%20Server"
-    : isToolCli
-      ? "/api/tool-clis"
+    : isCli
+      ? "/api/cli"
       : "/api/agents";
-  const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "Tool CLI";
+  const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "CLI";
 
   const [agents, setAgents] = useState<Agent[]>([]);
   // Search/category live in the URL so filtered views are shareable.
@@ -129,7 +129,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
   // no sub-category chips — filtering is search-only. categoryIcons still labels
   // each card's category badge.
   const categoryIcons = {
-    "Tool CLI": <Terminal className="h-4 w-4" />,
+    "CLI": <Terminal className="h-4 w-4" />,
     "MCP Server": <Cpu className="h-4 w-4" />,
     "Host": <Globe className="h-4 w-4" />,
   };
@@ -148,8 +148,8 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             {isMcp ? (
               <>MCP <span className="text-accent-primary">Capabilities</span></>
-            ) : isToolCli ? (
-              <>Tool <span className="text-accent-primary">CLIs</span></>
+            ) : isCli ? (
+              <>Command-line <span className="text-accent-primary">CLIs</span></>
             ) : (
               <>Agent <span className="text-accent-primary">Registry</span></>
             )}
@@ -159,7 +159,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
               ? (language === "da"
                   ? "MCP-kapabiliteter, ét trin fra din opsætning."
                   : "MCP capabilities, one step from your setup.")
-              : isToolCli
+              : isCli
                 ? (language === "da"
                     ? "CLI-værktøjer din agent kan kalde — ét trin fra din host."
                     : "CLI tools your agent can invoke — one step from your host.")
@@ -173,8 +173,8 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
           <PlusCircle className="mr-2 h-4 w-4" />
           {isMcp
             ? (language === "da" ? "Tilføj MCP-server" : "Add MCP server")
-            : isToolCli
-              ? (language === "da" ? "Tilføj tool-CLI" : "Add tool CLI")
+            : isCli
+              ? (language === "da" ? "Tilføj CLI" : "Add CLI")
               : t("agents.btn_register")}
         </button>
       </div>
@@ -200,7 +200,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
           {filteredAgents.map((agent) => (
             <div
               key={agent.id}
-              data-testid={isMcp ? "mcp-card" : isToolCli ? "tool-cli-card" : "agent-card"}
+              data-testid={isMcp ? "mcp-card" : isCli ? "cli-card" : "agent-card"}
               className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition"
             >
               <Link

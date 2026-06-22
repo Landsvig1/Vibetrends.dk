@@ -1,4 +1,4 @@
-export default function ToolClisLoading() {
+export default function CliLoading() {
   return (
     <div className="space-y-10 animate-pulse">
       {/* Page Header Skeleton */}

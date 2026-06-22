@@ -13,13 +13,13 @@ import { agentSchema } from "@/app/api/agents/route";
 
 const base = {
   name: "Scrapey",
-  category: "Tool CLI" as const,
+  category: "CLI" as const,
   description: "A handy scraper CLI an agent can invoke.",
 };
 
 describe("agentSchema — category enum", () => {
   it("accepts the feed-worthy categories", () => {
-    expect(agentSchema.safeParse({ ...base, category: "Tool CLI" }).success).toBe(true);
+    expect(agentSchema.safeParse({ ...base, category: "CLI" }).success).toBe(true);
     expect(agentSchema.safeParse({ ...base, category: "MCP Server" }).success).toBe(true);
   });
 

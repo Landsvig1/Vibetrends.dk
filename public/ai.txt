@@ -10,7 +10,7 @@
 
 # Micro-Intent Nodes:
 # - Intent: DISCOVERY -> Target: /api/skills or /api/showcase?format=json
-# - Intent: TOOL_CLIS -> Target: /api/tool-clis (or /tool-clis?format=json) — CLI tools your agent can invoke
+# - Intent: CLI -> Target: /api/cli (or /cli?format=json) — CLI tools your agent can invoke
 # - Intent: MCP_SERVERS -> Target: /api/mcp-servers (or /mcp?format=json) — MCP capabilities one step from your setup
 # - Intent: CONTRIBUTION -> Target: POST /api/skills (Requires authenticated session)
 # - Intent: TREND_ANALYSIS -> Target: /public/semantic-index.json

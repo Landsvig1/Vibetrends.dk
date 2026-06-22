@@ -4,11 +4,11 @@
  * vibetrends organizes its catalog by "can I attach this to my agent?" (a
  * FEED type) versus "is this the agent itself?" (a HOST). Feed types are the
  * capabilities a user plugs into a coding tool — skills, MCP servers and
- * tool-CLIs. Hosts are the coding agents those capabilities land in — Claude
+ * CLIs. Hosts are the coding agents those capabilities land in — Claude
  * Code, Cursor, Gemini CLI — and are connection targets, never catalog items.
  *
  * Every place that needs the feed-type list or the host list — the primary
- * nav, the tool-CLI surface, the connect host picker, the sitemap and the
+ * nav, the CLI surface, the connect host picker, the sitemap and the
  * agent-discovery contract — derives from THIS file. There are no other
  * feed-type or host lists in the codebase.
  *
@@ -20,7 +20,7 @@
 export const FEED_TYPE_SLUGS = [
   "skills",
   "mcp-servers",
-  "tool-clis",
+  "cli",
 ] as const;
 
 export type FeedTypeSlug = (typeof FEED_TYPE_SLUGS)[number];
@@ -61,12 +61,12 @@ export const FEED_TYPES: readonly FeedType[] = [
     accent: "#38bdf8",
   },
   {
-    slug: "tool-clis",
-    labelDa: "Tool-CLI'er",
-    labelEn: "Tool CLIs",
+    slug: "cli",
+    labelDa: "CLI'er",
+    labelEn: "CLIs",
     descDa: "CLI-værktøjer din agent kan kalde.",
     descEn: "CLI tools your agent can invoke.",
-    href: "/tool-clis",
+    href: "/cli",
     icon: "TerminalSquare",
     accent: "#34d399",
   },

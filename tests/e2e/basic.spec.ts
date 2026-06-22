@@ -11,9 +11,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
     
     // Check Navigation — Agents has been demoted out of primary nav; the
-    // tool-CLI feed type takes its place. (Matches Header.tsx navItems:
-    // Forum, Skills, MCP, Tool CLIs, Showcase=Vibes, Blog.)
-    const navItems = ['Forum', 'Skills', 'MCP', "Tool-CLI'er", 'Vibes', 'Blog'];
+    // CLI feed type takes its place. (Matches Header.tsx navItems:
+    // Forum, Skills, MCP, CLI, Showcase=Vibes, Blog.)
+    const navItems = ['Forum', 'Skills', 'MCP', 'CLI', 'Vibes', 'Blog'];
     for (const item of navItems) {
       await expect(page.locator('nav').getByText(item)).toBeVisible();
     }
@@ -67,17 +67,17 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText(/Svar \(/)).toBeVisible();
   });
 
-  test('should navigate to the Tool CLIs feed', async ({ page }) => {
-    await page.goto('/tool-clis');
+  test('should navigate to the CLIs feed', async ({ page }) => {
+    await page.goto('/cli');
 
-    await expect(page.getByRole('heading', { name: /Tool CLIs/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /CLIs/i })).toBeVisible();
 
     // Check a detail page
-    const firstToolCli = page.getByTestId('tool-cli-card').first();
-    await expect(firstToolCli).toBeVisible();
-    await firstToolCli.click({ position: { x: 50, y: 50 } });
+    const firstCli = page.getByTestId('cli-card').first();
+    await expect(firstCli).toBeVisible();
+    await firstCli.click({ position: { x: 50, y: 50 } });
 
-    await page.waitForURL(/\/tool-clis\/.+/);
+    await page.waitForURL(/\/cli\/.+/);
     await expect(page.getByRole('heading', { name: /System Prompt/i })).toBeVisible();
 
     // Every feed item is one step from a host: the connect block lets you pick
@@ -94,7 +94,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('input[type="text"]').first()).toHaveValue('automation');
 
     // The feed explorer mirrors the same q-param sync.
-    await page.goto('/tool-clis?q=scraper');
+    await page.goto('/cli?q=scraper');
     await expect(page.locator('input[type="text"]').first()).toHaveValue('scraper');
   });
 

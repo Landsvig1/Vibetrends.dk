@@ -9,7 +9,7 @@ export const agentSchema = z.object({
   name: z.string().min(1).max(100),
   // Feed-worthy categories only — hosts are connection targets, not submittable
   // catalog items (R2).
-  category: z.enum(["Tool CLI", "MCP Server"]),
+  category: z.enum(["CLI", "MCP Server"]),
   description: z.string().min(10).max(500),
   // installCommand is rendered as a copyable "run this in your terminal"
   // command by ConnectBlock, so reject shell metacharacters that would let a

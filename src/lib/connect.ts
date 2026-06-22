@@ -1,7 +1,7 @@
 /**
  * Host-aware connect recipes (R5/R6).
  *
- * Every feed item — a skill, an MCP server or a tool-CLI — should be one step
+ * Every feed item — a skill, an MCP server or a CLI — should be one step
  * from a supported host (Claude Code, Cursor, Gemini CLI). Rather than store a
  * per-host config matrix, this module *templates* a host-specific recipe over
  * whatever install metadata the item already carries (install command, GitHub
@@ -103,7 +103,7 @@ function mcpRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: La
   };
 }
 
-function toolCliRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: Lang): ConnectRecipe {
+function cliRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: Lang): ConnectRecipe {
   const cmd = item.installCommand?.trim();
   if (!cmd) return fallbackRecipe(item, host, hostName, lang);
   return {
@@ -223,8 +223,8 @@ export function buildConnectRecipe(
   switch (feedType) {
     case "mcp-servers":
       return mcpRecipe(item, host, hostName, lang);
-    case "tool-clis":
-      return toolCliRecipe(item, host, hostName, lang);
+    case "cli":
+      return cliRecipe(item, host, hostName, lang);
     case "skills":
       return skillRecipe(item, host, hostName, lang);
     default:

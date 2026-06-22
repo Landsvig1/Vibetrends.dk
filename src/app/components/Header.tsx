@@ -43,7 +43,7 @@ export default function Header() {
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
     { name: t("nav.skills"), href: "/skills", icon: Briefcase },
     { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
-    { name: t("nav.toolClis"), href: "/tool-clis", icon: TerminalSquare },
+    { name: t("nav.cli"), href: "/cli", icon: TerminalSquare },
     { name: t("nav.showcase"), href: "/showcase", icon: Layers },
     { name: t("nav.blog"), href: "/blog", icon: BookOpen },
   ];

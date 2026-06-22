@@ -21,14 +21,14 @@ export default function AgentDetailView({
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
   const categoryIcons = {
-    "Tool CLI": <Terminal className="h-5 w-5" />,
+    "CLI": <Terminal className="h-5 w-5" />,
     "MCP Server": <Cpu className="h-5 w-5" />,
     "Host": <Globe className="h-5 w-5" />,
   };
 
-  // MCP servers and tool-CLIs are both backed by the agents table; map the row
+  // MCP servers and CLIs are both backed by the agents table; map the row
   // category to its feed type so the connect recipe is host-appropriate.
-  const feedType = agent.category === "MCP Server" ? "mcp-servers" : "tool-clis";
+  const feedType = agent.category === "MCP Server" ? "mcp-servers" : "cli";
 
   return (
     <div className="space-y-10">

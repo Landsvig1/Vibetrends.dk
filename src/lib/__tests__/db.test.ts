@@ -307,11 +307,11 @@ describe("category guards and search filters", () => {
     expect(call.filters).toContainEqual(["neq", "category", "Host"]);
   });
 
-  it("getToolClis filters to the Tool CLI category and excludes Host", async () => {
+  it("getCli filters to the CLI category and excludes Host", async () => {
     state.publicHandler = () => ({ data: [], error: null });
-    await db.getToolClis();
+    await db.getCli();
     const call = state.publicCalls.find((c) => c.table === "agents")!;
-    expect(call.filters).toContainEqual(["eq", "category", "Tool CLI"]);
+    expect(call.filters).toContainEqual(["eq", "category", "CLI"]);
     expect(call.filters).toContainEqual(["neq", "category", "Host"]);
   });
 

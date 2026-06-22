@@ -13,6 +13,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+  // The tool-CLI feed was renamed to /cli (matching /mcp). Preserve old links.
+  if (pathname === '/tool-clis' || pathname.startsWith('/tool-clis/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace('/tool-clis', '/cli');
+    return NextResponse.redirect(url, 308);
+  }
+
   const format = searchParams.get('format');
 
   let response = NextResponse.next();
@@ -23,11 +30,11 @@ export function proxy(request: NextRequest) {
       '/skills': '/api/skills',
       '/showcase': '/api/showcase',
       '/agents': '/api/agents',
-      // /mcp and /tool-clis each have a param-free JSON route: rewrite() keeps
+      // /mcp and /cli each have a param-free JSON route: rewrite() keeps
       // the original request query, so we can't inject ?category onto
       // /api/agents here.
       '/mcp': '/api/mcp-servers',
-      '/tool-clis': '/api/tool-clis',
+      '/cli': '/api/cli',
       '/forum': '/api/forum',
     };
 
@@ -57,5 +64,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/tool-clis', '/forum', '/api/:path*'],
+  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/cli', '/tool-clis', '/tool-clis/:path*', '/forum', '/api/:path*'],
 };
