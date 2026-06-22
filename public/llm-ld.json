@@ -30,8 +30,8 @@
     },
     {
       "@type": "DataFeed",
-      "@id": "https://vibetrends.dk/api/tool-clis",
-      "name": "Tool CLI Feed",
+      "@id": "https://vibetrends.dk/api/cli",
+      "name": "CLI Feed",
       "contentType": "SoftwareApplication"
     },
     {

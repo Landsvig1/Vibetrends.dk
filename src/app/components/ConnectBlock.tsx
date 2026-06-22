@@ -7,7 +7,7 @@ import { buildConnectRecipe, type ConnectItem } from "@/lib/connect";
 
 // One-step connect (R5/R6): pick a host, get a host-specific recipe templated
 // over the item's existing install metadata. Shared by skills, MCP servers and
-// tool-CLIs so any feed item is one step from a supported host.
+// CLIs so any feed item is one step from a supported host.
 export default function ConnectBlock({
   feedType,
   item,

@@ -26,9 +26,9 @@ describe("buildConnectRecipe", () => {
     expect(cursor.command).toBeUndefined();
   });
 
-  it("wraps a tool-CLI's install command for the chosen host", () => {
+  it("wraps a CLI's install command for the chosen host", () => {
     const r = buildConnectRecipe(
-      "tool-clis",
+      "cli",
       { name: "Scrapey", installCommand: "npm i -g scrapey" },
       "gemini-cli",
     );
@@ -71,10 +71,10 @@ describe("buildConnectRecipe", () => {
   });
 
   it("localizes recipe steps: da by default, en when requested", () => {
-    const da = buildConnectRecipe("tool-clis", { name: "Scrapey", installCommand: "npm i -g scrapey" }, "claude-code");
+    const da = buildConnectRecipe("cli", { name: "Scrapey", installCommand: "npm i -g scrapey" }, "claude-code");
     expect(da.steps.join(" ")).toContain("Kør installationskommandoen");
     const en = buildConnectRecipe(
-      "tool-clis",
+      "cli",
       { name: "Scrapey", installCommand: "npm i -g scrapey" },
       "claude-code",
       "en",
@@ -84,9 +84,9 @@ describe("buildConnectRecipe", () => {
 
   it("handles an unknown host without throwing", () => {
     expect(() =>
-      buildConnectRecipe("tool-clis", { name: "X", installCommand: "x" }, "emacs"),
+      buildConnectRecipe("cli", { name: "X", installCommand: "x" }, "emacs"),
     ).not.toThrow();
-    const r = buildConnectRecipe("tool-clis", { name: "X", installCommand: "x" }, "emacs", "en");
+    const r = buildConnectRecipe("cli", { name: "X", installCommand: "x" }, "emacs", "en");
     expect(r.steps.length).toBeGreaterThan(0);
     expect(r.steps.join(" ")).toContain("not a supported host");
   });

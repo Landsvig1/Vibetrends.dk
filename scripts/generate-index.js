@@ -36,7 +36,7 @@ async function generateIndex() {
 
   // The agents table now carries the feed-vs-host taxonomy. Feed types are
   // surfaced; hosts (connection targets, not catalog items) are excluded.
-  const toolClis = a.filter((x) => x.category === 'Tool CLI');
+  const clis = a.filter((x) => x.category === 'CLI');
   const mcpServers = a.filter((x) => x.category === 'MCP Server');
 
   const index = {
@@ -44,20 +44,20 @@ async function generateIndex() {
     summary: {
       skills_count: s.length,
       showcase_count: p.length,
-      tool_clis_count: toolClis.length,
+      cli_count: clis.length,
       mcp_servers_count: mcpServers.length,
       forum_threads_count: t.length,
     },
     top_keywords: Array.from(new Set([
       ...s.flatMap((x) => x.tags || []),
       ...p.flatMap((x) => x.tools || []),
-      ...toolClis.flatMap((x) => x.tags || []),
+      ...clis.flatMap((x) => x.tags || []),
       ...mcpServers.flatMap((x) => x.tags || []),
     ])).slice(0, 50),
     entities: [
       ...s.map((x) => ({ type: 'skill', name: x.title_da, id: x.id })),
       ...p.map((x) => ({ type: 'project', name: x.title_da, id: x.id })),
-      ...toolClis.map((x) => ({ type: 'tool-cli', name: x.name, id: x.id })),
+      ...clis.map((x) => ({ type: 'cli', name: x.name, id: x.id })),
       ...mcpServers.map((x) => ({ type: 'mcp-server', name: x.name, id: x.id })),
     ],
   };

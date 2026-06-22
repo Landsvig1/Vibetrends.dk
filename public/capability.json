@@ -6,7 +6,7 @@
     "discovery": {
       "skills": "Browse community AI workflows (free)",
       "showcase": "Explore vibe-coded project architecture",
-      "tool_clis": "CLI tools your agent can invoke (one step from your host)",
+      "cli": "CLI tools your agent can invoke (one step from your host)",
       "mcp": "MCP capabilities one step from your setup"
     },
     "contribution": {

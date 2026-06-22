@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSkills, getProjects, getAgents, getToolClis, parseSkillView } from "@/lib/db";
+import { getSkills, getProjects, getAgents, getCli, parseSkillView } from "@/lib/db";
 import { TOPIC_SLUGS, TOPICS } from "@/lib/topics";
 import { FEED_TYPES } from "@/lib/feedTypes";
 
@@ -49,7 +49,7 @@ const TOOLS = [
   {
     name: "search_agents",
     description:
-      "Find feed-elementer (tool-CLI'er) i kataloget. Hosts (Claude Code, Cursor, Gemini) er forbindelsesmål og returneres aldrig som katalog-resultater. Alias for search_tool_clis.",
+      "Find feed-elementer (CLI'er) i kataloget. Hosts (Claude Code, Cursor, Gemini) er forbindelsesmål og returneres aldrig som katalog-resultater. Alias for search_cli.",
     inputSchema: {
       type: "object",
       properties: {
@@ -59,8 +59,8 @@ const TOOLS = [
     },
   },
   {
-    name: "search_tool_clis",
-    description: "Søg i tool-CLI-feedet — CLI-værktøjer en agent kan kalde. Hosts udelades.",
+    name: "search_cli",
+    description: "Søg i CLI-feedet — CLI-værktøjer en agent kan kalde. Hosts udelades.",
     inputSchema: {
       type: "object",
       properties: {
@@ -90,7 +90,7 @@ const TOOLS = [
   },
   {
     name: "list_feed_types",
-    description: "Vis feed-typerne (skills, MCP-servere, tool-CLI'er) — kapabiliteter du kobler på en host. Samme feed-vs-host-taksonomi som navigationen.",
+    description: "Vis feed-typerne (skills, MCP-servere, CLI'er) — kapabiliteter du kobler på en host. Samme feed-vs-host-taksonomi som navigationen.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -138,10 +138,10 @@ async function callTool(name: string, args: Record<string, unknown>) {
     case "search_showcase":
       return textContent(await getProjects(query, lang));
     case "search_agents":
-    case "search_tool_clis":
-      // Feed items only. getToolClis excludes Host (and MCP Server) rows, so
+    case "search_cli":
+      // Feed items only. getCli excludes Host (and MCP Server) rows, so
       // hosts never appear as catalog results.
-      return textContent(await getToolClis(query, lang));
+      return textContent(await getCli(query, lang));
     case "search_mcp_servers":
       return textContent(await getAgents(query, "MCP Server", lang));
     case "list_topics":

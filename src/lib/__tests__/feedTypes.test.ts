@@ -11,9 +11,9 @@ import {
 
 describe("feedTypes taxonomy", () => {
   it("getFeedType resolves a known slug and returns its data", () => {
-    const tool = getFeedType("tool-clis");
-    expect(tool?.slug).toBe("tool-clis");
-    expect(tool?.href).toBe("/tool-clis");
+    const tool = getFeedType("cli");
+    expect(tool?.slug).toBe("cli");
+    expect(tool?.href).toBe("/cli");
     expect(tool?.icon).toBeTruthy();
   });
 
@@ -25,7 +25,7 @@ describe("feedTypes taxonomy", () => {
     expect([...FEED_TYPE_SLUGS]).toEqual(FEED_TYPES.map((f) => f.slug));
     expect(FEED_TYPE_SLUGS).toContain("skills");
     expect(FEED_TYPE_SLUGS).toContain("mcp-servers");
-    expect(FEED_TYPE_SLUGS).toContain("tool-clis");
+    expect(FEED_TYPE_SLUGS).toContain("cli");
   });
 
   it("HOST_SLUGS enumerates exactly the defined hosts", () => {
@@ -34,8 +34,8 @@ describe("feedTypes taxonomy", () => {
   });
 
   it("feedTypeLabel returns the da label for da and the en label for en", () => {
-    expect(feedTypeLabel("tool-clis", "da")).toBe("Tool-CLI'er");
-    expect(feedTypeLabel("tool-clis", "en")).toBe("Tool CLIs");
+    expect(feedTypeLabel("cli", "da")).toBe("CLI'er");
+    expect(feedTypeLabel("cli", "en")).toBe("CLIs");
   });
 
   it("feedTypeLabel falls back to the raw slug when unknown", () => {

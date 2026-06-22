@@ -12,17 +12,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent || agent.category !== "Tool CLI") return { title: "Tool-CLI ikke fundet" };
+  if (!agent || agent.category !== "CLI") return { title: "CLI ikke fundet" };
 
   return entityMetadata({
-    title: `${agent.name} - Tool CLIs`,
+    title: `${agent.name} - CLIs`,
     description: agent.description,
-    path: `/tool-clis/${id}`,
+    path: `/cli/${id}`,
     lang,
   });
 }
 
-export default async function ToolCliDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CliDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -35,22 +35,22 @@ export default async function ToolCliDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
     }>
-      <ToolCliDetailContent params={params} />
+      <CliDetailContent params={params} />
     </Suspense>
   );
 }
 
-async function ToolCliDetailContent({ params }: { params: Promise<{ id: string }> }) {
+async function CliDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  // Only tool-CLIs belong here; MCP servers live at /mcp/[id] and hosts are
+  // Only CLIs belong here; MCP servers live at /mcp/[id] and hosts are
   // never shown as catalog items.
-  if (!agent || agent.category !== "Tool CLI") {
+  if (!agent || agent.category !== "CLI") {
     notFound();
   }
 
-  return <AgentDetailView agent={agent} lang={lang} backHref="/tool-clis" />;
+  return <AgentDetailView agent={agent} lang={lang} backHref="/cli" />;
 }
