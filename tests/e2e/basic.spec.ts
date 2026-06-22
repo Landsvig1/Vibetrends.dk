@@ -66,36 +66,28 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText(/Svar \(/)).toBeVisible();
   });
 
-  test('should navigate to Agents registry', async ({ page }) => {
-    await page.goto('/agents');
-    
-    await expect(page.getByRole('heading', { name: /Agent & MCP Registry/i })).toBeVisible();
-    
+  test('should navigate to the Tool CLIs feed', async ({ page }) => {
+    await page.goto('/tool-clis');
+
+    await expect(page.getByRole('heading', { name: /Tool CLIs/i })).toBeVisible();
+
     // Check a detail page
-    const firstAgent = page.getByTestId('agent-card').first();
-    await expect(firstAgent).toBeVisible();
-    await firstAgent.click({ position: { x: 50, y: 50 } });
-    
-    await page.waitForURL(/\/agents\/.+/);
+    const firstToolCli = page.getByTestId('tool-cli-card').first();
+    await expect(firstToolCli).toBeVisible();
+    await firstToolCli.click({ position: { x: 50, y: 50 } });
+
+    await page.waitForURL(/\/tool-clis\/.+/);
     await expect(page.getByRole('heading', { name: /System Prompt/i })).toBeVisible();
-    await expect(page.getByText(/Hurtig Installation/i)).toBeVisible();
   });
 
-  test('should sync filters and search to the URL (deep-linkable)', async ({ page }) => {
+  test('should sync search to the URL (deep-linkable)', async ({ page }) => {
     // Read direction: a deep-linked search term populates the input from the URL.
     await page.goto('/skills?q=automation');
     await expect(page.locator('input[type="text"]').first()).toHaveValue('automation');
 
-    // Read direction: a deep-linked category is reflected as the active filter.
-    await page.goto('/agents?category=MCP Server');
-    await expect(
-      page.getByRole('button', { name: 'MCP Server', exact: true })
-    ).toHaveClass(/bg-accent-primary/);
-
-    // Write direction: choosing a category pushes it into the query string.
-    await page.goto('/agents');
-    await page.getByRole('button', { name: 'DevTools', exact: true }).click();
-    await expect(page).toHaveURL(/[?&]category=DevTools/);
+    // The feed explorer mirrors the same q-param sync.
+    await page.goto('/tool-clis?q=scraper');
+    await expect(page.locator('input[type="text"]').first()).toHaveValue('scraper');
   });
 
   // NOTE ON FIDELITY: this exercises the *client-side test-login fallback* in

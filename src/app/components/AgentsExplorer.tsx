@@ -11,13 +11,20 @@ import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
-// Shared explorer for the Agents registry and the MCP Server registry. Both read
-// from the same `agents` table (MCP servers are agents with category 'MCP Server');
-// the `scope` prop controls the API filter, detail-link base, category options, and copy.
-export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
+// Shared explorer for the feed surfaces backed by the `agents` table: the
+// MCP-server feed (category 'MCP Server'), the tool-CLI feed (category
+// 'Tool CLI'), and the demoted Agents view. The `scope` prop controls the API
+// filter, detail-link base, and copy. Host rows are excluded by the data layer.
+export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "tool-clis" }) {
   const isMcp = scope === "mcp";
-  const detailBase = isMcp ? "/mcp" : "/agents";
-  const fetchUrl = isMcp ? "/api/agents?category=MCP%20Server" : "/api/agents";
+  const isToolCli = scope === "tool-clis";
+  const detailBase = isMcp ? "/mcp" : isToolCli ? "/tool-clis" : "/agents";
+  const fetchUrl = isMcp
+    ? "/api/agents?category=MCP%20Server"
+    : isToolCli
+      ? "/api/tool-clis"
+      : "/api/agents";
+  const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "Tool CLI";
 
   const [agents, setAgents] = useState<Agent[]>([]);
   // Search/category live in the URL so filtered views are shareable.
@@ -31,7 +38,6 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
   // Add form states
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
-  const [addCategory, setAddCategory] = useState<Agent["category"]>(isMcp ? "MCP Server" : "Tool CLI");
   const [addDesc, setAddDesc] = useState("");
   const [addInstall, setAddInstall] = useState("");
   const [addPrompt, setAddPrompt] = useState("");
@@ -78,7 +84,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
         body: JSON.stringify({
           name: addName,
           developer: user ? user.username : undefined,
-          category: isMcp ? "MCP Server" : addCategory,
+          category: submitCategory,
           description: addDesc,
           installCommand: addInstall || "npx -y create-vibe-agent",
           systemPrompt: addPrompt || "You are a helpful AI Agent.",
@@ -145,7 +151,9 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
         <div className="space-y-3 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             {isMcp ? (
-              <>MCP <span className="text-accent-primary">Server Registry</span></>
+              <>MCP <span className="text-accent-primary">Capabilities</span></>
+            ) : isToolCli ? (
+              <>Tool <span className="text-accent-primary">CLIs</span></>
             ) : (
               <>Agent <span className="text-accent-primary">Registry</span></>
             )}
@@ -153,9 +161,13 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
           <p className="text-text-secondary max-w-2xl">
             {isMcp
               ? (language === "da"
-                  ? "Find og del MCP-servere, som dine AI-agenter kan forbinde til."
-                  : "Find and share MCP servers your AI agents can connect to.")
-              : t("agents.desc")}
+                  ? "MCP-kapabiliteter, ét trin fra din opsætning."
+                  : "MCP capabilities, one step from your setup.")
+              : isToolCli
+                ? (language === "da"
+                    ? "CLI-værktøjer din agent kan kalde — ét trin fra din host."
+                    : "CLI tools your agent can invoke — one step from your host.")
+                : t("agents.desc")}
           </p>
         </div>
         <button
@@ -165,7 +177,9 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
           <PlusCircle className="mr-2 h-4 w-4" />
           {isMcp
             ? (language === "da" ? "Tilføj MCP-server" : "Add MCP server")
-            : t("agents.btn_register")}
+            : isToolCli
+              ? (language === "da" ? "Tilføj tool-CLI" : "Add tool CLI")
+              : t("agents.btn_register")}
         </button>
       </div>
 
@@ -208,7 +222,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
           {filteredAgents.map((agent) => (
             <div
               key={agent.id}
-              data-testid={isMcp ? "mcp-card" : "agent-card"}
+              data-testid={isMcp ? "mcp-card" : isToolCli ? "tool-cli-card" : "agent-card"}
               className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition"
             >
               <Link
@@ -357,19 +371,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {!isMcp && (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">{t("agents.modal.label_category")}</label>
-                      <select
-                        value={addCategory}
-                        onChange={(e) => setAddCategory(e.target.value as Agent["category"])}
-                        className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/20 text-sm"
-                      >
-                        <option value="Tool CLI">Tool CLI</option>
-                      </select>
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-text-secondary font-mono">{t("agents.modal.label_tags")}</label>
                     <input
