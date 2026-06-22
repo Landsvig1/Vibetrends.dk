@@ -11,8 +11,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
     
     // Check Navigation — Agents has been demoted out of primary nav; the
-    // tool-CLI feed type takes its place.
-    const navItems = ['Forum', 'Tools', 'Vibes', "Tool-CLI'er", 'Blog'];
+    // tool-CLI feed type takes its place. (Matches Header.tsx navItems:
+    // Forum, Skills, MCP, Tool CLIs, Showcase=Vibes, Blog.)
+    const navItems = ['Forum', 'Skills', 'MCP', "Tool-CLI'er", 'Vibes', 'Blog'];
     for (const item of navItems) {
       await expect(page.locator('nav').getByText(item)).toBeVisible();
     }
