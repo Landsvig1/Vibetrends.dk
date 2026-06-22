@@ -10,11 +10,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // Check Hero
     await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
     
-    // Check Navigation
-    const navItems = ['Forum', 'Tools', 'Vibes', 'Agenter', 'Blog'];
+    // Check Navigation — Agents has been demoted out of primary nav; the
+    // tool-CLI feed type takes its place.
+    const navItems = ['Forum', 'Tools', 'Vibes', "Tool-CLI'er", 'Blog'];
     for (const item of navItems) {
       await expect(page.locator('nav').getByText(item)).toBeVisible();
     }
+    // Agents is no longer a primary-nav entry.
+    await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
   });
 
   test('should navigate to Showcase and view a project', async ({ page }) => {
