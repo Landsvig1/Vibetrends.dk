@@ -17,6 +17,8 @@
         "/ai.txt",
         "/api/skills",
         "/api/showcase",
+        "/api/tool-clis",
+        "/api/mcp-servers",
         "/api/agents",
         "/api/forum",
         "/api/blog"

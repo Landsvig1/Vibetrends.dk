@@ -1,5 +1,5 @@
 import { MetadataRoute } from "next";
-import { getSkills, getProjects, getAgents, getBlogPosts, getThreads } from "@/lib/db";
+import { getSkills, getProjects, getAgents, getToolClis, getBlogPosts, getThreads } from "@/lib/db";
 import { TOPIC_SLUGS } from "@/lib/topics";
 
 const baseUrl = "https://vibetrends.dk";
@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/showcase",
     "/forum",
     "/blog",
-    "/agents",
+    "/tool-clis",
     "/mcp",
   ].map((route) => ({
     url: `${baseUrl}${route}`,
@@ -22,12 +22,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === "" ? 1.0 : 0.8,
   }));
 
-  // Pull community-submitted content so detail pages are crawlable. getAgents()
-  // excludes MCP servers (they live under /mcp), so fetch those separately.
-  const [skills, projects, agents, mcpServers, posts, threads] = await Promise.all([
+  // Pull community-submitted content so detail pages are crawlable. The Agents
+  // section is demoted, so feed-worthy rows are crawled under their feed type:
+  // tool-CLIs at /tool-clis, MCP servers at /mcp. Host rows are excluded by the
+  // data layer and intentionally not surfaced.
+  const [skills, projects, toolClis, mcpServers, posts, threads] = await Promise.all([
     getSkills(),
     getProjects(),
-    getAgents(),
+    getToolClis(),
     getAgents(undefined, "MCP Server"),
     getBlogPosts(),
     getThreads(),
@@ -37,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...TOPIC_SLUGS.map((slug) => `/skills/topic/${slug}`),
     ...skills.map((s) => `/skills/${s.id}`),
     ...projects.map((p) => `/showcase/${p.id}`),
-    ...agents.map((a) => `/agents/${a.id}`),
+    ...toolClis.map((a) => `/tool-clis/${a.id}`),
     ...mcpServers.map((a) => `/mcp/${a.id}`),
     ...posts.map((b) => `/blog/${b.id}`),
     ...threads.map((t) => `/forum/${t.id}`),

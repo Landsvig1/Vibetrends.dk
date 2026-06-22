@@ -13,7 +13,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  if (!agent || agent.category === "MCP Server") return { title: "Agent ikke fundet" };
+  // MCP servers live at /mcp/[id]; hosts are connection targets, not catalog
+  // items, so they 404 on this demoted surface.
+  if (!agent || agent.category === "MCP Server" || agent.category === "Host") return { title: "Agent ikke fundet" };
 
   return entityMetadata({
     title: `${agent.name} - AI Agent Registry`,
@@ -57,8 +59,9 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const agent = await getAgentById(id, lang);
-  // MCP servers live at /mcp/[id]; keep the routes strictly scoped.
-  if (!agent || agent.category === "MCP Server") {
+  // MCP servers live at /mcp/[id]; hosts are connection targets and are never
+  // shown as catalog items. Keep the routes strictly scoped.
+  if (!agent || agent.category === "MCP Server" || agent.category === "Host") {
     notFound();
   }
 

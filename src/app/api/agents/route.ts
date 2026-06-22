@@ -4,11 +4,24 @@ import { getAgents, createAgent } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
 import { z } from "zod";
 
-const agentSchema = z.object({
+// Exported for unit testing the submission contract (validation boundary).
+export const agentSchema = z.object({
   name: z.string().min(1).max(100),
-  category: z.enum(["DevTools", "Writing", "Browsing", "MCP Server"]),
+  // Feed-worthy categories only — hosts are connection targets, not submittable
+  // catalog items (R2).
+  category: z.enum(["Tool CLI", "MCP Server"]),
   description: z.string().min(10).max(500),
-  installCommand: z.string().optional(),
+  // installCommand is rendered as a copyable "run this in your terminal"
+  // command by ConnectBlock, so reject shell metacharacters that would let a
+  // submitted row smuggle a command-chaining / substitution payload into a
+  // one-click copy. Legit install strings (npx/npm/pnpm/uvx ...) do not use them.
+  installCommand: z
+    .string()
+    .max(300)
+    .refine((s) => !/[;&|`$\n\r<>]/.test(s), {
+      message: "installCommand must not contain shell metacharacters (; & | ` $ < > or newlines)",
+    })
+    .optional(),
   systemPrompt: z.string().optional(),
   tags: z.array(z.string()).max(10).optional(),
 });

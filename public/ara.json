@@ -4,12 +4,12 @@
   "capabilities": {
     "list_skills": "GET /api/skills - Community-shared AI workflows, scripts, and prompts.",
     "list_projects": "GET /api/showcase - Vibe-coded projects with core prompts and tech stacks.",
-    "list_agents": "GET /api/agents - Registry of AI agent configurations (DevTools, Writing, Browsing).",
-    "list_mcp_servers": "GET /api/agents?category=MCP Server - Registry of MCP servers.",
+    "list_tool_clis": "GET /api/tool-clis - CLI tools an agent can invoke (a feed type you attach to a host).",
+    "list_mcp_servers": "GET /api/mcp-servers - MCP capabilities one step from your setup.",
     "list_threads": "GET /api/forum - Community discussions and help threads.",
     "create_skill": "POST /api/skills - Contribute a new AI skill to the library.",
     "create_project": "POST /api/showcase - Submit a project to the showcase.",
-    "create_agent": "POST /api/agents - Register a new agent or MCP server (set category to 'MCP Server').",
+    "create_feed_item": "POST /api/agents - Register a feed item (set category to 'Tool CLI' or 'MCP Server'). Hosts are connection targets, not catalog items.",
     "create_thread": "POST /api/forum - Start a new forum discussion.",
     "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread.",
     "upvote": "POST /api/showcase/{id}/upvote | /api/agents/{id}/upvote | /api/forum/{threadId}/upvote - Toggle an upvote."
@@ -17,8 +17,8 @@
   "schemas": {
     "SkillsList": "https://vibetrends.dk/api/skills",
     "ShowcaseList": "https://vibetrends.dk/api/showcase",
-    "AgentsRegistry": "https://vibetrends.dk/api/agents",
-    "McpRegistry": "https://vibetrends.dk/api/agents?category=MCP%20Server",
+    "ToolClisFeed": "https://vibetrends.dk/api/tool-clis",
+    "McpServersFeed": "https://vibetrends.dk/api/mcp-servers",
     "ForumIndex": "https://vibetrends.dk/api/forum"
   },
   "licensing": "AEO optimized, MIT license for code, community attribution for content."

@@ -280,19 +280,52 @@ describe("category guards and search filters", () => {
     expect(call.filters.some((f) => f[0] === "eq" && f[1] === "category")).toBe(false);
   });
 
-  it("getAgents excludes MCP Server when no category is given", async () => {
+  it("getAgents excludes both Host and MCP Server when no category is given", async () => {
     state.publicHandler = () => ({ data: [], error: null });
     await db.getAgents();
     const call = state.publicCalls.find((c) => c.table === "agents")!;
+    expect(call.filters).toContainEqual(["neq", "category", "Host"]);
     expect(call.filters).toContainEqual(["neq", "category", "MCP Server"]);
   });
 
-  it("getAgents includes MCP Server when explicitly requested", async () => {
+  it("getAgents includes MCP Server when explicitly requested but still excludes Host", async () => {
     state.publicHandler = () => ({ data: [], error: null });
     await db.getAgents(undefined, "MCP Server");
     const call = state.publicCalls.find((c) => c.table === "agents")!;
     expect(call.filters).toContainEqual(["eq", "category", "MCP Server"]);
-    expect(call.filters.some((f) => f[0] === "neq")).toBe(false);
+    // Hosts are never catalog items, so the Host guard is always applied...
+    expect(call.filters).toContainEqual(["neq", "category", "Host"]);
+    // ...but MCP Server is NOT excluded when explicitly requested.
+    expect(call.filters.some((f) => f[0] === "neq" && f[2] === "MCP Server")).toBe(false);
+  });
+
+  it("getAgents always excludes Host even when Host is explicitly requested (yields nothing)", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getAgents(undefined, "Host");
+    const call = state.publicCalls.find((c) => c.table === "agents")!;
+    expect(call.filters).toContainEqual(["eq", "category", "Host"]);
+    expect(call.filters).toContainEqual(["neq", "category", "Host"]);
+  });
+
+  it("getToolClis filters to the Tool CLI category and excludes Host", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getToolClis();
+    const call = state.publicCalls.find((c) => c.table === "agents")!;
+    expect(call.filters).toContainEqual(["eq", "category", "Tool CLI"]);
+    expect(call.filters).toContainEqual(["neq", "category", "Host"]);
+  });
+
+  it("getAgentById fetches a Host row directly — the data is retained, not destroyed", async () => {
+    state.publicHandler = () => ({
+      data: {
+        id: "h1", name: "Claude Code", developer: "Anthropic", category: "Host",
+        description_da: "d", description_en: "d", install_command: "x",
+        system_prompt_da: "s", system_prompt_en: "s", upvotes: 9, tags: [],
+      },
+      error: null,
+    });
+    const host = await db.getAgentById("h1");
+    expect(host?.category).toBe("Host"); // retained and fetchable; route layer gates display
   });
 
   it("getSkills search filters by title/description/tags case-insensitively", async () => {
@@ -487,6 +520,7 @@ describe("homepage-optimized reads", () => {
     expect(skillsCall.selectOpts).toEqual({ count: "exact", head: true });
     const agentsCall = state.publicCalls.find((c) => c.table === "agents")!;
     expect(agentsCall.filters).toContainEqual(["neq", "category", "MCP Server"]);
+    expect(agentsCall.filters).toContainEqual(["neq", "category", "Host"]);
   });
 
   it("getTopProjects orders by upvotes desc and limits", async () => {
@@ -501,11 +535,12 @@ describe("homepage-optimized reads", () => {
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
-  it("getTopAgents excludes MCP servers and limits", async () => {
+  it("getTopAgents excludes MCP servers and hosts and limits", async () => {
     state.publicHandler = () => ({ data: [], error: null });
     await db.getTopAgents(1);
     const call = state.publicCalls.find((c) => c.table === "agents")!;
     expect(call.filters).toContainEqual(["neq", "category", "MCP Server"]);
+    expect(call.filters).toContainEqual(["neq", "category", "Host"]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
