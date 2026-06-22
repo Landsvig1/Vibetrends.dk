@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, CheckCircle, Heart, Trash2, Terminal } from "lucide-react";
+import { Heart, Trash2, Terminal } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLanguage } from "@/app/components/LanguageProvider";
@@ -14,7 +14,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
   const { language, t } = useLanguage();
   const router = useRouter();
 
-  const handleCopyCommand = (command: string, type: "install" | "prompt") => {
+  const handleCopyCommand = (command: string, type: "prompt") => {
     navigator.clipboard.writeText(command);
     setCopiedId(type);
     setTimeout(() => setCopiedId(null), 2000);
@@ -51,27 +51,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
   return (
     <div className="space-y-6 sticky top-24">
       <div className="p-6 rounded-2xl glass-panel border border-card-border space-y-6 shadow-xl">
-        <div className="space-y-2">
-           <h4 className="text-sm font-bold text-text-secondary uppercase tracking-widest">
-             {language === "da" ? "Hurtig Installation" : "Quick Install"}
-           </h4>
-           <div className="flex items-center justify-between rounded-xl bg-background border border-card-border p-4 font-mono text-xs text-accent-primary shadow-inner group">
-              <span className="truncate pr-4">{agent.installCommand}</span>
-              <button
-                onClick={() => handleCopyCommand(agent.installCommand, "install")}
-                aria-label={copiedId === "install" ? "Kopieret" : "Kopiér installationskommando"}
-                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition active:scale-95 cursor-pointer"
-              >
-                {copiedId === "install" ? (
-                  <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-                ) : (
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                )}
-              </button>
-           </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 pt-2">
+        <div className="grid grid-cols-1 gap-3">
            <button
              onClick={handleUpvote}
              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-primary font-bold hover:bg-rose-500/20 transition active:scale-[0.98] cursor-pointer"

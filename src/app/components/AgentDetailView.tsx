@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Code, Globe, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Globe, ShieldCheck } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
+import ConnectBlock from "./ConnectBlock";
 import { jsonLdScript } from "@/lib/jsonLd";
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).
@@ -20,11 +21,14 @@ export default function AgentDetailView({
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
   const categoryIcons = {
-    "DevTools": <Terminal className="h-5 w-5" />,
-    "Writing": <Code className="h-5 w-5" />,
-    "Browsing": <Globe className="h-5 w-5" />,
-    "MCP Server": <Cpu className="h-5 w-5" />
+    "Tool CLI": <Terminal className="h-5 w-5" />,
+    "MCP Server": <Cpu className="h-5 w-5" />,
+    "Host": <Globe className="h-5 w-5" />,
   };
+
+  // MCP servers and tool-CLIs are both backed by the agents table; map the row
+  // category to its feed type so the connect recipe is host-appropriate.
+  const feedType = agent.category === "MCP Server" ? "mcp-servers" : "tool-clis";
 
   return (
     <div className="space-y-10">
@@ -127,6 +131,11 @@ export default function AgentDetailView({
 
         {/* Right: Actions & Stats */}
         <div className="space-y-6">
+           <ConnectBlock
+             feedType={feedType}
+             item={{ name: agent.name, installCommand: agent.installCommand }}
+             lang={lang}
+           />
            <AgentActionSection agent={agent} backHref={backHref} />
 
            <div className="p-6 rounded-2xl glass-card border border-card-border space-y-4">

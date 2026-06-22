@@ -78,6 +78,13 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     await page.waitForURL(/\/tool-clis\/.+/);
     await expect(page.getByRole('heading', { name: /System Prompt/i })).toBeVisible();
+
+    // Every feed item is one step from a host: the connect block lets you pick
+    // a host and get a recipe.
+    const connect = page.getByTestId('connect-block');
+    await expect(connect).toBeVisible();
+    await connect.getByTestId('connect-host-claude-code').click();
+    await expect(connect.getByText(/Steps|Trin/)).toBeVisible();
   });
 
   test('should sync search to the URL (deep-linkable)', async ({ page }) => {

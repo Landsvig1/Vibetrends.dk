@@ -7,6 +7,7 @@ import { Language } from "@/lib/translations";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
+import ConnectBlock from "@/app/components/ConnectBlock";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -125,6 +126,13 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
         </div>
 
         <div className="space-y-6">
+          <div id="connect" className="scroll-mt-24">
+            <ConnectBlock
+              feedType="skills"
+              item={{ name: skill.title, githubUrl: skill.githubUrl, source: skill.source }}
+              lang={lang}
+            />
+          </div>
           <div className="p-6 rounded-2xl glass-card border border-card-border space-y-4">
             <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center">
               <Briefcase className="h-4 w-4 mr-2 text-accent-primary" />

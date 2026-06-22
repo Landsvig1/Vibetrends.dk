@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Star } from "lucide-react";
+import { Star, Plug } from "lucide-react";
 import { Skill } from "@/lib/db";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -24,9 +24,18 @@ const GithubIcon = ({ className }: { className?: string }) => (
  * Presentational skill card shared by the Skills hub (client) and the topic
  * landing pages (server). It is a client component so it can be rendered inside
  * either tree; it takes the GitHub link label as a prop so it needs no language
- * hook of its own.
+ * hook of its own. The compact Connect affordance links to the detail page,
+ * where the full host picker (ConnectBlock) lives.
  */
-export function SkillCard({ skill, githubLabel }: { skill: Skill; githubLabel: string }) {
+export function SkillCard({
+  skill,
+  githubLabel,
+  connectLabel = "Connect",
+}: {
+  skill: Skill;
+  githubLabel: string;
+  connectLabel?: string;
+}) {
   return (
     <div
       data-testid="skill-card"
@@ -73,18 +82,29 @@ export function SkillCard({ skill, githubLabel }: { skill: Skill; githubLabel: s
           <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
         </div>
 
-        {skill.githubUrl && (
-          <a
-            href={skill.githubUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/skills/${skill.id}#connect`}
+            data-testid="skill-connect"
             onClick={(e) => e.stopPropagation()}
             className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
           >
-            <GithubIcon className="h-4 w-4" />
-            {githubLabel}
-          </a>
-        )}
+            <Plug className="h-4 w-4" />
+            {connectLabel}
+          </Link>
+          {skill.githubUrl && (
+            <a
+              href={skill.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
+            >
+              <GithubIcon className="h-4 w-4" />
+              {githubLabel}
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
