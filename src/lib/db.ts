@@ -75,7 +75,10 @@ export interface Agent {
   id: string;
   name: string;
   developer: string;
-  category: "DevTools" | "Writing" | "Browsing" | "MCP Server";
+  // Feed-vs-host taxonomy (src/lib/feedTypes.ts). "Host" rows are retained but
+  // excluded from every catalog surface — they are connection targets, not
+  // catalog items.
+  category: "Tool CLI" | "MCP Server" | "Host";
   description: string;
   installCommand: string;
   systemPrompt: string;
@@ -158,7 +161,9 @@ interface AgentRow {
   id: string;
   name: string;
   developer: string;
-  category: Agent["category"];
+  // Widened to string so a legacy pre-migration category never trips the
+  // mapper before the recategorization migration has run in every environment.
+  category: string;
   description_da: string;
   description_en: string;
   install_command: string;
@@ -240,7 +245,7 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
     id: a.id,
     name: a.name,
     developer: a.developer,
-    category: a.category,
+    category: a.category as Agent["category"],
     description: lang === 'en' ? a.description_en : a.description_da,
     installCommand: a.install_command,
     systemPrompt: lang === 'en' ? a.system_prompt_en : a.system_prompt_da,
@@ -496,10 +501,15 @@ export async function getBlogPostById(id: string, lang: 'da' | 'en' = 'da') {
 export async function getAgents(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
   let query = supabasePublic.from('agents').select('*').order('upvotes', { ascending: false });
 
+  // Hosts are connection targets, never catalog items — excluded from every
+  // list, even when a category is explicitly requested (a 'Host' request
+  // therefore yields nothing).
+  query = query.neq('category', 'Host');
+
   if (category && category !== "All") {
     query = query.eq('category', category);
   } else {
-    // /agents excludes MCP servers — they live at /mcp.
+    // The default catalog list excludes MCP servers — they live at /mcp.
     query = query.neq('category', 'MCP Server');
   }
 
@@ -520,8 +530,15 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
   return list;
 }
 
+// Tool-CLIs are stored in the agents table with category 'Tool CLI'.
+// Convenience accessor for the /tool-clis feed surface and /api/tool-clis.
+export async function getToolClis(search?: string, lang: 'da' | 'en' = 'da') {
+  return getAgents(search, 'Tool CLI', lang);
+}
+
 // MCP servers are stored in the agents table with category 'MCP Server';
-// list views fetch them via /api/agents?category=MCP Server.
+// list views fetch them via /api/mcp-servers. Host rows are retained but
+// excluded from every catalog query above.
 export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
   const { data, error } = await supabasePublic.from('agents').select('*').eq('id', id).single();
   if (error || !data) return null;
@@ -704,8 +721,9 @@ export async function getCounts(): Promise<EntityCounts> {
     supabasePublic.from('skills').select('*', head),
     supabasePublic.from('showcase').select('*', head),
     supabasePublic.from('forum_threads').select('*', head),
-    // The /agents surface and the homepage stat both exclude MCP servers.
-    supabasePublic.from('agents').select('*', head).neq('category', 'MCP Server'),
+    // The tool-CLI feed count excludes MCP servers (own surface) and hosts
+    // (connection targets, not catalog items).
+    supabasePublic.from('agents').select('*', head).neq('category', 'MCP Server').neq('category', 'Host'),
   ]);
 
   return {
@@ -741,6 +759,7 @@ export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
     .from('agents')
     .select('*')
     .neq('category', 'MCP Server')
+    .neq('category', 'Host')
     .order('upvotes', { ascending: false })
     .limit(limit);
   if (error || !data) return [];

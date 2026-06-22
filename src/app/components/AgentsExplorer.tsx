@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Code, Globe, CheckCircle2 } from "lucide-react";
+import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2 } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
@@ -31,7 +31,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
   // Add form states
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
-  const [addCategory, setAddCategory] = useState<Agent["category"]>(isMcp ? "MCP Server" : "DevTools");
+  const [addCategory, setAddCategory] = useState<Agent["category"]>(isMcp ? "MCP Server" : "Tool CLI");
   const [addDesc, setAddDesc] = useState("");
   const [addInstall, setAddInstall] = useState("");
   const [addPrompt, setAddPrompt] = useState("");
@@ -120,14 +120,13 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
     }
   };
 
-  // MCP servers are a single category, so the agents view shows sub-category
-  // filters while the MCP view does not.
-  const categories = isMcp ? [] : ["All", "DevTools", "Writing", "Browsing"];
+  // Feed types each map to a single agents-table category, so the explorer no
+  // longer shows sub-category chips for any scope.
+  const categories: string[] = [];
   const categoryIcons = {
-    "DevTools": <Terminal className="h-4 w-4" />,
-    "Writing": <Code className="h-4 w-4" />,
-    "Browsing": <Globe className="h-4 w-4" />,
-    "MCP Server": <Cpu className="h-4 w-4" />
+    "Tool CLI": <Terminal className="h-4 w-4" />,
+    "MCP Server": <Cpu className="h-4 w-4" />,
+    "Host": <Globe className="h-4 w-4" />,
   };
 
   const filteredAgents = agents.filter((agent) => {
@@ -367,9 +366,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" }) {
                         onChange={(e) => setAddCategory(e.target.value as Agent["category"])}
                         className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/20 text-sm"
                       >
-                        <option value="DevTools">DevTools</option>
-                        <option value="Writing">Writing</option>
-                        <option value="Browsing">Browsing</option>
+                        <option value="Tool CLI">Tool CLI</option>
                       </select>
                     </div>
                   )}

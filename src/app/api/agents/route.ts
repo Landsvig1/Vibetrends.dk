@@ -6,7 +6,9 @@ import { z } from "zod";
 
 const agentSchema = z.object({
   name: z.string().min(1).max(100),
-  category: z.enum(["DevTools", "Writing", "Browsing", "MCP Server"]),
+  // Feed-worthy categories only — hosts are connection targets, not submittable
+  // catalog items (R2).
+  category: z.enum(["Tool CLI", "MCP Server"]),
   description: z.string().min(10).max(500),
   installCommand: z.string().optional(),
   systemPrompt: z.string().optional(),
