@@ -53,6 +53,24 @@ describe("buildConnectRecipe", () => {
     expect(r.steps.join(" ")).toContain("https://skills.sh/x");
   });
 
+  it("only emits a git clone command for a trusted https github.com URL", () => {
+    const gh = buildConnectRecipe(
+      "skills",
+      { name: "GH Skill", githubUrl: "https://github.com/x/y" },
+      "claude-code",
+    );
+    expect(gh.command).toBe("git clone https://github.com/x/y");
+
+    // A well-formed but non-github URL must NOT become a copyable clone command.
+    const evil = buildConnectRecipe(
+      "skills",
+      { name: "Evil Skill", githubUrl: "https://evil.example.com/x/y" },
+      "claude-code",
+    );
+    expect(evil.command).toBeUndefined();
+    expect(evil.steps.length).toBeGreaterThan(0); // still gives manual steps
+  });
+
   it("handles an unknown host without throwing", () => {
     expect(() =>
       buildConnectRecipe("tool-clis", { name: "X", installCommand: "x" }, "emacs"),

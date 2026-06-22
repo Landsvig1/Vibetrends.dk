@@ -136,7 +136,11 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "t
   };
 
   const filteredAgents = agents.filter((agent) => {
-    const matchesCategory = isMcp || selectedCategory === "All" || agent.category === selectedCategory;
+    // With no sub-category chips, a stale ?category= in the URL (e.g. a legacy
+    // /agents?category=DevTools bookmark) must not filter the grid to empty —
+    // there is no chip to clear it. Treat category as a no-op when no chips exist.
+    const matchesCategory =
+      isMcp || categories.length === 0 || selectedCategory === "All" || agent.category === selectedCategory;
     const matchesSearch =
       agent.name.toLowerCase().includes(search.toLowerCase()) ||
       agent.description.toLowerCase().includes(search.toLowerCase()) ||

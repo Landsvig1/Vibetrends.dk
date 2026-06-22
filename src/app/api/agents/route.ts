@@ -10,7 +10,17 @@ const agentSchema = z.object({
   // catalog items (R2).
   category: z.enum(["Tool CLI", "MCP Server"]),
   description: z.string().min(10).max(500),
-  installCommand: z.string().optional(),
+  // installCommand is rendered as a copyable "run this in your terminal"
+  // command by ConnectBlock, so reject shell metacharacters that would let a
+  // submitted row smuggle a command-chaining / substitution payload into a
+  // one-click copy. Legit install strings (npx/npm/pnpm/uvx ...) do not use them.
+  installCommand: z
+    .string()
+    .max(300)
+    .refine((s) => !/[;&|`$\n\r<>]/.test(s), {
+      message: "installCommand must not contain shell metacharacters (; & | ` $ < > or newlines)",
+    })
+    .optional(),
   systemPrompt: z.string().optional(),
   tags: z.array(z.string()).max(10).optional(),
 });

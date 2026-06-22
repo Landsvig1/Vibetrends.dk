@@ -66,7 +66,9 @@ export default function ConnectBlock({
       {/* Copyable command */}
       {recipe.command && (
         <div className="flex items-center justify-between rounded-xl bg-background border border-card-border p-4 font-mono text-xs text-accent-primary shadow-inner">
-          <span className="truncate pr-4">{recipe.command}</span>
+          {/* No truncation: the full command must be visible so a long payload
+              tail can't be visually concealed behind an ellipsis. */}
+          <span className="break-all pr-4">{recipe.command}</span>
           <button
             type="button"
             onClick={() => copy(recipe.command!, "command")}

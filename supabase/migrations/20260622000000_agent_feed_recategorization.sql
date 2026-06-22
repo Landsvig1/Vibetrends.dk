@@ -12,48 +12,53 @@
 --                 (Claude Code, Cursor, Gemini, …) — RETAINED but excluded
 --                 from every catalog surface by db.ts (see getAgents).
 --
--- Rule (fixed): rows whose NAME matches a known coding-agent/host are set to
--- 'Host'; every other DevTools/Writing/Browsing row defaults to 'Tool CLI'.
--- This is intentionally lossy. The mapping is reversible: re-running
--- classification (or moving a row back to a feed category) re-promotes it, so
--- the demotion needs no data-recovery work (R9).
+-- Rule (fixed): rows whose NAME exactly matches a known coding-agent/host are
+-- set to 'Host'; every other DevTools/Writing/Browsing row defaults to
+-- 'Tool CLI'. Host matching uses EXACT whole-name equality (not substring
+-- ilike) so a feed item like "cursor-helper" or "gemini-scraper" is never
+-- mis-demoted into the never-shown Host bucket. The safe failure direction is
+-- a missed host appearing as a Tool CLI (visible, recoverable) rather than a
+-- real tool silently vanishing from every catalog surface.
+--
+-- Reversibility (R9): the original value is snapshotted into category_legacy
+-- BEFORE any rewrite, so the move is invertible without data-recovery work
+-- (re-run `update agents set category = category_legacy`). The per-row rewrite
+-- below is lossy on its own; category_legacy is what preserves reversibility.
 --
 -- Idempotent: once values are in {Tool CLI, MCP Server, Host}, the
 -- DevTools/Writing/Browsing predicates match nothing and every statement is a
--- no-op on re-run.
+-- no-op on re-run. category_legacy is only ever written when null, so re-runs
+-- never overwrite the first-captured original.
 --
 -- !! MANUAL REVIEW BEFORE PRODUCTION !!
 -- The host name list below was authored without access to the live agents
 -- rows (the project's Supabase instance was not reachable from the authoring
 -- environment). Before applying to production, confirm the host allowlist
--- against the real data:
+-- against the real data and extend the exact-name list (or supply a curated id
+-- list) for any coding-agent/host that is missed:
 --   select id, name, developer, category from public.agents
 --   where category in ('DevTools', 'Writing', 'Browsing') order by name;
--- Add any coding-agent/host names that are missed, and move any false-positive
--- Tool CLI rows that are actually hosts.
+-- Also spot-check MCP Server rows for any host accidentally filed there — the
+-- step-1 UPDATE only inspects the three legacy categories.
 
--- 1. Host-like rows: coding agents / CLIs that are connection targets, not
---    feed items. Matched case-insensitively by name. Keep this list aligned
---    with the HOSTS registry in src/lib/feedTypes.ts plus the broader set of
---    coding agents users may have submitted.
+-- 0. Snapshot the pre-migration category so the move is reversible (R9):
+--    `update public.agents set category = category_legacy` inverts everything
+--    below. Written once (only when null) so re-runs are non-destructive.
+alter table public.agents add column if not exists category_legacy text;
+update public.agents set category_legacy = category where category_legacy is null;
+
+-- 1. Host-like rows: coding agents / CLIs that are connection targets, not feed
+--    items. EXACT whole-name match (lower/trim) — NOT substring ilike — so a
+--    feed item like "cursor-helper" or "gemini-scraper" is never swept into the
+--    hidden Host bucket. Extend this list (or use a curated id list) during the
+--    manual review above. Keep aligned with the HOSTS registry in feedTypes.ts.
 update public.agents
 set category = 'Host'
 where category in ('DevTools', 'Writing', 'Browsing')
-  and (
-    name ilike '%claude code%'
-    or name ilike '%cursor%'
-    or name ilike '%gemini%'
-    or name ilike '%windsurf%'
-    or name ilike '%github copilot%'
-    or name ilike '%copilot%'
-    or name ilike '%cline%'
-    or name ilike '%aider%'
-    or name ilike '%codex%'
-    or name ilike '%continue%'
-    or name ilike '%zed%'
-    or name ilike '%cody%'
-    or name ilike '%amp%'
-    or name ilike '%devin%'
+  and lower(trim(name)) in (
+    'claude code', 'cursor', 'gemini', 'gemini cli', 'windsurf',
+    'github copilot', 'copilot', 'cline', 'aider', 'codex',
+    'continue', 'zed', 'amp', 'cody', 'devin'
   );
 
 -- 2. Everything else still on a legacy feed category becomes a Tool CLI.

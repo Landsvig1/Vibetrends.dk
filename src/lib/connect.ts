@@ -40,6 +40,16 @@ function isKnownHost(host: string): host is HostSlug {
   return (HOST_SLUGS as readonly string[]).includes(host);
 }
 
+/**
+ * Only emit a copyable `git clone` command for a trusted https github.com URL.
+ * A well-formed but attacker-controlled URL (typosquat, git remote-helper form)
+ * must not be presented as a one-click clone command; such items fall back to
+ * link-only manual steps.
+ */
+function safeCloneUrl(url?: string): string | undefined {
+  return url && /^https:\/\/github\.com\//i.test(url) ? url : undefined;
+}
+
 /** Stable, config-key-safe identifier derived from the item name. */
 function toKey(name: string): string {
   return (
@@ -104,7 +114,7 @@ function skillRecipe(item: ConnectItem, host: HostSlug, hostName: string): Conne
     return {
       host,
       hostName,
-      command: item.githubUrl ? `git clone ${item.githubUrl}` : undefined,
+      command: safeCloneUrl(item.githubUrl) ? `git clone ${safeCloneUrl(item.githubUrl)}` : undefined,
       steps: [
         `Get the skill from ${ref}.`,
         `Place it in your project's .claude/skills/ directory.`,
