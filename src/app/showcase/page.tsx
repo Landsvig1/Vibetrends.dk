@@ -20,8 +20,6 @@ export default function ShowcasePage() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [subTitle, setSubTitle] = useState("");
   const [subDesc, setSubDesc] = useState("");
-  const [subTools, setSubTools] = useState("");
-  const [subPrompts, setSubPrompts] = useState("");
   const [subDemo, setSubDemo] = useState("");
   const [subSuccess, setSubSuccess] = useState(false);
 
@@ -76,8 +74,8 @@ export default function ShowcasePage() {
           title: subTitle,
           author: finalAuthor,
           description: subDesc,
-          tools: subTools.split(",").map((t) => t.trim()).filter(Boolean),
-          prompts: subPrompts.split("\n").map((p) => p.trim()).filter(Boolean),
+          tools: [],
+          prompts: [],
           demoUrl: subDemo || "https://vibetrends.dk",
         }),
       });
@@ -92,8 +90,6 @@ export default function ShowcasePage() {
           setSubmitOpen(false);
           setSubTitle("");
           setSubDesc("");
-          setSubTools("");
-          setSubPrompts("");
           setSubDemo("");
         }, 2500);
       }
@@ -343,40 +339,14 @@ export default function ShowcasePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_tech")}</label>
-                    <input
-                      type="text"
-                      value={subTools}
-                      onChange={(e) => setSubTools(e.target.value)}
-                      placeholder={t("showcase.modal.placeholder_tech")}
-                      className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_demo")}</label>
-                    <input
-                      type="url"
-                      value={subDemo}
-                      onChange={(e) => setSubDemo(e.target.value)}
-                      placeholder="https://mit-projekt.vercel.app"
-                      className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary flex items-center justify-between">
-                    <span>{t("showcase.modal.label_prompts")}</span>
-                    <span className="text-[10px] text-text-secondary font-normal">Valgfri</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={subPrompts}
-                    onChange={(e) => setSubPrompts(e.target.value)}
-                    placeholder={t("showcase.modal.placeholder_prompts")}
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
+                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_demo")}</label>
+                  <input
+                    type="url"
+                    value={subDemo}
+                    onChange={(e) => setSubDemo(e.target.value)}
+                    placeholder="https://mit-projekt.vercel.app"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
