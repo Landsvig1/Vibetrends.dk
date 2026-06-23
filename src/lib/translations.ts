@@ -28,9 +28,6 @@ export const translations = {
     "footer.agents": "Agent & MCP Registry",
     "footer.privacy": "Privatlivspolitik",
     "footer.terms": "Brugervilkår",
-    "footer.sponsored": "Sponsoreret af",
-    "footer.agency": "AI Automationsbureau",
-    "footer.personal": "Personlig Portal",
     "footer.rights": "Alle rettigheder forbeholdes. Skabt i Brøndby, Danmark.",
     "footer.hosting": "Hosting via Vercel &middot; DNS via Simply.com",
 
@@ -238,9 +235,6 @@ export const translations = {
     "footer.agents": "Agent & MCP Registry",
     "footer.privacy": "Privacy Policy",
     "footer.terms": "Terms of Service",
-    "footer.sponsored": "Sponsored by",
-    "footer.agency": "AI Automation Agency",
-    "footer.personal": "Personal Portal",
     "footer.rights": "All rights reserved. Made in Brøndby, Denmark.",
     "footer.hosting": "Hosting via Vercel &middot; DNS via Simply.com",
 
