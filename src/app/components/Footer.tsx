@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 import KoalaIcon from "./KoalaIcon";
 
@@ -28,7 +27,7 @@ export default function Footer() {
           </div>
 
           {/* Links sections */}
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-8 xl:col-span-2 xl:mt-0">
+          <div className="mt-8 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div>
               <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.platform")}</h3>
               <ul className="mt-4 space-y-2">
@@ -71,37 +70,6 @@ export default function Footer() {
                   <Link href="/terms" className="text-sm text-text-secondary hover:text-foreground transition-colors">
                     {t("footer.terms")}
                   </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Brands sections */}
-            <div className="col-span-2 sm:col-span-1">
-              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.sponsored")}</h3>
-              <ul className="mt-4 space-y-3">
-                <li>
-                  <a
-                    href="https://aiauto.dk"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group inline-flex items-center space-x-1 text-sm text-text-secondary hover:text-accent-primary transition-colors"
-                  >
-                    <span>aiauto.dk</span>
-                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">({t("footer.agency")})</span>
-                    <ArrowUpRight className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://landsvig.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group inline-flex items-center space-x-1 text-sm text-text-secondary hover:text-accent-primary transition-colors"
-                  >
-                    <span>landsvig.com</span>
-                    <span className="text-xs text-text-secondary group-hover:text-accent-primary transition-colors">({t("footer.personal")})</span>
-                    <ArrowUpRight className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  </a>
                 </li>
               </ul>
             </div>
