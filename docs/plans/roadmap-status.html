@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vibetrends.dk — Improvement Roadmap Status</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2128; --line:#30363d;
+    --text:#e6edf3; --muted:#9198a1; --faint:#6e7681;
+    --done:#3fb950; --done-bg:#0f2417; --done-line:#1f6f33;
+    --open:#d29922; --open-bg:#2a210a; --open-line:#9e6a00;
+    --blocked:#f85149; --blocked-bg:#2a1213; --blocked-line:#8c2d2d;
+    --info:#58a6ff; --accent:#bc8cff;
+    --p1:#58a6ff; --p2:#3fb950; --p3:#d29922; --p4:#bc8cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--info)}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px}
+  header h1{font-size:26px;margin:0 0 4px}
+  header .sub{color:var(--muted);font-size:14px}
+  .meta{color:var(--faint);font-size:12.5px;margin-top:6px}
+
+  /* Banner */
+  .banner{margin:24px 0 8px;padding:18px 20px;border-radius:12px;
+    background:linear-gradient(135deg,var(--done-bg),#0d1117);
+    border:1px solid var(--done-line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .banner .big{font-size:34px;font-weight:700;color:var(--done);line-height:1}
+  .banner .txt{flex:1;min-width:240px}
+  .banner .txt strong{color:var(--text)}
+  .banner .txt span{color:var(--muted)}
+
+  /* Stat row */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0 8px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .n{font-size:24px;font-weight:700}
+  .stat .l{color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.04em}
+  .stat.done .n{color:var(--done)} .stat.open .n{color:var(--open)}
+  .stat.info .n{color:var(--info)} .stat.neutral .n{color:var(--text)}
+
+  /* Legend */
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:26px 0 10px;font-size:13px;color:var(--muted)}
+  .legend .k{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .dot.done{background:var(--done)} .dot.open{background:var(--open)} .dot.blocked{background:var(--blocked)}
+
+  h2.section{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+    margin:38px 0 14px;border-bottom:1px solid var(--line);padding-bottom:8px}
+
+  /* Phases */
+  .phase{margin-bottom:26px}
+  .phase-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .phase-head .tag{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;color:#0d1117}
+  .phase-head h3{margin:0;font-size:16px}
+  .phase-head .pct{margin-left:auto;color:var(--muted);font-size:13px}
+  .p1 .tag{background:var(--p1)} .p2 .tag{background:var(--p2)}
+  .p3 .tag{background:var(--p3)} .p4 .tag{background:var(--p4)}
+
+  .units{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+  .unit{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    position:relative;border-left-width:4px}
+  .unit.done{border-left-color:var(--done)}
+  .unit.open{border-left-color:var(--open)}
+  .unit.blocked{border-left-color:var(--blocked)}
+  .unit .id{font-weight:700;font-size:14px}
+  .unit .badge{float:right;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em}
+  .badge.done{background:var(--done-bg);color:var(--done);border:1px solid var(--done-line)}
+  .badge.open{background:var(--open-bg);color:var(--open);border:1px solid var(--open-line)}
+  .badge.blocked{background:var(--blocked-bg);color:var(--blocked);border:1px solid var(--blocked-line)}
+  .unit .title{font-size:14px;margin:4px 0 8px}
+  .unit .ev{font-size:12.5px;color:var(--muted)}
+  .unit .ev code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;
+    padding:1px 5px;font-size:11.5px;color:var(--accent)}
+  .unit .dep{margin-top:8px;font-size:11.5px;color:var(--faint)}
+
+  /* Deferred table */
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+  th{background:var(--panel2);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  tr:last-child td{border-bottom:0}
+  td .badge{font-size:10.5px}
+  td.note{color:var(--muted)}
+
+  /* Next-up call-to-action cards */
+  .next{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .nx{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;border-top:3px solid var(--accent)}
+  .nx h4{margin:0 0 6px;font-size:15px}
+  .nx p{margin:0 0 10px;color:var(--muted);font-size:13px}
+  .nx .effort{font-size:11.5px;color:var(--faint)}
+  .nx .rank{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent);
+    border-radius:20px;padding:1px 9px;margin-bottom:8px}
+
+  footer{margin-top:50px;color:var(--faint);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  .deplabel{color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>vibetrends.dk — Improvement Roadmap</h1>
+    <div class="sub">Source: <code>docs/plans/2026-06-19-001-refactor-project-improvement-roadmap-plan.md</code></div>
+    <div class="meta">Status reconciled against <code>main</code> on 2026-06-22 · 9 units across 4 phases</div>
+  </header>
+
+  <div class="banner">
+    <div class="big">100%</div>
+    <div class="txt">
+      <strong>The original roadmap is fully shipped.</strong><br>
+      <span>All 9 implementation units (U1–U9) landed across merged PRs #9–#13. What remains is the
+      <em>deferred follow-up work</em> — and U9's agent-auth decision has now unblocked MCP write tools.</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat done"><div class="n">9 / 9</div><div class="l">Units shipped</div></div>
+    <div class="stat info"><div class="n">5</div><div class="l">PRs merged (#9–#13)</div></div>
+    <div class="stat open"><div class="n">3</div><div class="l">Deferred items open</div></div>
+    <div class="stat neutral"><div class="n">7</div><div class="l">Test suites in CI</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="k"><span class="dot done"></span> Shipped — evidence in codebase</span>
+    <span class="k"><span class="dot open"></span> Open / not started</span>
+    <span class="k"><span class="dot blocked"></span> Blocked on a decision</span>
+  </div>
+
+  <!-- ===================== PHASES ===================== -->
+  <h2 class="section">The four phases</h2>
+
+  <div class="phase p1">
+    <div class="phase-head"><span class="tag">Phase 1</span><h3>Test safety net &amp; CI</h3><span class="pct">3/3 shipped</span></div>
+    <div class="units">
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U1</div>
+        <div class="title">Vitest setup + <code>db.ts</code> unit coverage</div>
+        <div class="ev">Evidence: <code>src/lib/__tests__/db.test.ts</code> — 47 cases; <code>vitest</code> + <code>@vitest/coverage-v8</code> in package.json.</div>
+        <div class="dep deplabel">Depends on: —</div>
+      </div>
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U2</div>
+        <div class="title">GitHub Actions CI gate</div>
+        <div class="ev">Evidence: <code>.github/workflows/ci.yml</code> (lint + typecheck + unit tests).</div>
+        <div class="dep deplabel">Depends on: U1</div>
+      </div>
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U3</div>
+        <div class="title">E2E hardening + upvote round-trip</div>
+        <div class="ev">Evidence: upvote test + nav-fidelity fixes in <code>tests/e2e/basic.spec.ts</code> (PR #12).</div>
+        <div class="dep deplabel">Depends on: U1</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase p2">
+    <div class="phase-head"><span class="tag">Phase 2</span><h3>Performance</h3><span class="pct">2/2 shipped</span></div>
+    <div class="units">
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U4</div>
+        <div class="title">Fix <code>getThreads</code> N+1 + DB-side filters</div>
+        <div class="ev">Evidence: replies scoped via <code>.in('thread_id', threadIds)</code> instead of full-table scan.</div>
+        <div class="dep deplabel">Depends on: U1</div>
+      </div>
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U5</div>
+        <div class="title">Trim homepage over-fetching</div>
+        <div class="ev">Evidence: <code>getCounts()</code> using <code>count:'exact', head:true</code> — no full-row materialization.</div>
+        <div class="dep deplabel">Depends on: U1, U4</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase p3">
+    <div class="phase-head"><span class="tag">Phase 3</span><h3>SEO depth</h3><span class="pct">2/2 shipped</span></div>
+    <div class="units">
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U6</div>
+        <div class="title">Dynamic sitemap + metadata enrichment</div>
+        <div class="ev">Evidence: <code>src/app/sitemap.ts</code> maps detail IDs from <code>getSkills/getProjects/getAgents/getThreads</code>.</div>
+        <div class="dep deplabel">Depends on: U2 (gate)</div>
+      </div>
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U7</div>
+        <div class="title">OpenGraph images + per-entity JSON-LD</div>
+        <div class="ev">Evidence: 4× <code>opengraph-image.tsx</code> (showcase/agents/blog/topic) + <code>jsonLd.test.ts</code>.</div>
+        <div class="dep deplabel">Depends on: U6</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase p4">
+    <div class="phase-head"><span class="tag">Phase 4</span><h3>Agent-native parity</h3><span class="pct">2/2 shipped</span></div>
+    <div class="units">
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U8</div>
+        <div class="title">MCP JSON-RPC read surface</div>
+        <div class="ev">Evidence: <code>src/app/api/mcp/route.ts</code> handles <code>initialize / tools/list / tools/call</code> as JSON-RPC 2.0.</div>
+        <div class="dep deplabel">Depends on: U2 (gate)</div>
+      </div>
+      <div class="unit done">
+        <span class="badge done">Done</span><div class="id">U9</div>
+        <div class="title">Agent-auth decision + write-tool scoping</div>
+        <div class="ev">Evidence: <code>docs/decisions/2026-06-19-agent-auth.md</code> — Status: Accepted (decision only).</div>
+        <div class="dep deplabel">Depends on: U8 · <strong style="color:var(--accent)">unblocks MCP write tools →</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DEFERRED ===================== -->
+  <h2 class="section">Deferred follow-up work — the live backlog</h2>
+  <table>
+    <thead><tr><th style="width:230px">Item</th><th style="width:110px">Status</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>MCP write tools</strong><br><span class="deplabel">upvote / submit / reply</span></td>
+        <td><span class="badge open">Open</span></td>
+        <td class="note">Was blocked on U9 — <strong style="color:var(--text)">now unblocked.</strong> The ADR is accepted; needs an auth-channel implementation (PAT / scoped key / OAuth) then the write tools. Highest agent-native leverage.</td>
+      </tr>
+      <tr>
+        <td><strong>URL-based locale routing</strong><br><span class="deplabel">/en/… vs cookie</span></td>
+        <td><span class="badge open">Open</span></td>
+        <td class="note">No <code>[locale]</code> segment exists yet. The real bilingual-SEO fix; a routing restructure touching every page + the language provider. Largest single item.</td>
+      </tr>
+      <tr>
+        <td><strong>Postgres full-text search</strong><br><span class="deplabel">tsvector index</span></td>
+        <td><span class="badge open">Open</span></td>
+        <td class="note">No <code>tsvector</code> migration present. Current DB-side filtering uses <code>ilike</code>; FTS is the next step once that proves out.</td>
+      </tr>
+      <tr>
+        <td><strong>README rewrite</strong></td>
+        <td><span class="badge done">Done</span></td>
+        <td class="note">Already shipped via PR #9 — <code>README.md</code> now reflects vibetrends.dk, not create-next-app boilerplate.</td>
+      </tr>
+      <tr>
+        <td><strong>Content freshness / authoring</strong></td>
+        <td><span class="badge open">N/A</span></td>
+        <td class="note">Operational, not engineering. Out of scope for this roadmap.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===================== WHAT'S NEXT ===================== -->
+  <h2 class="section">Where to point the next session</h2>
+  <div class="next">
+    <div class="nx">
+      <span class="rank">Rank 1 · highest leverage</span>
+      <h4>MCP write tools</h4>
+      <p>The ADR decision is done; this is the only deferred item that's fully unblocked. Closes the agent-native parity gap that motivated Phase 4.</p>
+      <div class="effort">Effort: medium · needs an auth-channel spike first (per ADR)</div>
+    </div>
+    <div class="nx">
+      <span class="rank">Rank 2 · biggest SEO win</span>
+      <h4>URL-based locale routing</h4>
+      <p>Removes the cookie-based-language ceiling on bilingual SEO. Highest payoff but also the largest, most invasive change.</p>
+      <div class="effort">Effort: large · routing restructure across all pages</div>
+    </div>
+    <div class="nx">
+      <span class="rank">Rank 3 · incremental</span>
+      <h4>Postgres full-text search</h4>
+      <p>Upgrade <code>ilike</code> filtering to a tsvector index. Self-contained, lower risk, do it when search quality becomes the bottleneck.</p>
+      <div class="effort">Effort: small–medium · one migration + query swap</div>
+    </div>
+  </div>
+
+  <!-- ===================== FOLLOW-UP BATCH ===================== -->
+  <h2 class="section">Follow-up batch — 2026-06-23 (shipped)</h2>
+  <p style="color:var(--muted);font-size:13.5px;margin:-2px 0 14px">
+    A second, separate batch beyond the original roadmap — driven by direct product
+    asks. All three shipped and live-verified against the database.
+  </p>
+  <div class="units">
+    <div class="unit done">
+      <span class="badge done">Done</span><div class="id">WS1</div>
+      <div class="title">Add-Skill flow fix + new taxonomy</div>
+      <div class="ev">Only <code>title + link</code> required (was blocked by required description);
+      discipline taxonomy (Full-Stack/Marketing/Webshop/Front-End/Back-End/Design/Agent workflows)
+      in <code>topics.ts</code>; 56 seed rows remapped (0 orphans, reversible).</div>
+    </div>
+    <div class="unit done">
+      <span class="badge done">Done</span><div class="id">WS2</div>
+      <div class="title">Forum tiny-Reddit polish</div>
+      <div class="ev">Top/New sort tabs, comment upvotes (<code>reply_upvotes</code> + triggers + RLS),
+      relative timestamps (<code>timeAgo</code>). Existing Supabase forum extended — Apache Answer
+      fork rejected (wrong model, duplicate stack).</div>
+    </div>
+    <div class="unit done">
+      <span class="badge done">Done</span><div class="id">WS3</div>
+      <div class="title">README as cold-start agent context</div>
+      <div class="ev">Rewritten to cover stack, all 7 surfaces (incl. CLI feed), the two
+      single-source-of-truth taxonomy files, MCP, tests/CI, run steps.</div>
+    </div>
+  </div>
+
+  <footer>
+    Generated for roadmap review · original roadmap reconciled at HEAD <code>b0a3912</code>;
+    follow-up batch (WS1–WS3) shipped 2026-06-23 on <code>feat/skill-flow-forum-readme</code>.
+    Open this file in a browser. To regenerate after more work lands, re-reconcile units against the codebase.
+  </footer>
+
+</div>
+</body>
+</html>
