@@ -83,8 +83,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 DATABASE_URL=postgresql://<connection-string>
 ```
 
-Apply the schema in `supabase/migrations/` to your Supabase project (Supabase CLI
-`supabase db push`, or paste into the SQL editor), then:
+Apply the schema in `supabase/migrations/` to your Supabase project. Note the
+project's migrations are applied directly via `pg` + `DATABASE_URL`, **not**
+`supabase db push` (which doesn't work here) — see the migration workflow in
+[`AGENTS.md`](AGENTS.md). Then:
 
 ```bash
 npm run dev    # http://localhost:3000
