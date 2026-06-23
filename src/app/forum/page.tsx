@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2 } from "lucide-react";
+import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
+import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
@@ -14,6 +15,7 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 export default function ForumPage() {
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
+  const [sort, setSort] = useQueryState("sort", parseAsString.withDefault("top"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -27,14 +29,17 @@ export default function ForumPage() {
 
   // Fetch threads from API
   useEffect(() => {
-    const url = selectedCategory === "All" ? "/api/forum" : `/api/forum?category=${encodeURIComponent(selectedCategory)}`;
-    fetch(url)
+    const params = new URLSearchParams();
+    if (selectedCategory !== "All") params.set("category", selectedCategory);
+    if (sort === "new") params.set("sort", "new");
+    const qs = params.toString();
+    fetch(qs ? `/api/forum?${qs}` : "/api/forum")
       .then((res) => res.json())
       .then((data) => {
         setThreads(data);
       })
       .catch((err) => console.error("Error fetching threads:", err));
-  }, [selectedCategory, language]);
+  }, [selectedCategory, sort, language]);
 
   const categories: ("All" | ForumThread["category"])[] = [
     "All",
@@ -166,6 +171,30 @@ export default function ForumPage() {
 
         {/* Threads list */}
         <div className="lg:col-span-3 space-y-4">
+          {/* Sort tabs */}
+          <div className="flex gap-2">
+            {([
+              { value: "top", label: language === "da" ? "Top" : "Top", icon: TrendingUp },
+              { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
+            ] as const).map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setSort(tab.value)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    sort === tab.value
+                      ? "bg-accent-primary text-white font-extrabold shadow-md"
+                      : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
           {filteredThreads.length > 0 ? (
             filteredThreads.map((thread) => (
               <div
@@ -232,7 +261,7 @@ export default function ForumPage() {
                     {thread.replies.length} {t("forum.replies")}
                   </span>
                   <span>&middot;</span>
-                  <span>{new Date(thread.createdAt).toLocaleDateString()}</span>
+                  <span>{timeAgo(thread.createdAt, language)}</span>
                 </div>
               </div>
             ))

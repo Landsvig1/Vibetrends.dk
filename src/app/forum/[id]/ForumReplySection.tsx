@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Send, MessageSquare } from "lucide-react";
+import { Trash2, Send, MessageSquare, Heart } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLanguage } from "@/app/components/LanguageProvider";
+import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("@/app/components/LoginModal"), { ssr: false });
@@ -45,6 +46,29 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
       console.error("Error adding reply:", err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUpvoteReply = async (replyId: string) => {
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/forum/${thread.id}/replies/${replyId}/upvote`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setThread(prev => ({
+          ...prev,
+          replies: prev.replies.map(r =>
+            r.id === replyId ? { ...r, upvotes: data.upvotes } : r
+          ),
+        }));
+      }
+    } catch (err) {
+      console.error("Error upvoting reply:", err);
     }
   };
 
@@ -103,7 +127,15 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
                     <span className="font-bold text-text-secondary">@{reply.author}</span>
                   </div>
                   <span>&middot;</span>
-                  <span>{new Date(reply.createdAt).toLocaleString(language === "da" ? 'da-DK' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  <span>{timeAgo(reply.createdAt, language)}</span>
+                  <button
+                    onClick={() => handleUpvoteReply(reply.id)}
+                    aria-label={language === "da" ? "Stem op" : "Upvote reply"}
+                    className="ml-auto flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary transition cursor-pointer"
+                  >
+                    <Heart className="h-3 w-3 fill-current" aria-hidden="true" />
+                    <span className="font-bold font-mono">{reply.upvotes}</span>
+                  </button>
                 </div>
               </div>
             ))}

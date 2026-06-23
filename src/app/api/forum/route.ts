@@ -14,11 +14,12 @@ const threadSchema = z.object({
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category") || undefined;
+  const sort = searchParams.get("sort") === "new" ? "new" : "top";
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
 
-  const threads = await getThreads(category, lang);
+  const threads = await getThreads(category, lang, undefined, sort);
   return NextResponse.json(threads, {
     headers: {
       "Cache-Control": "public, max-age=10, stale-while-revalidate=5",

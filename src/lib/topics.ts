@@ -1,8 +1,8 @@
 /**
  * Single source of truth for the Skills taxonomy.
  *
- * The taxonomy mirrors the skills.sh domain topics (https://www.skills.sh/topic).
- * Every place that needs the topic list — the filter chips, the submit form,
+ * This is vibetrends' own discipline-oriented taxonomy (it no longer mirrors
+ * skills.sh). Every place that needs the topic list — the filter chips, the submit form,
  * the Zod validation, the MCP tool schema, the hub cards, the topic landings
  * and the sitemap — derives from THIS file. Changing a topic, its Danish
  * wording, its icon or its accent is a one-line edit here that propagates
@@ -14,14 +14,13 @@
  */
 
 export const TOPIC_SLUGS = [
-  "frontend-react",
-  "nextjs",
-  "design-ui",
-  "mobile",
-  "agent-workflows",
-  "database",
-  "testing",
+  "full-stack",
   "marketing",
+  "webshop",
+  "front-end",
+  "back-end",
+  "design",
+  "agent-workflows",
 ] as const;
 
 export type TopicSlug = (typeof TOPIC_SLUGS)[number];
@@ -40,67 +39,13 @@ export interface Topic {
 
 export const TOPICS: readonly Topic[] = [
   {
-    slug: "frontend-react",
-    labelDa: "Frontend & React",
-    labelEn: "Frontend & React",
-    descDa: "UI-komponenter, hooks og React-mønstre.",
-    descEn: "UI components, hooks and React patterns.",
-    icon: "Atom",
-    accent: "#38bdf8",
-  },
-  {
-    slug: "nextjs",
-    labelDa: "Next.js",
-    labelEn: "Next.js",
-    descDa: "App Router, server components og rendering.",
-    descEn: "App Router, server components and rendering.",
-    icon: "Triangle",
+    slug: "full-stack",
+    labelDa: "Full-Stack",
+    labelEn: "Full-Stack",
+    descDa: "End-to-end apps på tværs af frontend og backend.",
+    descEn: "End-to-end apps across frontend and backend.",
+    icon: "Layers",
     accent: "#a78bfa",
-  },
-  {
-    slug: "design-ui",
-    labelDa: "Design & UI",
-    labelEn: "Design & UI",
-    descDa: "Styling, design systems og brugerflade.",
-    descEn: "Styling, design systems and interface.",
-    icon: "Palette",
-    accent: "#f472b6",
-  },
-  {
-    slug: "mobile",
-    labelDa: "Mobil",
-    labelEn: "Mobile",
-    descDa: "Mobil- og cross-platform udvikling.",
-    descEn: "Mobile and cross-platform development.",
-    icon: "Smartphone",
-    accent: "#34d399",
-  },
-  {
-    slug: "agent-workflows",
-    labelDa: "Agent-workflows",
-    labelEn: "Agent workflows",
-    descDa: "Agenter, automatiseringer og orkestrering.",
-    descEn: "Agents, automation and orchestration.",
-    icon: "Bot",
-    accent: "#fbbf24",
-  },
-  {
-    slug: "database",
-    labelDa: "Database",
-    labelEn: "Database",
-    descDa: "Skema, queries og datalag.",
-    descEn: "Schema, queries and the data layer.",
-    icon: "Database",
-    accent: "#60a5fa",
-  },
-  {
-    slug: "testing",
-    labelDa: "Test",
-    labelEn: "Testing",
-    descDa: "Unit-, integration- og E2E-test.",
-    descEn: "Unit, integration and E2E testing.",
-    icon: "FlaskConical",
-    accent: "#fb7185",
   },
   {
     slug: "marketing",
@@ -110,6 +55,51 @@ export const TOPICS: readonly Topic[] = [
     descEn: "SEO, content and growth.",
     icon: "Megaphone",
     accent: "#f59e0b",
+  },
+  {
+    slug: "webshop",
+    labelDa: "Webshop",
+    labelEn: "Webshop",
+    descDa: "E-commerce, Shopify og storefronts.",
+    descEn: "E-commerce, Shopify and storefronts.",
+    icon: "ShoppingCart",
+    accent: "#34d399",
+  },
+  {
+    slug: "front-end",
+    labelDa: "Front-End",
+    labelEn: "Front-End",
+    descDa: "UI, komponenter og klient-side.",
+    descEn: "UI, components and the client side.",
+    icon: "Atom",
+    accent: "#38bdf8",
+  },
+  {
+    slug: "back-end",
+    labelDa: "Back-End",
+    labelEn: "Back-End",
+    descDa: "API'er, datalag og services.",
+    descEn: "APIs, the data layer and services.",
+    icon: "Database",
+    accent: "#60a5fa",
+  },
+  {
+    slug: "design",
+    labelDa: "Design",
+    labelEn: "Design",
+    descDa: "Styling, design systems og brugerflade.",
+    descEn: "Styling, design systems and interface.",
+    icon: "Palette",
+    accent: "#f472b6",
+  },
+  {
+    slug: "agent-workflows",
+    labelDa: "Agent-workflows",
+    labelEn: "Agent workflows",
+    descDa: "Agenter, automatiseringer og orkestrering.",
+    descEn: "Agents, automation and orchestration.",
+    icon: "Bot",
+    accent: "#fbbf24",
   },
 ] as const;
 

@@ -298,6 +298,7 @@ export default function SkillsPage() {
                       <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_github")}</label>
                       <input
                         type="url"
+                        required
                         value={subUrl}
                         onChange={(e) => setSubUrl(e.target.value)}
                         placeholder="https://github.com/..."
@@ -309,7 +310,6 @@ export default function SkillsPage() {
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_desc")}</label>
                     <textarea
-                      required
                       rows={3}
                       value={subDesc}
                       onChange={(e) => setSubDesc(e.target.value)}

@@ -202,9 +202,9 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
 
   it("view=trending restricts to non-null trending_rank and orders by it ascending", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "nextjs", "da", "trending");
+    await db.getSkills(undefined, "full-stack", "da", "trending");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "nextjs"]);
+    expect(call.filters).toContainEqual(["eq", "category", "full-stack"]);
     expect(call.filters).toContainEqual(["not", "trending_rank", "is", null]);
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
@@ -219,9 +219,9 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
 
   it("view=hot combined with a category filters by both (symmetric with trending)", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "nextjs", "da", "hot");
+    await db.getSkills(undefined, "full-stack", "da", "hot");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "nextjs"]);
+    expect(call.filters).toContainEqual(["eq", "category", "full-stack"]);
     expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
     expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
   });
@@ -258,10 +258,10 @@ describe("topic taxonomy labels", () => {
   });
 
   it("localizes slugs whose da/en labels diverge", () => {
-    expect(topicLabel("mobile", "da")).toBe("Mobil");
-    expect(topicLabel("mobile", "en")).toBe("Mobile");
-    expect(topicLabel("testing", "da")).toBe("Test");
-    expect(topicLabel("testing", "en")).toBe("Testing");
+    expect(topicLabel("marketing", "da")).toBe("Markedsføring");
+    expect(topicLabel("marketing", "en")).toBe("Marketing");
+    expect(topicLabel("agent-workflows", "da")).toBe("Agent-workflows");
+    expect(topicLabel("agent-workflows", "en")).toBe("Agent workflows");
   });
 });
 
@@ -439,6 +439,35 @@ describe("upvoteThread / upvoteAgent mirror the toggle semantics on the right ta
     state.publicHandler = () => ({ data: null, error: null });
     expect(await db.upvoteAgent("a1")).toBeNull();
   });
+
+  it("upvoteReply inserts into reply_upvotes keyed by reply_id and returns the count", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 2 }, error: null });
+    const result = await db.upvoteReply("r1");
+    const insert = state.serverCalls.find((c) => c.table === "reply_upvotes");
+    expect(insert?.method).toBe("insert");
+    expect(insert?.payload).toEqual({ user_id: "u1", reply_id: "r1" });
+    expect(result).toBe(2);
+  });
+
+  it("upvoteReply toggles off on 23505 via a delete keyed by reply_id", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = (ops) =>
+      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
+    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
+    const result = await db.upvoteReply("r1");
+    const del = state.serverCalls.find((c) => c.method === "delete");
+    expect(del?.table).toBe("reply_upvotes");
+    expect(del?.filters).toContainEqual(["eq", "reply_id", "r1"]);
+    expect(result).toBe(0);
+  });
+
+  it("upvoteReply returns 0 and does not insert when unauthenticated", async () => {
+    state.user = null;
+    expect(await db.upvoteReply("r1")).toBe(0);
+    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+  });
 });
 
 describe("getThreads reply mapping", () => {
@@ -499,6 +528,22 @@ describe("getThreads reply mapping", () => {
     };
     expect(await db.getThreads()).toEqual([]);
     expect(state.publicCalls.some((c) => c.table === "forum_replies")).toBe(false);
+  });
+
+  it("defaults to ordering threads by upvotes desc (Top)", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "forum_threads" ? { data: [thread], error: null } : { data: [], error: null };
+    await db.getThreads();
+    const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
+    expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
+  });
+
+  it("orders threads by created_at desc when sort is 'new'", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "forum_threads" ? { data: [thread], error: null } : { data: [], error: null };
+    await db.getThreads(undefined, "da", undefined, "new");
+    const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
+    expect(call.filters).toContainEqual(["order", "created_at", { ascending: false }]);
   });
 });
 

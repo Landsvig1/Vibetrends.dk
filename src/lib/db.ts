@@ -45,6 +45,7 @@ export interface ForumReply {
   id: string;
   author: string;
   content: string;
+  upvotes: number;
   createdAt: string;
 }
 
@@ -139,6 +140,7 @@ interface ReplyRow {
   author: string;
   content_da: string;
   content_en: string;
+  upvotes?: number;
   created_at: string;
 }
 
@@ -220,6 +222,7 @@ function mapThread(t: ThreadRow, replies: ReplyRow[], lang: 'da' | 'en'): ForumT
       id: r.id,
       author: r.author,
       content: lang === 'en' ? r.content_en : r.content_da,
+      upvotes: r.upvotes ?? 0,
       createdAt: r.created_at,
     })),
     createdAt: t.created_at,
@@ -369,8 +372,10 @@ export async function upvoteProject(id: string) {
   return data.upvotes ?? 0;
 }
 
-export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number) {
-  let query = supabasePublic.from('forum_threads').select('*').order('upvotes', { ascending: false });
+export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
+  // 'top' = most upvoted (default), 'new' = most recent. Reddit-style sort tabs.
+  const orderColumn = sort === 'new' ? 'created_at' : 'upvotes';
+  let query = supabasePublic.from('forum_threads').select('*').order(orderColumn, { ascending: false });
 
   if (category && category !== "All") {
     query = query.eq('category', category);
@@ -437,6 +442,39 @@ export async function upvoteThread(id: string) {
 
   const { data } = await supabasePublic
     .from('forum_threads')
+    .select('upvotes')
+    .eq('id', id)
+    .single();
+
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
+}
+
+export async function upvoteReply(id: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn('Cannot upvote reply: User is not authenticated');
+    return 0;
+  }
+
+  const { error } = await supabase.from('reply_upvotes').insert({
+    user_id: user.id,
+    reply_id: id,
+  });
+
+  if (error && error.code === '23505') {
+    await supabase
+      .from('reply_upvotes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('reply_id', id);
+  }
+
+  const { data } = await supabasePublic
+    .from('forum_replies')
     .select('upvotes')
     .eq('id', id)
     .single();
