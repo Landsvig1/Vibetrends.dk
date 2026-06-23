@@ -1,11 +1,10 @@
 import {
   Atom,
-  Triangle,
+  Layers,
   Palette,
-  Smartphone,
+  ShoppingCart,
   Bot,
   Database,
-  FlaskConical,
   Megaphone,
   Sparkles,
   type LucideIcon,
@@ -16,12 +15,11 @@ import {
 // API routes, and server pages without pulling icon components into them).
 const ICONS: Record<string, LucideIcon> = {
   Atom,
-  Triangle,
+  Layers,
   Palette,
-  Smartphone,
+  ShoppingCart,
   Bot,
   Database,
-  FlaskConical,
   Megaphone,
 };
 

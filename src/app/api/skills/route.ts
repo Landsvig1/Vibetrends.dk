@@ -5,12 +5,13 @@ import { getAuthUser } from "@/lib/supabase-server";
 import { TOPIC_SLUGS } from "@/lib/topics";
 import { z } from "zod";
 
-const skillSchema = z.object({
+export const skillSchema = z.object({
   title: z.string().min(1).max(100),
   category: z.enum(TOPIC_SLUGS),
-  description: z.string().min(10).max(1000),
+  // Only title + link are essential. Description is optional (empty allowed).
+  description: z.string().max(1000).optional().or(z.literal("")),
   tags: z.array(z.string()).max(10).optional(),
-  githubUrl: z.string().url().max(200).optional().or(z.literal("")),
+  githubUrl: z.string().url().max(200),
 });
 
 import { cookies } from "next/headers";
@@ -57,10 +58,10 @@ export async function POST(request: Request) {
     const newSkill = await createSkill(
       title,
       user.username,
-      description,
+      description || "",
       category,
       tags || [],
-      githubUrl || undefined
+      githubUrl
     );
 
     return NextResponse.json(newSkill, { status: 201 });

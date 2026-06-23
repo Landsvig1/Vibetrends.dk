@@ -142,14 +142,14 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     expect(db.getSkills).toHaveBeenCalledWith("ai", undefined, "da", undefined);
   });
 
-  it("tools/call list_topics returns the 8-topic taxonomy as text content", async () => {
+  it("tools/call list_topics returns the 7-topic taxonomy as text content", async () => {
     const res = await POST(
       rpc({ jsonrpc: "2.0", id: 38, method: "tools/call", params: { name: "list_topics", arguments: {} } })
     );
     const body = await res.json();
     const topics = JSON.parse(body.result.content[0].text);
-    expect(topics).toHaveLength(8);
-    expect(topics.map((t: { slug: string }) => t.slug)).toContain("nextjs");
+    expect(topics).toHaveLength(7);
+    expect(topics.map((t: { slug: string }) => t.slug)).toContain("full-stack");
     expect(topics[0]).toHaveProperty("labelDa");
     expect(topics[0]).toHaveProperty("labelEn");
   });

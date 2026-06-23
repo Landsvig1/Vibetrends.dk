@@ -21,7 +21,7 @@ export const unstable_instant = {
   samples: [
     {
       cookies: [{ name: "vibe_lang", value: "da" }],
-      params: { slug: "nextjs" },
+      params: { slug: "full-stack" },
       searchParams: { view: null },
     },
   ],
