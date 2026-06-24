@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
+import { jsonLdScript, softwareAppJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
@@ -52,5 +53,22 @@ async function CliDetailContent({ params }: { params: Promise<{ id: string }> })
     notFound();
   }
 
-  return <AgentDetailView agent={agent} lang={lang} backHref="/cli" />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            softwareAppJsonLd({
+              name: agent.name,
+              description: agent.description,
+              developer: agent.developer,
+              url: `https://vibetrends.dk/cli/${id}`,
+            })
+          ),
+        }}
+      />
+      <AgentDetailView agent={agent} lang={lang} backHref="/cli" />
+    </>
+  );
 }

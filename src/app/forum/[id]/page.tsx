@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
+import { jsonLdScript, forumThreadJsonLd } from "@/lib/jsonLd";
 import ForumReplySection from "./ForumReplySection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -68,6 +69,20 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
   }
 
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            forumThreadJsonLd({
+              title: thread.title,
+              author: thread.author,
+              url: `https://vibetrends.dk/forum/${id}`,
+              datePublished: thread.createdAt,
+            })
+          ),
+        }}
+      />
     <div className="space-y-8">
       <Link
         href="/forum"
@@ -145,5 +160,6 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
     </div>
+    </>
   );
 }
