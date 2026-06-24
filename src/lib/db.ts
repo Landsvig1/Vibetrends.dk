@@ -1,5 +1,6 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
 import { topicLabel, type TopicSlug } from "./topics";
+import { type ForumCategoryKey } from "./forumCategories";
 
 export interface Skill {
   id: string;
@@ -53,7 +54,7 @@ export interface ForumThread {
   id: string;
   title: string;
   author: string;
-  category: "General" | "Prompts" | "Showcase Discussion" | "Setup & Config";
+  category: ForumCategoryKey;
   content: string;
   upvotes: number;
   replies: ForumReply[];
