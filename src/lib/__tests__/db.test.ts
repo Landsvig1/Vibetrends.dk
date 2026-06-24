@@ -352,7 +352,7 @@ describe("upvoteProject toggle and null-vs-0 semantics", () => {
     state.serverHandler = () => ({ data: null, error: null }); // insert succeeds
     state.publicHandler = () => ({ data: { upvotes: 5 }, error: null });
     const result = await db.upvoteProject("p1");
-    const insert = state.serverCalls.find((c) => c.table === "showcase_upvotes");
+    const insert = state.serverCalls.find((c) => c.table === "vibes_upvotes");
     expect(insert?.method).toBe("insert");
     expect(insert?.payload).toEqual({ user_id: "u1", project_id: "p1" });
     expect(result).toBe(5);
@@ -367,7 +367,7 @@ describe("upvoteProject toggle and null-vs-0 semantics", () => {
     state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
     const result = await db.upvoteProject("p1");
     const del = state.serverCalls.find((c) => c.method === "delete");
-    expect(del?.table).toBe("showcase_upvotes");
+    expect(del?.table).toBe("vibes_upvotes");
     expect(del?.filters).toContainEqual(["eq", "user_id", "u1"]);
     expect(del?.filters).toContainEqual(["eq", "project_id", "p1"]);
     expect(result).toBe(0); // legitimate toggle-off count of 0, not null
@@ -552,14 +552,14 @@ describe("homepage-optimized reads", () => {
     state.publicHandler = (ops) => {
       const counts: Record<string, number> = {
         skills: 3,
-        showcase: 5,
+        vibes: 5,
         forum_threads: 7,
         agents: 9,
       };
       return { count: counts[ops.table] ?? 0, error: null };
     };
     const counts = await db.getCounts();
-    expect(counts).toEqual({ skills: 3, showcase: 5, threads: 7, agents: 9 });
+    expect(counts).toEqual({ skills: 3, vibes: 5, threads: 7, agents: 9 });
 
     const skillsCall = state.publicCalls.find((c) => c.table === "skills")!;
     expect(skillsCall.selectOpts).toEqual({ count: "exact", head: true });
@@ -575,7 +575,7 @@ describe("homepage-optimized reads", () => {
     });
     const res = await db.getTopProjects(1, "da");
     expect(res).toHaveLength(1);
-    const call = state.publicCalls.find((c) => c.table === "showcase")!;
+    const call = state.publicCalls.find((c) => c.table === "vibes")!;
     expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });

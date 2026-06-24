@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.skills (
 );
 
 -- Showcase table
-CREATE TABLE IF NOT EXISTS public.showcase (
+CREATE TABLE IF NOT EXISTS public.vibes (
   id text PRIMARY KEY DEFAULT 'p_' || extract(epoch from now())::text,
   title_da text NOT NULL,
   title_en text NOT NULL,
@@ -35,9 +35,9 @@ CREATE TABLE IF NOT EXISTS public.showcase (
 );
 
 -- Showcase Upvotes join table
-CREATE TABLE IF NOT EXISTS public.showcase_upvotes (
+CREATE TABLE IF NOT EXISTS public.vibes_upvotes (
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  project_id text REFERENCES public.showcase(id) ON DELETE CASCADE,
+  project_id text REFERENCES public.vibes(id) ON DELETE CASCADE,
   PRIMARY KEY (user_id, project_id)
 );
 
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS public.agent_upvotes (
 CREATE OR REPLACE FUNCTION public.increment_project_upvotes()
 RETURNS TRIGGER AS $$
 BEGIN
-  UPDATE public.showcase
+  UPDATE public.vibes
   SET upvotes = upvotes + 1
   WHERE id = NEW.project_id;
   RETURN NEW;
@@ -129,7 +129,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.decrement_project_upvotes()
 RETURNS TRIGGER AS $$
 BEGIN
-  UPDATE public.showcase
+  UPDATE public.vibes
   SET upvotes = upvotes - 1
   WHERE id = OLD.project_id;
   RETURN OLD;
@@ -137,11 +137,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER tr_showcase_upvote_insert
-AFTER INSERT ON public.showcase_upvotes
+AFTER INSERT ON public.vibes_upvotes
 FOR EACH ROW EXECUTE FUNCTION public.increment_project_upvotes();
 
 CREATE TRIGGER tr_showcase_upvote_delete
-AFTER DELETE ON public.showcase_upvotes
+AFTER DELETE ON public.vibes_upvotes
 FOR EACH ROW EXECUTE FUNCTION public.decrement_project_upvotes();
 
 -- Forum Thread Upvote Triggers
@@ -215,8 +215,8 @@ REVOKE EXECUTE ON FUNCTION public.decrement_agent_upvotes() FROM public;
 
 -- Enable RLS on all tables
 ALTER TABLE public.skills ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.showcase ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.showcase_upvotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vibes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vibes_upvotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.forum_threads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.thread_upvotes ENABLE ROW LEVEL SECURITY;
@@ -228,15 +228,15 @@ ALTER TABLE public.agent_upvotes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access to skills" ON public.skills FOR SELECT TO anon, authenticated USING (true);
 
 -- showcase policies
-CREATE POLICY "Allow public read access to showcase" ON public.showcase FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow authenticated insert to showcase" ON public.showcase FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow owner update to showcase" ON public.showcase FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow owner delete to showcase" ON public.showcase FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow public read access to showcase" ON public.vibes FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Allow authenticated insert to showcase" ON public.vibes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow owner update to showcase" ON public.vibes FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow owner delete to showcase" ON public.vibes FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- showcase_upvotes policies
-CREATE POLICY "Allow public read access to showcase_upvotes" ON public.showcase_upvotes FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow authenticated insert to showcase_upvotes" ON public.showcase_upvotes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow owner delete to showcase_upvotes" ON public.showcase_upvotes FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow public read access to showcase_upvotes" ON public.vibes_upvotes FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Allow authenticated insert to showcase_upvotes" ON public.vibes_upvotes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Allow owner delete to showcase_upvotes" ON public.vibes_upvotes FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- forum_threads policies
 CREATE POLICY "Allow public read access to forum_threads" ON public.forum_threads FOR SELECT TO anon, authenticated USING (true);

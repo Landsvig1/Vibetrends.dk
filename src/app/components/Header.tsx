@@ -44,7 +44,7 @@ export default function Header() {
     { name: t("nav.skills"), href: "/skills", icon: Briefcase },
     { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
     { name: t("nav.cli"), href: "/cli", icon: TerminalSquare },
-    { name: t("nav.showcase"), href: "/showcase", icon: Layers },
+    { name: t("nav.showcase"), href: "/vibes", icon: Layers },
     { name: t("nav.blog"), href: "/blog", icon: BookOpen },
   ];
 
@@ -168,7 +168,7 @@ export default function Header() {
             </div>
 
             <Link
-              href="/showcase"
+              href="/vibes"
               transitionTypes={["nav-forward"]}
               className="btn-primary flex items-center gap-1.5 text-sm"
               style={{ padding: '8px 16px' }}

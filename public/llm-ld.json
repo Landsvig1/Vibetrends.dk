@@ -24,7 +24,7 @@
     },
     {
       "@type": "DataFeed",
-      "@id": "https://vibetrends.dk/api/showcase",
+      "@id": "https://vibetrends.dk/api/vibes",
       "name": "Project Showcase",
       "contentType": "SoftwareApplication"
     },

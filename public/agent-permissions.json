@@ -16,7 +16,7 @@
         "/ara.json",
         "/ai.txt",
         "/api/skills",
-        "/api/showcase",
+        "/api/vibes",
         "/api/cli",
         "/api/mcp-servers",
         "/api/agents",
@@ -30,7 +30,7 @@
           "auth": "x-username header",
           "required_fields": ["title", "category", "description"]
         },
-        "/api/showcase": {
+        "/api/vibes": {
           "description": "Submit a vibe-coded project",
           "method": "POST",
           "auth": "x-username header",

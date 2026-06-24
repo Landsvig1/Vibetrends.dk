@@ -36,7 +36,7 @@ const TOOLS = [
     },
   },
   {
-    name: "search_showcase",
+    name: "search_vibes",
     description: "Udforsk projekter bygget med AI og se deres prompts.",
     inputSchema: {
       type: "object",
@@ -135,7 +135,7 @@ async function callTool(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "search_skills":
       return textContent(await getSkills(query, asString(args.category), lang, parseSkillView(args.view)));
-    case "search_showcase":
+    case "search_vibes":
       return textContent(await getProjects(query, lang));
     case "search_agents":
     case "search_cli":

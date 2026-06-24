@@ -8,7 +8,7 @@
 create or replace function public.increment_project_upvotes()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  update public.showcase set upvotes = upvotes + 1 where id = new.project_id;
+  update public.vibes set upvotes = upvotes + 1 where id = new.project_id;
   return new;
 end;
 $$;
@@ -16,7 +16,7 @@ $$;
 create or replace function public.decrement_project_upvotes()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  update public.showcase set upvotes = upvotes - 1 where id = old.project_id;
+  update public.vibes set upvotes = upvotes - 1 where id = old.project_id;
   return old;
 end;
 $$;

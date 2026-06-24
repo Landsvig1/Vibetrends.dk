@@ -312,7 +312,7 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
-  const query = supabasePublic.from('showcase').select('*').order('upvotes', { ascending: false });
+  const query = supabasePublic.from('vibes').select('*').order('upvotes', { ascending: false });
 
   const { data, error } = await query;
   if (error || !data) return [];
@@ -332,7 +332,7 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
-  const { data, error } = await supabasePublic.from('showcase').select('*').eq('id', id).single();
+  const { data, error } = await supabasePublic.from('vibes').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapProject(data, lang);
 }
@@ -347,7 +347,7 @@ export async function upvoteProject(id: string) {
   }
 
   // Attempt to insert join table row (toggle pattern)
-  const { error } = await supabase.from('showcase_upvotes').insert({
+  const { error } = await supabase.from('vibes_upvotes').insert({
     user_id: user.id,
     project_id: id,
   });
@@ -355,7 +355,7 @@ export async function upvoteProject(id: string) {
   if (error && error.code === '23505') {
     // Unique violation constraint -> user already upvoted -> toggle it off (delete it)
     await supabase
-      .from('showcase_upvotes')
+      .from('vibes_upvotes')
       .delete()
       .eq('user_id', user.id)
       .eq('project_id', id);
@@ -363,7 +363,7 @@ export async function upvoteProject(id: string) {
 
   // Query updated count
   const { data } = await supabasePublic
-    .from('showcase')
+    .from('vibes')
     .select('upvotes')
     .eq('id', id)
     .single();
@@ -634,7 +634,7 @@ export async function createProject(title: string, author: string, description: 
   const { data: { user } } = await supabase.auth.getUser();
 
   const newId = 'p_' + Date.now();
-  const { data, error } = await supabase.from('showcase').insert({
+  const { data, error } = await supabase.from('vibes').insert({
     id: newId,
     title_da: title,
     title_en: title,
@@ -688,7 +688,7 @@ export async function createSkill(title: string, vibeCoder: string, description:
 
 export async function deleteProject(id: string) {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from('showcase').delete().eq('id', id).select('id');
+  const { data, error } = await supabase.from('vibes').delete().eq('id', id).select('id');
   if (error) {
     console.error('Failed to delete project:', error);
     return false;
@@ -761,16 +761,16 @@ export async function deleteAgent(id: string) {
 
 export interface EntityCounts {
   skills: number;
-  showcase: number;
+  vibes: number;
   threads: number;
   agents: number;
 }
 
 export async function getCounts(): Promise<EntityCounts> {
   const head = { count: 'exact' as const, head: true };
-  const [skills, showcase, threads, agents] = await Promise.all([
+  const [skills, vibes, threads, agents] = await Promise.all([
     supabasePublic.from('skills').select('*', head),
-    supabasePublic.from('showcase').select('*', head),
+    supabasePublic.from('vibes').select('*', head),
     supabasePublic.from('forum_threads').select('*', head),
     // The CLI feed count excludes MCP servers (own surface) and hosts
     // (connection targets, not catalog items).
@@ -779,7 +779,7 @@ export async function getCounts(): Promise<EntityCounts> {
 
   return {
     skills: skills.count ?? 0,
-    showcase: showcase.count ?? 0,
+    vibes: vibes.count ?? 0,
     threads: threads.count ?? 0,
     agents: agents.count ?? 0,
   };
@@ -787,7 +787,7 @@ export async function getCounts(): Promise<EntityCounts> {
 
 export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
   const { data, error } = await supabasePublic
-    .from('showcase')
+    .from('vibes')
     .select('*')
     .order('upvotes', { ascending: false })
     .limit(limit);

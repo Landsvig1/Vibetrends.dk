@@ -22,7 +22,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('should navigate to Showcase and view a project', async ({ page }) => {
-    await page.goto('/showcase');
+    await page.goto('/vibes');
     
     // Wait for heading
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
@@ -37,7 +37,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await firstProject.click({ position: { x: 50, y: 50 } }); 
     
     // Verify detail page navigation
-    await page.waitForURL(/\/showcase\/.+/);
+    await page.waitForURL(/\/vibes\/.+/);
     
     // Check title in detail view - using regex for flexibility
     const detailHeading = page.locator('h1');

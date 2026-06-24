@@ -49,8 +49,8 @@ describe("softwareAppJsonLd", () => {
 describe("breadcrumbJsonLd", () => {
   it("emits a BreadcrumbList with correct position and item fields", () => {
     const b = breadcrumbJsonLd([
-      { name: "Showcase", url: "https://vibetrends.dk/showcase" },
-      { name: "My Project", url: "https://vibetrends.dk/showcase/p1" },
+      { name: "Showcase", url: "https://vibetrends.dk/vibes" },
+      { name: "My Project", url: "https://vibetrends.dk/vibes/p1" },
     ]);
     expect(b["@type"]).toBe("BreadcrumbList");
     expect(b.itemListElement).toHaveLength(2);
@@ -58,7 +58,7 @@ describe("breadcrumbJsonLd", () => {
       "@type": "ListItem",
       position: 1,
       name: "Showcase",
-      item: "https://vibetrends.dk/showcase",
+      item: "https://vibetrends.dk/vibes",
     });
     expect(b.itemListElement[1].position).toBe(2);
     expect(b.itemListElement[1].name).toBe("My Project");

@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     "",
     "/skills",
-    "/showcase",
+    "/vibes",
     "/forum",
     "/blog",
     "/cli",
@@ -38,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Showcase and blog detail pages carry user-generated content that is more
   // likely to attract external links — bump their priority to signal freshness.
   const highValueDetails: MetadataRoute.Sitemap = [
-    ...projects.map((p) => `/showcase/${p.id}`),
+    ...projects.map((p) => `/vibes/${p.id}`),
     ...posts.map((b) => `/blog/${b.id}`),
   ].map((path) => ({
     url: `${baseUrl}${path}`,

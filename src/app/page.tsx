@@ -56,7 +56,7 @@ export default async function Home() {
 
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <Link
-            href="/showcase"
+            href="/vibes"
             className="btn-primary"
           >
             {t("home.btn_showcase")}
@@ -70,7 +70,7 @@ export default async function Home() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
           <Link
-            href="/showcase?submit=1"
+            href="/vibes?submit=1"
             className="btn-secondary"
           >
             {t("home.btn_submit_project")}
@@ -82,7 +82,7 @@ export default async function Home() {
       {/* Stats Counter */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 rounded-2xl glass-panel">
         <div className="text-center space-y-2 border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.showcase}</p>
+          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.vibes}</p>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.projects")}</p>
         </div>
         <div className="text-center space-y-2 md:border-r border-card-border">
@@ -108,7 +108,7 @@ export default async function Home() {
               <Layers className="mr-2 h-5 w-5 text-accent-primary" />
               {t("home.section.featured_project")}
             </h2>
-            <Link href="/showcase" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
+            <Link href="/vibes" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
               {t("home.see_all")}
               <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Link>

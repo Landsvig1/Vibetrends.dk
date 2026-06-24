@@ -79,9 +79,9 @@ const migrate = async () => {
   }
 
   // 2. Migrate Showcase
-  if (db.showcase && db.showcase.length > 0) {
-    console.log(`Migrating ${db.showcase.length} showcase projects...`);
-    const showcaseToInsert = db.showcase.map((p) => ({
+  if (db.vibes && db.vibes.length > 0) {
+    console.log(`Migrating ${db.vibes.length} showcase projects...`);
+    const showcaseToInsert = db.vibes.map((p) => ({
       id: p.id,
       title_da: p.title_da || '',
       title_en: p.title_en || '',
@@ -96,7 +96,7 @@ const migrate = async () => {
       image_url: p.imageUrl || '/images/autonewsletter.jpg',
     }));
 
-    const { error } = await supabase.from('showcase').upsert(showcaseToInsert);
+    const { error } = await supabase.from('vibes').upsert(showcaseToInsert);
     if (error) {
       console.error('Failed to migrate showcase:', error);
     } else {

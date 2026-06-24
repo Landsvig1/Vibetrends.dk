@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return entityMetadata({
     title: `${project.title} - Vibe Coding Showcase`,
     description: project.description,
-    path: `/showcase/${id}`,
+    path: `/vibes/${id}`,
     lang,
     type: "article",
   });
@@ -115,14 +115,14 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
         dangerouslySetInnerHTML={{
           __html: jsonLdScript(
             breadcrumbJsonLd([
-              { name: "Showcase", url: "https://vibetrends.dk/showcase" },
-              { name: project.title, url: `https://vibetrends.dk/showcase/${id}` },
+              { name: "Vibes", url: "https://vibetrends.dk/vibes" },
+              { name: project.title, url: `https://vibetrends.dk/vibes/${id}` },
             ])
           ),
         }}
       />
       <Link
-        href="/showcase"
+        href="/vibes"
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
@@ -207,7 +207,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                     <ShareButton
                       title={project.title}
                       author={project.author}
-                      url={`https://vibetrends.dk/showcase/${id}`}
+                      url={`https://vibetrends.dk/vibes/${id}`}
                     />
                  </div>
               </div>

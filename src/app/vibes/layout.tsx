@@ -4,7 +4,7 @@ import { entityMetadata } from "@/lib/seo";
 export const metadata: Metadata = entityMetadata({
   title: "Project Showcase",
   description: "Se hvad folk bygger med AI. Vibe-kodede projekter fra det danske community — med tech stacks, prompts og live demos.",
-  path: "/showcase",
+  path: "/vibes",
 });
 
 export default function ShowcaseLayout({ children }: { children: React.ReactNode }) {

@@ -28,7 +28,7 @@ export function proxy(request: NextRequest) {
   if (format === 'json') {
     const routeMap: Record<string, string> = {
       '/skills': '/api/skills',
-      '/showcase': '/api/showcase',
+      '/vibes': '/api/vibes',
       '/agents': '/api/agents',
       // /mcp and /cli each have a param-free JSON route: rewrite() keeps
       // the original request query, so we can't inject ?category onto
@@ -64,5 +64,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/skills', '/showcase', '/agents', '/mcp', '/cli', '/tool-clis', '/tool-clis/:path*', '/forum', '/api/:path*'],
+  matcher: ['/skills', '/vibes', '/agents', '/mcp', '/cli', '/tool-clis', '/tool-clis/:path*', '/forum', '/api/:path*'],
 };

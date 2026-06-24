@@ -37,7 +37,7 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/showcase" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                  <Link href="/vibes" className="text-sm text-text-secondary hover:text-foreground transition-colors">
                     {t("footer.showcase")}
                   </Link>
                 </li>

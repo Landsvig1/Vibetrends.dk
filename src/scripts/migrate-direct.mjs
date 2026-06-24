@@ -60,7 +60,7 @@ const run = async () => {
 
   // Truncate tables for a clean seeding run
   console.log('Truncating existing content tables (CASCADE)...');
-  await client.query('TRUNCATE public.skills, public.showcase, public.forum_threads, public.forum_replies, public.blog_posts, public.agents CASCADE;');
+  await client.query('TRUNCATE public.skills, public.vibes, public.forum_threads, public.forum_replies, public.blog_posts, public.agents CASCADE;');
   console.log('Tables truncated.');
 
   // 2. Read db.json
@@ -92,11 +92,11 @@ const run = async () => {
   }
 
   // 4. Seed Showcase
-  if (db.showcase && db.showcase.length > 0) {
-    console.log(`Seeding ${db.showcase.length} projects...`);
-    for (const p of db.showcase) {
+  if (db.vibes && db.vibes.length > 0) {
+    console.log(`Seeding ${db.vibes.length} projects...`);
+    for (const p of db.vibes) {
       await client.query(
-        `INSERT INTO public.showcase (
+        `INSERT INTO public.vibes (
           id, title_da, title_en, author, description_da, description_en,
           tools, prompts, upvotes, demo_url, github_url, image_url
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,

@@ -26,7 +26,7 @@ export default function ShowcasePage() {
 
   // Fetch projects from API
   useEffect(() => {
-    fetch("/api/showcase")
+    fetch("/api/vibes")
       .then((res) => res.json())
       .then((data) => setProjects(data))
       .catch((err) => console.error("Error fetching projects:", err));
@@ -54,7 +54,7 @@ export default function ShowcasePage() {
   const handleUpvote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/showcase/${id}/upvote`, { method: "POST" });
+      const res = await fetch(`/api/vibes/${id}/upvote`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setProjects((prev) =>
@@ -76,7 +76,7 @@ export default function ShowcasePage() {
     const finalAuthor = user ? user.username : undefined;
 
     try {
-      const res = await fetch("/api/showcase", {
+      const res = await fetch("/api/vibes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +113,7 @@ export default function ShowcasePage() {
     if (!confirm(t("showcase.detail.confirm_delete"))) return;
 
     try {
-      const res = await fetch(`/api/showcase/${id}`, {
+      const res = await fetch(`/api/vibes/${id}`, {
         method: "DELETE",
       });
 
@@ -200,7 +200,7 @@ export default function ShowcasePage() {
               className="relative rounded-xl glass-card overflow-hidden flex flex-col justify-between group"
             >
               <Link
-                href={`/showcase/${project.id}`}
+                href={`/vibes/${project.id}`}
                 aria-label={project.title}
                 className="absolute inset-0 z-10"
               />
