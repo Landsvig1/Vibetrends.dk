@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Share2 } from "lucide-react";
 
 interface ShareButtonProps {
@@ -11,11 +11,18 @@ interface ShareButtonProps {
 
 export default function ShareButton({ title, author, url }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleShare = async () => {
     const text = `Se hvad ${author} har bygget på vibetrends.dk: ${title}`;
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+    if (navigator.share) {
       try {
         await navigator.share({ title, url, text });
       } catch (err) {
@@ -32,7 +39,7 @@ export default function ShareButton({ title, author, url }: ShareButtonProps) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard unavailable — silently ignore
     }
