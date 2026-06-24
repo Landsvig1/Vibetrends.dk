@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
-import { jsonLdScript, articleJsonLd } from "@/lib/jsonLd";
+import { jsonLdScript, articleJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -76,6 +76,17 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
               url: `https://vibetrends.dk/blog/${id}`,
               datePublished: post.publishedAt,
             })
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Blog", url: "https://vibetrends.dk/blog" },
+              { name: post.title, url: `https://vibetrends.dk/blog/${id}` },
+            ])
           ),
         }}
       />

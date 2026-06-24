@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
-import { jsonLdScript, softwareAppJsonLd } from "@/lib/jsonLd";
+import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
@@ -77,6 +77,17 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
               developer: agent.developer,
               url: `https://vibetrends.dk/agents/${id}`,
             })
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Agents", url: "https://vibetrends.dk/agents" },
+              { name: agent.name, url: `https://vibetrends.dk/agents/${id}` },
+            ])
           ),
         }}
       />

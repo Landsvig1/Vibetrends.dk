@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import AgentsExplorer from "../components/AgentsExplorer";
+import { entityMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = entityMetadata({
+  title: "Agent & MCP Registry",
+  description: "Find færdigbyggede systemprompts, custom GPT configs og MCP servere. Kobl dem direkte til dine AI-agenter.",
+  path: "/agents",
+});
 
 export default function AgentsPage() {
   return (

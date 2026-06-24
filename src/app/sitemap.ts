@@ -35,13 +35,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getThreads(),
   ]);
 
-  const detailEntries: MetadataRoute.Sitemap = [
+  // Showcase and blog detail pages carry user-generated content that is more
+  // likely to attract external links — bump their priority to signal freshness.
+  const highValueDetails: MetadataRoute.Sitemap = [
+    ...projects.map((p) => `/showcase/${p.id}`),
+    ...posts.map((b) => `/blog/${b.id}`),
+  ].map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: today,
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  const standardDetails: MetadataRoute.Sitemap = [
     ...TOPIC_SLUGS.map((slug) => `/skills/topic/${slug}`),
     ...skills.map((s) => `/skills/${s.id}`),
-    ...projects.map((p) => `/showcase/${p.id}`),
     ...clis.map((a) => `/cli/${a.id}`),
     ...mcpServers.map((a) => `/mcp/${a.id}`),
-    ...posts.map((b) => `/blog/${b.id}`),
     ...threads.map((t) => `/forum/${t.id}`),
   ].map((path) => ({
     url: `${baseUrl}${path}`,
@@ -50,5 +60,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...detailEntries];
+  return [...staticEntries, ...highValueDetails, ...standardDetails];
 }
