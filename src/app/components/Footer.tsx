@@ -76,14 +76,6 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-card-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-text-secondary">
-            &copy; {new Date().getFullYear()} vibetrends.dk. {t("footer.rights")}
-          </p>
-          <div className="flex space-x-6">
-            <span className="text-xs text-text-secondary flex items-center" dangerouslySetInnerHTML={{ __html: t("footer.hosting") }} />
-          </div>
-        </div>
       </div>
     </footer>
   );
