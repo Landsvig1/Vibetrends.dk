@@ -6,6 +6,7 @@ const isProd = process.env.NODE_ENV === 'production';
 // project origin directly, so it must be allowed in connect-src.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseWs = supabaseUrl.replace(/^https:/, 'wss:');
+const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : '';
 
 // 'unsafe-inline' is required by Next.js App Router hydration scripts (no nonce
 // in static/PPR mode). 'unsafe-eval' is only needed for dev tooling/HMR, so it
@@ -21,7 +22,7 @@ const csp = [
   "default-src 'self'",
   `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' blob: data: https://images.unsplash.com",
+  `img-src 'self' blob: data: https://images.unsplash.com ${supabaseHostname ? `https://${supabaseHostname}` : ''}`.trimEnd(),
   "font-src 'self' https://fonts.gstatic.com",
   `connect-src 'self' https://vitals.vercel-insights.com ${supabaseUrl} ${supabaseWs}`.trim(),
   "frame-ancestors 'none'",
@@ -78,6 +79,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      ...(supabaseHostname ? [{
+        protocol: "https" as const,
+        hostname: supabaseHostname,
+      }] : []),
     ],
   },
   async headers() {

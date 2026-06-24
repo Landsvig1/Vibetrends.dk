@@ -5,11 +5,10 @@ import { Share2 } from "lucide-react";
 
 interface ShareButtonProps {
   title: string;
-  author: string;
   url: string;
 }
 
-export default function ShareButton({ title, author, url }: ShareButtonProps) {
+export default function ShareButton({ title, url }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -20,7 +19,7 @@ export default function ShareButton({ title, author, url }: ShareButtonProps) {
   }, []);
 
   const handleShare = async () => {
-    const text = `Se hvad ${author} har bygget på vibetrends.dk: ${title}`;
+    const text = `Tjek dette projekt på vibetrends.dk: ${title}`;
 
     if (navigator.share) {
       try {
