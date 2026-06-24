@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, forumThreadJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
+import { forumCategoryLabel } from "@/lib/forumCategories";
 import ForumReplySection from "./ForumReplySection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -109,7 +110,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-3">
                 <span className="text-xs font-bold text-accent-primary px-3 py-1 rounded-full bg-accent-light border border-accent-primary/20 uppercase tracking-tight">
-                  {thread.category}
+                  {forumCategoryLabel(thread.category, lang)}
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground leading-tight">
                   {thread.title}
