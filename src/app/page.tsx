@@ -41,11 +41,11 @@ export default async function Home() {
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {lang === "da" ? (
             <>
-              Tools til dig og <span className="text-accent-primary italic">dine agenter</span>.
+              Se hvad folk <span className="text-accent-primary italic">bygger med AI</span>.
             </>
           ) : (
             <>
-              Vibe Code & <span className="text-accent-primary italic">Ship Faster</span>.
+              Get inspired. <span className="text-accent-primary italic">Show what you built.</span>
             </>
           )}
         </h1>

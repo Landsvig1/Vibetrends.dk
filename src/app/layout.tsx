@@ -19,14 +19,14 @@ export const metadata: Metadata = {
     default: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
     template: "%s | vibetrends.dk",
   },
-  description: "Dansk markedsplads og community for AI-udviklere, prompt engineers og vibe coders. Se projekter, find ydelser og konfigurer agenter.",
+  description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret af hvad folk bygger — og vis dit eget.",
   metadataBase: new URL("https://vibetrends.dk"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
-    description: "Det førende danske community og markedsplads for vibe-kodede projekter og AI-kompetencer.",
+    description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret — og vis hvad du har bygget.",
     url: "https://vibetrends.dk",
     siteName: "vibetrends.dk",
     locale: "da_DK",
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
-    description: "Dansk community og markedsplads for vibe coding og AI agenter.",
+    description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret og vis hvad du har bygget.",
     images: ["/images/og-default.jpg"],
   },
 };
@@ -84,7 +84,7 @@ export default function RootLayout({
               "@type": "WebSite",
               "name": "vibetrends.dk",
               "url": "https://vibetrends.dk/",
-              "description": "Dansk markedsplads og community for AI-udviklere, prompt engineers og vibe coders."
+              "description": "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret — og vis hvad du har bygget."
             })
           }}
         />
