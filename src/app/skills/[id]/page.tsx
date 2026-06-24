@@ -4,7 +4,7 @@ import { getSkillById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
-import { jsonLdScript } from "@/lib/jsonLd";
+import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
@@ -73,6 +73,17 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
               "name": skill.vibeCoder
             }
           })
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Skills", url: "https://vibetrends.dk/skills" },
+              { name: skill.title, url: `https://vibetrends.dk/skills/${id}` },
+            ])
+          ),
         }}
       />
       <Link

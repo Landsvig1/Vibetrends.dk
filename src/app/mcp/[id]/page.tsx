@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
-import { jsonLdScript, softwareAppJsonLd } from "@/lib/jsonLd";
+import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
@@ -74,6 +74,17 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
               developer: agent.developer,
               url: `https://vibetrends.dk/mcp/${id}`,
             })
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "MCP Servere", url: "https://vibetrends.dk/mcp" },
+              { name: agent.name, url: `https://vibetrends.dk/mcp/${id}` },
+            ])
           ),
         }}
       />

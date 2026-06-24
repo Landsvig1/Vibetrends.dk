@@ -5,7 +5,7 @@ import { getProjectById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
-import { jsonLdScript } from "@/lib/jsonLd";
+import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
 
 // Custom Github Icon matching Lucide style
@@ -107,6 +107,17 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               "priceCurrency": "USD"
             }
           })
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Showcase", url: "https://vibetrends.dk/showcase" },
+              { name: project.title, url: `https://vibetrends.dk/showcase/${id}` },
+            ])
+          ),
         }}
       />
       <Link
