@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, ExternalLink, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2 } from "lucide-react";
+import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
@@ -197,13 +196,8 @@ export default function ShowcasePage() {
             <div
               key={project.id}
               data-testid="project-card"
-              className="relative rounded-xl glass-card overflow-hidden flex flex-col justify-between group"
+              className="relative rounded-xl glass-card overflow-hidden flex flex-col group"
             >
-              <Link
-                href={`/vibes/${project.id}`}
-                aria-label={project.title}
-                className="absolute inset-0 z-10"
-              />
               <div className="h-44 relative bg-background overflow-hidden">
                 <Image
                   src={project.imageUrl}
@@ -214,65 +208,47 @@ export default function ShowcasePage() {
                   className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
-                
+
                 {/* Delete button for author */}
                 {user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym") && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id, e); }}
+                    onClick={(e) => handleDeleteProject(project.id, e)}
                     aria-label={t("showcase.detail.confirm_delete")}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
 
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleUpvote(project.id, e); }}
+                  onClick={(e) => handleUpvote(project.id, e)}
                   aria-label={`Upvote ${project.title}`}
-                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
                 >
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{project.upvotes}</span>
                 </button>
               </div>
 
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight">
+              <div className="p-6 flex-1 flex flex-col gap-4">
+                <div className="space-y-2 flex-1">
+                  <h3 className="text-lg font-bold text-foreground leading-tight">
                     {project.title}
                   </h3>
-                  <p className="text-sm text-text-secondary line-clamp-3 pt-1">
+                  <p className="text-sm text-text-secondary line-clamp-3">
                     {project.description}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {project.tools.slice(0, 3).map((tool) => (
-                    <span key={tool} className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                      {tool}
-                    </span>
-                  ))}
-                  {project.tools.length > 3 && (
-                    <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                      +{project.tools.length - 3}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-card-border gap-2">
-                  <div
-                    className="flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg bg-violet-600/10 border border-accent-primary/20 group-hover:bg-violet-600/20 text-accent-primary text-xs font-semibold transition-colors"
-                  >
-                    <Code className="h-3.5 w-3.5" />
-                    <span>{t("showcase.details")}</span>
-                  </div>
-
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground transition-colors"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </div>
-                </div>
+                <a
+                  href={project.demoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg btn-primary text-sm font-bold transition hover:scale-[1.02]"
+                >
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                  {t("showcase.visit")}
+                </a>
               </div>
             </div>
           ))}
