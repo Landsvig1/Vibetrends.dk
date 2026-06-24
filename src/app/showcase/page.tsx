@@ -13,6 +13,7 @@ import { jsonLdScript } from "@/lib/jsonLd";
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [submitParam, setSubmitParam] = useQueryState("submit", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
 
@@ -30,6 +31,14 @@ export default function ShowcasePage() {
       .then((data) => setProjects(data))
       .catch((err) => console.error("Error fetching projects:", err));
   }, [language]);
+
+  // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA)
+  useEffect(() => {
+    if (submitParam === "1") {
+      setSubmitOpen(true);
+      setSubmitParam(null);
+    }
+  }, [submitParam, setSubmitParam]);
 
   // Filter projects by search
   const filteredProjects = projects.filter((project) => {
