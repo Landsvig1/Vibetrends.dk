@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock } from "lucide-react";
 import { ForumThread } from "@/lib/db";
+import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { timeAgo } from "@/lib/timeAgo";
@@ -41,13 +42,7 @@ export default function ForumPage() {
       .catch((err) => console.error("Error fetching threads:", err));
   }, [selectedCategory, sort, language]);
 
-  const categories: ("All" | ForumThread["category"])[] = [
-    "All",
-    "General",
-    "Prompts",
-    "Showcase Discussion",
-    "Setup & Config",
-  ];
+  const categories: ("All" | ForumThread["category"])[] = ["All", ...FORUM_CATEGORY_KEYS];
 
   // Filter threads
   const filteredThreads = threads.filter(
@@ -163,7 +158,7 @@ export default function ForumPage() {
                     : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
                 }`}
               >
-                {cat === "All" ? (language === "da" ? "Alle" : "All") : cat}
+                {cat === "All" ? (language === "da" ? "Alle" : "All") : forumCategoryLabel(cat, language)}
               </button>
             ))}
           </div>
@@ -211,7 +206,7 @@ export default function ForumPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-accent-primary px-2 py-0.5 rounded bg-accent-light border border-accent-primary/20">
-                        {thread.category}
+                        {forumCategoryLabel(thread.category, language)}
                       </span>
                       {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
                         <button
@@ -344,10 +339,9 @@ export default function ForumPage() {
                     onChange={(e) => setThreadCategory(e.target.value as ForumThread["category"])}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/20 text-sm"
                   >
-                    <option value="General">General</option>
-                    <option value="Prompts">Prompts</option>
-                    <option value="Showcase Discussion">Showcase Discussion</option>
-                    <option value="Setup & Config">Setup & Config</option>
+                    {FORUM_CATEGORIES.map((c) => (
+                      <option key={c.key} value={c.key}>{c.labelDa}</option>
+                    ))}
                   </select>
                 </div>
 
