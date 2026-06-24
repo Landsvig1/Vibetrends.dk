@@ -1,9 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
-import { 
-  Sparkles, ArrowRight, Heart, 
-  MessageSquare, Cpu, Layers, Briefcase, 
-  Clock 
+import {
+  Sparkles, ArrowRight, Heart, PlusCircle,
+  MessageSquare, Cpu, Layers, Briefcase,
+  Clock
 } from "lucide-react";
 import { getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts, getThreads } from "@/lib/db";
 import { cookies } from "next/headers";
@@ -68,6 +68,13 @@ export default async function Home() {
           >
             {t("home.btn_find_freelancer")}
             <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+          <Link
+            href="/showcase?submit=1"
+            className="btn-secondary"
+          >
+            {t("home.btn_submit_project")}
+            <PlusCircle className="ml-2 h-4 w-4" />
           </Link>
         </div>
       </section>
