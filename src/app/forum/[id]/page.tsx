@@ -94,7 +94,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
           ),
         }}
       />
-    <div className="space-y-8">
+      <div className="space-y-8">
       <Link
         href="/forum"
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
@@ -170,7 +170,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
           </div>
         </div>
       </div>
-    </div>
+      </div>
     </>
   );
 }

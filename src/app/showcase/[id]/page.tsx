@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
+import ShareButton from "@/app/components/ShareButton";
 
 // Custom Github Icon matching Lucide style
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -203,6 +204,11 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                         <GithubIcon className="h-5 w-5" />
                       </a>
                     )}
+                    <ShareButton
+                      title={project.title}
+                      author={project.author}
+                      url={`https://vibetrends.dk/showcase/${id}`}
+                    />
                  </div>
               </div>
             </div>
