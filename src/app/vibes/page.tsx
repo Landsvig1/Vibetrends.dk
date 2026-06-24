@@ -241,7 +241,6 @@ export default function ShowcasePage() {
                   <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight">
                     {project.title}
                   </h3>
-                  <p className="text-xs text-text-secondary">{t("showcase.by")}: {project.author}</p>
                   <p className="text-sm text-text-secondary line-clamp-3 pt-1">
                     {project.description}
                   </p>

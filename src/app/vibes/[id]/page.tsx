@@ -141,14 +141,8 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               className="object-cover opacity-90"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
-            <div className="absolute bottom-6 left-6 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-card-border">
-                {project.author[0]}
-              </div>
-              <div>
-                <h1 className="text-white font-bold text-xl">{project.title}</h1>
-                <p className="text-slate-300 text-sm">{t("showcase.by")} @{project.author}</p>
-              </div>
+            <div className="absolute bottom-6 left-6">
+              <h1 className="text-white font-bold text-xl">{project.title}</h1>
             </div>
           </div>
 
@@ -206,7 +200,6 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                     )}
                     <ShareButton
                       title={project.title}
-                      author={project.author}
                       url={`https://vibetrends.dk/vibes/${id}`}
                     />
                  </div>
