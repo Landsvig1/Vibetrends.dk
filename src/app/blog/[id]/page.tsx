@@ -149,36 +149,10 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
               ))}
             </div>
 
-            <div className="mt-12 p-6 rounded-xl bg-violet-600/5 border border-accent-primary/20 text-sm">
-              <h4 className="font-bold text-foreground mb-2">
-                {lang === "da" ? "Om denne serie" : "About this series"}
-              </h4>
-              <p className="text-text-secondary">
-                {lang === "da" 
-                  ? "Dette er en del af en løbende artikelserie på vibetrends.dk. Vi dykker ned i de værktøjer og metoder, som solo-foundere og \"vibe coders\" bruger til at bygge software hurtigere end nogensinde før."
-                  : "This is part of an ongoing article series on vibetrends.dk. We dive into the tools and methods that solo founders and \"vibe coders\" use to build software faster than ever before."
-                }
-              </p>
-            </div>
           </div>
         </div>
       </article>
 
-      {/* Author Bio or CTA */}
-      <div className="max-w-3xl mx-auto p-8 rounded-xl glass-card flex items-center gap-6">
-        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-foreground font-bold text-xl">
-          {post.author[0]}
-        </div>
-        <div className="flex-1">
-          <h4 className="text-lg font-bold text-foreground">{t("blog.detail.author")} {post.author}</h4>
-          <p className="text-sm text-text-secondary">
-            {lang === "da" 
-              ? "Bidragsyder på vibetrends.dk og passioneret AI-udvikler."
-              : "Contributor on vibetrends.dk and passionate AI developer."
-            }
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
