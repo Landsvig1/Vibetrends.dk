@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { jsonLdScript, articleJsonLd, softwareAppJsonLd } from "@/lib/jsonLd";
+import { jsonLdScript, articleJsonLd, softwareAppJsonLd, breadcrumbJsonLd, forumThreadJsonLd } from "@/lib/jsonLd";
 
 describe("jsonLdScript", () => {
   it("escapes '<' so a value cannot break out of the script element", () => {
@@ -43,5 +43,63 @@ describe("softwareAppJsonLd", () => {
     expect(s.name).toBe("Agent X");
     expect(s.author).toEqual({ "@type": "Organization", name: "Acme" });
     expect(s.offers).toMatchObject({ price: "0", priceCurrency: "USD" });
+  });
+});
+
+describe("breadcrumbJsonLd", () => {
+  it("emits a BreadcrumbList with correct position and item fields", () => {
+    const b = breadcrumbJsonLd([
+      { name: "Showcase", url: "https://vibetrends.dk/showcase" },
+      { name: "My Project", url: "https://vibetrends.dk/showcase/p1" },
+    ]);
+    expect(b["@type"]).toBe("BreadcrumbList");
+    expect(b.itemListElement).toHaveLength(2);
+    expect(b.itemListElement[0]).toEqual({
+      "@type": "ListItem",
+      position: 1,
+      name: "Showcase",
+      item: "https://vibetrends.dk/showcase",
+    });
+    expect(b.itemListElement[1].position).toBe(2);
+    expect(b.itemListElement[1].name).toBe("My Project");
+  });
+
+  it("works with a single item", () => {
+    const b = breadcrumbJsonLd([{ name: "Home", url: "https://vibetrends.dk" }]);
+    expect(b.itemListElement).toHaveLength(1);
+    expect(b.itemListElement[0].position).toBe(1);
+  });
+
+  it("passes through jsonLdScript without throwing", () => {
+    const b = breadcrumbJsonLd([{ name: "</script>", url: "https://vibetrends.dk/x" }]);
+    expect(() => jsonLdScript(b)).not.toThrow();
+    expect(jsonLdScript(b)).not.toContain("</script>");
+  });
+});
+
+describe("forumThreadJsonLd", () => {
+  it("emits a valid DiscussionForumPosting with all fields", () => {
+    const f = forumThreadJsonLd({
+      title: "Bedste .cursorrules?",
+      author: "kasper",
+      url: "https://vibetrends.dk/forum/t1",
+      datePublished: "2026-06-01",
+    });
+    expect(f["@type"]).toBe("DiscussionForumPosting");
+    expect(f.headline).toBe("Bedste .cursorrules?");
+    expect(f.author).toEqual({ "@type": "Person", name: "kasper" });
+    expect(f.url).toBe("https://vibetrends.dk/forum/t1");
+    expect(f.datePublished).toBe("2026-06-01");
+  });
+
+  it("omits datePublished when not provided", () => {
+    const f = forumThreadJsonLd({ title: "T", author: "A", url: "u" });
+    expect("datePublished" in f).toBe(false);
+  });
+
+  it("passes through jsonLdScript without throwing", () => {
+    const f = forumThreadJsonLd({ title: "</script>alert", author: "A", url: "u" });
+    expect(() => jsonLdScript(f)).not.toThrow();
+    expect(jsonLdScript(f)).not.toContain("</script>");
   });
 });

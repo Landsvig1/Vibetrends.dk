@@ -70,3 +70,34 @@ export function softwareAppJsonLd(opts: {
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
 }
+
+/** schema.org BreadcrumbList for two-level page hierarchy (section → detail). */
+export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+/** schema.org DiscussionForumPosting for a forum thread detail page. */
+export function forumThreadJsonLd(opts: {
+  title: string;
+  author: string;
+  url: string;
+  datePublished?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "DiscussionForumPosting",
+    headline: opts.title,
+    author: { "@type": "Person", name: opts.author },
+    url: opts.url,
+    ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
+  };
+}
