@@ -4,10 +4,11 @@ import { getThreads, createThread } from "@/lib/db";
 import { getAuthUser } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
 
 const threadSchema = z.object({
   title: z.string().min(1).max(200),
-  category: z.enum(["General", "Prompts", "Showcase Discussion", "Setup & Config"]),
+  category: z.enum(FORUM_CATEGORY_KEYS),
   content: z.string().min(10).max(5000),
 });
 
