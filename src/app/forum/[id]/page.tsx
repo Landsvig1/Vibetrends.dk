@@ -43,11 +43,8 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
     <Suspense fallback={
       <div className="space-y-8 animate-pulse">
         <div className="h-6 bg-card-border/50 rounded w-24"></div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-xl glass-panel p-6 sm:p-8 space-y-6 border border-card-border shadow-2xl h-80 bg-card-border/20"></div>
-          </div>
-          <div className="h-40 rounded-xl glass-card p-6 border border-card-border bg-card-border/10"></div>
+        <div className="max-w-3xl space-y-6">
+          <div className="rounded-xl glass-panel p-6 sm:p-8 border border-card-border shadow-2xl h-80 bg-card-border/20"></div>
         </div>
       </div>
     }>
@@ -104,8 +101,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
         {t("forum.detail.back")}
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="max-w-3xl space-y-6">
           <div className="rounded-xl glass-panel p-6 sm:p-8 space-y-6 border border-card-border shadow-2xl">
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-3">
@@ -140,36 +136,6 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
 
           {/* Reply Section (Client Side) */}
           <ForumReplySection initialThread={thread} />
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <div className="rounded-xl glass-card p-6 space-y-4 border border-card-border">
-            <h4 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-card-border pb-2">
-              Forum Info
-            </h4>
-            <div className="space-y-3">
-               <div className="flex justify-between text-xs">
-                 <span className="text-text-secondary">{lang === "da" ? "Svar i alt" : "Total replies"}</span>
-                 <span className="text-foreground font-mono">{thread.replies.length}</span>
-               </div>
-               <div className="flex justify-between text-xs">
-                 <span className="text-text-secondary">{lang === "da" ? "Visninger" : "Views"}</span>
-                 <span className="text-foreground font-mono">{Math.floor(thread.upvotes * 4.5)}</span>
-               </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl glass-panel p-6 bg-violet-600/5 border border-accent-primary/20">
-            <h4 className="text-sm font-bold text-foreground mb-2">Vibe Coding Tip</h4>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              {lang === "da" 
-                ? "Husk at du kan indsende dine egne projekter i Showcase-sektionen og få feedback her i forummet."
-                : "Remember that you can submit your own projects to the Showcase section and get feedback here in the forum."
-              }
-            </p>
-          </div>
-        </div>
       </div>
       </div>
     </>
