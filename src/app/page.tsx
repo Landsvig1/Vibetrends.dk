@@ -15,17 +15,17 @@ export default async function Home() {
   const tDict = translations[lang] || translations.da;
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  // Fetch only what the landing page renders: counts for the stats band, the
-  // top featured item per section, and the two most-upvoted threads (with their
+  // Fetch what the landing page renders: counts for the stats band, a small
+  // grid of top items per section, and the most-upvoted threads (with their
   // replies) for the forum snapshot.
-  const [counts, [featuredProject], [featuredSkill], [featuredAgent], [latestPost], threads] =
+  const [counts, featuredProjects, featuredSkills, [featuredAgent], featuredPosts, threads] =
     await Promise.all([
       getCounts(),
-      getTopProjects(1, lang),
-      getTopSkills(1, lang),
+      getTopProjects(4, lang),
+      getTopSkills(3, lang),
       getTopAgents(1, lang),
-      getLatestPosts(1, lang),
-      getThreads(undefined, lang, 2),
+      getLatestPosts(3, lang),
+      getThreads(undefined, lang, 3),
     ]);
 
   return (
@@ -99,30 +99,29 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Showcase and Skills Split */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Showcase Highlight */}
-        <div className="flex flex-col h-full space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center">
-              <Layers className="mr-2 h-5 w-5 text-accent-primary" />
-              {t("home.section.featured_project")}
-            </h2>
-            <Link href="/vibes" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              {t("home.see_all")}
-              <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </div>
+      {/* Showcase Highlight */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold flex items-center">
+            <Layers className="mr-2 h-5 w-5 text-accent-primary" />
+            {t("home.section.featured_project")}
+          </h2>
+          <Link href="/vibes" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
+            {t("home.see_all")}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Link>
+        </div>
 
-          {featuredProject && (
-            <div className="flex-1 rounded-xl glass-card overflow-hidden flex flex-col">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {featuredProjects.map((project, i) => (
+            <div key={project.id} className="rounded-xl glass-card overflow-hidden flex flex-col">
               <div className="h-48 relative overflow-hidden bg-card-border">
                 <Image
-                  src={featuredProject.imageUrl}
-                  alt={featuredProject.title}
+                  src={project.imageUrl}
+                  alt={project.title}
                   fill
-                  sizes="(max-w-7xl) 50vw, 100vw"
-                  priority
+                  sizes="(max-w-7xl) 25vw, 100vw"
+                  priority={i === 0}
                   className="object-cover opacity-80 group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
@@ -135,15 +134,15 @@ export default async function Home() {
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-lg font-bold leading-tight">
-                    {featuredProject.title}
+                    {project.title}
                   </h3>
                   <p className="text-sm text-text-secondary line-clamp-2">
-                    {featuredProject.description}
+                    {project.description}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {featuredProject.tools.slice(0, 3).map((tool) => (
+                  {project.tools.slice(0, 3).map((tool) => (
                     <span key={tool} className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border">
                       {tool}
                     </span>
@@ -151,48 +150,50 @@ export default async function Home() {
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-card-border text-xs text-text-secondary">
-                  <span>{t("home.by")} {featuredProject.author}</span>
+                  <span>{t("home.by")} {project.author}</span>
                   <span className="flex items-center font-medium">
                     <Heart className="h-3.5 w-3.5 mr-1 text-accent-primary" />
-                    {featuredProject.upvotes} upvotes
+                    {project.upvotes} upvotes
                   </span>
                 </div>
               </div>
             </div>
-          )}
+          ))}
+        </div>
+      </section>
+
+      {/* Community Skills Highlight */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold flex items-center">
+            <Briefcase className="mr-2 h-5 w-5 text-accent-primary" />
+            {t("home.section.featured_skills")}
+          </h2>
+          <Link href="/skills" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
+            {t("home.see_all")}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Link>
         </div>
 
-        {/* Community Skills Highlight */}
-        <div className="flex flex-col h-full space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center">
-              <Briefcase className="mr-2 h-5 w-5 text-accent-primary" />
-              {t("home.section.featured_skills")}
-            </h2>
-            <Link href="/skills" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              {t("home.see_all")}
-              <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          {featuredSkill && (
-            <div className="flex-1 rounded-xl glass-card p-6 flex flex-col justify-between space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {featuredSkills.map((skill) => (
+            <div key={skill.id} className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                      {featuredSkill.categoryLabel}
+                      {skill.categoryLabel}
                     </span>
                     <h3 className="text-lg font-bold mt-2 leading-tight">
-                      {featuredSkill.title}
+                      {skill.title}
                     </h3>
                   </div>
                 </div>
                 <p className="text-sm text-text-secondary line-clamp-3">
-                  {featuredSkill.description}
+                  {skill.description}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {featuredSkill.tags.map((tag) => (
+                  {skill.tags.map((tag) => (
                     <span key={tag} className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border">
                       {tag}
                     </span>
@@ -203,7 +204,7 @@ export default async function Home() {
               <div className="flex items-center justify-between pt-4 border-t border-card-border">
                 <div>
                   <p className="text-xs text-text-secondary">{t("home.freelancer")}</p>
-                  <p className="text-sm font-semibold">{featuredSkill.vibeCoder}</p>
+                  <p className="text-sm font-semibold">{skill.vibeCoder}</p>
                 </div>
                 <Link
                   href="/skills"
@@ -214,7 +215,7 @@ export default async function Home() {
                 </Link>
               </div>
             </div>
-          )}
+          ))}
         </div>
       </section>
 
@@ -280,41 +281,43 @@ export default async function Home() {
             </Link>
           </div>
 
-          {latestPost && (
-            <div className="rounded-xl glass-card overflow-hidden">
-              <div className="h-36 relative bg-card-border overflow-hidden">
-                <Image
-                  src={latestPost.imageUrl}
-                  alt={latestPost.title}
-                  fill
-                  sizes="(max-w-7xl) 33vw, 100vw"
-                  className="object-cover opacity-90"
-                />
-              </div>
-              <div className="p-5 space-y-3">
-                <div className="flex items-center justify-between text-xs text-text-secondary">
-                  <span className="font-semibold text-accent-primary">{latestPost.category}</span>
-                  <span className="flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {latestPost.readTime}
-                  </span>
+          <div className="space-y-4">
+            {featuredPosts.map((post) => (
+              <div key={post.id} className="rounded-xl glass-card overflow-hidden">
+                <div className="h-36 relative bg-card-border overflow-hidden">
+                  <Image
+                    src={post.imageUrl}
+                    alt={post.title}
+                    fill
+                    sizes="(max-w-7xl) 33vw, 100vw"
+                    className="object-cover opacity-90"
+                  />
                 </div>
-                <h3 className="text-base font-bold leading-snug">
-                  {latestPost.title}
-                </h3>
-                <p className="text-xs text-text-secondary line-clamp-2">
-                  {latestPost.excerpt}
-                </p>
-                <Link
-                  href="/blog"
-                  className="inline-flex items-center text-xs font-semibold text-accent-primary hover:opacity-80 pt-2"
-                >
-                  {t("home.read_article")}
-                  <ArrowRight className="ml-1 h-3 w-3" />
-                </Link>
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span className="font-semibold text-accent-primary">{post.category}</span>
+                    <span className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {post.readTime}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold leading-snug">
+                    {post.title}
+                  </h3>
+                  <p className="text-xs text-text-secondary line-clamp-2">
+                    {post.excerpt}
+                  </p>
+                  <Link
+                    href="/blog"
+                    className="inline-flex items-center text-xs font-semibold text-accent-primary hover:opacity-80 pt-2"
+                  >
+                    {t("home.read_article")}
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </section>
 
