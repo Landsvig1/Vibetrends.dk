@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
+import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
@@ -24,6 +25,11 @@ export default function ShowcasePage() {
   const [subGithub, setSubGithub] = useState("");
   const [subSuccess, setSubSuccess] = useState(false);
   const [githubFetching, setGithubFetching] = useState(false);
+  const subGithubRef = useRef(subGithub);
+  const lastFetchedGithubUrl = useRef<string | null>(null);
+  useEffect(() => {
+    subGithubRef.current = subGithub;
+  }, [subGithub]);
 
   // Best-effort prefill: pull title + description from GitHub's public repo
   // API via our own /api/github-meta proxy (CSP only allows same-origin +
@@ -31,12 +37,17 @@ export default function ShowcasePage() {
   // directly). Never overwrites text the user already typed, and fails
   // silently (private/missing repos, rate limits).
   const handleGithubBlur = async () => {
-    if (!/^https?:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(subGithub)) return;
+    const urlAtBlur = subGithub;
+    if (!parseGithubRepoUrl(urlAtBlur)) return;
+    if (lastFetchedGithubUrl.current === urlAtBlur) return;
+    lastFetchedGithubUrl.current = urlAtBlur;
 
     setGithubFetching(true);
     try {
-      const res = await fetch(`/api/github-meta?url=${encodeURIComponent(subGithub)}`);
-      if (res.ok) {
+      const res = await fetch(`/api/github-meta?url=${encodeURIComponent(urlAtBlur)}`);
+      // The field may have changed (or been re-blurred with a different URL)
+      // while this request was in flight — don't apply a stale response.
+      if (res.ok && subGithubRef.current === urlAtBlur) {
         const data = await res.json();
         if (!subTitle && data.name) setSubTitle(data.name);
         if (!subDesc && data.description) setSubDesc(data.description);
@@ -126,6 +137,7 @@ export default function ShowcasePage() {
           setSubDesc("");
           setSubDemo("");
           setSubGithub("");
+          lastFetchedGithubUrl.current = null;
         }, 2500);
       }
     } catch (err) {

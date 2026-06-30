@@ -120,7 +120,7 @@ export default async function Home() {
                   src={project.imageUrl}
                   alt={project.title}
                   fill
-                  sizes="(max-w-7xl) 25vw, 100vw"
+                  sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 25vw"
                   priority={i === 0}
                   className="object-cover opacity-80 group-hover:scale-105 transition duration-500"
                 />
@@ -289,7 +289,7 @@ export default async function Home() {
                     src={post.imageUrl}
                     alt={post.title}
                     fill
-                    sizes="(max-w-7xl) 33vw, 100vw"
+                    sizes="(max-width: 1023px) 100vw, 33vw"
                     className="object-cover opacity-90"
                   />
                 </div>
