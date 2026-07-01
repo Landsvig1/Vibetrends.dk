@@ -8,7 +8,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page).toHaveTitle(/vibetrends.dk/i);
     
     // Check Hero
-    await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
+    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
     
     // Check Navigation — Agents has been demoted out of primary nav; the
     // CLI feed type takes its place. (Matches Header.tsx navItems:
@@ -129,7 +129,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     // 1. By default, it should be in Danish. Check a Danish phrase or link.
     await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
+    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
 
     // 2 & 3. Click EN and verify it switches to English. Retry the whole
     // interaction so a click landing before React hydration (which would be
@@ -137,7 +137,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
       await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 3000 });
     }).toPass({ timeout: 15000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
@@ -149,14 +149,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 5. Reload page to test server-side persistence
     await page.reload();
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 10000 });
 
     // 6. Click DA toggle back. Same retry rationale as step 2 — this click
     // comes right after a reload, so hydration may not be finished yet.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
       await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible({ timeout: 3000 });
+      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 3000 });
     }).toPass({ timeout: 15000 });
   });
 });
