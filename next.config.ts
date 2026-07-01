@@ -7,7 +7,6 @@ const isProd = process.env.NODE_ENV === 'production';
 // project origin directly, so it must be allowed in connect-src.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseWs = supabaseUrl.replace(/^https:/, 'wss:');
-const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : '';
 const allowedImageHostnames = getAllowedImageHostnames();
 
 // 'unsafe-inline' is required by Next.js App Router hydration scripts (no nonce
