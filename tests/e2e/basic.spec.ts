@@ -21,28 +21,32 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
   });
 
-  test('should navigate to Showcase and view a project', async ({ page }) => {
+  test('should show Showcase projects with a working "Se Projekt" CTA', async ({ page }) => {
+    // Since #23 ("simplify card to thumbnail, title, desc, Se Projekt CTA"),
+    // the card itself has no click-to-detail-page navigation — the only
+    // interactive element besides upvote/delete is this external CTA link,
+    // which opens the project's demoUrl in a new tab. This test asserts that
+    // link, not an internal /vibes/[id] navigation that no longer exists.
     await page.goto('/vibes');
-    
+
     // Wait for heading
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
-    
+
     // Select the first project card
     const firstProject = page.getByTestId('project-card').first();
     await expect(firstProject).toBeVisible();
-    
     const projectTitle = await firstProject.locator('h3').innerText();
-    
-    // Click specifically on the card body area
-    await firstProject.click({ position: { x: 50, y: 50 } }); 
-    
-    // Verify detail page navigation
-    await page.waitForURL(/\/vibes\/.+/);
-    
-    // Check title in detail view - using regex for flexibility
-    const detailHeading = page.locator('h1');
-    await expect(detailHeading).toContainText(projectTitle.trim());
-    await expect(page.getByText(/Prompts/i).first()).toBeVisible();
+
+    const cta = firstProject.getByRole('link', { name: 'Se Projekt' });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('target', '_blank');
+
+    // Cross-check the rendered href against the API's demoUrl for this
+    // project, rather than only asserting the href is non-empty.
+    const projects = await (await page.request.get('/api/vibes')).json();
+    const project = projects.find((p: { title: string }) => p.title === projectTitle.trim());
+    expect(project?.demoUrl).toBeTruthy();
+    await expect(cta).toHaveAttribute('href', project.demoUrl);
   });
 
   test('should navigate to Forum and check tråde', async ({ page }) => {
