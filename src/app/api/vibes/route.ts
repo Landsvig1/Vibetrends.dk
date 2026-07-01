@@ -18,11 +18,13 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
+  const sortParam = searchParams.get("sort");
+  const sort = sortParam === "top" || sortParam === "az" ? sortParam : "new";
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
 
-  const projects = await getProjects(search, lang);
+  const projects = await getProjects(search, lang, sort);
   return NextResponse.json(projects, {
     headers: {
       "Cache-Control": "public, max-age=10, stale-while-revalidate=5",
