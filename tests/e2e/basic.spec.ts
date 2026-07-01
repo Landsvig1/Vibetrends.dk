@@ -132,6 +132,10 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
+    // Two 30s toPass retry budgets below can't fit inside Playwright's default
+    // 30s per-test timeout with room left for the rest of the test — extend
+    // this test specifically rather than raising the suite-wide default.
+    test.setTimeout(90000);
     await page.goto('/');
 
     // 1. By default, it should be in Danish. Check a Danish phrase or link.
