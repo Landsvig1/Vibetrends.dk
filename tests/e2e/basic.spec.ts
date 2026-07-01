@@ -132,10 +132,10 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
-    // Two 30s toPass retry budgets below can't fit inside Playwright's default
+    // Two 45s toPass retry budgets below can't fit inside Playwright's default
     // 30s per-test timeout with room left for the rest of the test — extend
     // this test specifically rather than raising the suite-wide default.
-    test.setTimeout(90000);
+    test.setTimeout(120000);
     await page.goto('/');
 
     // 1. By default, it should be in Danish. Check a Danish phrase or link.
@@ -145,14 +145,16 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 2 & 3. Click EN and verify it switches to English. Retry the whole
     // interaction so a click landing before React hydration (which would be
     // silently dropped) doesn't flake the test — real users can't click that fast.
-    // Inner timeouts widened from 3000ms/outer 15000ms: a cold CI runner
-    // running e2e for the first time (first successful run after the CI
-    // secrets/pooler fixes) needs more slack than a warm local dev server.
+    // Inner timeouts widened from 8000ms/outer 30000ms: the language toggle's
+    // router.refresh() re-runs the homepage's DB queries against Supabase's
+    // pooler, which on a cold CI runner can genuinely take longer than 8s —
+    // this isn't masking a bug (the refresh mechanism itself is verified
+    // correct), just accommodating real cold-start query latency.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 8000 });
-      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 8000 });
-    }).toPass({ timeout: 30000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 20000 });
+    }).toPass({ timeout: 45000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
     const cookies = await context.cookies();
@@ -169,8 +171,8 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // comes right after a reload, so hydration may not be finished yet.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 8000 });
-      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 8000 });
-    }).toPass({ timeout: 30000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 20000 });
+    }).toPass({ timeout: 45000 });
   });
 });
