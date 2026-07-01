@@ -14,6 +14,7 @@
 /coverage
 /playwright-report
 /test-results
+/.e2e-fixtures.json
 
 # generated at build from Supabase (scripts/generate-index.js)
 /public/semantic-index.json

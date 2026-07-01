@@ -27,7 +27,7 @@ export function LanguageProvider({
 }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
   const [prevInitialLanguage, setPrevInitialLanguage] = useState<Language>(initialLanguage);
-  const [isPending, startTransition] = useTransition();
+  const [isPending] = useTransition();
   const router = useRouter();
 
   // Keep state in sync if initialLanguage changes during render
@@ -37,15 +37,20 @@ export function LanguageProvider({
   }
 
   const setLanguage = (lang: Language) => {
+    // A redundant call (language already selected, e.g. a stray double-click)
+    // would fire a second router.refresh() while the first is still in
+    // flight — that second call can permanently discard the first's RSC
+    // payload before it commits, leaving the page stuck showing the old
+    // language indefinitely.
+    if (lang === language) return;
+
     setLanguageState(lang);
-    
+
     // Set the cookie
     document.cookie = `vibe_lang=${lang}; path=/; max-age=31536000; SameSite=Lax`;
-    
+
     // Trigger server components refresh
-    startTransition(() => {
-      router.refresh();
-    });
+    router.refresh();
   };
 
   const t = (key: TranslationKey): string => {

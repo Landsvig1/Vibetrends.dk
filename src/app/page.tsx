@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import {
   Sparkles, ArrowRight, Heart, PlusCircle,
   MessageSquare, Cpu, Layers, Briefcase,
@@ -9,7 +10,22 @@ import { getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts, 
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 
-export default async function Home() {
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="text-text-secondary font-semibold">Indlæser…</div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+// Reads cookies() for the language, so this must stay inside a <Suspense>
+// boundary — otherwise Cache Components can fold it into the prebuilt static
+// shell instead of treating it as a per-request dynamic render.
+async function HomeContent() {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
   const tDict = translations[lang] || translations.da;
