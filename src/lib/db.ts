@@ -9,6 +9,18 @@ export interface ActingAs {
   user: { id: string; username: string };
   supabase: SupabaseClient;
 }
+
+/** Shared by createProject/createSkill: use the bearer-authenticated client
+ * and identity when present (bot writes), otherwise resolve the cookie
+ * session the way every pre-existing write path already does. */
+async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseClient; userId: string | null }> {
+  if (actingAs) return { supabase: actingAs.supabase, userId: actingAs.user.id };
+
+  const supabase = await createSupabaseServerClient();
+  const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+  return { supabase, userId };
+}
+
 import { topicLabel, type TopicSlug } from "./topics";
 import { type ForumCategoryKey } from "./forumCategories";
 
@@ -640,10 +652,7 @@ export async function upvoteAgent(id: string) {
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, actingAs?: ActingAs) {
-  const supabase = actingAs?.supabase ?? await createSupabaseServerClient();
-  const userId = actingAs
-    ? actingAs.user.id
-    : (await supabase.auth.getUser()).data.user?.id ?? null;
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'p_' + Date.now();
   const { data, error } = await supabase.from('vibes').insert({
@@ -671,10 +680,7 @@ export async function createProject(title: string, author: string, description: 
 }
 
 export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, actingAs?: ActingAs) {
-  const supabase = actingAs?.supabase ?? await createSupabaseServerClient();
-  const userId = actingAs
-    ? actingAs.user.id
-    : (await supabase.auth.getUser()).data.user?.id ?? null;
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 's_' + Date.now();
   const { data, error } = await supabase.from('skills').insert({

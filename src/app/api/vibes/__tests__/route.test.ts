@@ -40,9 +40,9 @@ describe("projectSchema — required fields", () => {
 });
 
 describe("projectSchema — imageUrl", () => {
-  it("accepts a valid imageUrl", () => {
+  it("accepts a valid imageUrl on an allowed host (matches next.config.ts's remotePatterns)", () => {
     expect(
-      projectSchema.safeParse({ ...base, imageUrl: "https://vibetrends.dk/thumb.png" }).success
+      projectSchema.safeParse({ ...base, imageUrl: "https://images.unsplash.com/photo-123.png" }).success
     ).toBe(true);
   });
 
@@ -56,5 +56,15 @@ describe("projectSchema — imageUrl", () => {
 
   it("rejects a non-URL imageUrl", () => {
     expect(projectSchema.safeParse({ ...base, imageUrl: "not-a-url" }).success).toBe(false);
+  });
+
+  it("rejects a well-formed URL on a host that isn't in next.config.ts's image allowlist", () => {
+    // Guards against the bug found in review: a URL that passes .url() but
+    // isn't on the remotePatterns/CSP allowlist would otherwise pass schema
+    // validation and then throw at render time for every visitor viewing the
+    // card (next/image rejects unconfigured hostnames).
+    expect(
+      projectSchema.safeParse({ ...base, imageUrl: "https://evil.example.com/thumb.png" }).success
+    ).toBe(false);
   });
 });

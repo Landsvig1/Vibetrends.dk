@@ -7,6 +7,14 @@ export const supabasePublic = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+/** Shared by getAuthUser() and resolveBotRequestAuth() so the fallback-username
+ * rule (sanitize local-part, suffix "_vibe") only lives in one place. */
+function deriveUsername(user: { email?: string | null; user_metadata?: Record<string, unknown> }): string {
+  const email = user.email || '';
+  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
+  return (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
+}
+
 /**
  * Resolve the authenticated user from the Supabase session cookie and derive
  * the display username the same way the client AuthProvider does. Returns null
@@ -18,11 +26,7 @@ export async function getAuthUser(): Promise<{ id: string; username: string } | 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const email = user.email || '';
-  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
-  const username = (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
-
-  return { id: user.id, username };
+  return { id: user.id, username: deriveUsername(user) };
 }
 
 /**
@@ -54,11 +58,27 @@ export async function resolveBotRequestAuth(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const email = user.email || '';
-  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
-  const username = (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
+  return { user: { id: user.id, username: deriveUsername(user) }, supabase };
+}
 
-  return { user: { id: user.id, username }, supabase };
+/**
+ * Resolve identity for a route that must accept either a browser session
+ * cookie or a bearer-authenticated bot request — tries `getAuthUser()` first,
+ * then falls back to `resolveBotRequestAuth()`. Used only by the two routes
+ * that opt into bot writes (`/api/vibes`, `/api/skills`); does not change
+ * `getAuthUser()`'s cookie-only behavior for any other caller.
+ */
+export async function resolveRequestIdentity(request: Request): Promise<{
+  user: { id: string; username: string };
+  botAuth?: { user: { id: string; username: string }; supabase: SupabaseClient };
+} | null> {
+  const user = await getAuthUser();
+  if (user) return { user };
+
+  const botAuth = await resolveBotRequestAuth(request);
+  if (botAuth) return { user: botAuth.user, botAuth };
+
+  return null;
 }
 
 export async function createSupabaseServerClient() {
