@@ -65,41 +65,53 @@ async function run() {
     const threadId = `e2e-fixture-thread-${now}`;
     const cliId = `e2e-fixture-cli-${now}`;
 
-    await client.query(
-      `insert into public.forum_threads
-         (id, title_da, title_en, author, category, content_da, content_en, upvotes)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        threadId,
-        'E2E fixture-tråd (auto-genereret)',
-        'E2E fixture thread (auto-generated)',
-        'e2e-fixture-bot',
-        'General',
-        'Denne tråd bruges af e2e-testsuiten og fjernes automatisk efter kørslen.',
-        'This thread is used by the e2e test suite and is removed automatically after the run.',
-        1,
-      ]
-    );
+    // Both inserts in one transaction: if the second insert fails, the first
+    // is rolled back too, so a partial-success case never leaves a row
+    // committed that the (never-written) manifest wouldn't know to clean up.
+    try {
+      await client.query('BEGIN');
 
-    await client.query(
-      `insert into public.agents
-         (id, name, developer, category, description_da, description_en,
-          install_command, system_prompt_da, system_prompt_en, upvotes, tags)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        cliId,
-        'E2E Fixture CLI',
-        'e2e-fixture-bot',
-        'CLI',
-        'CLI-fixture brugt af e2e-testsuiten.',
-        'CLI fixture used by the e2e test suite.',
-        'npx e2e-fixture-cli --help',
-        'You are the E2E Fixture CLI, a stand-in agent for automated testing.',
-        'You are the E2E Fixture CLI, a stand-in agent for automated testing.',
-        1,
-        ['e2e-fixture'],
-      ]
-    );
+      await client.query(
+        `insert into public.forum_threads
+           (id, title_da, title_en, author, category, content_da, content_en, upvotes)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          threadId,
+          'E2E fixture-tråd (auto-genereret)',
+          'E2E fixture thread (auto-generated)',
+          'e2e-fixture-bot',
+          'General',
+          'Denne tråd bruges af e2e-testsuiten og fjernes automatisk efter kørslen.',
+          'This thread is used by the e2e test suite and is removed automatically after the run.',
+          1,
+        ]
+      );
+
+      await client.query(
+        `insert into public.agents
+           (id, name, developer, category, description_da, description_en,
+            install_command, system_prompt_da, system_prompt_en, upvotes, tags)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          cliId,
+          'E2E Fixture CLI',
+          'e2e-fixture-bot',
+          'CLI',
+          'CLI-fixture brugt af e2e-testsuiten.',
+          'CLI fixture used by the e2e test suite.',
+          'npx e2e-fixture-cli --help',
+          'You are the E2E Fixture CLI, a stand-in agent for automated testing.',
+          'You are the E2E Fixture CLI, a stand-in agent for automated testing.',
+          1,
+          ['e2e-fixture'],
+        ]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    }
 
     fs.writeFileSync(
       FIXTURES_MANIFEST,

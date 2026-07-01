@@ -18,7 +18,10 @@ async function generateIndex() {
 
   const [skills, showcase, agents, threads] = await Promise.all([
     supabase.from('skills').select('id, title_da, tags'),
-    supabase.from('showcase').select('id, title_da, tools'),
+    // `showcase` was renamed to `vibes` (src/scripts/migrate-rename-showcase-to-vibes.mjs);
+    // querying the old name made this fail — and bail out entirely — on
+    // every single build.
+    supabase.from('vibes').select('id, title_da, tools'),
     supabase.from('agents').select('id, name, tags, category'),
     supabase.from('forum_threads').select('id'),
   ]);

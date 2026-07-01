@@ -27,8 +27,13 @@ jobs:
     continue-on-error: true
     # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
     # (scripts/seed-e2e-fixtures.mjs) — a single global group (not per-ref)
-    # serializes every run across every branch/PR so two overlapping runs
-    # can never delete each other's still-in-use fixture rows.
+    # guarantees at most one run ever executes seed/cleanup at a time, so two
+    # overlapping runs can never delete each other's still-in-use fixture
+    # rows. Note: GitHub Actions only queues one *pending* run per group — a
+    # third overlapping trigger cancels the still-queued second one outright
+    # rather than queuing indefinitely, so under heavy overlap some pushes
+    # may see e2e skipped entirely for that commit. Acceptable at today's low
+    # PR volume (this job is non-blocking either way); revisit if that changes.
     concurrency:
       group: e2e-shared-fixture-db
       cancel-in-progress: false
