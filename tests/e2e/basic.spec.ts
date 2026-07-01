@@ -141,11 +141,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 2 & 3. Click EN and verify it switches to English. Retry the whole
     // interaction so a click landing before React hydration (which would be
     // silently dropped) doesn't flake the test — real users can't click that fast.
+    // Inner timeouts widened from 3000ms/outer 15000ms: a cold CI runner
+    // running e2e for the first time (first successful run after the CI
+    // secrets/pooler fixes) needs more slack than a warm local dev server.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 15000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 8000 });
+      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 30000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
     const cookies = await context.cookies();
@@ -162,8 +165,8 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // comes right after a reload, so hydration may not be finished yet.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 15000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 8000 });
+      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 30000 });
   });
 });
