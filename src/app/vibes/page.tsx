@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
+import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
@@ -21,7 +22,42 @@ export default function ShowcasePage() {
   const [subTitle, setSubTitle] = useState("");
   const [subDesc, setSubDesc] = useState("");
   const [subDemo, setSubDemo] = useState("");
+  const [subGithub, setSubGithub] = useState("");
   const [subSuccess, setSubSuccess] = useState(false);
+  const [githubFetching, setGithubFetching] = useState(false);
+  const subGithubRef = useRef(subGithub);
+  const lastFetchedGithubUrl = useRef<string | null>(null);
+  useEffect(() => {
+    subGithubRef.current = subGithub;
+  }, [subGithub]);
+
+  // Best-effort prefill: pull title + description from GitHub's public repo
+  // API via our own /api/github-meta proxy (CSP only allows same-origin +
+  // Supabase in connect-src, so the browser can't call api.github.com
+  // directly). Never overwrites text the user already typed, and fails
+  // silently (private/missing repos, rate limits).
+  const handleGithubBlur = async () => {
+    const urlAtBlur = subGithub;
+    if (!parseGithubRepoUrl(urlAtBlur)) return;
+    if (lastFetchedGithubUrl.current === urlAtBlur) return;
+    lastFetchedGithubUrl.current = urlAtBlur;
+
+    setGithubFetching(true);
+    try {
+      const res = await fetch(`/api/github-meta?url=${encodeURIComponent(urlAtBlur)}`);
+      // The field may have changed (or been re-blurred with a different URL)
+      // while this request was in flight — don't apply a stale response.
+      if (res.ok && subGithubRef.current === urlAtBlur) {
+        const data = await res.json();
+        if (!subTitle && data.name) setSubTitle(data.name);
+        if (!subDesc && data.description) setSubDesc(data.description);
+      }
+    } catch (err) {
+      console.error("GitHub metadata fetch error:", err);
+    } finally {
+      setGithubFetching(false);
+    }
+  };
 
   // Fetch projects from API
   useEffect(() => {
@@ -85,6 +121,7 @@ export default function ShowcasePage() {
           tools: [],
           prompts: [],
           demoUrl: subDemo || "https://vibetrends.dk",
+          githubUrl: subGithub || undefined,
         }),
       });
 
@@ -99,6 +136,8 @@ export default function ShowcasePage() {
           setSubTitle("");
           setSubDesc("");
           setSubDemo("");
+          setSubGithub("");
+          lastFetchedGithubUrl.current = null;
         }, 2500);
       }
     } catch (err) {
@@ -297,6 +336,21 @@ export default function ShowcasePage() {
                     {t("showcase.modal.badge")}
                   </span>
                   <h3 className="text-lg font-bold text-foreground mt-1">{t("showcase.modal.title")}</h3>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-text-secondary">
+                    {t("showcase.modal.label_github")}
+                    {githubFetching && <span className="ml-2 text-text-secondary normal-case font-normal">{t("showcase.modal.github_fetching")}</span>}
+                  </label>
+                  <input
+                    type="url"
+                    value={subGithub}
+                    onChange={(e) => setSubGithub(e.target.value)}
+                    onBlur={handleGithubBlur}
+                    placeholder="https://github.com/dit-navn/dit-projekt"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                  />
                 </div>
 
                 <div className="space-y-1">
