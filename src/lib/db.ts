@@ -40,6 +40,7 @@ export interface ShowcaseProject {
   demoUrl: string;
   githubUrl?: string;
   imageUrl: string;
+  createdAt: string;
 }
 
 export interface ForumReply {
@@ -121,6 +122,7 @@ interface ShowcaseRow {
   demo_url: string | null;
   github_url: string | null;
   image_url: string | null;
+  created_at: string;
 }
 
 interface ThreadRow {
@@ -208,6 +210,7 @@ function mapProject(p: ShowcaseRow, lang: 'da' | 'en'): ShowcaseProject {
     demoUrl: p.demo_url || '',
     githubUrl: p.github_url || undefined,
     imageUrl: p.image_url || '/images/autonewsletter.jpg',
+    createdAt: p.created_at,
   };
 }
 
@@ -311,8 +314,16 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
   return mapSkill(data, lang);
 }
 
-export async function getProjects(search?: string, lang: 'da' | 'en' = 'da') {
-  const query = supabasePublic.from('vibes').select('*').order('upvotes', { ascending: false });
+export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sort: 'top' | 'new' | 'az' = 'new') {
+  // 'new' = most recent (default), 'top' = most upvoted, 'az' = alphabetical. Mirrors getThreads.
+  let query = supabasePublic.from('vibes').select('*');
+  if (sort === 'top') {
+    query = query.order('upvotes', { ascending: false });
+  } else if (sort === 'az') {
+    query = query.order(lang === 'en' ? 'title_en' : 'title_da', { ascending: true });
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
 
   const { data, error } = await query;
   if (error || !data) return [];

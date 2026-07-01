@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight } from "lucide-react";
+import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Clock, TrendingUp, ArrowDownAZ } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
@@ -13,6 +13,7 @@ import { jsonLdScript } from "@/lib/jsonLd";
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [sort, setSort] = useQueryState("sort", parseAsString.withDefault("new"));
   const [submitParam, setSubmitParam] = useQueryState("submit", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -61,11 +62,14 @@ export default function ShowcasePage() {
 
   // Fetch projects from API
   useEffect(() => {
-    fetch("/api/vibes")
+    const params = new URLSearchParams();
+    if (sort !== "new") params.set("sort", sort);
+    const qs = params.toString();
+    fetch(qs ? `/api/vibes?${qs}` : "/api/vibes")
       .then((res) => res.json())
       .then((data) => setProjects(data))
       .catch((err) => console.error("Error fetching projects:", err));
-  }, [language]);
+  }, [language, sort]);
 
   // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA).
   // Deferred a microtask so the setState calls aren't synchronous within the
@@ -221,17 +225,43 @@ export default function ShowcasePage() {
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative max-w-md mx-auto md:mx-0">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
-        <input
-          type="text"
-          aria-label={t("showcase.search")}
-          placeholder={t("showcase.search")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
-        />
+      {/* Search Bar + Sort tabs */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="relative max-w-md w-full mx-auto md:mx-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
+          <input
+            type="text"
+            aria-label={t("showcase.search")}
+            placeholder={t("showcase.search")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+          />
+        </div>
+
+        <div className="flex gap-2 justify-center md:justify-end">
+          {([
+            { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
+            { value: "top", label: language === "da" ? "Top" : "Top", icon: TrendingUp },
+            { value: "az", label: "A–Z", icon: ArrowDownAZ },
+          ] as const).map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setSort(tab.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  sort === tab.value
+                    ? "bg-accent-primary text-white font-extrabold shadow-md"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Grid of Projects */}
