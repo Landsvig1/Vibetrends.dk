@@ -36,9 +36,15 @@ jobs:
       CI: "true"
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
-      # Direct Postgres connection for scripts/seed-e2e-fixtures.mjs and
+      # Postgres connection for scripts/seed-e2e-fixtures.mjs and
       # tests/e2e/global-teardown.mjs — bypasses RLS, so no auth session is
       # needed to seed/clean up forum_threads/agents fixture rows.
+      #
+      # Must be the Supabase *pooler* connection string (port 6543,
+      # aws-0-<region>.pooler.supabase.com), not the direct db.<ref>.supabase.co
+      # one used locally in .env.local: the direct host resolves to an
+      # IPv6-only address with no A record, and GitHub-hosted runners have no
+      # IPv6 egress — a direct DATABASE_URL fails with ENETUNREACH here.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
