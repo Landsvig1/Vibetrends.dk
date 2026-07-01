@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase-server";
+import { getAuthUser, resolveBotRequestAuth } from "@/lib/supabase-server";
 import { TOPIC_SLUGS } from "@/lib/topics";
 import { z } from "zod";
 
@@ -12,6 +12,9 @@ export const skillSchema = z.object({
   description: z.string().max(1000).optional().or(z.literal("")),
   tags: z.array(z.string()).max(10).optional(),
   githubUrl: z.string().url().max(200),
+  // Attribution for bot-imported skills (e.g. the source repo URL). Optional —
+  // human submissions via the web form don't set this.
+  source: z.string().url().max(300).optional(),
 });
 
 import { cookies } from "next/headers";
@@ -35,7 +38,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getAuthUser();
+    let user = await getAuthUser();
+    let actingAs: Parameters<typeof createSkill>[7];
+
+    if (!user) {
+      const botAuth = await resolveBotRequestAuth(request);
+      if (botAuth) {
+        user = botAuth.user;
+        actingAs = botAuth;
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -53,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, category, description, tags, githubUrl } = result.data;
+    const { title, category, description, tags, githubUrl, source } = result.data;
 
     const newSkill = await createSkill(
       title,
@@ -61,7 +74,9 @@ export async function POST(request: Request) {
       description || "",
       category,
       tags || [],
-      githubUrl
+      githubUrl,
+      source,
+      actingAs
     );
 
     return NextResponse.json(newSkill, { status: 201 });
