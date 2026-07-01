@@ -47,7 +47,7 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     const body = await res.json();
     expect(body.result.tools.map((t: { name: string }) => t.name)).toEqual([
       "search_skills",
-      "search_showcase",
+      "search_vibes",
       "search_agents",
       "search_cli",
       "search_mcp_servers",
@@ -67,9 +67,9 @@ describe("POST /api/mcp (JSON-RPC)", () => {
     expect(JSON.parse(body.result.content[0].text)).toEqual([{ id: "s1", title: "Skill One" }]);
   });
 
-  it("tools/call search_showcase dispatches to getProjects", async () => {
+  it("tools/call search_vibes dispatches to getProjects", async () => {
     const res = await POST(
-      rpc({ jsonrpc: "2.0", id: 31, method: "tools/call", params: { name: "search_showcase", arguments: { query: "x" } } })
+      rpc({ jsonrpc: "2.0", id: 31, method: "tools/call", params: { name: "search_vibes", arguments: { query: "x" } } })
     );
     const body = await res.json();
     expect(db.getProjects).toHaveBeenCalledWith("x", "da");
