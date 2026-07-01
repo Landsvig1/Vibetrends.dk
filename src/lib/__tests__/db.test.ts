@@ -547,6 +547,40 @@ describe("getThreads reply mapping", () => {
   });
 });
 
+describe("getProjects sort", () => {
+  it("defaults to ordering vibes by created_at desc (Newest)", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "vibes" ? { data: [], error: null } : { data: [], error: null };
+    await db.getProjects();
+    const call = state.publicCalls.find((c) => c.table === "vibes")!;
+    expect(call.filters).toContainEqual(["order", "created_at", { ascending: false }]);
+  });
+
+  it("orders by upvotes desc when sort is 'top'", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "vibes" ? { data: [], error: null } : { data: [], error: null };
+    await db.getProjects(undefined, "da", "top");
+    const call = state.publicCalls.find((c) => c.table === "vibes")!;
+    expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
+  });
+
+  it("orders by title_da asc when sort is 'az' and lang is 'da'", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "vibes" ? { data: [], error: null } : { data: [], error: null };
+    await db.getProjects(undefined, "da", "az");
+    const call = state.publicCalls.find((c) => c.table === "vibes")!;
+    expect(call.filters).toContainEqual(["order", "title_da", { ascending: true }]);
+  });
+
+  it("orders by title_en asc when sort is 'az' and lang is 'en'", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "vibes" ? { data: [], error: null } : { data: [], error: null };
+    await db.getProjects(undefined, "en", "az");
+    const call = state.publicCalls.find((c) => c.table === "vibes")!;
+    expect(call.filters).toContainEqual(["order", "title_en", { ascending: true }]);
+  });
+});
+
 describe("homepage-optimized reads", () => {
   it("getCounts requests head-only exact counts and excludes MCP agents", async () => {
     state.publicHandler = (ops) => {
