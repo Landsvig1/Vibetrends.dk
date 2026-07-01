@@ -54,8 +54,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
     
     await expect(page.getByRole('heading', { name: /Developer Forum/i })).toBeVisible();
     
-    // Check categories
-    await expect(page.getByRole('button', { name: 'General', exact: true })).toBeVisible();
+    // Check categories. The suite defaults to da (no language cookie set),
+    // and the bilingual-labels feature resolves category keys to locale
+    // labels (src/lib/forumCategories.ts) — "General" renders as "Generelt"
+    // under da, not the raw English key.
+    await expect(page.getByRole('button', { name: 'Generelt', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Prompts', exact: true })).toBeVisible();
     
     // Click a thread card
