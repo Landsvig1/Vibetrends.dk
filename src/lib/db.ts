@@ -1,4 +1,26 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Identity + client resolved by `resolveBotRequestAuth()` for bearer-authenticated
+ * (non-browser) callers. When passed to `createProject`/`createSkill`, the write
+ * runs on this client instead of a freshly-built cookie client, so RLS sees the
+ * bearer token's `authenticated` role rather than falling back to `anon`. */
+export interface ActingAs {
+  user: { id: string; username: string };
+  supabase: SupabaseClient;
+}
+
+/** Shared by createProject/createSkill: use the bearer-authenticated client
+ * and identity when present (bot writes), otherwise resolve the cookie
+ * session the way every pre-existing write path already does. */
+async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseClient; userId: string | null }> {
+  if (actingAs) return { supabase: actingAs.supabase, userId: actingAs.user.id };
+
+  const supabase = await createSupabaseServerClient();
+  const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+  return { supabase, userId };
+}
+
 import { topicLabel, type TopicSlug } from "./topics";
 import { type ForumCategoryKey } from "./forumCategories";
 
@@ -640,9 +662,8 @@ export async function upvoteAgent(id: string) {
   return data.upvotes ?? 0;
 }
 
-export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'p_' + Date.now();
   const { data, error } = await supabase.from('vibes').insert({
@@ -657,8 +678,8 @@ export async function createProject(title: string, author: string, description: 
     upvotes: 1,
     demo_url: demoUrl,
     github_url: githubUrl,
-    image_url: '/images/autonewsletter.jpg',
-    user_id: user?.id || null,
+    image_url: imageUrl || '/images/autonewsletter.jpg',
+    user_id: userId,
   }).select().single();
 
   if (error || !data) {
@@ -669,8 +690,8 @@ export async function createProject(title: string, author: string, description: 
   return mapProject(data, 'da');
 }
 
-export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string) {
-  const supabase = await createSupabaseServerClient();
+export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 's_' + Date.now();
   const { data, error } = await supabase.from('skills').insert({
@@ -687,6 +708,8 @@ export async function createSkill(title: string, vibeCoder: string, description:
     category,
     tags,
     github_url: githubUrl,
+    source,
+    user_id: userId,
   }).select().single();
 
   if (error || !data) {

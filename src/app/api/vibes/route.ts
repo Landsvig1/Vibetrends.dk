@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getProjects, createProject } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase-server";
+import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
 import { z } from "zod";
 
-const projectSchema = z.object({
+export const projectSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().min(10).max(500),
   tools: z.array(z.string()).max(10).optional(),
   prompts: z.array(z.string()).optional(),
   demoUrl: z.string().url().max(200).optional().or(z.literal("")),
   githubUrl: z.string().url().max(200).optional(),
+  // Restricted to the same hosts next.config.ts's remotePatterns/CSP allow —
+  // an imageUrl that passes .url() but isn't on that allowlist would pass
+  // validation here and then throw at render time for every visitor viewing
+  // the card (next/image rejects unconfigured hostnames).
+  imageUrl: z.string().url().max(300).refine(isAllowedImageUrl, {
+    message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
+  }).optional().or(z.literal("")),
 });
 
 import { cookies } from "next/headers";
@@ -34,10 +42,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getAuthUser();
-    if (!user) {
+    const identity = await resolveRequestIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, botAuth: actingAs } = identity;
 
     const body = await request.json();
     if (!validateHoneypot(body)) {
@@ -52,7 +61,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, description, tools, prompts, demoUrl, githubUrl } = result.data;
+    const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl } = result.data;
 
     const project = await createProject(
       title,
@@ -61,7 +70,9 @@ export async function POST(request: Request) {
       tools || [],
       prompts || [],
       demoUrl || "",
-      githubUrl
+      githubUrl,
+      imageUrl || undefined,
+      actingAs
     );
 
     return NextResponse.json(project, { status: 201 });

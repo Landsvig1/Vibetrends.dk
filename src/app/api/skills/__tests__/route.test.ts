@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
   createSkill: vi.fn(),
   parseSkillView: vi.fn(),
 }));
-vi.mock("@/lib/supabase-server", () => ({ getAuthUser: vi.fn() }));
+vi.mock("@/lib/supabase-server", () => ({ getAuthUser: vi.fn(), resolveBotRequestAuth: vi.fn() }));
 
 import { skillSchema } from "@/app/api/skills/route";
 
@@ -76,5 +76,25 @@ describe("skillSchema — category enum", () => {
     for (const category of ["nextjs", "mobile", "database", "testing", "design-ui"]) {
       expect(skillSchema.safeParse({ ...base, category }).success).toBe(false);
     }
+  });
+});
+
+describe("skillSchema — source", () => {
+  it("accepts a valid source URL (bot-imported skill attribution)", () => {
+    expect(
+      skillSchema.safeParse({ ...base, source: "https://github.com/mikkelkrogsholm/skills" }).success
+    ).toBe(true);
+  });
+
+  it("accepts omitting source entirely (human web-form submissions)", () => {
+    expect(skillSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("accepts an empty-string source the same way githubUrl's siblings handle empty string", () => {
+    expect(skillSchema.safeParse({ ...base, source: "" }).success).toBe(true);
+  });
+
+  it("rejects a non-URL source", () => {
+    expect(skillSchema.safeParse({ ...base, source: "not-a-url" }).success).toBe(false);
   });
 });

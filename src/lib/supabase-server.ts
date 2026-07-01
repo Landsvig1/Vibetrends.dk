@@ -1,11 +1,19 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 export const supabasePublic = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+/** Shared by getAuthUser() and resolveBotRequestAuth() so the fallback-username
+ * rule (sanitize local-part, suffix "_vibe") only lives in one place. */
+function deriveUsername(user: { email?: string | null; user_metadata?: Record<string, unknown> }): string {
+  const email = user.email || '';
+  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
+  return (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
+}
 
 /**
  * Resolve the authenticated user from the Supabase session cookie and derive
@@ -18,11 +26,59 @@ export async function getAuthUser(): Promise<{ id: string; username: string } | 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const email = user.email || '';
-  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
-  const username = (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
+  return { id: user.id, username: deriveUsername(user) };
+}
 
-  return { id: user.id, username };
+/**
+ * Resolve identity from an `Authorization: Bearer <access_token>` header,
+ * returning both the identity and a Supabase client that carries that token
+ * on every subsequent request — so RLS (`auth.uid() = user_id`) passes for
+ * writes performed with the returned client, not just the identity check.
+ *
+ * Deliberately separate from `getAuthUser()` (the cookie-session seam shared
+ * by 11+ other route handlers) so this bearer path stays isolated to the
+ * routes that explicitly opt into it — see docs/decisions/2026-06-19-agent-auth.md
+ * and docs/plans/2026-07-01-001-feat-add-vibe-skills-catalog-plan.md (KTD1).
+ */
+export async function resolveBotRequestAuth(
+  request: Request
+): Promise<{ user: { id: string; username: string }; supabase: SupabaseClient } | null> {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token) return null;
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  return { user: { id: user.id, username: deriveUsername(user) }, supabase };
+}
+
+/**
+ * Resolve identity for a route that must accept either a browser session
+ * cookie or a bearer-authenticated bot request — tries `getAuthUser()` first,
+ * then falls back to `resolveBotRequestAuth()`. Used only by the two routes
+ * that opt into bot writes (`/api/vibes`, `/api/skills`); does not change
+ * `getAuthUser()`'s cookie-only behavior for any other caller.
+ */
+export async function resolveRequestIdentity(request: Request): Promise<{
+  user: { id: string; username: string };
+  botAuth?: { user: { id: string; username: string }; supabase: SupabaseClient };
+} | null> {
+  const user = await getAuthUser();
+  if (user) return { user };
+
+  const botAuth = await resolveBotRequestAuth(request);
+  if (botAuth) return { user: botAuth.user, botAuth };
+
+  return null;
 }
 
 export async function createSupabaseServerClient() {
