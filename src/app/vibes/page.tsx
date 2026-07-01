@@ -67,11 +67,17 @@ export default function ShowcasePage() {
       .catch((err) => console.error("Error fetching projects:", err));
   }, [language]);
 
-  // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA)
+  // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA).
+  // Deferred a microtask so the setState calls aren't synchronous within the
+  // effect body (react-hooks/set-state-in-effect) — this consumes a one-time
+  // URL flag, not state derivable at render time (submitOpen is also toggled
+  // independently by the "+" button).
   useEffect(() => {
     if (submitParam === "1") {
-      setSubmitOpen(true);
-      setSubmitParam(null);
+      queueMicrotask(() => {
+        setSubmitOpen(true);
+        setSubmitParam(null);
+      });
     }
   }, [submitParam, setSubmitParam]);
 
