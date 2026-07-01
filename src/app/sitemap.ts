@@ -26,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // section is demoted, so feed-worthy rows are crawled under their feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
-  const [skills, projects, clisRaw, mcpServers, posts, threadsRaw] = await Promise.all([
+  const [skills, projects, clisRaw, mcpServersRaw, posts, threadsRaw] = await Promise.all([
     getSkills(),
     getProjects(),
     getCli(),
@@ -36,9 +36,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — they're
-  // short-lived and must never be crawled/indexed.
+  // short-lived and must never be crawled/indexed. Filtering both `agents`-
+  // sourced lists (clis, mcpServers), not just the one the current fixture
+  // happens to seed, so a future fixture category change can't silently
+  // start leaking into the sitemap.
   const isFixture = (id: string) => id.startsWith("e2e-fixture-");
   const clis = clisRaw.filter((a) => !isFixture(a.id));
+  const mcpServers = mcpServersRaw.filter((a) => !isFixture(a.id));
   const threads = threadsRaw.filter((t) => !isFixture(t.id));
 
   // Showcase and blog detail pages carry user-generated content that is more

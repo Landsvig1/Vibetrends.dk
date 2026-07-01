@@ -1,6 +1,6 @@
 // Seeds deterministic fixture rows for the e2e suite (a forum thread, a CLI
 // entry) so tests/e2e/basic.spec.ts doesn't depend on whatever happens to
-// exist in production. Run before `playwright test`; tests/e2e/global-teardown.ts
+// exist in production. Run before `playwright test`; tests/e2e/global-teardown.mjs
 // removes exactly the rows this run creates.
 //
 // Ids embed a per-run epoch (mirrors createProject/createSkill's p_/s_
@@ -9,6 +9,11 @@
 // straight from the id — no created_at column needed (agents has none).
 //
 // Run: node --env-file-if-exists=.env.local scripts/seed-e2e-fixtures.mjs
+//
+// Deliberately `--env-file-if-exists`, not AGENTS.md's `--env-file` (which
+// hard-fails when the file is missing): this script also runs in CI, where
+// there is no .env.local at all — DATABASE_URL comes directly from a GitHub
+// Actions secret instead. `--env-file` would break the CI invocation outright.
 
 import fs from 'fs';
 import path from 'path';
@@ -28,9 +33,13 @@ function epochFromFixtureId(id) {
   return match ? Number(match[1]) : null;
 }
 
-async function cleanupStale(client, table, idColumn = 'id') {
+// `table` is always one of the two hardcoded literals passed below — never
+// caller/environment-controlled — so interpolating it into the query is safe
+// here, but do not extend this function to accept a caller-supplied table
+// name without adding an allowlist check first.
+async function cleanupStale(client, table) {
   const { rows } = await client.query(
-    `select ${idColumn} as id from public.${table} where ${idColumn} like 'e2e-fixture-%'`
+    `select id from public.${table} where id like 'e2e-fixture-%'`
   );
   const staleIds = rows
     .map((r) => r.id)
@@ -39,7 +48,7 @@ async function cleanupStale(client, table, idColumn = 'id') {
       return epoch !== null && Date.now() - epoch > STALE_THRESHOLD_MS;
     });
   if (staleIds.length > 0) {
-    await client.query(`delete from public.${table} where ${idColumn} = any($1)`, [staleIds]);
+    await client.query(`delete from public.${table} where id = any($1)`, [staleIds]);
     console.log(`Cleaned up ${staleIds.length} stale fixture row(s) from ${table}.`);
   }
 }

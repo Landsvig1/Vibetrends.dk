@@ -29,10 +29,14 @@ async function generateIndex() {
     return;
   }
 
+  // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — short-lived,
+  // must never surface in the shipped semantic index.
+  const isFixture = (id) => typeof id === 'string' && id.startsWith('e2e-fixture-');
+
   const s = skills.data || [];
   const p = showcase.data || [];
-  const a = agents.data || [];
-  const t = threads.data || [];
+  const a = (agents.data || []).filter((x) => !isFixture(x.id));
+  const t = (threads.data || []).filter((x) => !isFixture(x.id));
 
   // The agents table now carries the feed-vs-host taxonomy. Feed types are
   // surfaced; hosts (connection targets, not catalog items) are excluded.

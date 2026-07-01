@@ -35,8 +35,12 @@ export default async function globalTeardown() {
       await client.query('delete from public.agents where id = any($1)', [manifest.agents]);
     }
     console.log('e2e fixture teardown complete.');
+    // Only remove the manifest once both deletes above have actually
+    // succeeded — if a query threw, the manifest (and its still-untracked
+    // rows) must survive so the seed script's own stale-row cleanup can
+    // still find and remove them later.
+    fs.unlinkSync(FIXTURES_MANIFEST);
   } finally {
     await client.end();
-    fs.unlinkSync(FIXTURES_MANIFEST);
   }
 }

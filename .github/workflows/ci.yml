@@ -25,6 +25,13 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     continue-on-error: true
+    # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
+    # (scripts/seed-e2e-fixtures.mjs) — a single global group (not per-ref)
+    # serializes every run across every branch/PR so two overlapping runs
+    # can never delete each other's still-in-use fixture rows.
+    concurrency:
+      group: e2e-shared-fixture-db
+      cancel-in-progress: false
     env:
       CI: "true"
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
