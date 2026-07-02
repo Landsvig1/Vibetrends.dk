@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSkills, getProjects, getAgents, getCli, parseSkillView } from "@/lib/db";
-import { TOPIC_SLUGS, TOPICS } from "@/lib/topics";
+import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 
 /**
@@ -23,8 +23,8 @@ const TOOLS = [
         query: { type: "string", description: "Søgeterm" },
         category: {
           type: "string",
-          enum: [...TOPIC_SLUGS],
-          description: "Valgfri emne-filtrering (skills.sh topic-slug)",
+          enum: [...SKILL_CATEGORY_SLUGS],
+          description: "Valgfri kategori-filtrering (vibetrends' egen skills-taksonomi)",
         },
         view: {
           type: "string",
@@ -146,12 +146,12 @@ async function callTool(name: string, args: Record<string, unknown>) {
       return textContent(await getAgents(query, "MCP Server", lang));
     case "list_topics":
       return textContent(
-        TOPICS.map((t) => ({
-          slug: t.slug,
-          labelDa: t.labelDa,
-          labelEn: t.labelEn,
-          descDa: t.descDa,
-          descEn: t.descEn,
+        SKILL_CATEGORIES.map((c) => ({
+          slug: c.slug,
+          labelDa: c.labelDa,
+          labelEn: c.labelEn,
+          descDa: c.descDa,
+          descEn: c.descEn,
         })),
       );
     case "list_feed_types":

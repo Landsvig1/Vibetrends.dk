@@ -115,13 +115,13 @@ vi.mock("@/lib/supabase-server", () => {
 });
 
 import * as db from "@/lib/db";
-import { topicLabel, TOPIC_SLUGS } from "@/lib/topics";
+import { skillCategoryLabel, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 
 const skillRow = {
   id: "s1",
   title_da: "Titel DA",
   title_en: "Title EN",
-  category: "agent-workflows",
+  category: "agent-methodology",
   vibe_coder: "alice",
   vibe_coder_title_da: "Bidragyder",
   vibe_coder_title_en: "Contributor",
@@ -169,13 +169,13 @@ describe("mappers (language + null coalescing)", () => {
     expect(await db.getSkills()).toEqual([]);
   });
 
-  it("resolves categoryLabel from the topic slug, localized", async () => {
-    state.publicHandler = () => ({ data: [{ ...skillRow, category: "agent-workflows" }], error: null });
+  it("resolves categoryLabel from the category slug, localized", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, category: "agent-methodology" }], error: null });
     const [da] = await db.getSkills();
-    expect(da.category).toBe("agent-workflows"); // canonical slug preserved
-    expect(da.categoryLabel).toBe(topicLabel("agent-workflows", "da"));
+    expect(da.category).toBe("agent-methodology"); // canonical slug preserved
+    expect(da.categoryLabel).toBe(skillCategoryLabel("agent-methodology", "da"));
     const [en] = await db.getSkills(undefined, undefined, "en");
-    expect(en.categoryLabel).toBe(topicLabel("agent-workflows", "en"));
+    expect(en.categoryLabel).toBe(skillCategoryLabel("agent-methodology", "en"));
   });
 
   it("falls back to the raw value for an unknown/legacy category", async () => {
@@ -202,9 +202,9 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
 
   it("view=trending restricts to non-null trending_rank and orders by it ascending", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "full-stack", "da", "trending");
+    await db.getSkills(undefined, "fullstack-devops", "da", "trending");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "full-stack"]);
+    expect(call.filters).toContainEqual(["eq", "category", "fullstack-devops"]);
     expect(call.filters).toContainEqual(["not", "trending_rank", "is", null]);
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
@@ -219,9 +219,9 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
 
   it("view=hot combined with a category filters by both (symmetric with trending)", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "full-stack", "da", "hot");
+    await db.getSkills(undefined, "fullstack-devops", "da", "hot");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "full-stack"]);
+    expect(call.filters).toContainEqual(["eq", "category", "fullstack-devops"]);
     expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
     expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
   });
@@ -249,28 +249,28 @@ describe("parseSkillView", () => {
   });
 });
 
-describe("topic taxonomy labels", () => {
-  it("every TOPIC_SLUG resolves to non-empty da and en labels", () => {
-    for (const slug of TOPIC_SLUGS) {
-      expect(topicLabel(slug, "da")).toBeTruthy();
-      expect(topicLabel(slug, "en")).toBeTruthy();
+describe("skill category taxonomy labels", () => {
+  it("every SKILL_CATEGORY_SLUG resolves to non-empty da and en labels", () => {
+    for (const slug of SKILL_CATEGORY_SLUGS) {
+      expect(skillCategoryLabel(slug, "da")).toBeTruthy();
+      expect(skillCategoryLabel(slug, "en")).toBeTruthy();
     }
   });
 
   it("localizes slugs whose da/en labels diverge", () => {
-    expect(topicLabel("marketing", "da")).toBe("Markedsføring");
-    expect(topicLabel("marketing", "en")).toBe("Marketing");
-    expect(topicLabel("agent-workflows", "da")).toBe("Agent-workflows");
-    expect(topicLabel("agent-workflows", "en")).toBe("Agent workflows");
+    expect(skillCategoryLabel("growth-content", "da")).toBe("Vækst & Indhold");
+    expect(skillCategoryLabel("growth-content", "en")).toBe("Growth & Content");
+    expect(skillCategoryLabel("agent-methodology", "da")).toBe("Agent-metodik");
+    expect(skillCategoryLabel("agent-methodology", "en")).toBe("Agent Methodology");
   });
 });
 
 describe("category guards and search filters", () => {
   it("getSkills applies eq('category') for a concrete category", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "agent-workflows");
+    await db.getSkills(undefined, "agent-methodology");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "agent-workflows"]);
+    expect(call.filters).toContainEqual(["eq", "category", "agent-methodology"]);
   });
 
   it("getSkills does NOT filter category for 'All'", async () => {

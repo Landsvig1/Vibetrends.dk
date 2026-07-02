@@ -21,14 +21,14 @@ async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseCl
   return { supabase, userId };
 }
 
-import { topicLabel, type TopicSlug } from "./topics";
+import { skillCategoryLabel, type SkillCategorySlug } from "./skillCategories";
 import { type ForumCategoryKey } from "./forumCategories";
 
 export interface Skill {
   id: string;
-  /** Canonical topic slug (see src/lib/topics.ts). */
-  category: TopicSlug;
-  /** Localized topic label resolved from `category` for display. */
+  /** Canonical skill category slug (see src/lib/skillCategories.ts). */
+  category: SkillCategorySlug;
+  /** Localized category label resolved from `category` for display. */
   categoryLabel: string;
   title: string;
   vibeCoder: string;
@@ -205,10 +205,11 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
   return {
     id: s.id,
     title: lang === 'en' ? s.title_en : s.title_da,
-    // DB rows are migrated to slugs; topicLabel still falls back safely for any
-    // legacy value, so the cast documents intent without losing that guard.
-    category: s.category as TopicSlug,
-    categoryLabel: topicLabel(s.category, lang),
+    // DB rows are migrated to slugs; skillCategoryLabel still falls back
+    // safely for any legacy value, so the cast documents intent without
+    // losing that guard.
+    category: s.category as SkillCategorySlug,
+    categoryLabel: skillCategoryLabel(s.category, lang),
     vibeCoder: s.vibe_coder,
     vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,
     rating: Number(s.rating),
