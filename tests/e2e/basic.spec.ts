@@ -8,7 +8,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page).toHaveTitle(/vibetrends.dk/i);
     
     // Check Hero
-    await expect(page.getByText('Tools til dig og dine agenter')).toBeVisible();
+    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
     
     // Check Navigation — Agents has been demoted out of primary nav; the
     // CLI feed type takes its place. (Matches Header.tsx navItems:
@@ -21,28 +21,32 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
   });
 
-  test('should navigate to Showcase and view a project', async ({ page }) => {
+  test('should show Showcase projects with a working "Se Projekt" CTA', async ({ page }) => {
+    // Since #23 ("simplify card to thumbnail, title, desc, Se Projekt CTA"),
+    // the card itself has no click-to-detail-page navigation — the only
+    // interactive element besides upvote/delete is this external CTA link,
+    // which opens the project's demoUrl in a new tab. This test asserts that
+    // link, not an internal /vibes/[id] navigation that no longer exists.
     await page.goto('/vibes');
-    
+
     // Wait for heading
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
-    
+
     // Select the first project card
     const firstProject = page.getByTestId('project-card').first();
     await expect(firstProject).toBeVisible();
-    
     const projectTitle = await firstProject.locator('h3').innerText();
-    
-    // Click specifically on the card body area
-    await firstProject.click({ position: { x: 50, y: 50 } }); 
-    
-    // Verify detail page navigation
-    await page.waitForURL(/\/vibes\/.+/);
-    
-    // Check title in detail view - using regex for flexibility
-    const detailHeading = page.locator('h1');
-    await expect(detailHeading).toContainText(projectTitle.trim());
-    await expect(page.getByText(/Prompts/i).first()).toBeVisible();
+
+    const cta = firstProject.getByRole('link', { name: 'Se Projekt' });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('target', '_blank');
+
+    // Cross-check the rendered href against the API's demoUrl for this
+    // project, rather than only asserting the href is non-empty.
+    const projects = await (await page.request.get('/api/vibes')).json();
+    const project = projects.find((p: { title: string }) => p.title === projectTitle.trim());
+    expect(project?.demoUrl).toBeTruthy();
+    await expect(cta).toHaveAttribute('href', project.demoUrl);
   });
 
   test('should navigate to Forum and check tråde', async ({ page }) => {
@@ -50,8 +54,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
     
     await expect(page.getByRole('heading', { name: /Developer Forum/i })).toBeVisible();
     
-    // Check categories
-    await expect(page.getByRole('button', { name: 'General', exact: true })).toBeVisible();
+    // Check categories. The suite defaults to da (no language cookie set),
+    // and the bilingual-labels feature resolves category keys to locale
+    // labels (src/lib/forumCategories.ts) — "General" renders as "Generelt"
+    // under da, not the raw English key.
+    await expect(page.getByRole('button', { name: 'Generelt', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Prompts', exact: true })).toBeVisible();
     
     // Click a thread card
@@ -125,20 +132,29 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
+    // Two 45s toPass retry budgets below can't fit inside Playwright's default
+    // 30s per-test timeout with room left for the rest of the test — extend
+    // this test specifically rather than raising the suite-wide default.
+    test.setTimeout(120000);
     await page.goto('/');
 
     // 1. By default, it should be in Danish. Check a Danish phrase or link.
     await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible();
+    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
 
     // 2 & 3. Click EN and verify it switches to English. Retry the whole
     // interaction so a click landing before React hydration (which would be
     // silently dropped) doesn't flake the test — real users can't click that fast.
+    // Inner timeouts widened from 8000ms/outer 30000ms: the language toggle's
+    // router.refresh() re-runs the homepage's DB queries against Supabase's
+    // pooler, which on a cold CI runner can genuinely take longer than 8s —
+    // this isn't masking a bug (the refresh mechanism itself is verified
+    // correct), just accommodating real cold-start query latency.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 15000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 20000 });
+    }).toPass({ timeout: 45000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
     const cookies = await context.cookies();
@@ -149,14 +165,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 5. Reload page to test server-side persistence
     await page.reload();
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('The Hub for Danish Vibe Coders & AI Builders')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 10000 });
 
     // 6. Click DA toggle back. Same retry rationale as step 2 — this click
     // comes right after a reload, so hydration may not be finished yet.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('Hubben for danske Vibe Coders & AI-byggere')).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 15000 });
+      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 20000 });
+    }).toPass({ timeout: 45000 });
   });
 });

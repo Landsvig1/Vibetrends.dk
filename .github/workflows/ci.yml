@@ -25,10 +25,32 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     continue-on-error: true
+    # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
+    # (scripts/seed-e2e-fixtures.mjs) — a single global group (not per-ref)
+    # guarantees at most one run ever executes seed/cleanup at a time, so two
+    # overlapping runs can never delete each other's still-in-use fixture
+    # rows. Note: GitHub Actions only queues one *pending* run per group — a
+    # third overlapping trigger cancels the still-queued second one outright
+    # rather than queuing indefinitely, so under heavy overlap some pushes
+    # may see e2e skipped entirely for that commit. Acceptable at today's low
+    # PR volume (this job is non-blocking either way); revisit if that changes.
+    concurrency:
+      group: e2e-shared-fixture-db
+      cancel-in-progress: false
     env:
       CI: "true"
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+      # Postgres connection for scripts/seed-e2e-fixtures.mjs and
+      # tests/e2e/global-teardown.mjs — bypasses RLS, so no auth session is
+      # needed to seed/clean up forum_threads/agents fixture rows.
+      #
+      # Must be the Supabase *pooler* connection string (port 6543,
+      # aws-0-<region>.pooler.supabase.com), not the direct db.<ref>.supabase.co
+      # one used locally in .env.local: the direct host resolves to an
+      # IPv6-only address with no A record, and GitHub-hosted runners have no
+      # IPv6 egress — a direct DATABASE_URL fails with ENETUNREACH here.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +60,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build
+      - run: npm run test:e2e:seed
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

@@ -52,10 +52,15 @@ export default function Header() {
     <>
       <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full glass-panel border-b border-card-border backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Every Link in this header has prefetch={false}: they're rendered on
+            every page, so their background prefetches compete with any
+            in-flight router.refresh() (e.g. the language toggle) — the
+            browser can abort the real refresh's request in favor of a
+            redundant prefetch, silently dropping the update. */}
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
+            <Link href="/" prefetch={false} transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500 animate-pulse"></div>
                 <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition duration-300">
@@ -104,6 +109,7 @@ export default function Header() {
                           <Link
                             key={subItem.href}
                             href={subItem.href}
+                            prefetch={false}
                             transitionTypes={[directionType]}
                             className={`flex items-center space-x-2 px-4 py-2 text-sm transition-colors ${
                               isSubActive
@@ -125,6 +131,7 @@ export default function Header() {
                 <Link
                   key={item.href!}
                   href={item.href!}
+                  prefetch={false}
                   transitionTypes={[directionType]}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
                     isActive
@@ -169,6 +176,7 @@ export default function Header() {
 
             <Link
               href="/vibes"
+              prefetch={false}
               transitionTypes={["nav-forward"]}
               className="btn-primary flex items-center gap-1.5 text-sm"
               style={{ padding: '8px 16px' }}
@@ -242,6 +250,7 @@ export default function Header() {
                         <Link
                           key={subItem.href}
                           href={subItem.href}
+                          prefetch={false}
                           transitionTypes={[directionType]}
                           onClick={() => setMobileMenuOpen(false)}
                           className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition ${
@@ -264,6 +273,7 @@ export default function Header() {
               <Link
                 key={item.href!}
                 href={item.href!}
+                prefetch={false}
                 transitionTypes={[directionType]}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition ${
