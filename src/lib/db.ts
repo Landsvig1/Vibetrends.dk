@@ -42,13 +42,13 @@ export interface Skill {
   source?: string;
 }
 
-export type SkillView = "hot" | "trending";
+export type SkillView = "danish" | "hot" | "trending";
 
 /** Coerce an untrusted value to a valid SkillView, or undefined. Shared by the
  * REST route, the MCP tool, and the topic landing page so the whitelist lives
  * in one place. */
 export function parseSkillView(v: unknown): SkillView | undefined {
-  return v === "hot" || v === "trending" ? v : undefined;
+  return v === "danish" || v === "hot" || v === "trending" ? v : undefined;
 }
 
 export interface ShowcaseProject {
@@ -129,6 +129,8 @@ interface SkillRow {
   source?: string | null;
   hot_rank?: number | null;
   trending_rank?: number | null;
+  /** Skill comes from a Danish contributor (drives the Dansk view). */
+  is_danish?: boolean;
 }
 
 interface ShowcaseRow {
@@ -303,6 +305,11 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
 
   if (category && category !== "All") {
     query = query.eq('category', category);
+  }
+
+  // Danish board: skills from Danish contributors (is_danish flag).
+  if (view === 'danish') {
+    query = query.eq('is_danish', true);
   }
 
   // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.

@@ -28,8 +28,8 @@ const TOOLS = [
         },
         view: {
           type: "string",
-          enum: ["hot", "trending"],
-          description: "Valgfri rangliste: hot (seneste momentum) eller trending. Udelad for hele kataloget.",
+          enum: ["danish", "hot", "trending"],
+          description: "Valgfri visning: danish (skills fra danske bidragydere), hot (seneste momentum) eller trending. Udelad for hele kataloget.",
         },
         lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },

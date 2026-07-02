@@ -209,6 +209,14 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
 
+  it("view=danish filters to is_danish=true without imposing a rank order", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills(undefined, undefined, "da", "danish");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["eq", "is_danish", true]);
+    expect(call.filters.some((f) => f[0] === "order")).toBe(false);
+  });
+
   it("no view leaves the query unranked (no not/order filters)", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills();
@@ -240,7 +248,8 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
 });
 
 describe("parseSkillView", () => {
-  it("accepts hot/trending, rejects everything else", () => {
+  it("accepts danish/hot/trending, rejects everything else", () => {
+    expect(db.parseSkillView("danish")).toBe("danish");
     expect(db.parseSkillView("hot")).toBe("hot");
     expect(db.parseSkillView("trending")).toBe("trending");
     expect(db.parseSkillView("popular")).toBeUndefined();
