@@ -2,9 +2,20 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+/** Supabase's client has no request timeout by default — a stalled TCP
+ * connection (seen intermittently on CI runners) would otherwise hang the
+ * awaiting Server Component forever instead of erroring. Give every request
+ * a hard ceiling well under Next's own render timeouts. */
+const SUPABASE_FETCH_TIMEOUT_MS = 10000;
+
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(SUPABASE_FETCH_TIMEOUT_MS) });
+}
+
 export const supabasePublic = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  { global: { fetch: fetchWithTimeout } }
 );
 
 /** Shared by getAuthUser() and resolveBotRequestAuth() so the fallback-username
@@ -52,7 +63,7 @@ export async function resolveBotRequestAuth(
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
+    { global: { headers: { Authorization: `Bearer ${token}` }, fetch: fetchWithTimeout } }
   );
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -88,6 +99,7 @@ export async function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return cookieStore.getAll();

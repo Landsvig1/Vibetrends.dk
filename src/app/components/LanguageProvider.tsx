@@ -1,21 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { createContext, useContext, useState } from "react";
 import { translations, Language, TranslationKey } from "@/lib/translations";
 
 interface LanguageContextProps {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: TranslationKey) => string;
-  isPending: boolean;
 }
 
 const LanguageContext = createContext<LanguageContextProps>({
   language: "da",
   setLanguage: () => {},
   t: (key) => key,
-  isPending: false,
 });
 
 export function LanguageProvider({
@@ -27,8 +24,6 @@ export function LanguageProvider({
 }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
   const [prevInitialLanguage, setPrevInitialLanguage] = useState<Language>(initialLanguage);
-  const [isPending] = useTransition();
-  const router = useRouter();
 
   // Keep state in sync if initialLanguage changes during render
   if (initialLanguage !== prevInitialLanguage) {
@@ -38,10 +33,7 @@ export function LanguageProvider({
 
   const setLanguage = (lang: Language) => {
     // A redundant call (language already selected, e.g. a stray double-click)
-    // would fire a second router.refresh() while the first is still in
-    // flight — that second call can permanently discard the first's RSC
-    // payload before it commits, leaving the page stuck showing the old
-    // language indefinitely.
+    // would trigger a second reload while the first is already in flight.
     if (lang === language) return;
 
     setLanguageState(lang);
@@ -49,8 +41,13 @@ export function LanguageProvider({
     // Set the cookie
     document.cookie = `vibe_lang=${lang}; path=/; max-age=31536000; SameSite=Lax`;
 
-    // Trigger server components refresh
-    router.refresh();
+    // A full reload rather than router.refresh(): this app's pages render
+    // many <Link>s that Next auto-prefetches, and those background prefetch
+    // requests can win a race against router.refresh()'s own RSC fetch for
+    // the same URL — the browser aborts our fetch, silently leaving the page
+    // stuck on the old language. window.location.reload() can't be raced
+    // that way.
+    window.location.reload();
   };
 
   const t = (key: TranslationKey): string => {
@@ -61,7 +58,7 @@ export function LanguageProvider({
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, isPending }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
