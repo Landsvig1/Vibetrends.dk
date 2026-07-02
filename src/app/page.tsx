@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import {
   Sparkles, ArrowRight, Heart, PlusCircle,
   MessageSquare, Cpu, Layers, Briefcase,
-  Clock
+  Clock, Info
 } from "lucide-react";
 import { getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts, getThreads } from "@/lib/db";
 import { cookies } from "next/headers";
@@ -93,6 +93,14 @@ async function HomeContent() {
             <PlusCircle className="ml-2 h-4 w-4" />
           </Link>
         </div>
+
+        <Link
+          href="/about"
+          className="mt-6 inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
+        >
+          <Info className="mr-1.5 h-3.5 w-3.5" />
+          {t("home.btn_about")}
+        </Link>
       </section>
 
       {/* Stats Counter */}
