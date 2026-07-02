@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
-import { ArrowLeft, ArrowRight, Flame, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
 import { translations, Language } from "@/lib/translations";
@@ -112,9 +112,9 @@ async function TopicContent({
 
   const jsonLd = skillsListJsonLd(base, `${label} skills`, desc);
 
-  const tabs: { value: "all" | "hot" | "trending"; label: string; icon: typeof Flame | null; href: string }[] = [
+  const tabs: { value: "all" | "danish" | "trending"; label: string; icon: typeof Flag | null; href: string }[] = [
     { value: "all", label: isDa ? "Alle" : "All", icon: null, href: `/skills/topic/${slug}` },
-    { value: "hot", label: "Hot", icon: Flame, href: `/skills/topic/${slug}?view=hot` },
+    { value: "danish", label: isDa ? "Dansk" : "Danish", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
     { value: "trending", label: isDa ? "Trender" : "Trending", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
   ];
   const activeTab = view ?? "all";

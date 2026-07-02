@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
-import { Search, Briefcase, PlusCircle, CheckCircle2, X, Flame, TrendingUp, ArrowRight } from "lucide-react";
+import { Search, Briefcase, PlusCircle, CheckCircle2, X, Flag, TrendingUp, ArrowRight } from "lucide-react";
 import { Skill } from "@/lib/db";
 import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { TopicIcon } from "../components/TopicIcon";
@@ -17,11 +17,11 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 
 export default function SkillsPage() {
   // Full catalog drives search + per-topic counts; the view board is fetched
-  // lazily only when Hot/Trending is active.
+  // lazily only when Dansk/Trending is active.
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [viewSkills, setViewSkills] = useState<Skill[]>([]);
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [view, setView] = useQueryState("view", parseAsString.withDefault("all"));
+  const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
 
@@ -44,7 +44,7 @@ export default function SkillsPage() {
   }, [language]);
 
   useEffect(() => {
-    if (view !== "hot" && view !== "trending") return;
+    if (view !== "danish" && view !== "hot" && view !== "trending") return;
     fetch(`/api/skills?view=${view}`)
       .then((res) => res.json())
       .then((data) => setViewSkills(data))
@@ -67,18 +67,18 @@ export default function SkillsPage() {
     );
   };
 
-  // Search overrides the view. Otherwise Hot/Trending render their ranked board
-  // and the default "all" view shows the topic cards (no skill grid).
+  // Search overrides the view. Otherwise Dansk/Trending render their board
+  // and the "all" view shows the topic cards (no skill grid).
   const gridSkills = searchActive
     ? allSkills.filter(matchesSearch)
-    : view === "hot" || view === "trending"
+    : view === "danish" || view === "hot" || view === "trending"
       ? viewSkills
       : [];
   const showTopicCards = !searchActive && view === "all";
 
-  const viewTabs: { value: string; label: string; icon: typeof Flame | null }[] = [
+  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
+    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
     { value: "all", label: language === "da" ? "Emner" : "Topics", icon: null },
-    { value: "hot", label: "Hot", icon: Flame },
     { value: "trending", label: language === "da" ? "Trender" : "Trending", icon: TrendingUp },
   ];
 
@@ -216,7 +216,7 @@ export default function SkillsPage() {
         </div>
       )}
 
-      {/* Skill grid (search / Hot / Trending) */}
+      {/* Skill grid (search / Dansk / Trending) */}
       {!showTopicCards &&
         (gridSkills.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
