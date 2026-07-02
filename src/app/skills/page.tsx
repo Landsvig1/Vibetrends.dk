@@ -5,7 +5,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
 import { Search, Briefcase, PlusCircle, CheckCircle2, X, Flame, TrendingUp, ArrowRight } from "lucide-react";
 import { Skill } from "@/lib/db";
-import { TOPICS, TOPIC_SLUGS } from "@/lib/topics";
+import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { TopicIcon } from "../components/TopicIcon";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
@@ -32,7 +32,7 @@ export default function SkillsPage() {
   // Form states
   const [subTitle, setSubTitle] = useState("");
   const [subDesc, setSubDesc] = useState("");
-  const [subCat, setSubCat] = useState<string>(TOPIC_SLUGS[0]);
+  const [subCat, setSubCat] = useState<string>(SKILL_CATEGORY_SLUGS[0]);
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
@@ -51,7 +51,7 @@ export default function SkillsPage() {
       .catch((err) => console.error("Error fetching skills:", err));
   }, [view, language]);
 
-  const counts = TOPICS.reduce<Record<string, number>>((acc, topic) => {
+  const counts = SKILL_CATEGORIES.reduce<Record<string, number>>((acc, topic) => {
     acc[topic.slug] = allSkills.filter((s) => s.category === topic.slug).length;
     return acc;
   }, {});
@@ -184,7 +184,7 @@ export default function SkillsPage() {
       {/* Topic cards (default view) */}
       {showTopicCards && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {TOPICS.map((topic) => (
+          {SKILL_CATEGORIES.map((topic) => (
             <Link
               key={topic.slug}
               href={`/skills/topic/${topic.slug}`}
@@ -287,7 +287,7 @@ export default function SkillsPage() {
                         onChange={(e) => setSubCat(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/30 text-sm"
                       >
-                        {TOPICS.map((topic) => (
+                        {SKILL_CATEGORIES.map((topic) => (
                           <option key={topic.slug} value={topic.slug}>
                             {language === "da" ? topic.labelDa : topic.labelEn}
                           </option>

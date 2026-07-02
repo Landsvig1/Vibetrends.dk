@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { TOPIC_SLUGS } from "@/lib/topics";
+import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { z } from "zod";
 
 export const skillSchema = z.object({
   title: z.string().min(1).max(100),
-  category: z.enum(TOPIC_SLUGS),
+  category: z.enum(SKILL_CATEGORY_SLUGS),
   // Only title + link are essential. Description is optional (empty allowed).
   description: z.string().max(1000).optional().or(z.literal("")),
   tags: z.array(z.string()).max(10).optional(),

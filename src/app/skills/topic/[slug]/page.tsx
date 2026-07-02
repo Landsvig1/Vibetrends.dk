@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { ArrowLeft, ArrowRight, Flame, TrendingUp } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
-import { getTopic } from "@/lib/topics";
+import { getSkillCategory } from "@/lib/skillCategories";
 import { translations, Language } from "@/lib/translations";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
@@ -21,7 +21,7 @@ export const unstable_instant = {
   samples: [
     {
       cookies: [{ name: "vibe_lang", value: "da" }],
-      params: { slug: "full-stack" },
+      params: { slug: "backend-data" },
       searchParams: { view: null },
     },
   ],
@@ -29,7 +29,7 @@ export const unstable_instant = {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const topic = getTopic(slug);
+  const topic = getSkillCategory(slug);
   if (!topic) return { title: "Emne ikke fundet" };
 
   const cookieStore = await cookies();
@@ -78,7 +78,7 @@ async function TopicContent({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
-  const topic = getTopic(slug);
+  const topic = getSkillCategory(slug);
   if (!topic) notFound();
 
   const sp = await searchParams;

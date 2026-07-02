@@ -13,11 +13,11 @@ import { skillSchema } from "@/app/api/skills/route";
 
 // Guards the POST /api/skills submission contract after the add-skill flow was
 // reshaped: only title + link (githubUrl) are essential; description and tags
-// are optional. Category must be one of the current topic slugs.
+// are optional. Category must be one of the current skill category slugs.
 
 const base = {
   title: "My Skill",
-  category: "full-stack" as const,
+  category: "fullstack-devops" as const,
   githubUrl: "https://github.com/foo/bar",
 };
 
@@ -58,22 +58,26 @@ describe("skillSchema — optional description", () => {
 });
 
 describe("skillSchema — category enum", () => {
-  it("accepts every current topic slug", () => {
+  it("accepts every current skill category slug", () => {
     for (const category of [
-      "full-stack",
-      "marketing",
-      "webshop",
-      "front-end",
-      "back-end",
-      "design",
-      "agent-workflows",
+      "agent-methodology",
+      "frontend",
+      "backend-data",
+      "fullstack-devops",
+      "design-ux",
+      "growth-content",
+      "compliance",
+      "domain-data",
     ]) {
       expect(skillSchema.safeParse({ ...base, category }).success).toBe(true);
     }
   });
 
   it("rejects a legacy / unknown category", () => {
-    for (const category of ["nextjs", "mobile", "database", "testing", "design-ui"]) {
+    for (const category of [
+      "nextjs", "mobile", "database", "testing", "design-ui", // skills.sh-era slugs
+      "full-stack", "marketing", "webshop", "front-end", "back-end", "design", "agent-workflows", // prior discipline-era slugs
+    ]) {
       expect(skillSchema.safeParse({ ...base, category }).success).toBe(false);
     }
   });
