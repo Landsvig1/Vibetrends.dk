@@ -321,6 +321,7 @@ describe("category guards and search filters", () => {
           description_da: "d", description_en: "d", install_command: "npx tool",
           system_prompt_da: "p", system_prompt_en: "p", upvotes: 0, tags: [],
           is_danish: true, denmark_specific: true,
+          source_url: "https://github.com/dev/tool",
         },
       ],
       error: null,
@@ -328,8 +329,10 @@ describe("category guards and search filters", () => {
     const [plain, danish] = await db.getAgents();
     expect(plain.isDanish).toBe(false);
     expect(plain.denmarkSpecific).toBe(false);
+    expect(plain.sourceUrl).toBeUndefined();
     expect(danish.isDanish).toBe(true);
     expect(danish.denmarkSpecific).toBe(true);
+    expect(danish.sourceUrl).toBe("https://github.com/dev/tool");
   });
 
   it("getAgents always excludes Host even when Host is explicitly requested (yields nothing)", async () => {

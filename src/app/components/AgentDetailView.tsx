@@ -41,6 +41,7 @@ export default function AgentDetailView({
             "name": agent.name,
             "description": agent.description,
             "applicationCategory": "DeveloperApplication",
+            ...(agent.sourceUrl ? { "url": agent.sourceUrl } : {}),
             "author": {
               "@type": "Person",
               "name": agent.developer
@@ -106,6 +107,22 @@ export default function AgentDetailView({
                    {lang === "da" ? "Verificeret Vibe Tool" : "Verified Vibe Tool"}
                  </span>
                </div>
+               {agent.sourceUrl && (
+                 <>
+                   <span className="text-text-secondary">&middot;</span>
+                   <a
+                     href={agent.sourceUrl}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="flex items-center space-x-1.5 text-text-secondary hover:text-accent-primary transition-colors"
+                   >
+                     <Globe className="h-4 w-4" />
+                     <span className="font-bold underline-offset-2 hover:underline">
+                       {lang === "da" ? "Kilde" : "Source"}
+                     </span>
+                   </a>
+                 </>
+               )}
             </div>
           </div>
 
@@ -133,7 +150,7 @@ export default function AgentDetailView({
         <div className="space-y-6">
            <ConnectBlock
              feedType={feedType}
-             item={{ name: agent.name, installCommand: agent.installCommand }}
+             item={{ name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}
              lang={lang}
            />
            <AgentActionSection agent={agent} backHref={backHref} />
