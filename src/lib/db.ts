@@ -109,6 +109,10 @@ export interface Agent {
   systemPrompt: string;
   upvotes: number;
   tags: string[];
+  /** Tool comes from a Danish contributor (drives the Dansk tab on /cli and /mcp). */
+  isDanish: boolean;
+  /** Tool is specifically about Denmark (sorted first in the Dansk tab). */
+  denmarkSpecific: boolean;
 }
 
 // Database row shapes (snake_case, bilingual columns)
@@ -202,6 +206,8 @@ interface AgentRow {
   system_prompt_en: string;
   upvotes: number | null;
   tags: string[] | null;
+  is_danish?: boolean;
+  denmark_specific?: boolean;
 }
 
 // Map database entities to frontend camelCase objects
@@ -297,6 +303,8 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
     systemPrompt: lang === 'en' ? a.system_prompt_en : a.system_prompt_da,
     upvotes: a.upvotes || 0,
     tags: a.tags || [],
+    isDanish: a.is_danish ?? false,
+    denmarkSpecific: a.denmark_specific ?? false,
   };
 }
 

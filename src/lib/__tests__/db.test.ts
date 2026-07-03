@@ -308,6 +308,30 @@ describe("category guards and search filters", () => {
     expect(call.filters.some((f) => f[0] === "neq" && f[2] === "MCP Server")).toBe(false);
   });
 
+  it("mapAgent defaults the danish flags to false for pre-migration rows", async () => {
+    state.publicHandler = () => ({
+      data: [
+        {
+          id: "a1", name: "Tool", developer: "dev", category: "CLI",
+          description_da: "d", description_en: "d", install_command: "npx tool",
+          system_prompt_da: "p", system_prompt_en: "p", upvotes: 0, tags: [],
+        },
+        {
+          id: "a2", name: "Dansk Tool", developer: "dev", category: "CLI",
+          description_da: "d", description_en: "d", install_command: "npx tool",
+          system_prompt_da: "p", system_prompt_en: "p", upvotes: 0, tags: [],
+          is_danish: true, denmark_specific: true,
+        },
+      ],
+      error: null,
+    });
+    const [plain, danish] = await db.getAgents();
+    expect(plain.isDanish).toBe(false);
+    expect(plain.denmarkSpecific).toBe(false);
+    expect(danish.isDanish).toBe(true);
+    expect(danish.denmarkSpecific).toBe(true);
+  });
+
   it("getAgents always excludes Host even when Host is explicitly requested (yields nothing)", async () => {
     state.publicHandler = () => ({ data: [], error: null });
     await db.getAgents(undefined, "Host");

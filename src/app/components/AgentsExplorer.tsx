@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2 } from "lucide-react";
+import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
@@ -27,8 +27,9 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "CLI";
 
   const [agents, setAgents] = useState<Agent[]>([]);
-  // Search/category live in the URL so filtered views are shareable.
+  // Search/category/view live in the URL so filtered views are shareable.
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+  const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -94,6 +95,9 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
       if (res.ok) {
         const newAgent = await res.json();
         setAgents((prev) => [newAgent, ...prev]);
+        // New submissions aren't Danish-flagged, so the default Dansk tab
+        // would hide them — jump to Alle so the submitter sees their entry.
+        setView("all");
         setAddSuccess(true);
         setTimeout(() => {
           setAddSuccess(false);
@@ -134,11 +138,33 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
     "Host": <Globe className="h-4 w-4" />,
   };
 
-  const filteredAgents = agents.filter((agent) =>
+  const searchActive = search.trim() !== "";
+
+  // Search overrides the view (same contract as the /skills tabs). The server
+  // returns the list upvotes-desc, which IS the Hot order; Dansk filters to
+  // Danish contributors with Denmark-specific tools first; Alle is the full
+  // catalog alphabetically.
+  const viewAgents = searchActive
+    ? agents
+    : view === "danish"
+      ? [...agents]
+          .filter((a) => a.isDanish)
+          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific))
+      : view === "all"
+        ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
+        : agents;
+
+  const filteredAgents = viewAgents.filter((agent) =>
     agent.name.toLowerCase().includes(search.toLowerCase()) ||
     agent.description.toLowerCase().includes(search.toLowerCase()) ||
     agent.tags.some((t) => t.toLowerCase().includes(search.toLowerCase())),
   );
+
+  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
+    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
+    { value: "all", label: language === "da" ? "Alle" : "All", icon: null },
+    { value: "hot", label: "Hot", icon: Flame },
+  ];
 
   return (
     <div className="space-y-10">
@@ -191,6 +217,26 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
+        </div>
+
+        <div className="flex gap-2">
+          {viewTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setView(tab.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  view === tab.value && !searchActive
+                    ? "bg-accent-primary text-white font-extrabold shadow-md"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                }`}
+              >
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

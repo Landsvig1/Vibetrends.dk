@@ -87,11 +87,13 @@ async function run() {
         ]
       );
 
+      // is_danish: true — the /cli and /mcp explorers default to the Dansk
+      // tab, so the fixture must be Danish-flagged to be visible there.
       await client.query(
         `insert into public.agents
            (id, name, developer, category, description_da, description_en,
-            install_command, system_prompt_da, system_prompt_en, upvotes, tags)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            install_command, system_prompt_da, system_prompt_en, upvotes, tags, is_danish)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)`,
         [
           cliId,
           'E2E Fixture CLI',
