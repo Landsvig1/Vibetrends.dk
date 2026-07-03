@@ -56,3 +56,16 @@ describe("agentSchema — installCommand metacharacter rejection", () => {
     expect(agentSchema.safeParse(base).success).toBe(true);
   });
 });
+
+describe("agentSchema — sourceUrl", () => {
+  it("accepts a valid https URL, an empty string, and absence", () => {
+    expect(agentSchema.safeParse({ ...base, sourceUrl: "https://github.com/foo/bar" }).success).toBe(true);
+    expect(agentSchema.safeParse({ ...base, sourceUrl: "" }).success).toBe(true);
+    expect(agentSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("rejects non-URL strings", () => {
+    expect(agentSchema.safeParse({ ...base, sourceUrl: "not a url" }).success).toBe(false);
+    expect(agentSchema.safeParse({ ...base, sourceUrl: "github.com/foo/bar" }).success).toBe(false);
+  });
+});

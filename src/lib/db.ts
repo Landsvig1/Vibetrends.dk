@@ -113,6 +113,8 @@ export interface Agent {
   isDanish: boolean;
   /** Tool is specifically about Denmark (sorted first in the Dansk tab). */
   denmarkSpecific: boolean;
+  /** Canonical repo/site for the tool (like skills' githubUrl), when known. */
+  sourceUrl?: string;
 }
 
 // Database row shapes (snake_case, bilingual columns)
@@ -208,6 +210,7 @@ interface AgentRow {
   tags: string[] | null;
   is_danish?: boolean;
   denmark_specific?: boolean;
+  source_url?: string | null;
 }
 
 // Map database entities to frontend camelCase objects
@@ -305,6 +308,7 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
     tags: a.tags || [],
     isDanish: a.is_danish ?? false,
     denmarkSpecific: a.denmark_specific ?? false,
+    sourceUrl: a.source_url ?? undefined,
   };
 }
 
@@ -771,7 +775,7 @@ export async function deleteReply(threadId: string, replyId: string) {
   return (data?.length ?? 0) > 0;
 }
 
-export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[]) {
+export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -788,6 +792,7 @@ export async function createAgent(name: string, developer: string, category: Age
     system_prompt_en: systemPrompt,
     upvotes: 1,
     tags,
+    source_url: sourceUrl || null,
     user_id: user?.id || null,
   }).select().single();
 

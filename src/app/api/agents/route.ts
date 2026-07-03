@@ -24,6 +24,8 @@ export const agentSchema = z.object({
     .optional(),
   systemPrompt: z.string().optional(),
   tags: z.array(z.string()).max(10).optional(),
+  // Canonical repo/site for the tool (rendered as an outbound link).
+  sourceUrl: z.string().url().max(300).optional().or(z.literal("")),
 });
 
 import { cookies } from "next/headers";
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, category, description, installCommand, systemPrompt, tags } = result.data;
+    const { name, category, description, installCommand, systemPrompt, tags, sourceUrl } = result.data;
 
     const agent = await createAgent(
       name,
@@ -73,7 +75,8 @@ export async function POST(request: Request) {
       description,
       installCommand || "",
       systemPrompt || "",
-      tags || []
+      tags || [],
+      sourceUrl || undefined
     );
 
     return NextResponse.json(agent, { status: 201 });

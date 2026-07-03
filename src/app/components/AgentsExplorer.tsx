@@ -40,6 +40,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const [addName, setAddName] = useState("");
   const [addDesc, setAddDesc] = useState("");
   const [addInstall, setAddInstall] = useState("");
+  const [addSourceUrl, setAddSourceUrl] = useState("");
   const [addPrompt, setAddPrompt] = useState("");
   const [addTags, setAddTags] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
@@ -89,6 +90,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
           installCommand: addInstall || "npx -y create-vibe-agent",
           systemPrompt: addPrompt || "You are a helpful AI Agent.",
           tags: addTags.split(",").map((t) => t.trim()).filter(Boolean),
+          sourceUrl: addSourceUrl.trim() || undefined,
         }),
       });
 
@@ -105,6 +107,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
           setAddName("");
           setAddDesc("");
           setAddInstall("");
+          setAddSourceUrl("");
           setAddPrompt("");
           setAddTags("");
         }, 2500);
@@ -277,14 +280,28 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
                     </h3>
                   </div>
 
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
-                    aria-label={`Upvote ${agent.name}`}
-                    className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-                  >
-                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                    <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {agent.sourceUrl && (
+                      <a
+                        href={agent.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
+                        className="relative flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                      >
+                        <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
+                      aria-label={`Upvote ${agent.name}`}
+                      className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                    >
+                      <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                      <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
@@ -417,6 +434,19 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
                     onChange={(e) => setAddDesc(e.target.value)}
                     placeholder={t("agents.modal.placeholder_desc")}
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-text-secondary">
+                    {language === "da" ? "Kilde-URL (GitHub eller website, valgfri)" : "Source URL (GitHub or website, optional)"}
+                  </label>
+                  <input
+                    type="url"
+                    value={addSourceUrl}
+                    onChange={(e) => setAddSourceUrl(e.target.value)}
+                    placeholder="https://github.com/…"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
