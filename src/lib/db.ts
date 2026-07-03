@@ -842,10 +842,15 @@ export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
+  // Homepage feature spot: showcase the Danish catalog — Denmark-specific
+  // skills (job portals, property data, transit …) ahead of general tooling
+  // from Danish contributors. (Previously ordered by the legacy rating
+  // column, which is no longer rendered and identical across real rows.)
   const { data, error } = await supabasePublic
     .from('skills')
     .select('*')
-    .order('rating', { ascending: false })
+    .eq('is_danish', true)
+    .order('denmark_specific', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
   return data.map(s => mapSkill(s, lang));

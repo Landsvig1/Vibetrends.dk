@@ -632,12 +632,13 @@ describe("homepage-optimized reads", () => {
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
-  it("getTopSkills orders by rating desc and limits", async () => {
+  it("getTopSkills features danish skills, denmark-specific first, and limits", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     const res = await db.getTopSkills(1, "da");
     expect(res).toHaveLength(1);
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["order", "rating", { ascending: false }]);
+    expect(call.filters).toContainEqual(["eq", "is_danish", true]);
+    expect(call.filters).toContainEqual(["order", "denmark_specific", { ascending: false }]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
