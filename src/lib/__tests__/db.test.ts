@@ -209,12 +209,12 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
 
-  it("view=danish filters to is_danish=true without imposing a rank order", async () => {
+  it("view=danish filters to is_danish=true and sorts denmark_specific first", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills(undefined, undefined, "da", "danish");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
-    expect(call.filters.some((f) => f[0] === "order")).toBe(false);
+    expect(call.filters).toContainEqual(["order", "denmark_specific", { ascending: false }]);
   });
 
   it("no view leaves the query unranked (no not/order filters)", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Star, Plug } from "lucide-react";
+import { Plug } from "lucide-react";
 import { Skill } from "@/lib/db";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -72,13 +72,7 @@ export function SkillCard({
 
       <div className="flex items-center justify-between pt-4 border-t border-card-border">
         <div>
-          <div className="flex items-center space-x-1.5">
-            <span className="text-sm font-semibold text-foreground">{skill.vibeCoder}</span>
-            <div className="flex items-center text-accent-primary text-xs">
-              <Star className="h-3.5 w-3.5 fill-accent-primary mr-0.5" />
-              <span className="font-bold">{skill.rating}</span>
-            </div>
-          </div>
+          <span className="text-sm font-semibold text-foreground">{skill.vibeCoder}</span>
           <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
         </div>
 

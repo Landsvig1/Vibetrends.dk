@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Star, Briefcase } from "lucide-react";
+import { ArrowLeft, Briefcase } from "lucide-react";
 import { getSkillById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
@@ -106,10 +106,6 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
                   {skill.title}
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-accent-primary">
-                <Star className="h-4 w-4 fill-current" />
-                <span className="font-mono font-bold">{skill.rating.toFixed(1)}</span>
-              </div>
             </div>
 
             <p className="text-text-secondary text-lg leading-relaxed">
@@ -150,10 +146,6 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
               {lang === "da" ? "Detaljer" : "Details"}
             </h4>
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-text-secondary">{lang === "da" ? "Anmeldelser" : "Reviews"}</span>
-                <span className="text-foreground font-mono">{skill.reviewsCount}</span>
-              </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">{lang === "da" ? "Kategori" : "Category"}</span>
                 <span className="text-foreground font-mono">{skill.categoryLabel}</span>
