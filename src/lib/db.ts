@@ -131,6 +131,8 @@ interface SkillRow {
   trending_rank?: number | null;
   /** Skill comes from a Danish contributor (drives the Dansk view). */
   is_danish?: boolean;
+  /** Skill is specifically about Denmark (sorted first in the Dansk view). */
+  denmark_specific?: boolean;
 }
 
 interface ShowcaseRow {
@@ -307,9 +309,11 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.eq('category', category);
   }
 
-  // Danish board: skills from Danish contributors (is_danish flag).
+  // Danish board: skills from Danish contributors (is_danish flag), with the
+  // skills that are specifically about Denmark (job portals, property data,
+  // transit …) surfaced first.
   if (view === 'danish') {
-    query = query.eq('is_danish', true);
+    query = query.eq('is_danish', true).order('denmark_specific', { ascending: false });
   }
 
   // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.
