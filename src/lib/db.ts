@@ -394,6 +394,19 @@ export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
   return mapProject(data, lang);
 }
 
+/** Admin multi-like: admins bypass the one-per-user toggle — every call bumps
+ * the counter via the admin_bump_upvotes RPC (SECURITY DEFINER, verifies
+ * admin identity server-side). Returns the new count, or null when the caller
+ * is not an admin so the caller falls through to the normal toggle path. */
+async function adminBumpUpvotes(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  kind: 'vibe' | 'thread' | 'reply' | 'agent',
+  targetId: string
+): Promise<number | null> {
+  const { data } = await supabase.rpc('admin_bump_upvotes', { kind, target_id: targetId });
+  return typeof data === 'number' ? data : null;
+}
+
 export async function upvoteProject(id: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -402,6 +415,9 @@ export async function upvoteProject(id: string) {
     console.warn('Cannot upvote: User is not authenticated');
     return 0;
   }
+
+  const adminCount = await adminBumpUpvotes(supabase, 'vibe', id);
+  if (adminCount !== null) return adminCount;
 
   // Attempt to insert join table row (toggle pattern)
   const { error } = await supabase.from('vibes_upvotes').insert({
@@ -485,6 +501,9 @@ export async function upvoteThread(id: string) {
     return 0;
   }
 
+  const adminCount = await adminBumpUpvotes(supabase, 'thread', id);
+  if (adminCount !== null) return adminCount;
+
   const { error } = await supabase.from('thread_upvotes').insert({
     user_id: user.id,
     thread_id: id,
@@ -517,6 +536,9 @@ export async function upvoteReply(id: string) {
     console.warn('Cannot upvote reply: User is not authenticated');
     return 0;
   }
+
+  const adminCount = await adminBumpUpvotes(supabase, 'reply', id);
+  if (adminCount !== null) return adminCount;
 
   const { error } = await supabase.from('reply_upvotes').insert({
     user_id: user.id,
@@ -661,6 +683,9 @@ export async function upvoteAgent(id: string) {
     console.warn('Cannot upvote agent: User is not authenticated');
     return 0;
   }
+
+  const adminCount = await adminBumpUpvotes(supabase, 'agent', id);
+  if (adminCount !== null) return adminCount;
 
   const { error } = await supabase.from('agent_upvotes').insert({
     user_id: user.id,

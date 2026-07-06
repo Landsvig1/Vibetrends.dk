@@ -31,6 +31,11 @@ const state = vi.hoisted(() => {
     user: null as { id: string } | null,
     publicCalls: [] as BuilderOps[],
     serverCalls: [] as BuilderOps[],
+    // admin_bump_upvotes RPC result: null = not an admin (normal toggle path).
+    rpcHandler: ((_fn: string, _args: unknown) => ({ data: null, error: null })) as (
+      fn: string,
+      args: unknown
+    ) => { data: unknown; error: unknown },
   };
 });
 
@@ -109,6 +114,7 @@ vi.mock("@/lib/supabase-server", () => {
     createSupabaseServerClient: async () => ({
       auth: { getUser: async () => ({ data: { user: state.user } }) },
       from: (table: string) => makeBuilder(table, state.serverCalls, state.serverHandler),
+      rpc: async (fn: string, args: unknown) => state.rpcHandler(fn, args),
     }),
     getAuthUser: vi.fn(),
   };
@@ -139,6 +145,7 @@ beforeEach(() => {
   state.user = null;
   state.publicCalls = [];
   state.serverCalls = [];
+  state.rpcHandler = () => ({ data: null, error: null });
 });
 
 describe("mappers (language + null coalescing)", () => {
@@ -415,6 +422,18 @@ describe("upvoteProject toggle and null-vs-0 semantics", () => {
     state.publicHandler = () => ({ data: null, error: null }); // no row
     const result = await db.upvoteProject("p1");
     expect(result).toBeNull();
+  });
+
+  it("admins bypass the toggle: admin_bump_upvotes result is returned, no insert", async () => {
+    state.user = { id: "admin" };
+    state.rpcHandler = (fn, args) => {
+      expect(fn).toBe("admin_bump_upvotes");
+      expect(args).toEqual({ kind: "vibe", target_id: "p1" });
+      return { data: 42, error: null };
+    };
+    const result = await db.upvoteProject("p1");
+    expect(result).toBe(42);
+    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
   });
 });
 
