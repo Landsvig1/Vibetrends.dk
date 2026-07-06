@@ -63,8 +63,18 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const handleUpvote = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
     try {
       const res = await fetch(`/api/agents/${id}/upvote`, { method: "POST" });
+      if (res.status === 401) {
+        // Session expired since page load — silently dropping the click made
+        // the button look broken, so surface the login modal instead.
+        setLoginModalOpen(true);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, upvotes: data.upvotes } : a)));

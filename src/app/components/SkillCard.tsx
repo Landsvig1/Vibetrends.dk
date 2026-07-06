@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plug } from "lucide-react";
+import { Heart, Plug } from "lucide-react";
 import { Skill } from "@/lib/db";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -31,10 +31,14 @@ export function SkillCard({
   skill,
   githubLabel,
   connectLabel = "Connect",
+  onUpvote,
 }: {
   skill: Skill;
   githubLabel: string;
   connectLabel?: string;
+  /** When set (client surfaces), the heart becomes an upvote button; without
+   * it (server-rendered topic pages) the count is shown read-only. */
+  onUpvote?: (id: string, e: React.MouseEvent) => void;
 }) {
   return (
     <div
@@ -77,6 +81,25 @@ export function SkillCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {onUpvote ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
+              aria-label={`Upvote ${skill.title}`}
+              data-testid="skill-upvote"
+              className="relative z-20 flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold font-mono rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] hover:text-accent-primary transition cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              {skill.upvotes}
+            </button>
+          ) : (
+            <span
+              data-testid="skill-upvote-count"
+              className="relative z-20 flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold font-mono rounded text-text-secondary"
+            >
+              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              {skill.upvotes}
+            </span>
+          )}
           <Link
             href={`/skills/${skill.id}#connect`}
             data-testid="skill-connect"
