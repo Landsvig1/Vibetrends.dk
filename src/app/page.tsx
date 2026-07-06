@@ -138,7 +138,14 @@ async function HomeContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {featuredProjects.map((project, i) => (
-            <div key={project.id} className="rounded-xl glass-card overflow-hidden flex flex-col">
+            <div key={project.id} className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
+              {/* Card-wide overlay: screenshot and title open the project
+                  detail page (same pattern as SkillCard). */}
+              <Link
+                href={`/vibes/${project.id}`}
+                aria-label={project.title}
+                className="absolute inset-0 z-10 rounded-xl"
+              />
               <div className="h-48 relative overflow-hidden bg-card-border">
                 <Image
                   src={project.imageUrl}
