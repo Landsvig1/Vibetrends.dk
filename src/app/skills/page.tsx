@@ -82,6 +82,31 @@ export default function SkillsPage() {
     { value: "trending", label: language === "da" ? "Trender" : "Trending", icon: TrendingUp },
   ];
 
+  const handleUpvote = async (id: string) => {
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/skills/${id}/upvote`, { method: "POST" });
+      if (res.status === 401) {
+        // Session expired since page load — silently dropping the click made
+        // the button look broken, so surface the login modal instead.
+        setLoginModalOpen(true);
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const bump = (list: Skill[]) =>
+          list.map((s) => (s.id === id ? { ...s, upvotes: data.upvotes } : s));
+        setAllSkills(bump);
+        setViewSkills(bump);
+      }
+    } catch (err) {
+      console.error("Error upvoting skill:", err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -221,7 +246,7 @@ export default function SkillsPage() {
         (gridSkills.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {gridSkills.map((skill) => (
-              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} connectLabel={t("skills.connect")} />
+              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} connectLabel={t("skills.connect")} onUpvote={handleUpvote} />
             ))}
           </div>
         ) : (

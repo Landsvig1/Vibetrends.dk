@@ -35,6 +35,7 @@ export interface Skill {
   vibeCoderTitle: string;
   rating: number;
   reviewsCount: number;
+  upvotes: number;
   description: string;
   tags: string[];
   githubUrl?: string;
@@ -128,6 +129,7 @@ interface SkillRow {
   vibe_coder_title_en: string;
   rating: number | string;
   reviews_count: number;
+  upvotes?: number;
   description_da: string;
   description_en: string;
   tags: string[] | null;
@@ -227,6 +229,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     vibeCoderTitle: lang === 'en' ? s.vibe_coder_title_en : s.vibe_coder_title_da,
     rating: Number(s.rating),
     reviewsCount: s.reviews_count,
+    upvotes: s.upvotes ?? 0,
     description: lang === 'en' ? s.description_en : s.description_da,
     tags: s.tags || [],
     githubUrl: s.github_url || undefined,
@@ -323,9 +326,12 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
 
   // Danish board: skills from Danish contributors (is_danish flag), with the
   // skills that are specifically about Denmark (job portals, property data,
-  // transit …) surfaced first.
+  // transit …) surfaced first, ranked by upvotes within each group.
   if (view === 'danish') {
-    query = query.eq('is_danish', true).order('denmark_specific', { ascending: false });
+    query = query
+      .eq('is_danish', true)
+      .order('denmark_specific', { ascending: false })
+      .order('upvotes', { ascending: false });
   }
 
   // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.
@@ -335,6 +341,11 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.not('hot_rank', 'is', null).order('hot_rank', { ascending: true });
   } else if (view === 'trending') {
     query = query.not('trending_rank', 'is', null).order('trending_rank', { ascending: true });
+  }
+
+  // Full catalog (no view): most upvoted first, same as the agents feeds.
+  if (!view) {
+    query = query.order('upvotes', { ascending: false });
   }
 
   const { data, error } = await query;
@@ -358,6 +369,42 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
   const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapSkill(data, lang);
+}
+
+export async function upvoteSkill(id: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn('Cannot upvote skill: User is not authenticated');
+    return 0;
+  }
+
+  const adminCount = await adminBumpUpvotes(supabase, 'skill', id);
+  if (adminCount !== null) return adminCount;
+
+  const { error } = await supabase.from('skill_upvotes').insert({
+    user_id: user.id,
+    skill_id: id,
+  });
+
+  if (error && error.code === '23505') {
+    await supabase
+      .from('skill_upvotes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('skill_id', id);
+  }
+
+  const { data } = await supabasePublic
+    .from('skills')
+    .select('upvotes')
+    .eq('id', id)
+    .single();
+
+  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
+  if (!data) return null;
+  return data.upvotes ?? 0;
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sort: 'top' | 'new' | 'az' = 'new') {
@@ -400,7 +447,7 @@ export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
  * is not an admin so the caller falls through to the normal toggle path. */
 async function adminBumpUpvotes(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  kind: 'vibe' | 'thread' | 'reply' | 'agent',
+  kind: 'vibe' | 'thread' | 'reply' | 'agent' | 'skill',
   targetId: string
 ): Promise<number | null> {
   const { data } = await supabase.rpc('admin_bump_upvotes', { kind, target_id: targetId });
@@ -889,6 +936,7 @@ export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
     .select('*')
     .eq('is_danish', true)
     .order('denmark_specific', { ascending: false })
+    .order('upvotes', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
   return data.map(s => mapSkill(s, lang));

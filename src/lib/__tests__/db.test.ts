@@ -32,7 +32,7 @@ const state = vi.hoisted(() => {
     publicCalls: [] as BuilderOps[],
     serverCalls: [] as BuilderOps[],
     // admin_bump_upvotes RPC result: null = not an admin (normal toggle path).
-    rpcHandler: ((_fn: string, _args: unknown) => ({ data: null, error: null })) as (
+    rpcHandler: (() => ({ data: null, error: null })) as (
       fn: string,
       args: unknown
     ) => { data: unknown; error: unknown },
@@ -216,20 +216,26 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
 
-  it("view=danish filters to is_danish=true and sorts denmark_specific first", async () => {
+  it("view=danish filters to is_danish=true, sorts denmark_specific first then upvotes", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills(undefined, undefined, "da", "danish");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
-    expect(call.filters).toContainEqual(["order", "denmark_specific", { ascending: false }]);
+    const orders = call.filters.filter((f) => f[0] === "order");
+    expect(orders).toEqual([
+      ["order", "denmark_specific", { ascending: false }],
+      ["order", "upvotes", { ascending: false }],
+    ]);
   });
 
-  it("no view leaves the query unranked (no not/order filters)", async () => {
+  it("no view ranks the full catalog by upvotes (no snapshot-rank filters)", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills();
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters.some((f) => f[0] === "not")).toBe(false);
-    expect(call.filters.some((f) => f[0] === "order")).toBe(false);
+    expect(call.filters.filter((f) => f[0] === "order")).toEqual([
+      ["order", "upvotes", { ascending: false }],
+    ]);
   });
 
   it("view=hot combined with a category filters by both (symmetric with trending)", async () => {
@@ -464,6 +470,28 @@ describe("upvoteThread / upvoteAgent mirror the toggle semantics on the right ta
   it("upvoteThread returns 0 and does not insert when unauthenticated", async () => {
     state.user = null;
     expect(await db.upvoteThread("t1")).toBe(0);
+    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("upvoteSkill inserts into skill_upvotes keyed by skill_id", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 3 }, error: null });
+    const result = await db.upvoteSkill("s1");
+    const insert = state.serverCalls.find((c) => c.table === "skill_upvotes");
+    expect(insert?.payload).toEqual({ user_id: "u1", skill_id: "s1" });
+    expect(result).toBe(3);
+  });
+
+  it("upvoteSkill routes admins through admin_bump_upvotes with kind 'skill'", async () => {
+    state.user = { id: "admin" };
+    state.rpcHandler = (fn, args) => {
+      expect(fn).toBe("admin_bump_upvotes");
+      expect(args).toEqual({ kind: "skill", target_id: "s1" });
+      return { data: 9, error: null };
+    };
+    const result = await db.upvoteSkill("s1");
+    expect(result).toBe(9);
     expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
   });
 

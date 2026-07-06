@@ -9,6 +9,9 @@ import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
+import dynamic from "next/dynamic";
+
+const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
 
 export default function ShowcasePage() {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
@@ -17,6 +20,7 @@ export default function ShowcasePage() {
   const [submitParam, setSubmitParam] = useQueryState("submit", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // Submit modal states
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -98,8 +102,18 @@ export default function ShowcasePage() {
   // Handle upvoting via API
   const handleUpvote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!user) {
+      setLoginModalOpen(true);
+      return;
+    }
     try {
       const res = await fetch(`/api/vibes/${id}/upvote`, { method: "POST" });
+      if (res.status === 401) {
+        // Session expired since page load — silently dropping the click made
+        // the button look broken, so surface the login modal instead.
+        setLoginModalOpen(true);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setProjects((prev) =>
@@ -436,6 +450,8 @@ export default function ShowcasePage() {
           </div>
         </div>
       )}
+
+      {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
     </div>
   );
 }
