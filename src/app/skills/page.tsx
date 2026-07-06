@@ -37,7 +37,10 @@ export default function SkillsPage() {
   const [subUrl, setSubUrl] = useState("");
 
   useEffect(() => {
-    fetch("/api/skills")
+    // no-store: the route's public max-age header is for external API
+    // consumers; the interactive page must always read fresh counts, or a
+    // reload right after upvoting shows the pre-vote cached response.
+    fetch("/api/skills", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setAllSkills(data))
       .catch((err) => console.error("Error fetching skills:", err));
@@ -45,7 +48,7 @@ export default function SkillsPage() {
 
   useEffect(() => {
     if (view !== "danish" && view !== "hot" && view !== "trending") return;
-    fetch(`/api/skills?view=${view}`)
+    fetch(`/api/skills?view=${view}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setViewSkills(data))
       .catch((err) => console.error("Error fetching skills:", err));

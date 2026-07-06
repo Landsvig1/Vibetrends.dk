@@ -69,7 +69,10 @@ export default function ShowcasePage() {
     const params = new URLSearchParams();
     if (sort !== "new") params.set("sort", sort);
     const qs = params.toString();
-    fetch(qs ? `/api/vibes?${qs}` : "/api/vibes")
+    // no-store: the route's public max-age header is for external API
+    // consumers; the interactive page must always read fresh counts, or a
+    // reload right after upvoting shows the pre-vote cached response.
+    fetch(qs ? `/api/vibes?${qs}` : "/api/vibes", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setProjects(data))
       .catch((err) => console.error("Error fetching projects:", err));

@@ -46,7 +46,10 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const [addSuccess, setAddSuccess] = useState(false);
 
   useEffect(() => {
-    fetch(fetchUrl)
+    // no-store: the route's public max-age header is for external API
+    // consumers; the interactive page must always read fresh counts, or a
+    // reload right after upvoting shows the pre-vote cached response.
+    fetch(fetchUrl, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setAgents(data))
       .catch((err) => console.error("Error fetching registry:", err));
