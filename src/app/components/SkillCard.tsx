@@ -60,6 +60,26 @@ export function SkillCard({
               {skill.title}
             </h3>
           </div>
+
+          {onUpvote ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
+              aria-label={`Upvote ${skill.title}`}
+              data-testid="skill-upvote"
+              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+            >
+              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+            </button>
+          ) : (
+            <span
+              data-testid="skill-upvote-count"
+              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
+            >
+              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+            </span>
+          )}
         </div>
         <p className="text-sm text-text-secondary leading-relaxed">{skill.description}</p>
         <div className="flex flex-wrap gap-1.5 pt-2">
@@ -81,25 +101,6 @@ export function SkillCard({
         </div>
 
         <div className="flex items-center gap-2">
-          {onUpvote ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
-              aria-label={`Upvote ${skill.title}`}
-              data-testid="skill-upvote"
-              className="relative z-20 flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold font-mono rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] hover:text-accent-primary transition cursor-pointer"
-            >
-              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-              {skill.upvotes}
-            </button>
-          ) : (
-            <span
-              data-testid="skill-upvote-count"
-              className="relative z-20 flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold font-mono rounded text-text-secondary"
-            >
-              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-              {skill.upvotes}
-            </span>
-          )}
           <Link
             href={`/skills/${skill.id}#connect`}
             data-testid="skill-connect"
