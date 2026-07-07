@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Clock, TrendingUp, ArrowDownAZ } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
@@ -290,6 +291,14 @@ export default function ShowcasePage() {
               data-testid="project-card"
               className="relative rounded-xl glass-card overflow-hidden flex flex-col group"
             >
+              {/* Card-wide overlay: screenshot, title, and whitespace all open
+                  the project detail page (same pattern as SkillCard); the
+                  delete/upvote/visit controls sit above it at z-20. */}
+              <Link
+                href={`/vibes/${project.id}`}
+                aria-label={project.title}
+                className="absolute inset-0 z-10 rounded-xl"
+              />
               <div className="h-44 relative bg-background overflow-hidden">
                 <Image
                   src={project.imageUrl}
@@ -306,7 +315,7 @@ export default function ShowcasePage() {
                   <button
                     onClick={(e) => handleDeleteProject(project.id, e)}
                     aria-label={t("showcase.detail.confirm_delete")}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -315,7 +324,7 @@ export default function ShowcasePage() {
                 <button
                   onClick={(e) => handleUpvote(project.id, e)}
                   aria-label={`Upvote ${project.title}`}
-                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-10"
+                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
                 >
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{project.upvotes}</span>
@@ -336,7 +345,8 @@ export default function ShowcasePage() {
                   href={project.demoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 py-3 rounded-lg btn-primary text-sm font-bold transition hover:scale-[1.02]"
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative z-20 flex items-center justify-center gap-2 py-3 rounded-lg btn-primary text-sm font-bold transition hover:scale-[1.02]"
                 >
                   <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                   {t("showcase.visit")}

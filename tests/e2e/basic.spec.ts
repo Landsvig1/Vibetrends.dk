@@ -22,11 +22,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('should show Showcase projects with a working "Se Projekt" CTA', async ({ page }) => {
-    // Since #23 ("simplify card to thumbnail, title, desc, Se Projekt CTA"),
-    // the card itself has no click-to-detail-page navigation — the only
-    // interactive element besides upvote/delete is this external CTA link,
-    // which opens the project's demoUrl in a new tab. This test asserts that
-    // link, not an internal /vibes/[id] navigation that no longer exists.
+    // The card carries two links: a card-wide overlay (aria-label = project
+    // title) that navigates to the internal /vibes/[id] detail page, and this
+    // external "Se Projekt" CTA that opens the project's demoUrl in a new
+    // tab. This test asserts the external CTA; the overlay is covered by the
+    // detail-navigation test below.
     await page.goto('/vibes');
 
     // Wait for heading
@@ -47,6 +47,21 @@ test.describe('VibeTrends.dk Core Flows', () => {
     const project = projects.find((p: { title: string }) => p.title === projectTitle.trim());
     expect(project?.demoUrl).toBeTruthy();
     await expect(cta).toHaveAttribute('href', project.demoUrl);
+  });
+
+  test('project card overlay opens the /vibes/[id] detail page', async ({ page }) => {
+    await page.goto('/vibes');
+    await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
+
+    const firstProject = page.getByTestId('project-card').first();
+    await expect(firstProject).toBeVisible();
+    const projectTitle = (await firstProject.locator('h3').innerText()).trim();
+
+    // The card-wide overlay link is named by the project title; clicking the
+    // screenshot or title lands on it because it covers the whole card.
+    await firstProject.getByRole('link', { name: projectTitle }).click();
+    await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
+    await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
   });
 
   test('should navigate to Forum and check tråde', async ({ page }) => {
