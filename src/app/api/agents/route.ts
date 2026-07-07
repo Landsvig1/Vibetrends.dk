@@ -40,8 +40,14 @@ export async function GET(request: Request) {
 
   const agents = await getAgents(search, category, lang);
   return NextResponse.json(agents, {
+    // no-store: `public, max-age` was cached by Vercel's shared edge — a
+    // request from ANY client within the window got a stale pre-vote
+    // upvote count regardless of the client's own cache mode (fetch's
+    // `cache: "no-store"` on the caller only bypasses the browser's local
+    // cache, not this shared layer). Correctness for interactive upvotes
+    // matters more than the minor DB-load saving here.
     headers: {
-      "Cache-Control": "public, max-age=10, stale-while-revalidate=5",
+      "Cache-Control": "no-store",
     },
   });
 }
