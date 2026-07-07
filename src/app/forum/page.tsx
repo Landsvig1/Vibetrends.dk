@@ -34,7 +34,10 @@ export default function ForumPage() {
     if (selectedCategory !== "All") params.set("category", selectedCategory);
     if (sort === "new") params.set("sort", "new");
     const qs = params.toString();
-    fetch(qs ? `/api/forum?${qs}` : "/api/forum")
+    // no-store: the route's public max-age header is for external API
+    // consumers; the interactive page must always read fresh counts, or a
+    // reload right after upvoting shows the pre-vote cached response.
+    fetch(qs ? `/api/forum?${qs}` : "/api/forum", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setThreads(data);
