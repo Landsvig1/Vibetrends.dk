@@ -5,6 +5,9 @@ import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
 import ConnectBlock from "./ConnectBlock";
 import { jsonLdScript } from "@/lib/jsonLd";
+import { deriveVibeInsights } from "@/lib/vibeInsights";
+
+const INSIGHT_DOT_COLORS = ["bg-violet-500", "bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-sky-500"];
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).
 // `backHref` controls where the back link returns (/agents or /mcp).
@@ -29,6 +32,7 @@ export default function AgentDetailView({
   // MCP servers and CLIs are both backed by the agents table; map the row
   // category to its feed type so the connect recipe is host-appropriate.
   const feedType = agent.category === "MCP Server" ? "mcp-servers" : "cli";
+  const insights = deriveVibeInsights(agent, lang);
 
   return (
     <div className="space-y-10">
@@ -160,35 +164,20 @@ export default function AgentDetailView({
                 <Sparkles className="h-4 w-4 mr-2 text-accent-primary" />
                 Vibe Insights
               </h4>
-              <ul className="space-y-3 text-xs text-text-secondary leading-relaxed">
-                 <li className="flex gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
-                    <span>
-                      {lang === "da"
-                        ? "Optimeret til Claude 3.5 Sonnet & GPT-4o."
-                        : "Optimized for Claude 3.5 Sonnet & GPT-4o."
-                      }
-                    </span>
-                 </li>
-                 <li className="flex gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
-                    <span>
-                      {lang === "da"
-                        ? "Understøtter Cursor & Windsurf workflows."
-                        : "Supports Cursor & Windsurf workflows."
-                      }
-                    </span>
-                 </li>
-                 <li className="flex gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
-                    <span>
-                      {lang === "da"
-                        ? "Lokal eksekvering via CLI understøttet."
-                        : "Local execution via CLI supported."
-                      }
-                    </span>
-                 </li>
-              </ul>
+              {insights.length > 0 ? (
+                <ul className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                   {insights.map((insight, i) => (
+                     <li key={insight.id} className="flex gap-2">
+                        <div className={`h-1.5 w-1.5 rounded-full mt-1.5 flex-shrink-0 ${INSIGHT_DOT_COLORS[i % INSIGHT_DOT_COLORS.length]}`} />
+                        <span>{insight.text}</span>
+                     </li>
+                   ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-text-secondary italic">
+                  {lang === "da" ? "Ingen automatiske indsigter endnu." : "No automated insights yet."}
+                </p>
+              )}
            </div>
         </div>
       </div>
