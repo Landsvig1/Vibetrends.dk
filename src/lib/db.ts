@@ -847,9 +847,8 @@ export async function deleteReply(threadId: string, replyId: string) {
   return (data?.length ?? 0) > 0;
 }
 
-export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'a_' + Date.now();
   const { data, error } = await supabase.from('agents').insert({
@@ -865,7 +864,7 @@ export async function createAgent(name: string, developer: string, category: Age
     upvotes: 1,
     tags,
     source_url: sourceUrl || null,
-    user_id: user?.id || null,
+    user_id: userId,
   }).select().single();
 
   if (error || !data) {
