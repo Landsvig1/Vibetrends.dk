@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Clock, TrendingUp, ArrowDownAZ } from "lucide-react";
+import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
@@ -82,7 +82,7 @@ interface VibesExplorerProps {
 export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   const [projects, setProjects] = useState<ShowcaseProject[]>(initialProjects);
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [sort, setSort] = useQueryState("sort", parseAsString.withDefault("new"));
+  const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
   const [submitParam, setSubmitParam] = useQueryState("submit", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -143,9 +143,11 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     }
   };
 
-  // Refetch when language or sort changes post-mount. On first render we skip
-  // this effect (the server already fetched the right data). After that, any
-  // language/sort change triggers a fresh fetch from /api/vibes.
+  // Refetch when language changes post-mount. On first render we skip this
+  // effect (the server already fetched the right data). The Dansk/Alle/Hot
+  // tabs are purely client-side filter/sort operations on this base list (see
+  // viewProjects below) — same pattern as AgentsExplorer — so a tab switch
+  // never triggers a refetch, only the language does.
   // no-store: the route's public max-age header is for external API
   // consumers; the interactive page must always read fresh counts, or a
   // reload right after upvoting shows the pre-vote cached response.
@@ -155,12 +157,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       return;
     }
 
-    const params = new URLSearchParams();
-    if (sort !== "new") params.set("sort", sort);
-    const qs = params.toString();
-
     setIsRefetching(true);
-    fetch(qs ? `/api/vibes?${qs}` : "/api/vibes", { cache: "no-store" })
+    fetch("/api/vibes?sort=top", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setProjects(data);
@@ -170,7 +168,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         console.error("Error fetching projects:", err);
         setIsRefetching(false);
       });
-  }, [language, sort]);
+  }, [language]);
 
   // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA).
   // Deferred a microtask so the setState calls aren't synchronous within the
@@ -186,8 +184,30 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     }
   }, [submitParam, setSubmitParam]);
 
-  // Client-side search filter on the current project list — no network request.
-  const filteredProjects = filterProjects(projects, search);
+  const searchActive = search.trim() !== "";
+
+  // Search overrides the view (same contract as the /skills, /cli, /mcp, and
+  // /agents tabs). The base fetch is already upvotes-desc (sort=top), which
+  // IS the Hot order; Dansk filters to Danish contributors with
+  // Denmark-specific projects first; Alle is the full catalog alphabetically.
+  const viewProjects = searchActive
+    ? projects
+    : view === "danish"
+      ? [...projects]
+          .filter((p) => p.isDanish)
+          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+      : view === "all"
+        ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
+        : projects;
+
+  // Client-side search filter on the current view — no network request.
+  const filteredProjects = filterProjects(viewProjects, search);
+
+  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
+    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
+    { value: "all", label: language === "da" ? "Alle" : "All", icon: null },
+    { value: "hot", label: "Hot", icon: Flame },
+  ];
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
@@ -241,6 +261,9 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       if (res.ok) {
         const newProj = await res.json();
         setProjects((prev) => [newProj, ...prev]);
+        // New submissions aren't Danish-flagged, so the default Dansk tab
+        // would hide them — jump to Alle so the submitter sees their entry.
+        setView("all");
         setSubSuccess(true);
 
         setTimeout(() => {
@@ -312,23 +335,19 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         </div>
 
         <div className="flex gap-2 justify-center md:justify-end">
-          {([
-            { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
-            { value: "top", label: language === "da" ? "Top" : "Top", icon: TrendingUp },
-            { value: "az", label: "A–Z", icon: ArrowDownAZ },
-          ] as const).map((tab) => {
+          {viewTabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.value}
-                onClick={() => setSort(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  sort === tab.value
+                onClick={() => setView(tab.value)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  view === tab.value && !searchActive
                     ? "bg-accent-primary text-white font-extrabold shadow-md"
                     : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                {Icon && <Icon className="h-3.5 w-3.5" />}
                 {tab.label}
               </button>
             );

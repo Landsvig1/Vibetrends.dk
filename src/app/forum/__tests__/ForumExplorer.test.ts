@@ -41,6 +41,8 @@ function makeThread(
       createdAt: "2026-01-02",
     })),
     createdAt: "2026-01-01",
+    isDanish: false,
+    denmarkSpecific: false,
   };
 }
 
@@ -342,31 +344,40 @@ describe("delete flow — thread removed from list", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Sort/category URL construction contract
+// View/category URL construction contract
 // ---------------------------------------------------------------------------
+//
+// getThreads/api/forum only understand top/new — the Dansk view maps to
+// server sort 'top' (its client-side filter/sort layers on top of that base
+// list), so "danish" and "top" both build the same fetch URL.
 
-describe("sort and category fetch URL construction", () => {
-  function buildFetchUrl(sort: string, category: string) {
+describe("view and category fetch URL construction", () => {
+  function buildFetchUrl(view: string, category: string) {
+    const serverSort = view === "new" ? "new" : "top";
     const params = new URLSearchParams();
     if (category !== "All") params.set("category", category);
-    if (sort === "new") params.set("sort", "new");
+    if (serverSort === "new") params.set("sort", "new");
     const qs = params.toString();
     return qs ? `/api/forum?${qs}` : "/api/forum";
   }
 
-  it("default sort ('top') and 'All' category → no params", () => {
+  it("default view ('danish') and 'All' category → no params", () => {
+    expect(buildFetchUrl("danish", "All")).toBe("/api/forum");
+  });
+
+  it("'top' view and 'All' category → no params (same server sort as danish)", () => {
     expect(buildFetchUrl("top", "All")).toBe("/api/forum");
   });
 
-  it("'new' sort appends ?sort=new", () => {
+  it("'new' view appends ?sort=new", () => {
     expect(buildFetchUrl("new", "All")).toBe("/api/forum?sort=new");
   });
 
   it("specific category appends ?category=X", () => {
-    expect(buildFetchUrl("top", "Tools")).toBe("/api/forum?category=Tools");
+    expect(buildFetchUrl("danish", "Tools")).toBe("/api/forum?category=Tools");
   });
 
-  it("'new' sort + specific category appends both params", () => {
+  it("'new' view + specific category appends both params", () => {
     const url = buildFetchUrl("new", "Tools");
     expect(url).toContain("sort=new");
     expect(url).toContain("category=Tools");
