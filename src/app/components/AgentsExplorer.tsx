@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
@@ -11,11 +11,81 @@ import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
+/**
+ * Pure client-side search filter — extracted for unit testability.
+ * Mirrors the server-side SQL ilike filter in getAgents() but operates on
+ * the already-fetched client list without a network round-trip.
+ */
+export function filterAgents(agents: Agent[], query: string): Agent[] {
+  if (!query) return agents;
+  const q = query.toLowerCase();
+  return agents.filter(
+    (agent) =>
+      agent.name.toLowerCase().includes(q) ||
+      agent.description.toLowerCase().includes(q) ||
+      agent.tags.some((t) => t.toLowerCase().includes(q))
+  );
+}
+
+/**
+ * Core upvote logic — extracted for unit testability.
+ *
+ * Guards against overlapping requests on the same item via `pendingIds` (a
+ * caller-owned mutable Set). If the item is already in-flight, returns
+ * immediately without calling fetchFn a second time. The caller must pass
+ * `pendingUpvoteIds.current` from a component-level useRef.
+ *
+ * All side-effects (state updates, modal open) are injected as callbacks so
+ * this function can run in a plain Node test environment without React.
+ */
+export async function executeUpvote(
+  id: string,
+  apiUrl: string,
+  pendingIds: Set<string>,
+  fetchFn: (url: string, init: RequestInit) => Promise<Response>,
+  callbacks: {
+    onOptimistic: () => void;
+    onSuccess: (upvotes: number) => void;
+    onRollback: () => void;
+    onAuthRequired: () => void;
+  }
+): Promise<void> {
+  if (pendingIds.has(id)) return; // in-flight guard: no duplicate requests
+  pendingIds.add(id);
+  callbacks.onOptimistic();
+  try {
+    const res = await fetchFn(apiUrl, { method: "POST" });
+    if (res.status === 401) {
+      callbacks.onRollback();
+      callbacks.onAuthRequired();
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      callbacks.onSuccess(data.upvotes);
+    } else {
+      callbacks.onRollback();
+    }
+  } catch {
+    callbacks.onRollback();
+  } finally {
+    pendingIds.delete(id);
+  }
+}
+
+interface AgentsExplorerProps {
+  scope: "agents" | "mcp" | "cli";
+  /** Server-fetched initial list — avoids a client-side fetch on first render
+   *  so crawlers and first paint see real content. The component only refetches
+   *  when the language changes post-mount. */
+  initialItems: Agent[];
+}
+
 // Shared explorer for the feed surfaces backed by the `agents` table: the
 // MCP-server feed (category 'MCP Server'), the CLI feed (category
 // 'CLI'), and the demoted Agents view. The `scope` prop controls the API
 // filter, detail-link base, and copy. Host rows are excluded by the data layer.
-export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "cli" }) {
+export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerProps) {
   const isMcp = scope === "mcp";
   const isCli = scope === "cli";
   const detailBase = isMcp ? "/mcp" : isCli ? "/cli" : "/agents";
@@ -26,7 +96,8 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
       : "/api/agents";
   const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "CLI";
 
-  const [agents, setAgents] = useState<Agent[]>([]);
+  // Initialised from server-fetched data — no client-side fetch on first render.
+  const [agents, setAgents] = useState<Agent[]>(initialItems);
   // Search/category/view live in the URL so filtered views are shareable.
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
@@ -34,6 +105,10 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // In-flight language refetch loading affordance — keeps the current grid
+  // visible at reduced opacity rather than replacing it with a skeleton.
+  const [isRefetching, setIsRefetching] = useState(false);
 
   // Add form states
   const [addOpen, setAddOpen] = useState(false);
@@ -45,14 +120,34 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
   const [addTags, setAddTags] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
 
+  // Skip the first mount fetch — the server already fetched with the initial
+  // lang and passed real data as initialItems. Only refetch when language
+  // actually changes post-mount.
+  const skipNextFetch = useRef(true);
+
+  // Tracks item IDs with an in-flight upvote request. Prevents a second click
+  // from firing a duplicate request before the first one resolves.
+  const pendingUpvoteIds = useRef(new Set<string>());
+
   useEffect(() => {
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
     // no-store: the route's public max-age header is for external API
     // consumers; the interactive page must always read fresh counts, or a
     // reload right after upvoting shows the pre-vote cached response.
+    setIsRefetching(true);
     fetch(fetchUrl, { cache: "no-store" })
       .then((res) => res.json())
-      .then((data) => setAgents(data))
-      .catch((err) => console.error("Error fetching registry:", err));
+      .then((data) => {
+        setAgents(data);
+        setIsRefetching(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching registry:", err);
+        setIsRefetching(false);
+      });
   }, [language, fetchUrl]);
 
   const handleCopyCommand = (id: string, command: string, e: React.MouseEvent) => {
@@ -70,21 +165,21 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
       setLoginModalOpen(true);
       return;
     }
-    try {
-      const res = await fetch(`/api/agents/${id}/upvote`, { method: "POST" });
-      if (res.status === 401) {
-        // Session expired since page load — silently dropping the click made
-        // the button look broken, so surface the login modal instead.
-        setLoginModalOpen(true);
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, upvotes: data.upvotes } : a)));
-      }
-    } catch (err) {
-      console.error("Error upvoting:", err);
-    }
+    // Save pre-click count so executeUpvote callbacks can roll back on failure.
+    const prevCount = agents.find((a) => a.id === id)?.upvotes ?? 0;
+    await executeUpvote(id, `/api/agents/${id}/upvote`, pendingUpvoteIds.current, fetch, {
+      onOptimistic: () =>
+        setAgents((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount + 1 } : a))
+        ),
+      onSuccess: (count) =>
+        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, upvotes: count } : a))),
+      onRollback: () =>
+        setAgents((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount } : a))
+        ),
+      onAuthRequired: () => setLoginModalOpen(true),
+    });
   };
 
   const handleSubmitAgent = async (e: React.FormEvent) => {
@@ -170,11 +265,7 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
         ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
         : agents;
 
-  const filteredAgents = viewAgents.filter((agent) =>
-    agent.name.toLowerCase().includes(search.toLowerCase()) ||
-    agent.description.toLowerCase().includes(search.toLowerCase()) ||
-    agent.tags.some((t) => t.toLowerCase().includes(search.toLowerCase())),
-  );
+  const filteredAgents = filterAgents(viewAgents, search);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
     { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
@@ -256,9 +347,13 @@ export default function AgentsExplorer({ scope }: { scope: "agents" | "mcp" | "c
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid — opacity overlay during in-flight language refetch */}
       {filteredAgents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${
+            isRefetching ? "opacity-50 pointer-events-none" : ""
+          }`}
+        >
           {filteredAgents.map((agent) => (
             <div
               key={agent.id}

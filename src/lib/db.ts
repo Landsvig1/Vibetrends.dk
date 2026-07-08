@@ -1,5 +1,25 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cacheTag, cacheLife, revalidateTag as _revalidateTag } from 'next/cache';
+
+/**
+ * Calls revalidateTag WITHOUT a profile argument — KTD2 hard constraint.
+ *
+ * The two-arg form `revalidateTag(tag, 'max')` defaults to stale-while-revalidate,
+ * which would silently reintroduce the stale-upvote-count bug this codebase already
+ * fixed twice (commits 0db6f62, e224ec4). The no-arg form gives IMMEDIATE expiry
+ * (documented as "deprecated legacy behavior, equivalent to updateTag") so the next
+ * request after a vote always blocks on a fresh DB read rather than getting a cached
+ * pre-vote count.
+ *
+ * TypeScript's `revalidateTag` signature requires a second argument; we suppress that
+ * error here rather than at every call site. The deprecation is a type-level concern —
+ * the runtime behavior (immediate expiry) is exactly what correctness requires.
+ *
+ * @see node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md
+ */
+// @ts-expect-error — deliberate single-arg form: immediate expiry, not stale-while-revalidate
+const revalidateTag = (tag: string): void => _revalidateTag(tag);
 
 /** Identity + client resolved by `resolveBotRequestAuth()` for bearer-authenticated
  * (non-browser) callers. When passed to `createProject`/`createSkill`, the write
@@ -317,7 +337,35 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
 
 // DB API functions utilizing Supabase
 
+/**
+ * Sanitize a user-supplied search term before embedding it in a PostgREST
+ * `.or()` filter string (KTD3 injection resistance).
+ *
+ * Strips characters with syntactic meaning in PostgREST's filter grammar
+ * (`,` `.` `(` `)` `*`) and SQL LIKE wildcards (`%` `_`) so the term can
+ * only ever populate the `ilike` pattern position — it cannot redefine the
+ * filter structure or introduce extra wildcard behaviour.
+ *
+ * The sanitized term is used in `.or()` filter strings of the form:
+ *   `title_da.ilike.%term%,tags::text.ilike.%term%,...`
+ * where the outer `%` wildcards are added by the calling code (not the user).
+ * Casting array columns to text (`tags::text`) produces the PostgreSQL text
+ * representation `{elem1,elem2}`, which ilike can match against for
+ * element-substring searches without a custom RPC or exact-element operators.
+ */
+export function sanitizeSearchTerm(raw: string): string {
+  return raw.replace(/[,.()*%_]/g, '');
+}
+
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
+  'use cache'
+  cacheLife('max')
+  // Both the broad entity-wide tag AND the variant-specific tag are set so that
+  // a single revalidateTag('skills-list') call on any mutation invalidates every
+  // cached variant (searched, filtered, sorted), not just the default one.
+  // Next's tag matching is exact-string — prefix matching is not supported.
+  cacheTag('skills-list', `skills-list:${category ?? 'all'}:${search ?? ''}:${lang}:${view ?? ''}`)
+
   let query = supabasePublic.from('skills').select('*');
 
   if (category && category !== "All") {
@@ -348,24 +396,54 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.order('upvotes', { ascending: false });
   }
 
+  // SQL-side narrowing: push all search dimensions into a single .or() clause
+  // before the fetch so only matching rows travel over the wire. The sanitized
+  // term strips PostgREST grammar chars (KTD3) so it can't redefine the filter
+  // structure. Casting the tags array to text (`tags::text`) produces the
+  // PostgreSQL text representation `{elem1,elem2,...}` — ilike with `%term%`
+  // then matches any element whose substring contains the term, replicating the
+  // current JS `.includes()` behavior without a custom RPC or exact-element
+  // operators (.contains()/.overlaps() test exact element equality and would
+  // narrow matches compared to today).
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(s => mapSkill(s, lang));
-
-  if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(s => 
-      s.title.toLowerCase().includes(q) || 
-      s.description.toLowerCase().includes(q) || 
-      s.tags.some(t => t.toLowerCase().includes(q))
-    );
+  // JS safety net on the already-SQL-narrowed result. In production this runs
+  // on a small filtered set (not the full table). In mock-based tests the mock
+  // ignores the SQL filter, so this layer provides output-correctness guarantees.
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(s =>
+        s.title_da.toLowerCase().includes(q) ||
+        s.title_en.toLowerCase().includes(q) ||
+        s.description_da.toLowerCase().includes(q) ||
+        s.description_en.toLowerCase().includes(q) ||
+        (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(s => mapSkill(s, lang));
   }
 
-  return list;
+  return data.map(s => mapSkill(s, lang));
 }
 
 export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`skill-${id}`, `skill-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapSkill(data, lang);
@@ -381,33 +459,45 @@ export async function upvoteSkill(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'skill', id);
-  if (adminCount !== null) return adminCount;
-
-  const { error } = await supabase.from('skill_upvotes').insert({
-    user_id: user.id,
-    skill_id: id,
-  });
-
-  if (error && error.code === '23505') {
-    await supabase
-      .from('skill_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('skill_id', id);
+  if (adminCount !== null) {
+    // Admin path also changes the count — invalidate both tags immediately.
+    revalidateTag('skills-list')
+    revalidateTag(`skill-${id}`)
+    return adminCount;
   }
 
-  const { data } = await supabasePublic
-    .from('skills')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'skill',
+    target_id: id,
+  });
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for skill', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for skill', id, '— entity not found');
+    return null;
+  }
+
+  // Invalidate immediately after the mutation so the next read reflects the
+  // new count. Called without a profile argument for immediate expiry (not
+  // stale-while-revalidate) — KTD2 hard constraint.
+  revalidateTag('skills-list')
+  revalidateTag(`skill-${id}`)
+
+  return rpcData as number;
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sort: 'top' | 'new' | 'az' = 'new') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('projects-list', `projects-list:${search ?? ''}:${lang}:${sort}`)
+
   // 'new' = most recent (default), 'top' = most upvoted, 'az' = alphabetical. Mirrors getThreads.
   let query = supabasePublic.from('vibes').select('*');
   if (sort === 'top') {
@@ -418,24 +508,45 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
     query = query.order('created_at', { ascending: false });
   }
 
+  // SQL-side narrowing (see getSkills for full rationale). tools::text cast
+  // covers array element substring matching without a custom RPC.
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tools::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(p => mapProject(p, lang));
-
-  if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(p => 
-      p.title.toLowerCase().includes(q) || 
-      p.description.toLowerCase().includes(q) || 
-      p.tools.some(t => t.toLowerCase().includes(q))
-    );
+  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(p =>
+        p.title_da.toLowerCase().includes(q) ||
+        p.title_en.toLowerCase().includes(q) ||
+        p.description_da.toLowerCase().includes(q) ||
+        p.description_en.toLowerCase().includes(q) ||
+        (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(p => mapProject(p, lang));
   }
 
-  return list;
+  return data.map(p => mapProject(p, lang));
 }
 
 export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`project-${id}`, `project-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('vibes').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapProject(data, lang);
@@ -464,36 +575,42 @@ export async function upvoteProject(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'vibe', id);
-  if (adminCount !== null) return adminCount;
-
-  // Attempt to insert join table row (toggle pattern)
-  const { error } = await supabase.from('vibes_upvotes').insert({
-    user_id: user.id,
-    project_id: id,
-  });
-
-  if (error && error.code === '23505') {
-    // Unique violation constraint -> user already upvoted -> toggle it off (delete it)
-    await supabase
-      .from('vibes_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('project_id', id);
+  if (adminCount !== null) {
+    revalidateTag('projects-list')
+    revalidateTag(`project-${id}`)
+    return adminCount;
   }
 
-  // Query updated count
-  const { data } = await supabasePublic
-    .from('vibes')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'vibe',
+    target_id: id,
+  });
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for project', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for project', id, '— entity not found');
+    return null;
+  }
+
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('projects-list')
+  revalidateTag(`project-${id}`)
+
+  return rpcData as number;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('threads-list', `threads-list:${category ?? 'all'}:${lang}:${limit ?? ''}:${sort}`)
+
   // 'top' = most upvoted (default), 'new' = most recent. Reddit-style sort tabs.
   const orderColumn = sort === 'new' ? 'created_at' : 'upvotes';
   let query = supabasePublic.from('forum_threads').select('*').order(orderColumn, { ascending: false });
@@ -529,6 +646,10 @@ export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', li
 }
 
 export async function getThreadById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`thread-${id}`, `thread-${id}:${lang}`)
+
   const { data: thread, error } = await supabasePublic.from('forum_threads').select('*').eq('id', id).single();
   if (error || !thread) return null;
   const { data: replies } = await supabasePublic
@@ -549,33 +670,40 @@ export async function upvoteThread(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'thread', id);
-  if (adminCount !== null) return adminCount;
-
-  const { error } = await supabase.from('thread_upvotes').insert({
-    user_id: user.id,
-    thread_id: id,
-  });
-
-  if (error && error.code === '23505') {
-    await supabase
-      .from('thread_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('thread_id', id);
+  if (adminCount !== null) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${id}`)
+    return adminCount;
   }
 
-  const { data } = await supabasePublic
-    .from('forum_threads')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'thread',
+    target_id: id,
+  });
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for thread', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for thread', id, '— entity not found');
+    return null;
+  }
+
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('threads-list')
+  revalidateTag(`thread-${id}`)
+
+  return rpcData as number;
 }
 
-export async function upvoteReply(id: string) {
+/** `threadId` is optional only for backward compatibility with older callers;
+ * pass it whenever known (the route handler already has it from the URL) to
+ * avoid a second round-trip just to look it up. */
+export async function upvoteReply(id: string, threadId?: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -584,31 +712,47 @@ export async function upvoteReply(id: string) {
     return 0;
   }
 
+  // Resolve the parent thread id once, before branching into admin vs. RPC,
+  // so both paths use the same value. Previously the admin branch only
+  // invalidated thread-{id} when threadId was explicitly passed by the caller
+  // — meaning the specific thread cache could go stale indefinitely when
+  // threadId was omitted on the admin path. The RPC branch already had a
+  // fallback lookup; this hoist removes the divergence.
+  const resolvedThreadId = threadId ?? (
+    await supabasePublic.from('forum_replies').select('thread_id').eq('id', id).single()
+  ).data?.thread_id;
+
   const adminCount = await adminBumpUpvotes(supabase, 'reply', id);
-  if (adminCount !== null) return adminCount;
-
-  const { error } = await supabase.from('reply_upvotes').insert({
-    user_id: user.id,
-    reply_id: id,
-  });
-
-  if (error && error.code === '23505') {
-    await supabase
-      .from('reply_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('reply_id', id);
+  if (adminCount !== null) {
+    revalidateTag('threads-list')
+    if (resolvedThreadId) revalidateTag(`thread-${resolvedThreadId}`)
+    return adminCount;
   }
 
-  const { data } = await supabasePublic
-    .from('forum_replies')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
+  // U8: single toggle_upvote RPC replaces the old insert/delete/select pattern
+  // for the count itself.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'reply',
+    target_id: id,
+  });
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for reply', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for reply', id, '— entity not found');
+    return null;
+  }
+
+  // Invalidate immediately — KTD2 hard constraint. Both admin and RPC paths
+  // use the same resolvedThreadId resolved above.
+  revalidateTag('threads-list')
+  if (resolvedThreadId) {
+    revalidateTag(`thread-${resolvedThreadId}`)
+  }
+
+  return rpcData as number;
 }
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
@@ -633,6 +777,9 @@ export async function createThread(title: string, author: string, category: Foru
     throw new Error('Kunne ikke oprette tråd');
   }
 
+  // Invalidate the threads list so the new thread appears on the next read.
+  revalidateTag('threads-list')
+
   return mapThread(data, [], 'da');
 }
 
@@ -655,6 +802,11 @@ export async function addReply(threadId: string, author: string, content: string
     return null;
   }
 
+  // Invalidate the specific thread detail cache AND the broad threads-list tag
+  // so reply counts (embedded in thread list rows) are also refreshed.
+  revalidateTag('threads-list')
+  revalidateTag(`thread-${threadId}`)
+
   // Return the parent thread populated with all replies
   const { data: thread } = await supabasePublic.from('forum_threads').select('*').eq('id', threadId).single();
   const { data: replies } = await supabasePublic.from('forum_replies').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
@@ -664,18 +816,31 @@ export async function addReply(threadId: string, author: string, content: string
 }
 
 export async function getBlogPosts(lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('blog-posts', `blog-posts:${lang}`)
+
   const { data, error } = await supabasePublic.from('blog_posts').select('*');
   if (error || !data) return [];
   return data.map(b => mapBlogPost(b, lang));
 }
 
 export async function getBlogPostById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`blog-post-${id}`, `blog-post-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('blog_posts').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapBlogPost(data, lang);
 }
 
 export async function getAgents(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('agents-list', `agents-list:${category ?? 'all'}:${search ?? ''}:${lang}`)
+
   let query = supabasePublic.from('agents').select('*').order('upvotes', { ascending: false });
 
   // Hosts are connection targets, never catalog items — excluded from every
@@ -690,26 +855,47 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
     query = query.neq('category', 'MCP Server');
   }
 
+  // SQL-side narrowing (see getSkills for full rationale). `name` is not
+  // bilingual. tags::text cast covers array element substring matching.
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `name.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(a => mapAgent(a, lang));
-
-  if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(a => 
-      a.name.toLowerCase().includes(q) || 
-      a.description.toLowerCase().includes(q) || 
-      a.tags.some(t => t.toLowerCase().includes(q))
-    );
+  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.description_da.toLowerCase().includes(q) ||
+        a.description_en.toLowerCase().includes(q) ||
+        (a.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(a => mapAgent(a, lang));
   }
 
-  return list;
+  return data.map(a => mapAgent(a, lang));
 }
 
 // CLIs are stored in the agents table with category 'CLI'.
 // Convenience accessor for the /cli feed surface and /api/cli.
 export async function getCli(search?: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  // Shares the broad 'agents-list' tag with getAgents so revalidateTag('agents-list')
+  // invalidates this cache entry too. The variant tag scopes it to CLI+search+lang.
+  cacheTag('agents-list', `agents-list:CLI:${search ?? ''}:${lang}`)
   return getAgents(search, 'CLI', lang);
 }
 
@@ -717,6 +903,10 @@ export async function getCli(search?: string, lang: 'da' | 'en' = 'da') {
 // list views fetch them via /api/mcp-servers. Host rows are retained but
 // excluded from every catalog query above.
 export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`agent-${id}`, `agent-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('agents').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapAgent(data, lang);
@@ -732,30 +922,34 @@ export async function upvoteAgent(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'agent', id);
-  if (adminCount !== null) return adminCount;
-
-  const { error } = await supabase.from('agent_upvotes').insert({
-    user_id: user.id,
-    agent_id: id,
-  });
-
-  if (error && error.code === '23505') {
-    await supabase
-      .from('agent_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('agent_id', id);
+  if (adminCount !== null) {
+    revalidateTag('agents-list')
+    revalidateTag(`agent-${id}`)
+    return adminCount;
   }
 
-  const { data } = await supabasePublic
-    .from('agents')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'agent',
+    target_id: id,
+  });
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for agent', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for agent', id, '— entity not found');
+    return null;
+  }
+
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('agents-list')
+  revalidateTag(`agent-${id}`)
+
+  return rpcData as number;
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, actingAs?: ActingAs) {
@@ -782,6 +976,9 @@ export async function createProject(title: string, author: string, description: 
     console.error('Failed to create project:', error);
     throw new Error('Kunne ikke oprette projekt');
   }
+
+  // Invalidate the projects list so the new project appears on the next read.
+  revalidateTag('projects-list')
 
   return mapProject(data, 'da');
 }
@@ -813,6 +1010,9 @@ export async function createSkill(title: string, vibeCoder: string, description:
     throw new Error('Kunne ikke oprette skill');
   }
 
+  // Invalidate the skills list so the new skill appears on the next read.
+  revalidateTag('skills-list')
+
   return mapSkill(data, 'da');
 }
 
@@ -824,7 +1024,12 @@ export async function deleteProject(id: string) {
     return false;
   }
   // RLS restricts deletes to the owner; an empty result means not found or not owned.
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('projects-list')
+    revalidateTag(`project-${id}`)
+  }
+  return succeeded;
 }
 
 export async function deleteThread(id: string) {
@@ -834,7 +1039,12 @@ export async function deleteThread(id: string) {
     console.error('Failed to delete thread:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${id}`)
+  }
+  return succeeded;
 }
 
 export async function deleteReply(threadId: string, replyId: string) {
@@ -844,7 +1054,12 @@ export async function deleteReply(threadId: string, replyId: string) {
     console.error('Failed to delete reply:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${threadId}`)
+  }
+  return succeeded;
 }
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, actingAs?: ActingAs) {
@@ -872,6 +1087,9 @@ export async function createAgent(name: string, developer: string, category: Age
     throw new Error('Kunne ikke oprette agent');
   }
 
+  // Invalidate the agents list so the new agent appears on the next read.
+  revalidateTag('agents-list')
+
   return mapAgent(data, 'da');
 }
 
@@ -882,7 +1100,12 @@ export async function deleteAgent(id: string) {
     console.error('Failed to delete agent:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('agents-list')
+    revalidateTag(`agent-${id}`)
+  }
+  return succeeded;
 }
 
 // Homepage-optimized reads — fetch only counts and the few featured rows the
@@ -895,6 +1118,11 @@ export interface EntityCounts {
   threads: number;
   agents: number;
 }
+
+// NOTE: getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts
+// are deliberately NOT wrapped with "use cache" in this unit (U2). The plan
+// defers caching these pending verification that it's safe, and that
+// verification is out of scope here. See plan U2 scope boundary.
 
 export async function getCounts(): Promise<EntityCounts> {
   const head = { count: 'exact' as const, head: true };

@@ -43,6 +43,17 @@ export function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = apiPath;
       url.searchParams.delete('format');
+      // The client search box binds to ?q= (nuqs useQueryState("q")), but all
+      // API route handlers read searchParams.get("search"). Alias q→search here
+      // so agent/crawler callers following ai.txt's documented ?format=json path
+      // get correctly filtered results without touching the API handlers or db.ts.
+      // Only applies to format=json rewrites — the human-facing client route is
+      // unaffected (the client island manages the q param itself via nuqs).
+      const q = url.searchParams.get('q');
+      if (q !== null) {
+        url.searchParams.set('search', q);
+        url.searchParams.delete('q');
+      }
       response = NextResponse.rewrite(url);
     }
   }

@@ -11,8 +11,11 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { replyId } = await params;
-  const upvotes = await upvoteReply(replyId);
+  const { id: threadId, replyId } = await params;
+  const upvotes = await upvoteReply(replyId, threadId);
+  if (upvotes === 'rpc_error') {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
   if (upvotes === null) {
     return NextResponse.json({ error: "Reply not found" }, { status: 404 });
   }

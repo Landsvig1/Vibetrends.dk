@@ -1,10 +1,14 @@
 import { MetadataRoute } from "next";
+import { cacheLife } from "next/cache";
 import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 
 const baseUrl = "https://vibetrends.dk";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  "use cache";
+  cacheLife("hours");
+
   const today = new Date().toISOString().split("T")[0];
 
   const staticEntries: MetadataRoute.Sitemap = [

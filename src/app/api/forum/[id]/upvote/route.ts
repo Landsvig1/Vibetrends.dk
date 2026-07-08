@@ -10,6 +10,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const upvotes = await upvoteThread(id);
+  if (upvotes === 'rpc_error') {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
   if (upvotes === null) {
     return NextResponse.json({ error: "Thread not found" }, { status: 404 });
   }
