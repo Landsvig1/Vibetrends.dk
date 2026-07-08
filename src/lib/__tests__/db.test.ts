@@ -474,17 +474,27 @@ describe("upvoteProject — U8 toggle_upvote RPC single round-trip", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null and does not call revalidateTag when toggle_upvote RPC errors", async () => {
+  it("returns 'rpc_error' and does not call revalidateTag when toggle_upvote RPC transport fails", async () => {
     state.user = { id: "u1" };
     state.rpcHandler = (fn) => {
       if (fn === "admin_bump_upvotes") return { data: null, error: null };
       return { data: null, error: { message: "RPC failed", code: "500" } };
     };
     const result = await db.upvoteProject("p1");
-    expect(result).toBeNull();
+    expect(result).toBe('rpc_error');
     // No cache invalidation should occur when the RPC failed — avoids
     // triggering a re-fetch on an incomplete/inconsistent state.
     expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("returns null (not 'rpc_error') when toggle_upvote RPC succeeds but returns null — entity not found", async () => {
+    state.user = { id: "u1" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null }; // no rpcError, data is null → not found
+    };
+    const result = await db.upvoteProject("p1");
+    expect(result).toBeNull(); // null = entity not found, NOT a transport error
   });
 
   it("admins bypass toggle_upvote: admin_bump_upvotes result is returned directly", async () => {
@@ -628,15 +638,84 @@ describe("upvoteThread / upvoteSkill / upvoteAgent / upvoteReply — U8 toggle_u
     expect(tags).toContain("thread-t42"); // must appear even though threadId was not passed
   });
 
-  it("failed toggle_upvote RPC returns null without calling revalidateTag (no partial state)", async () => {
+  it("failed toggle_upvote RPC returns 'rpc_error' (not null) without calling revalidateTag (no partial state)", async () => {
     state.user = { id: "u1" };
     state.rpcHandler = (fn) => {
       if (fn === "admin_bump_upvotes") return { data: null, error: null };
       return { data: null, error: { message: "DB error", code: "500" } };
     };
     const result = await db.upvoteAgent("a1");
-    expect(result).toBeNull();
+    expect(result).toBe('rpc_error');
     // revalidateTag must NOT fire when the RPC failed — no partial/inconsistent state.
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // RPC transport error vs entity-not-found distinction (all five upvote paths)
+  // ---------------------------------------------------------------------------
+  // Each upvote function must distinguish:
+  //   rpcError set → 'rpc_error' sentinel (transport failure, retryable, → 503)
+  //   rpcData null, no rpcError → null (entity not found per RPC contract, → 404)
+  // ---------------------------------------------------------------------------
+  it("upvoteSkill returns 'rpc_error' on transport failure, null on entity not found", async () => {
+    state.user = { id: "u1" };
+    // Transport failure
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: { message: "network error" } };
+    };
+    expect(await db.upvoteSkill("s1")).toBe('rpc_error');
+    // Entity not found
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null };
+    };
+    expect(await db.upvoteSkill("s1")).toBeNull();
+  });
+
+  it("upvoteThread returns 'rpc_error' on transport failure, null on entity not found", async () => {
+    state.user = { id: "u1" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: { message: "network error" } };
+    };
+    expect(await db.upvoteThread("t1")).toBe('rpc_error');
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null };
+    };
+    expect(await db.upvoteThread("t1")).toBeNull();
+  });
+
+  it("upvoteReply returns 'rpc_error' on transport failure, null on entity not found", async () => {
+    state.user = { id: "u1" };
+    state.publicHandler = () => ({ data: { thread_id: "t1" }, error: null });
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: { message: "network error" } };
+    };
+    expect(await db.upvoteReply("r1", "t1")).toBe('rpc_error');
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null };
+    };
+    expect(await db.upvoteReply("r1", "t1")).toBeNull();
+  });
+
+  it("'rpc_error' paths do not call revalidateTag (no partial-state invalidation on 5xx)", async () => {
+    state.user = { id: "u1" };
+    const transportError = { message: "ECONNRESET" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: transportError };
+    };
+    await db.upvoteSkill("s1");
+    await db.upvoteProject("p1");
+    await db.upvoteThread("t1");
+    await db.upvoteAgent("a1");
+    state.publicHandler = () => ({ data: { thread_id: "t1" }, error: null });
+    await db.upvoteReply("r1", "t1");
+    // None of the five transport-error paths should have called revalidateTag.
     expect(state.revalidateTagCalls.length).toBe(0);
   });
 

@@ -474,8 +474,12 @@ export async function upvoteSkill(id: string) {
     target_id: id,
   });
 
-  if (rpcError || rpcData === null || rpcData === undefined) {
-    console.error('toggle_upvote RPC failed for skill', id, rpcError);
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for skill', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for skill', id, '— entity not found');
     return null;
   }
 
@@ -585,8 +589,12 @@ export async function upvoteProject(id: string) {
     target_id: id,
   });
 
-  if (rpcError || rpcData === null || rpcData === undefined) {
-    console.error('toggle_upvote RPC failed for project', id, rpcError);
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for project', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for project', id, '— entity not found');
     return null;
   }
 
@@ -676,8 +684,12 @@ export async function upvoteThread(id: string) {
     target_id: id,
   });
 
-  if (rpcError || rpcData === null || rpcData === undefined) {
-    console.error('toggle_upvote RPC failed for thread', id, rpcError);
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for thread', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for thread', id, '— entity not found');
     return null;
   }
 
@@ -724,8 +736,12 @@ export async function upvoteReply(id: string, threadId?: string) {
     target_id: id,
   });
 
-  if (rpcError || rpcData === null || rpcData === undefined) {
-    console.error('toggle_upvote RPC failed for reply', id, rpcError);
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for reply', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for reply', id, '— entity not found');
     return null;
   }
 
@@ -920,8 +936,12 @@ export async function upvoteAgent(id: string) {
     target_id: id,
   });
 
-  if (rpcError || rpcData === null || rpcData === undefined) {
-    console.error('toggle_upvote RPC failed for agent', id, rpcError);
+  if (rpcError) {
+    console.error('toggle_upvote RPC transport error for agent', id, rpcError);
+    return 'rpc_error' as const;
+  }
+  if (rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC returned null for agent', id, '— entity not found');
     return null;
   }
 
