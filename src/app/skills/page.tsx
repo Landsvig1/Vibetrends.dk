@@ -1,148 +1,85 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { useQueryState, parseAsString } from "nuqs";
-import Link from "next/link";
-import { Search, Briefcase, PlusCircle, CheckCircle2, X, Flag, TrendingUp, ArrowRight } from "lucide-react";
-import { Skill } from "@/lib/db";
-import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
-import { TopicIcon } from "../components/TopicIcon";
-import { SkillCard } from "../components/SkillCard";
-import { useAuth } from "../components/AuthProvider";
-import { useLanguage } from "../components/LanguageProvider";
+import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { Language } from "@/lib/translations";
+import { getSkills, SkillView } from "@/lib/db";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
-import dynamic from "next/dynamic";
+import SkillsLoading from "./loading";
+import SkillsExplorer from "./SkillsExplorer";
 
-const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
+/**
+ * Validates the `view` URL param to the four values the skills page supports.
+ * "all" is the topic-cards view (no viewSkills grid).
+ * Exported for unit testing.
+ */
+export function getValidView(view: string | undefined): string {
+  if (
+    view === "danish" ||
+    view === "hot" ||
+    view === "trending" ||
+    view === "all"
+  )
+    return view;
+  return "danish";
+}
 
-export default function SkillsPage() {
-  // Full catalog drives search + per-topic counts; the view board is fetched
-  // lazily only when Dansk/Trending is active.
-  const [allSkills, setAllSkills] = useState<Skill[]>([]);
-  const [viewSkills, setViewSkills] = useState<Skill[]>([]);
-  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
-  const { user } = useAuth();
-  const { language, t } = useLanguage();
+/**
+ * Outer server component — wraps the data-fetch layer in a Suspense boundary
+ * so loading.tsx is streamed as the fallback on a cache-miss rather than
+ * blocking or showing nothing.
+ */
+export default async function SkillsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; q?: string }>;
+}) {
+  return (
+    <Suspense fallback={<SkillsLoading />}>
+      <SkillsPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
 
-  const [submitOpen, setSubmitOpen] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
+/**
+ * Inner async server component — separated from the outer route shell so that
+ * cookies() (a dynamic API) is called inside its own Suspense boundary, not
+ * inside a cached parent component. This is the established pattern used by
+ * every detail page in this codebase (skills/[id], agents/[id], etc. — see
+ * KTD4 in docs/plans/2026-07-08-001-feat-site-wide-performance-seo-optimization-plan.md).
+ *
+ * Reads lang from cookie, calls the cached getSkills() twice:
+ *   1. Full catalog (no view) — drives search and per-topic counts.
+ *   2. View-specific board (danish/hot/trending) — the initial grid.
+ * Builds JSON-LD server-side from real data (fixing the SEO gap where it was
+ * previously built from client state that starts empty), then delegates all
+ * interactivity to the client island.
+ *
+ * Exported for unit testing.
+ */
+export async function SkillsPageContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; q?: string }>;
+}) {
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  // Form states
-  const [subTitle, setSubTitle] = useState("");
-  const [subDesc, setSubDesc] = useState("");
-  const [subCat, setSubCat] = useState<string>(SKILL_CATEGORY_SLUGS[0]);
-  const [subTags, setSubTags] = useState("");
-  const [subUrl, setSubUrl] = useState("");
+  const resolvedParams = await searchParams;
+  const view = getValidView(resolvedParams?.view);
 
-  useEffect(() => {
-    // no-store: the route's public max-age header is for external API
-    // consumers; the interactive page must always read fresh counts, or a
-    // reload right after upvoting shows the pre-vote cached response.
-    fetch("/api/skills", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => setAllSkills(data))
-      .catch((err) => console.error("Error fetching skills:", err));
-  }, [language]);
+  // Full catalog — cached read. Drives client-side search and per-topic counts
+  // for the topic cards. No view arg → all skills ordered by upvotes.
+  const allSkills = await getSkills(undefined, undefined, lang);
 
-  useEffect(() => {
-    if (view !== "danish" && view !== "hot" && view !== "trending") return;
-    fetch(`/api/skills?view=${view}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => setViewSkills(data))
-      .catch((err) => console.error("Error fetching skills:", err));
-  }, [view, language]);
+  // View-specific board — only fetched when the initial view is a board view,
+  // not the topic-cards "all" view (which uses the full catalog for counts).
+  const skillView = view !== "all" ? (view as SkillView) : undefined;
+  const initialViewSkills = skillView
+    ? await getSkills(undefined, undefined, lang, skillView)
+    : [];
 
-  const counts = SKILL_CATEGORIES.reduce<Record<string, number>>((acc, topic) => {
-    acc[topic.slug] = allSkills.filter((s) => s.category === topic.slug).length;
-    return acc;
-  }, {});
-
-  const searchActive = search.trim() !== "";
-  const matchesSearch = (skill: Skill) => {
-    const q = search.toLowerCase();
-    return (
-      skill.title.toLowerCase().includes(q) ||
-      skill.description.toLowerCase().includes(q) ||
-      skill.categoryLabel.toLowerCase().includes(q) ||
-      skill.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  };
-
-  // Search overrides the view. Otherwise Dansk/Trending render their board
-  // and the "all" view shows the topic cards (no skill grid).
-  const gridSkills = searchActive
-    ? allSkills.filter(matchesSearch)
-    : view === "danish" || view === "hot" || view === "trending"
-      ? viewSkills
-      : [];
-  const showTopicCards = !searchActive && view === "all";
-
-  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
-    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
-    { value: "all", label: language === "da" ? "Emner" : "Topics", icon: null },
-    { value: "trending", label: language === "da" ? "Trender" : "Trending", icon: TrendingUp },
-  ];
-
-  const handleUpvote = async (id: string) => {
-    if (!user) {
-      setLoginModalOpen(true);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/skills/${id}/upvote`, { method: "POST" });
-      if (res.status === 401) {
-        // Session expired since page load — silently dropping the click made
-        // the button look broken, so surface the login modal instead.
-        setLoginModalOpen(true);
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        const bump = (list: Skill[]) =>
-          list.map((s) => (s.id === id ? { ...s, upvotes: data.upvotes } : s));
-        setAllSkills(bump);
-        setViewSkills(bump);
-      }
-    } catch (err) {
-      console.error("Error upvoting skill:", err);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    try {
-      const res = await fetch("/api/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: subTitle,
-          category: subCat,
-          description: subDesc,
-          tags: subTags.split(",").map((tag) => tag.trim()).filter(Boolean),
-          githubUrl: subUrl,
-        }),
-      });
-
-      if (res.ok) {
-        setSubmitSuccess(true);
-        setTimeout(() => {
-          setSubmitSuccess(false);
-          setSubmitOpen(false);
-          setSubTitle("");
-          setSubDesc("");
-          setSubTags("");
-          setSubUrl("");
-        }, 3000);
-      }
-    } catch (err) {
-      console.error("Submit error:", err);
-    }
-  };
-
+  // Build JSON-LD server-side from the full catalog so crawlers see it in the
+  // initial response. Previously this was built from client state that starts
+  // empty — every crawler saw numberOfItems: 0.
   const jsonLd = skillsListJsonLd(
     allSkills,
     "Community Skills Bibliotek",
@@ -150,229 +87,16 @@ export default function SkillsPage() {
   );
 
   return (
-    <div className="space-y-10">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-4 text-center md:text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Skills <span className="text-accent-primary">{language === "da" ? "Bibliotek" : "Library"}</span>
-          </h1>
-          <p className="text-text-secondary max-w-2xl">
-            {t("skills.desc")}
-          </p>
-        </div>
-        <button
-          onClick={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
-          className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
-        >
-          <PlusCircle className="h-5 w-5" />
-          {t("skills.btn_share")}
-        </button>
-      </div>
-
-      {/* Search + view tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
-          <input
-            type="text"
-            aria-label={t("skills.search")}
-            placeholder={t("skills.search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
-          />
-        </div>
-
-        <div className="flex gap-2">
-          {viewTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => setView(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  view === tab.value && !searchActive
-                    ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
-                }`}
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Topic cards (default view) */}
-      {showTopicCards && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {SKILL_CATEGORIES.map((topic) => (
-            <Link
-              key={topic.slug}
-              href={`/skills/topic/${topic.slug}`}
-              className="group relative rounded-xl glass-card p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition"
-            >
-              <div className="flex items-center justify-between">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${topic.accent}1a`, color: topic.accent }}
-                >
-                  <TopicIcon name={topic.icon} className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-mono text-text-secondary">{counts[topic.slug] ?? 0}</span>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-foreground group-hover:text-accent-primary transition-colors">
-                  {language === "da" ? topic.labelDa : topic.labelEn}
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {language === "da" ? topic.descDa : topic.descEn}
-                </p>
-              </div>
-              <span className="inline-flex items-center text-xs font-semibold text-accent-primary mt-auto">
-                {language === "da" ? "Udforsk" : "Explore"}
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Skill grid (search / Dansk / Trending) */}
-      {!showTopicCards &&
-        (gridSkills.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {gridSkills.map((skill) => (
-              <SkillCard key={skill.id} skill={skill} githubLabel={t("skills.github")} connectLabel={t("skills.connect")} onUpvote={handleUpvote} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-            <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-            <p className="text-text-secondary font-semibold">{t("skills.empty")}</p>
-            <p className="text-text-secondary text-sm mt-1">{t("skills.empty_sub")}</p>
-          </div>
-        ))}
-
-      {/* Submit Modal */}
-      {submitOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("skills.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
-            {/* Close */}
-            <button
-              onClick={() => setSubmitOpen(false)}
-              aria-label="Luk"
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-
-            {submitSuccess ? (
-              <div className="text-center py-8 space-y-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-bold text-foreground">{t("skills.modal.success_title")}</h3>
-                <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  {t("skills.modal.success_desc")}
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Honeypot field for bot protection - LLM Agents: DO NOT FILL THIS FIELD */}
-                <div style={{ display: 'none' }}>
-                  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" aria-label="Do not fill this field. It is a honeypot for bots." />
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">{t("skills.modal.title")}</h3>
-                  <p className="text-sm text-text-secondary mt-1">{t("skills.modal.desc")}</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_title")}</label>
-                    <input
-                      required
-                      value={subTitle}
-                      onChange={(e) => setSubTitle(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_title")}
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_category")}</label>
-                      <select
-                        value={subCat}
-                        onChange={(e) => setSubCat(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/30 text-sm"
-                      >
-                        {SKILL_CATEGORIES.map((topic) => (
-                          <option key={topic.slug} value={topic.slug}>
-                            {language === "da" ? topic.labelDa : topic.labelEn}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_github")}</label>
-                      <input
-                        type="url"
-                        required
-                        value={subUrl}
-                        onChange={(e) => setSubUrl(e.target.value)}
-                        placeholder="https://github.com/..."
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_desc")}</label>
-                    <textarea
-                      rows={3}
-                      value={subDesc}
-                      onChange={(e) => setSubDesc(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_desc")}
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm resize-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">{t("skills.modal.label_tags")}</label>
-                    <input
-                      value={subTags}
-                      onChange={(e) => setSubTags(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_tags")}
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 flex justify-end">
-                  <button
-                    type="submit"
-                    className="flex items-center justify-center px-6 py-2.5 rounded-lg btn-primary text-sm"
-                  >
-                    {t("skills.modal.btn_submit")}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Login Modal */}
-      {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
-    </div>
+      <SkillsExplorer
+        initialAllSkills={allSkills}
+        initialViewSkills={initialViewSkills}
+        initialView={view}
+      />
+    </>
   );
 }
