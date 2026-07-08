@@ -317,6 +317,25 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
 
 // DB API functions utilizing Supabase
 
+/**
+ * Sanitize a user-supplied search term before use in search operations.
+ *
+ * Strips characters with syntactic meaning in PostgREST's filter grammar
+ * (`,` `.` `(` `)` `*`) and SQL LIKE wildcards (`%` `_`) so the term is
+ * always treated as a plain literal substring — identical to the current JS
+ * `.includes()` behavior and safe for future SQL `.or()` / `ilike` use
+ * (KTD3 injection resistance requirement).
+ *
+ * Currently the search filter runs in JS (not SQL) because PostgREST has no
+ * array-element substring operator: pushing tag/tools search to SQL would
+ * require either a custom RPC or dropping tag-only matches (a regression).
+ * This function is a forward-compatible hook: when SQL search is added for
+ * title/description columns, pass the sanitized term into the `.or()` string.
+ */
+export function sanitizeSearchTerm(raw: string): string {
+  return raw.replace(/[,.()*%_]/g, '');
+}
+
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
   let query = supabasePublic.from('skills').select('*');
 
@@ -351,18 +370,29 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(s => mapSkill(s, lang));
-
+  // Search filters on raw DB rows (before mapping) so both language columns are
+  // checked in one pass. Tags use JS substring matching because PostgREST's
+  // array operators (.contains()/.overlaps()) test exact element equality — they
+  // cannot replicate today's `tag.includes(q)` substring behavior. Pushing only
+  // title/description to SQL and keeping tags in JS would lose items that match
+  // exclusively via tags (a regression). The sanitized term is PostgREST-safe
+  // for a future SQL push once an array-substring construct is available.
   if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(s => 
-      s.title.toLowerCase().includes(q) || 
-      s.description.toLowerCase().includes(q) || 
-      s.tags.some(t => t.toLowerCase().includes(q))
-    );
+    const q = sanitizeSearchTerm(search).toLowerCase();
+    if (q) {
+      return data
+        .filter(s =>
+          s.title_da.toLowerCase().includes(q) ||
+          s.title_en.toLowerCase().includes(q) ||
+          s.description_da.toLowerCase().includes(q) ||
+          s.description_en.toLowerCase().includes(q) ||
+          (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
+        )
+        .map(s => mapSkill(s, lang));
+    }
   }
 
-  return list;
+  return data.map(s => mapSkill(s, lang));
 }
 
 export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
@@ -421,18 +451,24 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(p => mapProject(p, lang));
-
+  // Search on raw rows so both language columns are checked (see getSkills for
+  // the full rationale). Tools is an array — same substring-in-JS approach as tags.
   if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(p => 
-      p.title.toLowerCase().includes(q) || 
-      p.description.toLowerCase().includes(q) || 
-      p.tools.some(t => t.toLowerCase().includes(q))
-    );
+    const q = sanitizeSearchTerm(search).toLowerCase();
+    if (q) {
+      return data
+        .filter(p =>
+          p.title_da.toLowerCase().includes(q) ||
+          p.title_en.toLowerCase().includes(q) ||
+          p.description_da.toLowerCase().includes(q) ||
+          p.description_en.toLowerCase().includes(q) ||
+          (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
+        )
+        .map(p => mapProject(p, lang));
+    }
   }
 
-  return list;
+  return data.map(p => mapProject(p, lang));
 }
 
 export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
@@ -693,18 +729,23 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
   const { data, error } = await query;
   if (error || !data) return [];
 
-  let list = data.map(a => mapAgent(a, lang));
-
+  // Search on raw rows so both language columns are checked (see getSkills for
+  // the full rationale). `name` is not localized. Tags use JS substring matching.
   if (search) {
-    const q = search.toLowerCase();
-    list = list.filter(a => 
-      a.name.toLowerCase().includes(q) || 
-      a.description.toLowerCase().includes(q) || 
-      a.tags.some(t => t.toLowerCase().includes(q))
-    );
+    const q = sanitizeSearchTerm(search).toLowerCase();
+    if (q) {
+      return data
+        .filter(a =>
+          a.name.toLowerCase().includes(q) ||
+          a.description_da.toLowerCase().includes(q) ||
+          a.description_en.toLowerCase().includes(q) ||
+          (a.tags || []).some((t: string) => t.toLowerCase().includes(q))
+        )
+        .map(a => mapAgent(a, lang));
+    }
   }
 
-  return list;
+  return data.map(a => mapAgent(a, lang));
 }
 
 // CLIs are stored in the agents table with category 'CLI'.

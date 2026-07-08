@@ -121,6 +121,7 @@ vi.mock("@/lib/supabase-server", () => {
 });
 
 import * as db from "@/lib/db";
+import { sanitizeSearchTerm } from "@/lib/db";
 import { skillCategoryLabel, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 
 const skillRow = {
@@ -736,6 +737,338 @@ describe("homepage-optimized reads", () => {
     await db.getThreads(undefined, "da", 2);
     const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
     expect(call.filters).toContainEqual(["limit", 2]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// U1 — SQL-push search and bounded list queries
+// ---------------------------------------------------------------------------
+
+describe("sanitizeSearchTerm (KTD3 injection resistance)", () => {
+  it("strips PostgREST grammar chars: , . ( ) *", () => {
+    // Input: x),category.eq.Hidden,title_da.ilike.%(
+    // Strips: )  ,           .  .        ,        .  %(
+    // Also strips _ (SQL LIKE wildcard), so title_da loses the underscore
+    expect(sanitizeSearchTerm("x),category.eq.Hidden,title_da.ilike.%(")).toBe(
+      "xcategoryeqHiddentitledailike"
+    );
+  });
+
+  it("strips SQL LIKE wildcards: % _", () => {
+    expect(sanitizeSearchTerm("100%_test")).toBe("100test");
+  });
+
+  it("leaves ordinary alphanumeric and hyphen characters untouched", () => {
+    expect(sanitizeSearchTerm("vibe-coding")).toBe("vibe-coding");
+    expect(sanitizeSearchTerm("react")).toBe("react");
+    expect(sanitizeSearchTerm("Next JS")).toBe("Next JS");
+  });
+
+  it("returns empty string when the entire input is stripped", () => {
+    expect(sanitizeSearchTerm(",.()")).toBe("");
+  });
+});
+
+const agentRow = {
+  id: "a1",
+  name: "CoolAgent",
+  developer: "dev",
+  category: "CLI",
+  description_da: "Dansk beskrivelse",
+  description_en: "English description",
+  install_command: "npx cool",
+  system_prompt_da: "p",
+  system_prompt_en: "p",
+  upvotes: 0,
+  tags: ["vibe-coding", "ai"],
+};
+
+const showcaseRow = {
+  id: "p1",
+  title_da: "Dansk titel",
+  title_en: "English title",
+  author: "alice",
+  description_da: "Dansk beskrivelse",
+  description_en: "English description",
+  tools: ["cursor", "claude"],
+  prompts: null,
+  upvotes: 5,
+  demo_url: "https://example.com",
+  github_url: null,
+  image_url: null,
+  created_at: "2026-01-01",
+};
+
+describe("U1 — getSkills search (bilingual, tag substring)", () => {
+  it("matches on title_da (active language irrelevant — both columns checked)", async () => {
+    const rows = [
+      { ...skillRow, id: "a", title_da: "Automation flow", title_en: "Something else" },
+      { ...skillRow, id: "b", title_da: "Urelated", title_en: "Unrelated" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("automati");
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches on title_en even when lang is 'da'", async () => {
+    const rows = [
+      { ...skillRow, id: "a", title_da: "Irrelevant", title_en: "React Patterns" },
+      { ...skillRow, id: "b", title_da: "Irrelevant", title_en: "Vue Patterns" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    // lang='da' but search must still check title_en
+    const results = await db.getSkills("react", undefined, "da");
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches on description_da", async () => {
+    const rows = [
+      { ...skillRow, id: "a", description_da: "Automation pipeline", description_en: "x" },
+      { ...skillRow, id: "b", description_da: "Nothing", description_en: "x" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("pipeline");
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches on description_en even when lang is 'da'", async () => {
+    const rows = [
+      { ...skillRow, id: "a", description_da: "x", description_en: "Workflow automation" },
+      { ...skillRow, id: "b", description_da: "x", description_en: "Nothing" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("workflow", undefined, "da");
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches via tag substring — 'code' matches tag 'no-code' (substring, not exact element)", async () => {
+    // "no-code".includes("code") === true — substring match within array element.
+    // This verifies we do NOT use PostgREST's .contains()/.overlaps() (exact-element
+    // match only), and that pure tag-only items (no match in title/description) are found.
+    const rows = [
+      {
+        ...skillRow,
+        id: "a",
+        title_da: "AI Assistent",
+        title_en: "AI Assistant",
+        description_da: "Hjælper dig",
+        description_en: "Helps you",
+        tags: ["no-code", "automation"],
+      },
+      {
+        ...skillRow,
+        id: "b",
+        title_da: "Noget andet",
+        title_en: "Something else",
+        description_da: "x",
+        description_en: "x",
+        tags: ["productivity"],
+      },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("code");
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("search is case-insensitive", async () => {
+    const rows = [{ ...skillRow, id: "a", title_da: "REACT hooks", title_en: "REACT hooks" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getSkills("react")).map(r => r.id)).toEqual(["a"]);
+    expect((await db.getSkills("REACT")).map(r => r.id)).toEqual(["a"]);
+    expect((await db.getSkills("React")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("empty search returns all rows unchanged", async () => {
+    const rows = [
+      { ...skillRow, id: "a" },
+      { ...skillRow, id: "b" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("");
+    expect(results.map(r => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("undefined search returns all rows unchanged", async () => {
+    const rows = [{ ...skillRow, id: "a" }, { ...skillRow, id: "b" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills(undefined);
+    expect(results.map(r => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("category + search narrows on both dimensions", async () => {
+    const rows = [
+      { ...skillRow, id: "a", category: "agent-methodology", title_da: "Agent flow", title_en: "Agent flow" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("agent", "agent-methodology");
+    const call = state.publicCalls.find(c => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["eq", "category", "agent-methodology"]);
+    expect(results.map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("search term with zero matches returns []", async () => {
+    const rows = [{ ...skillRow, id: "a", title_da: "Python", title_en: "Python", tags: [] }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect(await db.getSkills("xyzzy-no-match-99")).toEqual([]);
+  });
+
+  it("injection string is sanitized — does not widen the result set", async () => {
+    // Injection attempt: 'x),category.eq.Hidden,title_da.ilike.%('
+    // After sanitizeSearchTerm this becomes 'xcategoryeqHiddentitle_dailike' —
+    // a literal string unlikely to match any real skill, and definitely not
+    // capable of redefining filter structure.
+    const rows = [
+      { ...skillRow, id: "a", title_da: "Normal skill", title_en: "Normal skill", tags: [] },
+      { ...skillRow, id: "b", title_da: "Hidden skill", title_en: "Hidden skill", tags: [] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getSkills("x),category.eq.Hidden,title_da.ilike.%(");
+    // Sanitized term "xcategoryeqHiddentitle_dailike" matches nothing → []
+    expect(results).toEqual([]);
+  });
+
+  it("a search term whose dangerous chars are the entire input returns all rows (term stripped to empty)", async () => {
+    const rows = [{ ...skillRow, id: "a" }, { ...skillRow, id: "b" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    // ',.*' sanitizes to '' — treated as no search
+    const results = await db.getSkills(",.*");
+    expect(results.map(r => r.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("U1 — getProjects search (bilingual, tools substring)", () => {
+  it("matches on title_da and title_en regardless of lang", async () => {
+    const rows = [
+      // Override description columns too so only the title columns drive the match.
+      { ...showcaseRow, id: "a", title_da: "Dansk projekt", title_en: "English project", description_da: "x", description_en: "x", tools: [] },
+      { ...showcaseRow, id: "b", title_da: "Noget andet", title_en: "Something else", description_da: "x", description_en: "x", tools: [] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    // Searching 'dansk' hits title_da
+    expect((await db.getProjects("dansk")).map(r => r.id)).toEqual(["a"]);
+    state.publicCalls = [];
+    state.publicHandler = () => ({ data: rows, error: null });
+    // Searching 'english' hits title_en even with lang='da'
+    expect((await db.getProjects("english", "da")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches on description_da and description_en", async () => {
+    const rows = [
+      { ...showcaseRow, id: "a", description_da: "Workflow automation", description_en: "x" },
+      { ...showcaseRow, id: "b", description_da: "x", description_en: "x" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getProjects("workflow")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches via tools substring — 'curs' matches tool 'cursor'", async () => {
+    const rows = [
+      {
+        ...showcaseRow,
+        id: "a",
+        title_da: "Irrelevant",
+        title_en: "Irrelevant",
+        description_da: "x",
+        description_en: "x",
+        tools: ["cursor", "claude"],
+      },
+      { ...showcaseRow, id: "b", tools: ["python"] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getProjects("curs")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("empty search returns all rows", async () => {
+    const rows = [{ ...showcaseRow, id: "a" }, { ...showcaseRow, id: "b" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getProjects("")).map(r => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("zero-match search returns []", async () => {
+    const rows = [{ ...showcaseRow, id: "a" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect(await db.getProjects("xyzzy-no-match")).toEqual([]);
+  });
+
+  it("injection string does not widen results", async () => {
+    const rows = [
+      { ...showcaseRow, id: "a" },
+      { ...showcaseRow, id: "b", title_da: "Hidden", title_en: "Hidden" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getProjects("x),upvotes.gt.0,title_da.ilike.%(");
+    expect(results).toEqual([]);
+  });
+});
+
+describe("U1 — getAgents search (name, bilingual description, tag substring)", () => {
+  it("matches on agent name", async () => {
+    const rows = [
+      { ...agentRow, id: "a", name: "CoolAgent" },
+      { ...agentRow, id: "b", name: "OtherTool" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getAgents("cool")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches on description_da and description_en", async () => {
+    const rows = [
+      { ...agentRow, id: "a", description_da: "Automatisering", description_en: "Automation" },
+      { ...agentRow, id: "b", description_da: "x", description_en: "x" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    // 'da' lang: checks description_da
+    expect((await db.getAgents("automati", undefined, "da")).map(r => r.id)).toEqual(["a"]);
+    // 'en' lang but description_da also matched (bilingual)
+    expect((await db.getAgents("automati", undefined, "en")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("matches via tag substring — 'code' matches tag 'no-code' (pure tag-only, not exact-element)", async () => {
+    // "no-code".includes("code") === true — substring within an array element.
+    // The item has no "code" in name or description, so only the tag drives the match.
+    const rows = [
+      {
+        ...agentRow,
+        id: "a",
+        name: "Tool",
+        description_da: "x",
+        description_en: "x",
+        tags: ["no-code"],
+      },
+      { ...agentRow, id: "b", name: "Other", description_da: "x", description_en: "x", tags: [] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getAgents("code")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("empty search returns all rows", async () => {
+    const rows = [{ ...agentRow, id: "a" }, { ...agentRow, id: "b" }];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getAgents("")).map(r => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("zero-match search returns []", async () => {
+    state.publicHandler = () => ({ data: [agentRow], error: null });
+    expect(await db.getAgents("xyzzy-no-match")).toEqual([]);
+  });
+
+  it("injection string does not error and returns no widened results", async () => {
+    const rows = [
+      { ...agentRow, id: "a", name: "Normal" },
+      { ...agentRow, id: "b", name: "Hidden", description_da: "x", description_en: "x", tags: [] },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    const results = await db.getAgents("x),category.eq.CLI,name.ilike.%(");
+    expect(results).toEqual([]);
+  });
+
+  it("getCli (getAgents wrapper) passes search through correctly", async () => {
+    const rows = [
+      { ...agentRow, id: "a", category: "CLI", name: "ClaudeCodeTool" },
+      { ...agentRow, id: "b", category: "CLI", name: "UnrelatedThing" },
+    ];
+    state.publicHandler = () => ({ data: rows, error: null });
+    expect((await db.getCli("claudecode")).map(r => r.id)).toEqual(["a"]);
   });
 });
 
