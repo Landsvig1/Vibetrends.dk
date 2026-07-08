@@ -44,7 +44,7 @@ vi.mock("../loading", () => ({
 
 import { cookies } from "next/headers";
 import { getProjects } from "@/lib/db";
-import { VibesPageContent, getValidSort } from "../page";
+import { VibesPageContent } from "../page";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,6 +67,8 @@ function makeProject(id: string, title: string, description: string) {
     tools: [],
     prompts: [],
     createdAt: "2026-01-01",
+    isDanish: false,
+    denmarkSpecific: false,
   };
 }
 
@@ -84,42 +86,26 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// getValidSort — pure helper
-// ---------------------------------------------------------------------------
-
-describe("getValidSort", () => {
-  it("returns 'new' for undefined", () => {
-    expect(getValidSort(undefined)).toBe("new");
-  });
-  it("returns 'new' for unknown values", () => {
-    expect(getValidSort("popular")).toBe("new");
-    expect(getValidSort("")).toBe("new");
-  });
-  it("returns 'top' when given 'top'", () => {
-    expect(getValidSort("top")).toBe("top");
-  });
-  it("returns 'az' when given 'az'", () => {
-    expect(getValidSort("az")).toBe("az");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // VibesPageContent — prop-passing / data contract
 // ---------------------------------------------------------------------------
+//
+// The Dansk/Alle/Hot tabs are purely client-side (VibesExplorer), so the
+// server component always fetches the full catalog sorted 'top' regardless
+// of any URL param — there is no server-side "sort"/"view" param anymore.
 
 describe("VibesPageContent — passes real project data to client island", () => {
-  it("calls getProjects with the lang from the vibe_lang cookie and the validated sort", async () => {
+  it("calls getProjects with the lang from the vibe_lang cookie and sort 'top'", async () => {
     const projects = [makeProject("p1", "Alpha", "Alpha description long enough")];
     getProjectsMock.mockResolvedValue(projects);
 
     await VibesPageContent({
-      searchParams: Promise.resolve({ sort: "top" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(getProjectsMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
       "en",      // lang from mocked cookie
-      "top"      // validated sort
+      "top"      // always the base catalog order — tabs are client-side
     );
   });
 
@@ -132,23 +118,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
 
     await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "da", "new");
-  });
-
-  it("defaults sort to 'new' when searchParams has no sort", async () => {
-    getProjectsMock.mockResolvedValue([]);
-
-    await VibesPageContent({ searchParams: Promise.resolve({}) });
-
-    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "new");
-  });
-
-  it("falls back to 'new' for an unrecognised sort param value", async () => {
-    getProjectsMock.mockResolvedValue([]);
-
-    await VibesPageContent({ searchParams: Promise.resolve({ sort: "random" }) });
-
-    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "new");
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "da", "top");
   });
 
   it("passes ?q= as search to getProjects when present", async () => {
@@ -162,7 +132,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
     expect(getProjectsMock).toHaveBeenCalledWith(
       "react", // search term from ?q= param
       "en",
-      "new"
+      "top"
     );
   });
 
@@ -173,7 +143,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
       searchParams: Promise.resolve({ q: "" }),
     });
 
-    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "new");
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "top");
   });
 });
 

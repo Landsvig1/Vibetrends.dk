@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock } from "lucide-react";
+import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock, Flag } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
@@ -78,15 +78,15 @@ export async function executeUpvote(
 
 interface ForumExplorerProps {
   initialThreads: ForumThread[];
-  /** The sort the server pre-fetched data for. Used for skip-first-mount logic. */
-  initialSort: "top" | "new";
+  /** The view the server pre-fetched data for. Used for skip-first-mount logic. */
+  initialView: "danish" | "top" | "new";
   /** The category the server pre-fetched data for ("All" or a specific category key). */
   initialCategory: string;
 }
 
 export default function ForumExplorer({
   initialThreads,
-  initialSort,
+  initialView,
   initialCategory,
 }: ForumExplorerProps) {
   const [threads, setThreads] = useState<ForumThread[]>(initialThreads);
@@ -94,9 +94,9 @@ export default function ForumExplorer({
     "category",
     parseAsString.withDefault(initialCategory)
   );
-  const [sort, setSort] = useQueryState(
-    "sort",
-    parseAsString.withDefault(initialSort)
+  const [view, setView] = useQueryState(
+    "view",
+    parseAsString.withDefault(initialView)
   );
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -115,15 +115,19 @@ export default function ForumExplorer({
   const [threadSuccess, setThreadSuccess] = useState(false);
 
   // Skip the first mount fetch — the server already fetched with the initial
-  // category/sort/lang and passed real data as initialThreads. Only refetch
-  // when category, sort, or language actually changes post-mount.
+  // category/view/lang and passed real data as initialThreads. Only refetch
+  // when category, view, or language actually changes post-mount.
   const skipNextFetch = useRef(true);
 
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
 
-  // Refetch when category, sort, or language changes post-mount. On first
+  // getThreads/api/forum only understand top/new — Dansk is a client-side
+  // filter/sort layered on the 'top'-sorted base list (see viewThreads below).
+  const serverSort = view === "new" ? "new" : "top";
+
+  // Refetch when category, view, or language changes post-mount. On first
   // render we skip this effect (the server already fetched the right data).
   // no-store: the route's public max-age header is for external API consumers;
   // the interactive page must always read fresh counts, or a reload right after
@@ -136,7 +140,7 @@ export default function ForumExplorer({
 
     const params = new URLSearchParams();
     if (selectedCategory !== "All") params.set("category", selectedCategory);
-    if (sort === "new") params.set("sort", "new");
+    if (serverSort === "new") params.set("sort", "new");
     const qs = params.toString();
 
     setIsRefetching(true);
@@ -150,9 +154,25 @@ export default function ForumExplorer({
         console.error("Error fetching threads:", err);
         setIsRefetching(false);
       });
-  }, [selectedCategory, sort, language]);
+  }, [selectedCategory, serverSort, language]);
 
   const categories: ("All" | ForumThread["category"])[] = ["All", ...FORUM_CATEGORY_KEYS];
+
+  // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
+  // Danish contributors, Denmark-specific threads first — same pattern as
+  // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
+  const viewThreads =
+    view === "danish"
+      ? [...threads]
+          .filter((t) => t.isDanish)
+          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+      : threads;
+
+  const viewTabs: { value: string; label: string; icon: typeof Flag }[] = [
+    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
+    { value: "top", label: "Top", icon: TrendingUp },
+    { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
+  ];
 
   // Handle upvote via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
@@ -203,6 +223,9 @@ export default function ForumExplorer({
       if (res.ok) {
         const newT = await res.json();
         setThreads((prev) => [newT, ...prev]);
+        // New threads aren't Danish-flagged, so the default Dansk tab would
+        // hide them — jump to Top so the author sees their thread.
+        if (view === "danish") setView("top");
         setThreadSuccess(true);
 
         setTimeout(() => {
@@ -282,19 +305,16 @@ export default function ForumExplorer({
 
         {/* Threads list */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Sort tabs */}
+          {/* View tabs: Dansk / Top / Nyeste */}
           <div className="flex gap-2">
-            {([
-              { value: "top", label: language === "da" ? "Top" : "Top", icon: TrendingUp },
-              { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
-            ] as const).map((tab) => {
+            {viewTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.value}
-                  onClick={() => setSort(tab.value)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    sort === tab.value
+                  onClick={() => setView(tab.value)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                    view === tab.value
                       ? "bg-accent-primary text-white font-extrabold shadow-md"
                       : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
                   }`}
@@ -306,14 +326,14 @@ export default function ForumExplorer({
             })}
           </div>
 
-          {/* Thread list — opacity overlay during in-flight category/sort/language refetch */}
-          {threads.length > 0 ? (
+          {/* Thread list — opacity overlay during in-flight category/view/language refetch */}
+          {viewThreads.length > 0 ? (
             <div
               className={`space-y-4 transition-opacity duration-200 ${
                 isRefetching ? "opacity-50 pointer-events-none" : ""
               }`}
             >
-              {threads.map((thread) => (
+              {viewThreads.map((thread) => (
                 <div
                   key={thread.id}
                   data-testid="thread-card"

@@ -46,7 +46,7 @@ vi.mock("../loading", () => ({
 
 import { cookies } from "next/headers";
 import { getThreads } from "@/lib/db";
-import { ForumPageContent, getValidForumSort } from "../page";
+import { ForumPageContent, getValidForumView } from "../page";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -78,6 +78,8 @@ function makeThread(
       createdAt: "2026-01-02",
     })),
     createdAt: "2026-01-01",
+    isDanish: false,
+    denmarkSpecific: false,
   };
 }
 
@@ -95,32 +97,36 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// getValidForumSort — pure helper
+// getValidForumView — pure helper
 // ---------------------------------------------------------------------------
 
-describe("getValidForumSort", () => {
-  it("returns 'top' for undefined (matches client useQueryState default)", () => {
-    expect(getValidForumSort(undefined)).toBe("top");
+describe("getValidForumView", () => {
+  it("returns 'danish' for undefined (default-to-Dansk pattern)", () => {
+    expect(getValidForumView(undefined)).toBe("danish");
   });
-  it("returns 'top' for unknown values", () => {
-    expect(getValidForumSort("popular")).toBe("top");
-    expect(getValidForumSort("az")).toBe("top");
-    expect(getValidForumSort("")).toBe("top");
+  it("returns 'danish' for unknown values", () => {
+    expect(getValidForumView("popular")).toBe("danish");
+    expect(getValidForumView("az")).toBe("danish");
+    expect(getValidForumView("")).toBe("danish");
   });
   it("returns 'new' when given 'new'", () => {
-    expect(getValidForumSort("new")).toBe("new");
+    expect(getValidForumView("new")).toBe("new");
   });
   it("returns 'top' when given 'top'", () => {
-    expect(getValidForumSort("top")).toBe("top");
+    expect(getValidForumView("top")).toBe("top");
   });
 });
 
 // ---------------------------------------------------------------------------
 // ForumPageContent — prop-passing / data contract
 // ---------------------------------------------------------------------------
+//
+// getThreads only understands top/new — "danish" and "top" both fetch with
+// server sort 'top' (the Dansk tab's filter/sort runs client-side in
+// ForumExplorer on top of that base list).
 
 describe("ForumPageContent — passes real thread data to client island", () => {
-  it("calls getThreads with lang from the vibe_lang cookie and the validated sort", async () => {
+  it("calls getThreads with lang from the vibe_lang cookie and server sort for 'new' view", async () => {
     cookiesMock.mockResolvedValue({
       get: (name: string) =>
         name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
@@ -130,14 +136,14 @@ describe("ForumPageContent — passes real thread data to client island", () => 
     getThreadsMock.mockResolvedValue(threads);
 
     await ForumPageContent({
-      searchParams: Promise.resolve({ sort: "new" }),
+      searchParams: Promise.resolve({ view: "new" }),
     });
 
     expect(getThreadsMock).toHaveBeenCalledWith(
       undefined, // no category (All → undefined)
       "en",      // lang from mocked cookie
       undefined, // no limit
-      "new"      // validated sort
+      "new"      // 'new' view maps directly to server sort 'new'
     );
   });
 
@@ -153,7 +159,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
     expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
   });
 
-  it("defaults sort to 'top' when searchParams has no sort", async () => {
+  it("defaults to the 'danish' view (server sort 'top') when searchParams has no view", async () => {
     getThreadsMock.mockResolvedValue([]);
 
     await ForumPageContent({ searchParams: Promise.resolve({}) });
@@ -161,11 +167,11 @@ describe("ForumPageContent — passes real thread data to client island", () => 
     expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
   });
 
-  it("falls back to 'top' for an unrecognised sort param value", async () => {
+  it("falls back to the 'danish' view (server sort 'top') for an unrecognised view param value", async () => {
     getThreadsMock.mockResolvedValue([]);
 
     await ForumPageContent({
-      searchParams: Promise.resolve({ sort: "random" }),
+      searchParams: Promise.resolve({ view: "random" }),
     });
 
     expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
@@ -323,18 +329,18 @@ describe("ForumPageContent — ForumExplorer receives the fetched thread list", 
     expect(passed[1].replies).toHaveLength(0);
   });
 
-  it("passes initialSort and initialCategory so ForumExplorer can skip first mount fetch", async () => {
+  it("passes initialView and initialCategory so ForumExplorer can skip first mount fetch", async () => {
     getThreadsMock.mockResolvedValue([]);
 
     const result = await ForumPageContent({
-      searchParams: Promise.resolve({ sort: "new", category: "Tools" }),
+      searchParams: Promise.resolve({ view: "new", category: "Tools" }),
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const children = (result as any).props.children as any[];
     const explorerEl = children[1];
 
-    expect(explorerEl.props.initialSort).toBe("new");
+    expect(explorerEl.props.initialView).toBe("new");
     expect(explorerEl.props.initialCategory).toBe("Tools");
   });
 });

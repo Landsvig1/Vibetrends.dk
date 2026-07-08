@@ -84,6 +84,10 @@ export interface ShowcaseProject {
   githubUrl?: string;
   imageUrl: string;
   createdAt: string;
+  /** Project comes from a Danish contributor (drives the Dansk tab on /vibes). */
+  isDanish: boolean;
+  /** Project is specifically about Denmark (sorted first in the Dansk tab). */
+  denmarkSpecific: boolean;
 }
 
 export interface ForumReply {
@@ -103,6 +107,10 @@ export interface ForumThread {
   upvotes: number;
   replies: ForumReply[];
   createdAt: string;
+  /** Thread comes from a Danish contributor (drives the Dansk tab on /forum). */
+  isDanish: boolean;
+  /** Thread is specifically about Denmark (sorted first in the Dansk tab). */
+  denmarkSpecific: boolean;
 }
 
 export interface BlogPost {
@@ -177,6 +185,10 @@ interface ShowcaseRow {
   github_url: string | null;
   image_url: string | null;
   created_at: string;
+  /** Project comes from a Danish contributor (drives the Dansk view). */
+  is_danish?: boolean;
+  /** Project is specifically about Denmark (sorted first in the Dansk view). */
+  denmark_specific?: boolean;
 }
 
 interface ThreadRow {
@@ -189,6 +201,10 @@ interface ThreadRow {
   content_en: string;
   upvotes: number | null;
   created_at: string;
+  /** Thread comes from a Danish contributor (drives the Dansk view). */
+  is_danish?: boolean;
+  /** Thread is specifically about Denmark (sorted first in the Dansk view). */
+  denmark_specific?: boolean;
 }
 
 interface ReplyRow {
@@ -270,6 +286,8 @@ function mapProject(p: ShowcaseRow, lang: 'da' | 'en'): ShowcaseProject {
     githubUrl: p.github_url || undefined,
     imageUrl: p.image_url || '/images/autonewsletter.jpg',
     createdAt: p.created_at,
+    isDanish: p.is_danish ?? false,
+    denmarkSpecific: p.denmark_specific ?? false,
   };
 }
 
@@ -289,6 +307,8 @@ function mapThread(t: ThreadRow, replies: ReplyRow[], lang: 'da' | 'en'): ForumT
       createdAt: r.created_at,
     })),
     createdAt: t.created_at,
+    isDanish: t.is_danish ?? false,
+    denmarkSpecific: t.denmark_specific ?? false,
   };
 }
 

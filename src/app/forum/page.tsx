@@ -7,14 +7,13 @@ import ForumLoading from "./loading";
 import ForumExplorer from "./ForumExplorer";
 
 /**
- * Validates the `sort` URL param to the two values getThreads() accepts.
- * Default is "top" — matches the client-side useQueryState default the
- * original forum page used.
- * Exported for unit testing.
+ * Validates the `view` URL param to the three tabs ForumExplorer renders
+ * (Dansk/Top/Nyeste). Default is "danish" — same default-to-Dansk pattern as
+ * /skills, /cli, /mcp, and /agents. Exported for unit testing.
  */
-export function getValidForumSort(sort: string | undefined): "top" | "new" {
-  if (sort === "new") return "new";
-  return "top";
+export function getValidForumView(view: string | undefined): "danish" | "top" | "new" {
+  if (view === "top" || view === "new") return view;
+  return "danish";
 }
 
 /**
@@ -25,7 +24,7 @@ export function getValidForumSort(sort: string | undefined): "top" | "new" {
 export default async function ForumPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sort?: string }>;
+  searchParams: Promise<{ category?: string; view?: string }>;
 }) {
   return (
     <Suspense fallback={<ForumLoading />}>
@@ -42,24 +41,30 @@ export default async function ForumPage({
  * KTD4 in docs/plans/2026-07-08-001-feat-site-wide-performance-seo-optimization-plan.md).
  *
  * Reads lang from cookie, calls the cached getThreads() (U1/U2), respects
- * category and sort from searchParams, builds the JSON-LD ItemList/
+ * category and view from searchParams, builds the JSON-LD ItemList/
  * DiscussionForumPosting server-side from real data (fixing the SEO gap
  * where the forum hub had no JSON-LD at all — the layout only supplies static
  * metadata, not structured list data), then delegates all interactivity to
  * the client island.
+ *
+ * getThreads() only understands top/new — the Dansk tab is a client-side
+ * filter/sort layered on top of the 'top'-sorted base list (same pattern as
+ * VibesExplorer's Dansk/Alle/Hot), so "danish" and "top" both fetch with
+ * server sort 'top'.
  *
  * Exported for unit testing.
  */
 export async function ForumPageContent({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; sort?: string }>;
+  searchParams: Promise<{ category?: string; view?: string }>;
 }) {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
   const resolvedParams = await searchParams;
-  const sort = getValidForumSort(resolvedParams?.sort);
+  const view = getValidForumView(resolvedParams?.view);
+  const serverSort = view === "new" ? "new" : "top";
   // Only pass category to the query when it's not "All" — getThreads uses
   // undefined to mean "no category filter" (returns all categories).
   const category =
@@ -72,7 +77,7 @@ export async function ForumPageContent({
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
   // The batched reply fetch (thread_replies .in('thread_id', threadIds)) runs
   // inside getThreads — reply counts are populated server-side.
-  const threads = await getThreads(category, lang, undefined, sort);
+  const threads = await getThreads(category, lang, undefined, serverSort);
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously the forum hub had NO JSON-LD at all — the
@@ -109,7 +114,7 @@ export async function ForumPageContent({
       />
       <ForumExplorer
         initialThreads={threads}
-        initialSort={sort}
+        initialView={view}
         initialCategory={resolvedParams?.category ?? "All"}
       />
     </>

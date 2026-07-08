@@ -32,6 +32,8 @@ function makeProject(
     tools,
     prompts: [],
     createdAt: "2026-01-01",
+    isDanish: false,
+    denmarkSpecific: false,
   };
 }
 
@@ -332,20 +334,30 @@ describe("delete flow — project removed from list", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Sort-tab switching: sort behavior contract
+// Dansk/Alle/Hot view-tab contract — client-side only, no per-tab refetch
 // ---------------------------------------------------------------------------
 
-describe("sort-tab switching contract", () => {
-  it("non-'new' sort values are appended as ?sort= param in the fetch URL", () => {
-    function buildFetchUrl(sort: string) {
-      const params = new URLSearchParams();
-      if (sort !== "new") params.set("sort", sort);
-      const qs = params.toString();
-      return qs ? `/api/vibes?${qs}` : "/api/vibes";
-    }
+describe("view-tab switching contract (Dansk/Alle/Hot)", () => {
+  const danishProject = makeProject("p1", "Dansk Vibe", "Dansk description", []);
+  const foreignProject = makeProject("p2", "Foreign Vibe", "Foreign description", []);
+  const all = [
+    { ...danishProject, isDanish: true, denmarkSpecific: false, upvotes: 1 },
+    { ...foreignProject, isDanish: false, denmarkSpecific: false, upvotes: 10 },
+  ];
 
-    expect(buildFetchUrl("new")).toBe("/api/vibes");
-    expect(buildFetchUrl("top")).toBe("/api/vibes?sort=top");
-    expect(buildFetchUrl("az")).toBe("/api/vibes?sort=az");
+  it("Dansk view filters to isDanish projects only", () => {
+    const danishOnly = all.filter((p) => p.isDanish);
+    expect(danishOnly.map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("Dansk view sorts denmarkSpecific first, then by upvotes", () => {
+    const withDenmarkSpecific = [
+      { ...danishProject, isDanish: true, denmarkSpecific: false, upvotes: 10 },
+      { ...danishProject, id: "p3", isDanish: true, denmarkSpecific: true, upvotes: 1 },
+    ];
+    const sorted = withDenmarkSpecific
+      .filter((p) => p.isDanish)
+      .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes);
+    expect(sorted[0].id).toBe("p3");
   });
 });
