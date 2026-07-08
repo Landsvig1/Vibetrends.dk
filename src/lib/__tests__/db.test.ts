@@ -608,6 +608,26 @@ describe("upvoteThread / upvoteSkill / upvoteAgent / upvoteReply — U8 toggle_u
     expect(rpcCalls.includes("toggle_upvote")).toBe(false);
   });
 
+  it("admin upvoteReply without threadId still invalidates thread-{id} (hoisted lookup covers admin branch)", async () => {
+    // Regression guard for the hoist fix: previously the admin branch used a
+    // bare `if (threadId)` guard, so it would skip the specific-thread cache
+    // invalidation when threadId was omitted. After hoisting the lookup above
+    // both branches, resolvedThreadId is always set (from the lookup when the
+    // caller doesn't supply threadId), so the admin path invalidates both tags.
+    state.user = { id: "admin" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: 10, error: null };
+      return { data: 0, error: null };
+    };
+    // Simulate the DB lookup returning the parent thread id.
+    state.publicHandler = () => ({ data: { thread_id: "t42" }, error: null });
+    const result = await db.upvoteReply("r1"); // no threadId argument
+    expect(result).toBe(10);
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain("threads-list");
+    expect(tags).toContain("thread-t42"); // must appear even though threadId was not passed
+  });
+
   it("failed toggle_upvote RPC returns null without calling revalidateTag (no partial state)", async () => {
     state.user = { id: "u1" };
     state.rpcHandler = (fn) => {

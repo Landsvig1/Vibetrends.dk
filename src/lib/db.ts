@@ -700,10 +700,20 @@ export async function upvoteReply(id: string, threadId?: string) {
     return 0;
   }
 
+  // Resolve the parent thread id once, before branching into admin vs. RPC,
+  // so both paths use the same value. Previously the admin branch only
+  // invalidated thread-{id} when threadId was explicitly passed by the caller
+  // — meaning the specific thread cache could go stale indefinitely when
+  // threadId was omitted on the admin path. The RPC branch already had a
+  // fallback lookup; this hoist removes the divergence.
+  const resolvedThreadId = threadId ?? (
+    await supabasePublic.from('forum_replies').select('thread_id').eq('id', id).single()
+  ).data?.thread_id;
+
   const adminCount = await adminBumpUpvotes(supabase, 'reply', id);
   if (adminCount !== null) {
     revalidateTag('threads-list')
-    if (threadId) revalidateTag(`thread-${threadId}`)
+    if (resolvedThreadId) revalidateTag(`thread-${resolvedThreadId}`)
     return adminCount;
   }
 
@@ -719,14 +729,9 @@ export async function upvoteReply(id: string, threadId?: string) {
     return null;
   }
 
-  // Invalidate immediately — KTD2 hard constraint. The broad 'threads-list'
-  // tag covers all getThreads() variants. The specific thread tag covers the
-  // getThreadById() cache for this reply's parent thread. Falls back to a
-  // lookup only if the caller didn't already know the thread id.
+  // Invalidate immediately — KTD2 hard constraint. Both admin and RPC paths
+  // use the same resolvedThreadId resolved above.
   revalidateTag('threads-list')
-  const resolvedThreadId = threadId ?? (
-    await supabasePublic.from('forum_replies').select('thread_id').eq('id', id).single()
-  ).data?.thread_id;
   if (resolvedThreadId) {
     revalidateTag(`thread-${resolvedThreadId}`)
   }
