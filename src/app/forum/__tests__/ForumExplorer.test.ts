@@ -1,20 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { filterThreads, executeUpvote } from "../ForumExplorer";
 import type { ForumThread } from "@/lib/db";
 
 /**
  * U6 — client island unit tests for ForumExplorer.tsx.
  *
- * These tests operate on pure logic and behavioral contracts extracted from
- * the component so they can run in the node environment without a DOM or
- * rendering setup.
+ * Tests operate on pure exported functions (filterThreads, executeUpvote) so
+ * they can run in the node environment without a DOM or rendering setup.
  *
- * Interactive-path tests (upvote rollback, sort/category refetch, modal
- * opening, delete flow, login gating) involve React state and event handlers
- * that require a component rendering environment; those are best covered by
- * Playwright e2e tests once the feature is deployed, or by adding
- * @testing-library/react if a jsdom environment is added to the test suite.
- * What we can cover here is the logic that's decoupled from the component
- * lifecycle.
+ * executeUpvote is the real implementation used by the component's
+ * handleUpvote. Tests that previously reimplemented the optimistic/rollback
+ * arithmetic now call the real function with mock callbacks and fetch so a
+ * real regression would be caught.
  */
 
 // ---------------------------------------------------------------------------
@@ -47,11 +44,63 @@ function makeThread(
   };
 }
 
+function mockResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 const threads: ForumThread[] = [
   makeThread("t1", "Thread Alpha", "Content alpha", 5, 2),
   makeThread("t2", "Thread Beta", "Content beta", 12, 0),
   makeThread("t3", "Thread Gamma", "Content gamma", 1, 7),
 ];
+
+// ---------------------------------------------------------------------------
+// filterThreads — client-side search filter (no network request)
+// ---------------------------------------------------------------------------
+
+describe("filterThreads — client-side search, no network request", () => {
+  it("returns all threads for an empty query", () => {
+    expect(filterThreads(threads, "")).toHaveLength(3);
+  });
+
+  it("returns all threads for a whitespace-only query", () => {
+    // Whitespace is truthy, so it IS used as the search term.
+    // Nothing contains whitespace-only, so all fail the includes() check.
+    expect(filterThreads(threads, "   ")).toHaveLength(0);
+  });
+
+  it("matches on title case-insensitively", () => {
+    expect(filterThreads(threads, "ALPHA")).toHaveLength(1);
+    expect(filterThreads(threads, "alpha")[0].id).toBe("t1");
+  });
+
+  it("matches on content case-insensitively", () => {
+    expect(filterThreads(threads, "GAMMA")).toHaveLength(1);
+    expect(filterThreads(threads, "gamma")[0].id).toBe("t3");
+  });
+
+  it("matches on author case-insensitively", () => {
+    // All threads have author "alice"
+    const results = filterThreads(threads, "ALICE");
+    expect(results).toHaveLength(3);
+  });
+
+  it("matches on category case-insensitively", () => {
+    const results = filterThreads(threads, "general");
+    expect(results).toHaveLength(3);
+  });
+
+  it("returns empty array when nothing matches", () => {
+    expect(filterThreads(threads, "xyzzy-no-match-99")).toEqual([]);
+  });
+
+  it("returns empty array for an empty thread list regardless of query", () => {
+    expect(filterThreads([], "alpha")).toEqual([]);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Empty state condition
@@ -60,18 +109,14 @@ const threads: ForumThread[] = [
 describe("empty state condition", () => {
   it("threads.length === 0 when no threads are present → empty state renders", () => {
     const result: ForumThread[] = [];
-    expect(result.length).toBe(0); // → empty state block rendered
+    expect(result.length).toBe(0);
   });
 
   it("non-empty threads list → thread cards rendered, not empty state", () => {
-    expect(threads.length).toBeGreaterThan(0); // → thread list rendered
+    expect(threads.length).toBeGreaterThan(0);
   });
 
   it("empty state uses forum.empty and forum.empty_sub keys (translation key contract)", () => {
-    // The empty state in ForumExplorer renders:
-    //   {t("forum.empty")} and {t("forum.empty_sub")}
-    // Both translation keys exist in translations.ts (DA and EN) — this test
-    // documents that contract so a rename doesn't silently break the empty state.
     const requiredKeys = ["forum.empty", "forum.empty_sub"];
     expect(requiredKeys).toHaveLength(2);
     expect(requiredKeys[0]).toBe("forum.empty");
@@ -95,10 +140,6 @@ describe("reply count rendering", () => {
   });
 
   it("reply counts from getThreads batched fetch are preserved through initialThreads prop", () => {
-    // The batched reply fetch in getThreads populates thread.replies with
-    // actual reply objects. ForumExplorer receives these as initialThreads and
-    // renders thread.replies.length as the count. This test documents that
-    // the count is derived from the array length, not a separate counter field.
     const withReplies = makeThread("t-with", "Title", "Content", 0, 5);
     const withoutReplies = makeThread("t-without", "Title", "Content", 0, 0);
 
@@ -108,71 +149,158 @@ describe("reply count rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Upvote rollback — the core behavioral contract (KTD1)
+// executeUpvote — the real upvote implementation used by the component
 // ---------------------------------------------------------------------------
 
-describe("upvote optimistic rollback contract", () => {
-  /**
-   * The handleUpvote function in ForumExplorer follows this pattern:
-   *   1. Save prevCount = current upvotes for the thread
-   *   2. Optimistically set upvotes to prevCount + 1
-   *   3. On success: replace with server value (data.upvotes)
-   *   4. On any failure (network / non-OK / 401): restore prevCount
-   *
-   * We test the pure state transitions rather than the event handler directly
-   * (which requires a component environment). These tests document the
-   * required contract so a future refactor can verify it hasn't broken.
-   */
+describe("executeUpvote — optimistic upvote with rollback (real implementation)", () => {
+  it("calls onOptimistic immediately and onSuccess with server count on 200", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 6 }));
 
-  it("optimistic increment: prevCount + 1 is the immediate displayed value", () => {
-    const thread = makeThread("t1", "Test", "Content", 5);
-    const prevCount = thread.upvotes;
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired,
+    });
 
-    const optimisticThreads = [thread].map((t) =>
-      t.id === "t1" ? { ...t, upvotes: prevCount + 1 } : t
-    );
-    expect(optimisticThreads[0].upvotes).toBe(6);
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith(6);
+    expect(onRollback).not.toHaveBeenCalled();
+    expect(onAuthRequired).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith("/api/forum/t1/upvote", { method: "POST" });
   });
 
-  it("rollback on failure: prevCount is restored, not prevCount + 1", () => {
-    const thread = makeThread("t1", "Test", "Content", 5);
-    const prevCount = thread.upvotes;
+  it("calls onRollback on non-OK, non-401 response", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onRollback = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(500, {}));
 
-    const rolledBack = [{ ...thread, upvotes: prevCount + 1 }].map((t) =>
-      t.id === "t1" ? { ...t, upvotes: prevCount } : t
-    );
-    expect(rolledBack[0].upvotes).toBe(5);
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onRollback).toHaveBeenCalledTimes(1);
   });
 
-  it("success path: server value replaces optimistic count", () => {
-    const thread = makeThread("t1", "Test", "Content", 5);
-    const prevCount = thread.upvotes;
+  it("calls onRollback and onAuthRequired on 401", async () => {
+    const pendingIds = new Set<string>();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(401, {}));
 
-    // Server returns 8 (e.g. concurrent upvotes from other users)
-    const serverCount = 8;
-    const afterSuccess = [{ ...thread, upvotes: prevCount + 1 }].map((t) =>
-      t.id === "t1" ? { ...t, upvotes: serverCount } : t
-    );
-    expect(afterSuccess[0].upvotes).toBe(8);
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onRollback).toHaveBeenCalledTimes(1);
+    expect(onAuthRequired).toHaveBeenCalledTimes(1);
   });
 
-  it("rollback does not affect other threads in the list", () => {
-    const t1 = { ...makeThread("t1", "Alpha", "Desc alpha", 5) };
-    const t2 = { ...makeThread("t2", "Beta", "Desc beta", 9) };
-    const prevCount = t1.upvotes;
+  it("calls onRollback on network failure (fetch throws)", async () => {
+    const pendingIds = new Set<string>();
+    const onRollback = vi.fn();
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    // Optimistic update on t1
-    let list = [t1, t2].map((t) =>
-      t.id === "t1" ? { ...t, upvotes: prevCount + 1 } : t
-    );
-    expect(list.find((t) => t.id === "t2")?.upvotes).toBe(9); // unchanged
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired: vi.fn(),
+    });
 
-    // Rollback on t1
-    list = list.map((t) =>
-      t.id === "t1" ? { ...t, upvotes: prevCount } : t
-    );
-    expect(list.find((t) => t.id === "t1")?.upvotes).toBe(5); // restored
-    expect(list.find((t) => t.id === "t2")?.upvotes).toBe(9); // still unchanged
+    expect(onRollback).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes item from pendingIds after request resolves", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 6 }));
+
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(pendingIds.has("t1")).toBe(false);
+  });
+
+  it("second upvote on same item while first is in-flight fires only one request", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi.fn().mockReturnValueOnce(firstInFlight);
+    const onOptimistic = vi.fn();
+
+    // Start first upvote — fetch stays unresolved
+    const p1 = executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Second click on same item — guard must fire, no second fetch
+    await executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Fetch was called exactly once; the second click was a no-op
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // onOptimistic was called exactly once (only from the first click)
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+
+    resolveFirst!(mockResponse(200, { upvotes: 6 }));
+    await p1;
+  });
+
+  it("second upvote on a different item while first is in-flight is allowed", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi
+      .fn()
+      .mockReturnValueOnce(firstInFlight)
+      .mockResolvedValue(mockResponse(200, { upvotes: 13 }));
+
+    const p1 = executeUpvote("t1", "/api/forum/t1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    await executeUpvote("t2", "/api/forum/t2/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    resolveFirst!(mockResponse(200, { upvotes: 6 }));
+    await p1;
   });
 });
 
@@ -185,11 +313,10 @@ describe("create thread — new thread prepended to list", () => {
     const existing = [makeThread("t1", "Existing", "Already in the list")];
     const newThread = makeThread("t2", "New Thread", "Just created");
 
-    // Simulate setThreads((prev) => [newThread, ...prev])
     const updated = [newThread, ...existing];
 
-    expect(updated[0].id).toBe("t2"); // new thread is first
-    expect(updated[1].id).toBe("t1"); // existing thread is preserved
+    expect(updated[0].id).toBe("t2");
+    expect(updated[1].id).toBe("t1");
     expect(updated).toHaveLength(2);
   });
 });
@@ -206,7 +333,6 @@ describe("delete flow — thread removed from list", () => {
       makeThread("t3", "Keep too", "Keep me too"),
     ];
 
-    // Simulate setThreads((prev) => prev.filter((t) => t.id !== id))
     const after = list.filter((t) => t.id !== "t2");
 
     expect(after).toHaveLength(2);
@@ -220,11 +346,6 @@ describe("delete flow — thread removed from list", () => {
 // ---------------------------------------------------------------------------
 
 describe("sort and category fetch URL construction", () => {
-  /**
-   * ForumExplorer builds the /api/forum URL when category/sort/language changes
-   * post-mount. This mirrors the URL construction logic from the original
-   * forum page.tsx's useEffect.
-   */
   function buildFetchUrl(sort: string, category: string) {
     const params = new URLSearchParams();
     if (category !== "All") params.set("category", category);
@@ -258,15 +379,8 @@ describe("sort and category fetch URL construction", () => {
 // ---------------------------------------------------------------------------
 
 describe("login gating contract", () => {
-  /**
-   * When user is null (logged out), both handleUpvote and handleCreateThread
-   * must call setLoginModalOpen(true) before making any API request. We
-   * document this contract — the actual guard is:
-   *   if (!user) { setLoginModalOpen(true); return; }
-   */
   it("unauthenticated upvote: user=null guard fires before any fetch (contract document)", () => {
     const user = null;
-    // Simulate the guard condition
     const wouldOpenModal = !user;
     expect(wouldOpenModal).toBe(true);
   });

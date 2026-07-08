@@ -27,6 +27,52 @@ export function filterAgents(agents: Agent[], query: string): Agent[] {
   );
 }
 
+/**
+ * Core upvote logic — extracted for unit testability.
+ *
+ * Guards against overlapping requests on the same item via `pendingIds` (a
+ * caller-owned mutable Set). If the item is already in-flight, returns
+ * immediately without calling fetchFn a second time. The caller must pass
+ * `pendingUpvoteIds.current` from a component-level useRef.
+ *
+ * All side-effects (state updates, modal open) are injected as callbacks so
+ * this function can run in a plain Node test environment without React.
+ */
+export async function executeUpvote(
+  id: string,
+  apiUrl: string,
+  pendingIds: Set<string>,
+  fetchFn: (url: string, init: RequestInit) => Promise<Response>,
+  callbacks: {
+    onOptimistic: () => void;
+    onSuccess: (upvotes: number) => void;
+    onRollback: () => void;
+    onAuthRequired: () => void;
+  }
+): Promise<void> {
+  if (pendingIds.has(id)) return; // in-flight guard: no duplicate requests
+  pendingIds.add(id);
+  callbacks.onOptimistic();
+  try {
+    const res = await fetchFn(apiUrl, { method: "POST" });
+    if (res.status === 401) {
+      callbacks.onRollback();
+      callbacks.onAuthRequired();
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      callbacks.onSuccess(data.upvotes);
+    } else {
+      callbacks.onRollback();
+    }
+  } catch {
+    callbacks.onRollback();
+  } finally {
+    pendingIds.delete(id);
+  }
+}
+
 interface AgentsExplorerProps {
   scope: "agents" | "mcp" | "cli";
   /** Server-fetched initial list — avoids a client-side fetch on first render
@@ -79,6 +125,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   // actually changes post-mount.
   const skipNextFetch = useRef(true);
 
+  // Tracks item IDs with an in-flight upvote request. Prevents a second click
+  // from firing a duplicate request before the first one resolves.
+  const pendingUpvoteIds = useRef(new Set<string>());
+
   useEffect(() => {
     if (skipNextFetch.current) {
       skipNextFetch.current = false;
@@ -115,44 +165,21 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
       setLoginModalOpen(true);
       return;
     }
-
-    // Save pre-click count so we can roll back on any failure.
+    // Save pre-click count so executeUpvote callbacks can roll back on failure.
     const prevCount = agents.find((a) => a.id === id)?.upvotes ?? 0;
-
-    // Optimistic update: increment immediately for responsive feel.
-    setAgents((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount + 1 } : a))
-    );
-
-    try {
-      const res = await fetch(`/api/agents/${id}/upvote`, { method: "POST" });
-      if (res.status === 401) {
-        // Session expired since page load — roll back optimistic update and
-        // surface login modal rather than leaving a silent miscount.
+    await executeUpvote(id, `/api/agents/${id}/upvote`, pendingUpvoteIds.current, fetch, {
+      onOptimistic: () =>
+        setAgents((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount + 1 } : a))
+        ),
+      onSuccess: (count) =>
+        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, upvotes: count } : a))),
+      onRollback: () =>
         setAgents((prev) =>
           prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount } : a))
-        );
-        setLoginModalOpen(true);
-        return;
-      }
-      if (res.ok) {
-        // Replace optimistic count with the authoritative server count.
-        const data = await res.json();
-        setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, upvotes: data.upvotes } : a)));
-      } else {
-        // Non-OK, non-401: roll back the optimistic increment.
-        setAgents((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount } : a))
-        );
-      }
-    } catch (err) {
-      console.error("Error upvoting:", err);
-      // Network failure: roll back the optimistic increment so the displayed
-      // count never permanently diverges from the server value.
-      setAgents((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, upvotes: prevCount } : a))
-      );
-    }
+        ),
+      onAuthRequired: () => setLoginModalOpen(true),
+    });
   };
 
   const handleSubmitAgent = async (e: React.FormEvent) => {

@@ -42,6 +42,52 @@ export function filterSkills(skills: Skill[], query: string): Skill[] {
   );
 }
 
+/**
+ * Core upvote logic — extracted for unit testability.
+ *
+ * Guards against overlapping requests on the same item via `pendingIds` (a
+ * caller-owned mutable Set). If the item is already in-flight, returns
+ * immediately without calling fetchFn a second time. The caller must pass
+ * `pendingUpvoteIds.current` from a component-level useRef.
+ *
+ * All side-effects (state updates, modal open) are injected as callbacks so
+ * this function can run in a plain Node test environment without React.
+ */
+export async function executeUpvote(
+  id: string,
+  apiUrl: string,
+  pendingIds: Set<string>,
+  fetchFn: (url: string, init: RequestInit) => Promise<Response>,
+  callbacks: {
+    onOptimistic: () => void;
+    onSuccess: (upvotes: number) => void;
+    onRollback: () => void;
+    onAuthRequired: () => void;
+  }
+): Promise<void> {
+  if (pendingIds.has(id)) return; // in-flight guard: no duplicate requests
+  pendingIds.add(id);
+  callbacks.onOptimistic();
+  try {
+    const res = await fetchFn(apiUrl, { method: "POST" });
+    if (res.status === 401) {
+      callbacks.onRollback();
+      callbacks.onAuthRequired();
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      callbacks.onSuccess(data.upvotes);
+    } else {
+      callbacks.onRollback();
+    }
+  } catch {
+    callbacks.onRollback();
+  } finally {
+    pendingIds.delete(id);
+  }
+}
+
 interface SkillsExplorerProps {
   initialAllSkills: Skill[];
   initialViewSkills: Skill[];
@@ -85,6 +131,10 @@ export default function SkillsExplorer({
   // Only refetch when language or view actually changes post-mount.
   const skipAllSkillsFetch = useRef(true);
   const skipViewSkillsFetch = useRef(true);
+
+  // Tracks item IDs with an in-flight upvote request. Prevents a second click
+  // from firing a duplicate request before the first one resolves.
+  const pendingUpvoteIds = useRef(new Set<string>());
 
   // Refetch full catalog when language changes post-mount.
   useEffect(() => {
@@ -165,57 +215,33 @@ export default function SkillsExplorer({
     },
   ];
 
-  // Handle upvoting via API — optimistic increment with rollback on failure.
-  // The previous implementation only updated on success (no optimistic UI).
-  // Mirroring VibesExplorer's pattern per KTD1 async-states paragraph.
+  // Handle upvoting via API — delegates to executeUpvote (exported above) which
+  // guards against duplicate in-flight requests for the same item.
   const handleUpvote = async (id: string) => {
     if (!user) {
       setLoginModalOpen(true);
       return;
     }
-
-    // Save pre-click count so we can roll back on any failure.
+    // Save pre-click count so executeUpvote callbacks can roll back on failure.
     const prevCount =
       allSkills.find((s) => s.id === id)?.upvotes ??
       viewSkills.find((s) => s.id === id)?.upvotes ??
       0;
-
     const optimistic = (list: Skill[]) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: prevCount + 1 } : s));
     const restore = (list: Skill[]) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: prevCount } : s));
     const applyCount = (list: Skill[], count: number) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: count } : s));
-
-    // Optimistic update: increment immediately for responsive feel.
-    setAllSkills(optimistic);
-    setViewSkills(optimistic);
-
-    try {
-      const res = await fetch(`/api/skills/${id}/upvote`, { method: "POST" });
-      if (res.status === 401) {
-        // Session expired since page load — roll back and surface login modal.
-        setAllSkills(restore);
-        setViewSkills(restore);
-        setLoginModalOpen(true);
-        return;
-      }
-      if (res.ok) {
-        // Replace optimistic count with the authoritative server count.
-        const data = await res.json();
-        setAllSkills((prev) => applyCount(prev, data.upvotes));
-        setViewSkills((prev) => applyCount(prev, data.upvotes));
-      } else {
-        // Non-OK, non-401: roll back the optimistic increment.
-        setAllSkills(restore);
-        setViewSkills(restore);
-      }
-    } catch (err) {
-      console.error("Error upvoting skill:", err);
-      // Network failure: roll back so the count never permanently diverges.
-      setAllSkills(restore);
-      setViewSkills(restore);
-    }
+    await executeUpvote(id, `/api/skills/${id}/upvote`, pendingUpvoteIds.current, fetch, {
+      onOptimistic: () => { setAllSkills(optimistic); setViewSkills(optimistic); },
+      onSuccess: (count) => {
+        setAllSkills((prev) => applyCount(prev, count));
+        setViewSkills((prev) => applyCount(prev, count));
+      },
+      onRollback: () => { setAllSkills(restore); setViewSkills(restore); },
+      onAuthRequired: () => setLoginModalOpen(true),
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -1,20 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { filterSkills } from "../SkillsExplorer";
+import { describe, it, expect, vi } from "vitest";
+import { filterSkills, executeUpvote } from "../SkillsExplorer";
 import type { Skill } from "@/lib/db";
 
 /**
  * U5 — client island unit tests for SkillsExplorer.tsx.
  *
- * Mirrors the shape of src/app/vibes/__tests__/VibesExplorer.test.ts (U4).
+ * Tests operate on pure exported functions (filterSkills, executeUpvote) so
+ * they can run in the node environment without a DOM or rendering setup.
  *
- * These tests operate on pure logic extracted from the component so they can
- * run in the node environment without a DOM or rendering setup.
- *
- * Interactive-path tests (upvote rollback, view-switch refetch, modal opening,
- * login gating) involve React state and event handlers that require a component
- * rendering environment; those are best covered by Playwright e2e tests once
- * the feature is deployed. What we can cover here is logic decoupled from the
- * component lifecycle.
+ * executeUpvote is the real implementation used by the component's
+ * handleUpvote. Tests that previously reimplemented the optimistic/rollback
+ * arithmetic now call the real function with mock callbacks and fetch so a
+ * real regression would be caught.
  */
 
 function makeSkill(
@@ -74,9 +71,6 @@ describe("filterSkills — client-side search, no network request", () => {
   });
 
   it("returns all skills for a whitespace-only query", () => {
-    // Mirrors filterProjects behavior: whitespace is a query (not falsy after
-    // the `if (!query)` check since a non-empty whitespace string is truthy),
-    // so nothing matches and the result is empty.
     expect(filterSkills(skills, "   ")).toHaveLength(0);
   });
 
@@ -91,15 +85,12 @@ describe("filterSkills — client-side search, no network request", () => {
   });
 
   it("matches on categoryLabel case-insensitively", () => {
-    // s3 has categoryLabel "Fullstack" → searching "fullst" should match it.
     const results = filterSkills(skills, "fullst");
     expect(results.map((s) => s.id)).toContain("s3");
   });
 
   it("matches via tag substring — 'vibe' matches tag 'vibe-coding'", () => {
-    // Mirrors current JS .includes() behavior and the SQL tags::text ilike pattern.
     const results = filterSkills(skills, "vibe");
-    // 'vibe' matches title of s3 ("Vibe Coding App") AND the 'vibe-coding' tag.
     const ids = results.map((s) => s.id);
     expect(ids).toContain("s3");
   });
@@ -127,105 +118,170 @@ describe("filterSkills — client-side search, no network request", () => {
   });
 
   it("empty state condition: search that matches nothing → empty array → empty state renders", () => {
-    // Documents the condition SkillsExplorer's empty state checks:
-    // gridSkills.length === 0 when filterSkills returns [].
     const result = filterSkills(skills, "zzznomatch");
-    expect(result.length).toBe(0); // → empty state block rendered
+    expect(result.length).toBe(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Upvote optimistic rollback — the core behavioral contract
+// executeUpvote — the real upvote implementation used by the component
 // ---------------------------------------------------------------------------
 
-describe("upvote optimistic rollback contract", () => {
-  /**
-   * SkillsExplorer's handleUpvote follows this pattern:
-   *   1. Save prevCount = current upvotes for the skill (from allSkills or viewSkills)
-   *   2. Optimistically set upvotes to prevCount + 1 in BOTH lists
-   *   3. On success: replace with server value (data.upvotes) in BOTH lists
-   *   4. On any failure (network / non-OK / 401): restore prevCount in BOTH lists
-   *
-   * We test the pure state transitions (not the event handler, which needs a
-   * component environment). These tests document the required contract.
-   */
+function mockResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  it("optimistic increment: prevCount + 1 is the immediate displayed value", () => {
-    const skill = makeSkill("s1", "Test", "Description here", []);
-    skill.upvotes = 5;
+describe("executeUpvote — optimistic upvote with rollback (real implementation)", () => {
+  it("calls onOptimistic immediately and onSuccess with server count on 200", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 4 }));
 
-    const prevCount = skill.upvotes;
-    const optimistic = [skill].map((s) =>
-      s.id === "s1" ? { ...s, upvotes: prevCount + 1 } : s
-    );
-    expect(optimistic[0].upvotes).toBe(6);
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith(4);
+    expect(onRollback).not.toHaveBeenCalled();
+    expect(onAuthRequired).not.toHaveBeenCalled();
   });
 
-  it("rollback on failure: prevCount is restored, not prevCount + 1", () => {
-    const skill = makeSkill("s1", "Test", "Description here", []);
-    skill.upvotes = 5;
-    const prevCount = skill.upvotes;
+  it("calls onRollback on non-OK, non-401 response", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(500, {}));
 
-    const rolledBack = [{ ...skill, upvotes: prevCount + 1 }].map((s) =>
-      s.id === "s1" ? { ...s, upvotes: prevCount } : s
-    );
-    expect(rolledBack[0].upvotes).toBe(5);
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onRollback).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("success path: server value replaces optimistic count", () => {
-    const skill = makeSkill("s1", "Test", "Description here", []);
-    skill.upvotes = 5;
-    const prevCount = skill.upvotes;
+  it("calls onRollback and onAuthRequired on 401", async () => {
+    const pendingIds = new Set<string>();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(401, {}));
 
-    // Server returns 7 (e.g. concurrent upvotes from other users)
-    const serverCount = 7;
-    const afterSuccess = [{ ...skill, upvotes: prevCount + 1 }].map((s) =>
-      s.id === "s1" ? { ...s, upvotes: serverCount } : s
-    );
-    expect(afterSuccess[0].upvotes).toBe(7);
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onRollback).toHaveBeenCalledTimes(1);
+    expect(onAuthRequired).toHaveBeenCalledTimes(1);
   });
 
-  it("rollback does not affect other skills in the list", () => {
-    const s1 = { ...makeSkill("s1", "Alpha", "Desc alpha", []), upvotes: 5 };
-    const s2 = { ...makeSkill("s2", "Beta", "Desc beta", []), upvotes: 9 };
-    const prevCount = s1.upvotes;
+  it("calls onRollback on network failure (fetch throws)", async () => {
+    const pendingIds = new Set<string>();
+    const onRollback = vi.fn();
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    // Optimistic update on s1
-    let list = [s1, s2].map((s) =>
-      s.id === "s1" ? { ...s, upvotes: prevCount + 1 } : s
-    );
-    expect(list.find((s) => s.id === "s2")?.upvotes).toBe(9);
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired: vi.fn(),
+    });
 
-    // Rollback on s1
-    list = list.map((s) =>
-      s.id === "s1" ? { ...s, upvotes: prevCount } : s
-    );
-    expect(list.find((s) => s.id === "s1")?.upvotes).toBe(5);
-    expect(list.find((s) => s.id === "s2")?.upvotes).toBe(9);
+    expect(onRollback).toHaveBeenCalledTimes(1);
   });
 
-  it("both allSkills and viewSkills are updated optimistically and rolled back together", () => {
-    const skill = { ...makeSkill("s1", "Test", "Desc here here", []), upvotes: 3 };
-    const prevCount = skill.upvotes;
+  it("removes item from pendingIds after request resolves", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 5 }));
 
-    // Simulate applying optimistic to both lists
-    const optimistic = (list: Skill[]) =>
-      list.map((s) => (s.id === "s1" ? { ...s, upvotes: prevCount + 1 } : s));
-    const restore = (list: Skill[]) =>
-      list.map((s) => (s.id === "s1" ? { ...s, upvotes: prevCount } : s));
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
 
-    let allSkills = [skill];
-    let viewSkills = [skill];
+    expect(pendingIds.has("s1")).toBe(false);
+  });
 
-    allSkills = optimistic(allSkills);
-    viewSkills = optimistic(viewSkills);
-    expect(allSkills[0].upvotes).toBe(4);
-    expect(viewSkills[0].upvotes).toBe(4);
+  it("second upvote on same item while first is in-flight fires only one request", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi.fn().mockReturnValueOnce(firstInFlight);
+    const onOptimistic = vi.fn();
 
-    allSkills = restore(allSkills);
-    viewSkills = restore(viewSkills);
-    expect(allSkills[0].upvotes).toBe(3);
-    expect(viewSkills[0].upvotes).toBe(3);
+    // Start first upvote — fetch stays unresolved
+    const p1 = executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Second click on same item — guard must fire, no second fetch
+    await executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+
+    resolveFirst!(mockResponse(200, { upvotes: 4 }));
+    await p1;
+  });
+
+  it("second upvote on a different item while first is in-flight is allowed", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi
+      .fn()
+      .mockReturnValueOnce(firstInFlight)
+      .mockResolvedValue(mockResponse(200, { upvotes: 5 }));
+
+    const p1 = executeUpvote("s1", "/api/skills/s1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    await executeUpvote("s2", "/api/skills/s2/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    resolveFirst!(mockResponse(200, { upvotes: 6 }));
+    await p1;
   });
 });
 
@@ -234,13 +290,6 @@ describe("upvote optimistic rollback contract", () => {
 // ---------------------------------------------------------------------------
 
 describe("view-tab switching contract", () => {
-  /**
-   * SkillsExplorer skips the first mount fetches and only refetches when
-   * view or language changes post-mount.
-   *
-   * The actual useEffect/useRef behavior requires a component environment.
-   * What we test: the URLs the component passes to fetch() per view.
-   */
   it("view board fetches use ?view= param", () => {
     function buildFetchUrl(view: string) {
       if (view !== "danish" && view !== "hot" && view !== "trending") return null;
@@ -250,12 +299,10 @@ describe("view-tab switching contract", () => {
     expect(buildFetchUrl("danish")).toBe("/api/skills?view=danish");
     expect(buildFetchUrl("hot")).toBe("/api/skills?view=hot");
     expect(buildFetchUrl("trending")).toBe("/api/skills?view=trending");
-    // "all" view doesn't fetch a board
     expect(buildFetchUrl("all")).toBeNull();
   });
 
   it("full catalog fetch URL has no ?view= param", () => {
-    // The allSkills refetch always calls /api/skills with no view param.
     const url = "/api/skills";
     expect(url).toBe("/api/skills");
   });
@@ -272,7 +319,6 @@ describe("per-topic counts", () => {
       makeSkill("s2", "B", "Desc B", [], "Frontend"),
       makeSkill("s3", "C", "Desc C", [], "Backend"),
     ];
-    // Override categories to use valid SkillCategorySlug values.
     catalogSkills[0].category = "frontend" as const;
     catalogSkills[1].category = "frontend" as const;
     catalogSkills[2].category = "backend-data" as const;
@@ -296,9 +342,6 @@ describe("per-topic counts", () => {
 
 describe("submit flow — honeypot field", () => {
   it("the submit form payload does not include website_url (honeypot) field", () => {
-    // The form has a hidden honeypot input with name="website_url" that is NOT
-    // included in the JSON.stringify payload — only explicit state fields are
-    // submitted. This test documents the intended behavior.
     const payload = {
       title: "My Skill",
       category: "productivity",
@@ -319,13 +362,11 @@ describe("submit flow — honeypot field", () => {
 describe("empty state condition", () => {
   it("search that matches nothing → empty array → empty state renders", () => {
     const result = filterSkills(skills, "zzznomatch");
-    // gridSkills.length === 0 triggers the empty state branch in SkillsExplorer
     expect(result.length).toBe(0);
   });
 
   it("empty initial skills list always triggers empty state for board views", () => {
     const result = filterSkills([], "");
-    // For board views, gridSkills = viewSkills. If viewSkills = [], this is 0.
     expect(result.length).toBe(0);
   });
 });

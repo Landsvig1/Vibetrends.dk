@@ -1,20 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { filterProjects } from "../VibesExplorer";
+import { describe, it, expect, vi } from "vitest";
+import { filterProjects, executeUpvote } from "../VibesExplorer";
 import type { ShowcaseProject } from "@/lib/db";
 
 /**
  * U4 — client island unit tests for VibesExplorer.tsx.
  *
- * These tests operate on pure logic extracted from the component so they can
- * run in the node environment without a DOM or rendering setup.
+ * Tests operate on pure exported functions (filterProjects, executeUpvote) so
+ * they can run in the node environment without a DOM or rendering setup.
  *
- * Interactive-path tests (upvote rollback, sort refetch, modal opening,
- * delete flow, login gating) involve React state and event handlers that
- * require a component rendering environment; those are best covered by
- * Playwright e2e tests once the feature is deployed, or by adding
- * @testing-library/react if a jsdom environment is added to the test suite.
- * What we can cover here is the logic that's decoupled from the component
- * lifecycle.
+ * executeUpvote is the real implementation used by the component's
+ * handleUpvote. Tests that previously reimplemented the optimistic/rollback
+ * arithmetic now call the real function with mock callbacks and fetch so a
+ * real regression would be caught.
  */
 
 function makeProject(
@@ -72,10 +69,7 @@ describe("filterProjects — client-side search, no network request", () => {
   });
 
   it("matches via tool substring — 'vibe' matches tool 'vibe-coding'", () => {
-    // Mirrors current JS .includes() behavior and the SQL tools::text ilike pattern.
     const results = filterProjects(projects, "vibe");
-    // 'vibe' matches title of p3 ("Vibe Coding App") AND the 'vibe-coding' tool of p3
-    // — both match, result is still just p3.
     const ids = results.map((p) => p.id);
     expect(ids).toContain("p3");
   });
@@ -103,80 +97,200 @@ describe("filterProjects — client-side search, no network request", () => {
   });
 
   it("empty state condition: search that matches nothing → empty array → empty state renders", () => {
-    // This test documents the condition the VibesExplorer empty state checks:
-    // filteredProjects.length === 0 when filterProjects returns [].
     const result = filterProjects(projects, "zzznomatch");
-    expect(result.length).toBe(0); // → empty state block rendered
+    expect(result.length).toBe(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Upvote rollback — the core behavioral contract
+// executeUpvote — the real upvote implementation used by the component
 // ---------------------------------------------------------------------------
 
-describe("upvote optimistic rollback contract", () => {
-  /**
-   * The handleUpvote function in VibesExplorer follows this pattern:
-   *   1. Save prevCount = current upvotes for the project
-   *   2. Optimistically set upvotes to prevCount + 1
-   *   3. On success: replace with server value (data.upvotes)
-   *   4. On any failure (network / non-OK / 401): restore prevCount
-   *
-   * We test the pure state transitions rather than the event handler directly
-   * (which requires a component environment). These tests document the
-   * required contract so a future refactor can verify it hasn't broken.
-   */
+/**
+ * Helper: build a mock Response object.
+ */
+function mockResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
-  it("optimistic increment: prevCount + 1 is the immediate displayed value", () => {
-    const project = makeProject("p1", "Test", "Description here", []);
-    project.upvotes = 5;
+describe("executeUpvote — optimistic upvote with rollback (real implementation)", () => {
+  it("calls onOptimistic immediately and onSuccess with server count on 200", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 6 }));
 
-    // Simulate the optimistic update: map projects, set upvotes to prevCount + 1
-    const prevCount = project.upvotes;
-    const optimisticProjects = [project].map((p) =>
-      p.id === "p1" ? { ...p, upvotes: prevCount + 1 } : p
-    );
-    expect(optimisticProjects[0].upvotes).toBe(6);
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith(6);
+    expect(onRollback).not.toHaveBeenCalled();
+    expect(onAuthRequired).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith("/api/vibes/p1/upvote", { method: "POST" });
   });
 
-  it("rollback on failure: prevCount is restored, not prevCount + 1", () => {
-    const project = makeProject("p1", "Test", "Description here", []);
-    project.upvotes = 5;
-    const prevCount = project.upvotes;
+  it("calls onRollback on non-OK, non-401 response", async () => {
+    const pendingIds = new Set<string>();
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(500, {}));
 
-    // Simulate rollback
-    const rolledBack = [{ ...project, upvotes: prevCount + 1 }].map((p) =>
-      p.id === "p1" ? { ...p, upvotes: prevCount } : p
-    );
-    expect(rolledBack[0].upvotes).toBe(5);
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onRollback).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onAuthRequired).not.toHaveBeenCalled();
   });
 
-  it("success path: server value replaces optimistic count", () => {
-    const project = makeProject("p1", "Test", "Description here", []);
-    project.upvotes = 5;
-    const prevCount = project.upvotes;
+  it("calls onRollback and onAuthRequired on 401", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(401, {}));
+    const onOptimistic = vi.fn();
+    const onSuccess = vi.fn();
+    const onRollback = vi.fn();
+    const onAuthRequired = vi.fn();
 
-    // Server returns 7 (e.g. concurrent upvotes from other users)
-    const serverCount = 7;
-    const afterSuccess = [{ ...project, upvotes: prevCount + 1 }].map((p) =>
-      p.id === "p1" ? { ...p, upvotes: serverCount } : p
-    );
-    expect(afterSuccess[0].upvotes).toBe(7);
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess,
+      onRollback,
+      onAuthRequired,
+    });
+
+    expect(onRollback).toHaveBeenCalledTimes(1);
+    expect(onAuthRequired).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("rollback does not affect other projects in the list", () => {
-    const p1 = { ...makeProject("p1", "Alpha", "Desc alpha", []), upvotes: 5 };
-    const p2 = { ...makeProject("p2", "Beta", "Desc beta", []), upvotes: 9 };
-    const prevCount = p1.upvotes;
+  it("calls onRollback on network failure (fetch throws)", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    const onOptimistic = vi.fn();
+    const onRollback = vi.fn();
 
-    // Optimistic update on p1
-    let list = [p1, p2].map((p) => (p.id === "p1" ? { ...p, upvotes: prevCount + 1 } : p));
-    expect(list.find((p) => p.id === "p2")?.upvotes).toBe(9); // unchanged
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback,
+      onAuthRequired: vi.fn(),
+    });
 
-    // Rollback on p1
-    list = list.map((p) => (p.id === "p1" ? { ...p, upvotes: prevCount } : p));
-    expect(list.find((p) => p.id === "p1")?.upvotes).toBe(5); // restored
-    expect(list.find((p) => p.id === "p2")?.upvotes).toBe(9); // still unchanged
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+    expect(onRollback).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes item from pendingIds after successful request", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(200, { upvotes: 7 }));
+
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(pendingIds.has("p1")).toBe(false);
+  });
+
+  it("removes item from pendingIds after failed request", async () => {
+    const pendingIds = new Set<string>();
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse(500, {}));
+
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    expect(pendingIds.has("p1")).toBe(false);
+  });
+
+  it("second upvote on same item while first is in-flight fires only one request", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi.fn().mockReturnValueOnce(firstInFlight);
+    const onOptimistic = vi.fn();
+
+    // Start first upvote — fetch is in-flight (unresolved)
+    const p1 = executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Second call on the same item — guard must fire, no second fetch
+    await executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic,
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Fetch was called exactly once: the second click was a no-op
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // onOptimistic was called exactly once (only from the first click)
+    expect(onOptimistic).toHaveBeenCalledTimes(1);
+
+    // Allow the first request to resolve so no promise leaks
+    resolveFirst!(mockResponse(200, { upvotes: 6 }));
+    await p1;
+  });
+
+  it("second upvote on a different item while first is in-flight is allowed", async () => {
+    const pendingIds = new Set<string>();
+    let resolveFirst: ((r: Response) => void) | undefined;
+    const firstInFlight = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const mockFetch = vi
+      .fn()
+      .mockReturnValueOnce(firstInFlight)
+      .mockResolvedValue(mockResponse(200, { upvotes: 4 }));
+
+    const p1 = executeUpvote("p1", "/api/vibes/p1/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Different item — should proceed immediately
+    await executeUpvote("p2", "/api/vibes/p2/upvote", pendingIds, mockFetch, {
+      onOptimistic: vi.fn(),
+      onSuccess: vi.fn(),
+      onRollback: vi.fn(),
+      onAuthRequired: vi.fn(),
+    });
+
+    // Both requests fired
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    resolveFirst!(mockResponse(200, { upvotes: 6 }));
+    await p1;
   });
 });
 
@@ -189,11 +303,10 @@ describe("submit flow — new project prepended to list", () => {
     const existing = [makeProject("p1", "Existing", "Already in the list", [])];
     const newProj = makeProject("p2", "New Vibe", "Just submitted description", []);
 
-    // Simulate setProjects((prev) => [newProj, ...prev])
     const updated = [newProj, ...existing];
 
-    expect(updated[0].id).toBe("p2"); // new project is first
-    expect(updated[1].id).toBe("p1"); // existing project is preserved
+    expect(updated[0].id).toBe("p2");
+    expect(updated[1].id).toBe("p1");
     expect(updated).toHaveLength(2);
   });
 });
@@ -210,7 +323,6 @@ describe("delete flow — project removed from list", () => {
       makeProject("p3", "Keep too", "Keep me too", []),
     ];
 
-    // Simulate setProjects((prev) => prev.filter((p) => p.id !== id))
     const after = list.filter((p) => p.id !== "p2");
 
     expect(after).toHaveLength(2);
@@ -224,17 +336,7 @@ describe("delete flow — project removed from list", () => {
 // ---------------------------------------------------------------------------
 
 describe("sort-tab switching contract", () => {
-  /**
-   * The VibesExplorer skips the first mount fetch and only refetches when
-   * language or sort changes post-mount. This is documented as a behavioral
-   * contract here so a future refactor can verify the skip-first-mount logic
-   * is still intact.
-   *
-   * The actual useEffect/useRef behavior requires a component environment.
-   * What we test here: the sort values the component passes to the API URL.
-   */
   it("non-'new' sort values are appended as ?sort= param in the fetch URL", () => {
-    // Simulate the URL construction logic from VibesExplorer's sort effect
     function buildFetchUrl(sort: string) {
       const params = new URLSearchParams();
       if (sort !== "new") params.set("sort", sort);
