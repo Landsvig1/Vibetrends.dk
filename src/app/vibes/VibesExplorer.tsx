@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
@@ -10,6 +11,7 @@ import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
+import EmptyState from "../components/EmptyState";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
 
@@ -433,11 +435,25 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-          <Code className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">{t("showcase.empty")}</p>
-          <p className="text-text-secondary text-sm mt-1">{t("showcase.empty_sub")}</p>
-        </div>
+        <EmptyState
+          icon={Code}
+          title={t("showcase.empty")}
+          description={t("showcase.empty_sub")}
+          actionLabel={t("showcase.btn_submit")}
+          onAction={() => setSubmitOpen(true)}
+          suggestions={
+            searchActive && initialProjects.length > 0
+              ? {
+                  title: language === "da" ? "Mest populære" : "Most popular",
+                  items: initialProjects.slice(0, 3).map((p) => ({
+                    id: p.id,
+                    title: p.title,
+                    href: `/vibes/${p.id}`,
+                  })),
+                }
+              : undefined
+          }
+        />
       )}
 
       {/* Submission Modal */}

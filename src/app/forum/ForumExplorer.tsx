@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
-import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock, Flag } from "lucide-react";
+import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, TrendingUp, Clock, Flag, Search } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
+import EmptyState from "../components/EmptyState";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: false });
 
@@ -98,6 +100,7 @@ export default function ForumExplorer({
     "view",
     parseAsString.withDefault(initialView)
   );
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -129,9 +132,6 @@ export default function ForumExplorer({
 
   // Refetch when category, view, or language changes post-mount. On first
   // render we skip this effect (the server already fetched the right data).
-  // no-store: the route's public max-age header is for external API consumers;
-  // the interactive page must always read fresh counts, or a reload right after
-  // upvoting shows the pre-vote cached response.
   useEffect(() => {
     if (skipNextFetch.current) {
       skipNextFetch.current = false;
@@ -158,6 +158,8 @@ export default function ForumExplorer({
 
   const categories: ("All" | ForumThread["category"])[] = ["All", ...FORUM_CATEGORY_KEYS];
 
+  const searchActive = search.trim() !== "";
+
   // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
   // Danish contributors, Denmark-specific threads first — same pattern as
   // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
@@ -168,7 +170,9 @@ export default function ForumExplorer({
           .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
       : threads;
 
-  const viewTabs: { value: string; label: string; icon: typeof Flag }[] = [
+  const filteredThreads = filterThreads(viewThreads, search);
+
+  const viewTabs: { value: string; label: string; icon: typeof Flag | typeof TrendingUp | typeof Clock }[] = [
     { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
     { value: "top", label: "Top", icon: TrendingUp },
     { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
@@ -282,137 +286,205 @@ export default function ForumExplorer({
       {/* Main Workspace Split */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Sidebar categories */}
-        <div className="lg:col-span-1 space-y-2">
-          <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">
-            {t("forum.categories")}
-          </h3>
-          <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto w-full pb-2 scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
-                  selectedCategory === cat
-                    ? "bg-accent-light text-accent-primary border border-accent-primary/20"
-                    : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
-                }`}
-              >
-                {cat === "All" ? (language === "da" ? "Alle" : "All") : forumCategoryLabel(cat, language)}
-              </button>
-            ))}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-extrabold text-text-secondary uppercase tracking-[0.2em] mb-4">
+              {t("forum.categories")}
+            </h3>
+            <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto w-full pb-2 scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-bold transition cursor-pointer snap-center shrink-0 ${
+                    selectedCategory === cat
+                      ? "bg-accent-light text-accent-primary border border-accent-primary/20"
+                      : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
+                  }`}
+                >
+                  {cat === "All" ? (language === "da" ? "Alle" : "All") : forumCategoryLabel(cat, language)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Community Info Box (Reddit-style) */}
+          <div className="hidden lg:block rounded-xl border border-card-border bg-card-bg/30 p-5 space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-foreground">About Community</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {language === "da"
+                  ? "Velkommen til Danmarks AI-forum. Del din viden, stil spørgsmål og netværk med andre vibe coders."
+                  : "Welcome to Denmark's AI forum. Share knowledge, ask questions and network with other vibe coders."}
+              </p>
+            </div>
+            <div className="pt-4 border-t border-card-border">
+              <div className="flex justify-between text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                <span>Created</span>
+                <span className="text-foreground">June 2024</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Threads list */}
         <div className="lg:col-span-3 space-y-4">
-          {/* View tabs: Dansk / Top / Nyeste */}
-          <div className="flex gap-2">
-            {viewTabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => setView(tab.value)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                    view === tab.value
-                      ? "bg-accent-primary text-white font-extrabold shadow-md"
-                      : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
+          {/* Search + View tabs */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
+              <input
+                type="text"
+                aria-label={language === "da" ? "Søg i forum..." : "Search forum..."}
+                placeholder={language === "da" ? "Søg i forum..." : "Search forum..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {viewTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => setView(tab.value)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                      view === tab.value && !searchActive
+                        ? "bg-accent-primary text-white font-extrabold shadow-md"
+                        : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Thread list — opacity overlay during in-flight category/view/language refetch */}
-          {viewThreads.length > 0 ? (
-            <div
-              className={`space-y-4 transition-opacity duration-200 ${
+          {filteredThreads.length > 0 ? (
+            <motion.div
+              layout
+              className={`space-y-3 transition-opacity duration-200 ${
                 isRefetching ? "opacity-50 pointer-events-none" : ""
               }`}
             >
-              {viewThreads.map((thread) => (
-                <div
-                  key={thread.id}
-                  data-testid="thread-card"
-                  className="relative block rounded-xl glass-card p-6 flex flex-col justify-between group hover:-translate-y-0.5 transition"
-                >
-                  <Link
-                    href={`/forum/${thread.id}`}
-                    aria-label={thread.title}
-                    className="absolute inset-0 z-10 rounded-xl"
-                  />
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-accent-primary px-2 py-0.5 rounded bg-accent-light border border-accent-primary/20">
-                          {forumCategoryLabel(thread.category, language)}
-                        </span>
-                        {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDeleteThread(thread.id);
-                            }}
-                            className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                            aria-label={language === "da" ? "Slet tråd" : "Delete thread"}
-                            title={language === "da" ? "Slet tråd" : "Delete thread"}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
-                        )}
+              <AnimatePresence mode="popLayout">
+                {filteredThreads.map((thread, index) => (
+                  <motion.div
+                    key={thread.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.2, delay: index * 0.02 }}
+                    className="relative block rounded-xl border border-card-border bg-card-bg/20 hover:bg-card-bg/40 transition-all group overflow-hidden"
+                  >
+                    <Link
+                      href={`/forum/${thread.id}`}
+                      aria-label={thread.title}
+                      className="absolute inset-0 z-10"
+                    />
+
+                    <div className="flex">
+                      {/* Reddit-style Vote Column */}
+                      <div className="hidden sm:flex flex-col items-center w-12 pt-4 bg-black/5 dark:bg-white/5 border-r border-card-border/50">
+                        <motion.button
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleUpvote(thread.id);
+                          }}
+                          className="p-1 text-text-secondary hover:text-accent-primary transition-colors z-20"
+                        >
+                          <TrendingUp className="h-5 w-5" />
+                        </motion.button>
+                        <span className="text-xs font-bold text-foreground my-1">{thread.upvotes}</span>
                       </div>
-                      <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors pt-1 leading-snug">
-                        {thread.title}
-                      </h3>
-                      <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed pt-1">
-                        {thread.content}
-                      </p>
-                    </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleUpvote(thread.id);
-                      }}
-                      aria-label={`Upvote ${thread.title}`}
-                      className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-                    >
-                      <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                      <span className="text-xs font-bold font-mono">{thread.upvotes}</span>
-                    </button>
-                  </div>
+                      <div className="flex-1 p-4 sm:p-5 space-y-3">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                          <span className="text-accent-primary px-1.5 py-0.5 rounded bg-accent-light/50 border border-accent-primary/10">
+                            {forumCategoryLabel(thread.category, language)}
+                          </span>
+                          <span>&middot;</span>
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            @{thread.author}
+                          </span>
+                          <span>&middot;</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {timeAgo(thread.createdAt, language)}
+                          </span>
 
-                  <div className="flex items-center space-x-4 mt-6 pt-4 border-t border-card-border text-xs text-text-secondary">
-                    <div className="flex items-center space-x-1">
-                      <User className="h-3.5 w-3.5 text-text-secondary" />
-                      <span>@{thread.author}</span>
+                          {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
+                            <motion.button
+                              whileHover={{ scale: 1.1, color: "#ef4444" }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteThread(thread.id);
+                              }}
+                              className="ml-auto p-1 text-text-secondary transition-colors z-20"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </motion.button>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-snug">
+                            {thread.title}
+                          </h3>
+                          <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed font-serif italic opacity-80">
+                            {thread.content}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-4 pt-1 text-xs font-bold text-text-secondary">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30 hover:bg-card-border/50 transition-colors">
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>{thread.replies.length} {t("forum.replies")}</span>
+                          </div>
+
+                          <div className="sm:hidden flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30">
+                            <TrendingUp className="h-3.5 w-3.5 text-accent-primary" />
+                            <span>{thread.upvotes}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <span>&middot;</span>
-                    <span className="flex items-center">
-                      <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                      {thread.replies.length} {t("forum.replies")}
-                    </span>
-                    <span>&middot;</span>
-                    <span>{timeAgo(thread.createdAt, language)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           ) : (
-            // Empty state — preserved from the original forum page.tsx.
-            // Rendered when no threads match the current category/sort, or when
-            // the forum has no threads at all. Uses the same icon+message+hint
-            // pattern as /vibes' empty state.
-            <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-              <MessageSquare className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-              <p className="text-text-secondary font-semibold">{t("forum.empty")}</p>
-              <p className="text-text-secondary text-sm mt-1">{t("forum.empty_sub")}</p>
-            </div>
+            <EmptyState
+              icon={MessageSquare}
+              title={t("forum.empty")}
+              description={t("forum.empty_sub")}
+              actionLabel={t("forum.btn_create")}
+              onAction={() => setNewThreadOpen(true)}
+              suggestions={
+                initialThreads.length > 0
+                  ? {
+                      title: language === "da" ? "Top diskussioner" : "Top discussions",
+                      items: initialThreads.slice(0, 3).map((t) => ({
+                        id: t.id,
+                        title: t.title,
+                        href: `/forum/${t.id}`,
+                      })),
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>
@@ -420,7 +492,7 @@ export default function ForumExplorer({
       {/* Start Thread Modal */}
       {newThreadOpen && (
         <div role="dialog" aria-modal="true" aria-label={t("forum.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
             {/* Close */}
             <button
               onClick={() => setNewThreadOpen(false)}
