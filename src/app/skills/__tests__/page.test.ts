@@ -224,6 +224,29 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
       "danish"
     );
   });
+
+  it("passes ?q= as search to getSkills for both full catalog and view board", async () => {
+    getSkillsMock.mockResolvedValue([]);
+
+    await SkillsPageContent({
+      searchParams: Promise.resolve({ q: "react", view: "hot" }),
+    });
+
+    // First call: full catalog with search
+    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "en");
+    // Second call: view board with search
+    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "en", "hot");
+  });
+
+  it("passes undefined search when q is empty string", async () => {
+    getSkillsMock.mockResolvedValue([]);
+
+    await SkillsPageContent({
+      searchParams: Promise.resolve({ q: "" }),
+    });
+
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "en");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -288,6 +311,27 @@ describe("SkillsPageContent — JSON-LD is built from server-fetched data, not e
 
     expect(jsonLd.numberOfItems).toBe(0);
     expect(jsonLd.itemListElement).toHaveLength(0);
+  });
+
+  it("JSON-LD reflects search-filtered result when ?q= is present", async () => {
+    // When ?q=react is in the URL, getSkills returns only matching skills.
+    // The JSON-LD must be built from that filtered allSkills list.
+    const filteredSkills = [
+      makeSkill("s1", "React Hooks Guide", "A guide to React hooks"),
+    ];
+    getSkillsMock.mockResolvedValue(filteredSkills);
+
+    const result = await SkillsPageContent({
+      searchParams: Promise.resolve({ q: "react" }),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const children = (result as any).props.children as any[];
+    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+
+    expect(jsonLd.numberOfItems).toBe(1);
+    expect(jsonLd.itemListElement).toHaveLength(1);
+    expect(jsonLd.itemListElement[0].item.name).toBe("React Hooks Guide");
   });
 });
 

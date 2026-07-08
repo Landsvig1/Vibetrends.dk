@@ -88,7 +88,7 @@ describe("AgentsPageContent — passes real agent data to client island", () => 
     const items = [makeAgent("a1", "my-agent", "An AI agent tool")];
     getAgentsMock.mockResolvedValue(items);
 
-    await AgentsPageContent();
+    await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
@@ -104,7 +104,7 @@ describe("AgentsPageContent — passes real agent data to client island", () => 
     } as any);
     getAgentsMock.mockResolvedValue([]);
 
-    await AgentsPageContent();
+    await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
@@ -117,9 +117,30 @@ describe("AgentsPageContent — passes real agent data to client island", () => 
     } as any);
     getAgentsMock.mockResolvedValue([]);
 
-    await AgentsPageContent();
+    await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(undefined, undefined, "en");
+  });
+
+  it("passes ?q= as search to getAgents when present", async () => {
+    const items = [makeAgent("a1", "claude-tool", "An AI tool for Claude")];
+    getAgentsMock.mockResolvedValue(items);
+
+    await AgentsPageContent({ searchParams: Promise.resolve({ q: "claude" }) });
+
+    expect(getAgentsMock).toHaveBeenCalledWith(
+      "claude", // search term from ?q= param
+      undefined,
+      "da"
+    );
+  });
+
+  it("passes undefined search when q is empty string", async () => {
+    getAgentsMock.mockResolvedValue([]);
+
+    await AgentsPageContent({ searchParams: Promise.resolve({ q: "" }) });
+
+    expect(getAgentsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 });
 
@@ -135,7 +156,7 @@ describe("AgentsPageContent — AgentsExplorer receives the fetched agent list",
     ];
     getAgentsMock.mockResolvedValue(items);
 
-    const result = await AgentsPageContent();
+    const result = await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = result as any;
@@ -148,7 +169,7 @@ describe("AgentsPageContent — AgentsExplorer receives the fetched agent list",
   it("passes an empty array when there are no agents (not undefined)", async () => {
     getAgentsMock.mockResolvedValue([]);
 
-    const result = await AgentsPageContent();
+    const result = await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = result as any;
@@ -159,7 +180,7 @@ describe("AgentsPageContent — AgentsExplorer receives the fetched agent list",
   it("passes scope='agents' so AgentsExplorer uses the agents detail base and copy", async () => {
     getAgentsMock.mockResolvedValue([]);
 
-    const result = await AgentsPageContent();
+    const result = await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result as any).props.scope).toBe("agents");
@@ -175,7 +196,7 @@ describe("AgentsPageContent — AgentsExplorer receives the fetched agent list",
     ];
     getAgentsMock.mockResolvedValue(items);
 
-    const result = await AgentsPageContent();
+    const result = await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const passed = (result as any).props.initialItems;

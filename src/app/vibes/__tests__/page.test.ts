@@ -150,6 +150,31 @@ describe("VibesPageContent — passes real project data to client island", () =>
 
     expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "new");
   });
+
+  it("passes ?q= as search to getProjects when present", async () => {
+    const projects = [makeProject("p1", "React App", "A React-based project")];
+    getProjectsMock.mockResolvedValue(projects);
+
+    await VibesPageContent({
+      searchParams: Promise.resolve({ q: "react" }),
+    });
+
+    expect(getProjectsMock).toHaveBeenCalledWith(
+      "react", // search term from ?q= param
+      "en",
+      "new"
+    );
+  });
+
+  it("passes undefined search when q is empty string", async () => {
+    getProjectsMock.mockResolvedValue([]);
+
+    await VibesPageContent({
+      searchParams: Promise.resolve({ q: "" }),
+    });
+
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "new");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -207,6 +232,28 @@ describe("VibesPageContent — JSON-LD is built from server-fetched data, not em
 
     expect(jsonLd.numberOfItems).toBe(0);
     expect(jsonLd.itemListElement).toHaveLength(0);
+  });
+
+  it("JSON-LD reflects search-filtered result when ?q= is present", async () => {
+    // When ?q=react is in the URL, getProjects returns only matching projects.
+    // The JSON-LD must be built from that filtered list — not the full catalog.
+    const filteredProjects = [
+      makeProject("p1", "React Vibe App", "A project that uses React"),
+    ];
+    getProjectsMock.mockResolvedValue(filteredProjects);
+
+    const result = await VibesPageContent({
+      searchParams: Promise.resolve({ q: "react" }),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const children = (result as any).props.children as any[];
+    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+
+    // JSON-LD shows the filtered count, not the full catalog count.
+    expect(jsonLd.numberOfItems).toBe(1);
+    expect(jsonLd.itemListElement).toHaveLength(1);
+    expect(jsonLd.itemListElement[0].item.name).toBe("React Vibe App");
   });
 });
 

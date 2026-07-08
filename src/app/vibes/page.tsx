@@ -56,15 +56,20 @@ export async function VibesPageContent({
 
   const resolvedParams = await searchParams;
   const sort = getValidSort(resolvedParams?.sort);
+  const search = resolvedParams?.q || undefined;
 
   // Cached read — getProjects() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). On cache-hit this is free; on cache-miss it queries Supabase and
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
-  const projects = await getProjects(undefined, lang, sort);
+  // When ?q= is present (human search box or ?format=json agent call), pass it
+  // through so the server-rendered result and JSON-LD reflect the filtered list.
+  const projects = await getProjects(search, lang, sort);
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously this was built from filteredProjects client
   // state that starts empty — every crawler saw numberOfItems:0.
+  // When ?q= is set the projects list is already filtered — numberOfItems and
+  // itemListElement automatically reflect the narrowed result.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",

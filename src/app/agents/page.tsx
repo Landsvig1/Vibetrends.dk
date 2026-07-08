@@ -18,10 +18,14 @@ export const metadata: Metadata = entityMetadata({
  * so loading.tsx is streamed as the fallback on a cache-miss rather than
  * blocking or showing nothing.
  */
-export default async function AgentsPage() {
+export default async function AgentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   return (
     <Suspense fallback={<AgentsLoading />}>
-      <AgentsPageContent />
+      <AgentsPageContent searchParams={searchParams} />
     </Suspense>
   );
 }
@@ -37,6 +41,10 @@ export default async function AgentsPage() {
  * the result as initialItems to AgentsExplorer so the agents hub renders real
  * content on first paint instead of a skeleton-then-fetch.
  *
+ * When ?q= is present (human search box or ?format=json agent call), passes it
+ * to getAgents() so the server-rendered initial list and any SSR content reflect
+ * the filtered result — closing the crawlability gap for agent-discovery callers.
+ *
  * The view tabs (danish/all/hot) within /agents are purely client-side
  * filter/sort operations on the initialItems list — they do not require
  * category-scoped re-fetches since the default catalog already includes all
@@ -44,13 +52,20 @@ export default async function AgentsPage() {
  *
  * Exported for unit testing.
  */
-export async function AgentsPageContent() {
+export async function AgentsPageContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
+  const resolvedParams = await searchParams;
+  const search = resolvedParams?.q || undefined;
+
   // Cached read — getAgents() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). No category arg → default catalog (excludes MCP Server + Host).
-  const items = await getAgents(undefined, undefined, lang);
+  const items = await getAgents(search, undefined, lang);
 
   return <AgentsExplorer scope="agents" initialItems={items} />;
 }

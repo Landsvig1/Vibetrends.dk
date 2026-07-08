@@ -82,7 +82,7 @@ describe("McpPageContent — passes real MCP server data to client island", () =
     const items = [makeMcpAgent("m1", "claude-mcp", "MCP server for Claude")];
     getAgentsMock.mockResolvedValue(items);
 
-    await McpPageContent();
+    await McpPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(
       undefined,    // no search term from server component
@@ -98,9 +98,30 @@ describe("McpPageContent — passes real MCP server data to client island", () =
     } as any);
     getAgentsMock.mockResolvedValue([]);
 
-    await McpPageContent();
+    await McpPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(undefined, "MCP Server", "da");
+  });
+
+  it("passes ?q= as search to getAgents when present", async () => {
+    const items = [makeMcpAgent("m1", "claude-mcp", "MCP server for Claude")];
+    getAgentsMock.mockResolvedValue(items);
+
+    await McpPageContent({ searchParams: Promise.resolve({ q: "claude" }) });
+
+    expect(getAgentsMock).toHaveBeenCalledWith(
+      "claude",     // search term from ?q= param
+      "MCP Server",
+      "en"
+    );
+  });
+
+  it("passes undefined search when q is empty string", async () => {
+    getAgentsMock.mockResolvedValue([]);
+
+    await McpPageContent({ searchParams: Promise.resolve({ q: "" }) });
+
+    expect(getAgentsMock).toHaveBeenCalledWith(undefined, "MCP Server", "en");
   });
 });
 
@@ -116,7 +137,7 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
     ];
     getAgentsMock.mockResolvedValue(items);
 
-    const result = await McpPageContent();
+    const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = result as any;
@@ -129,7 +150,7 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
   it("passes an empty array when there are no MCP servers (not undefined)", async () => {
     getAgentsMock.mockResolvedValue([]);
 
-    const result = await McpPageContent();
+    const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = result as any;
@@ -141,7 +162,7 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
   it("passes scope='mcp' so AgentsExplorer uses the MCP detail base and copy", async () => {
     getAgentsMock.mockResolvedValue([]);
 
-    const result = await McpPageContent();
+    const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result as any).props.scope).toBe("mcp");

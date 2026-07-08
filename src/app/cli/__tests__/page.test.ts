@@ -85,7 +85,7 @@ describe("CliPageContent — passes real CLI data to client island", () => {
     const items = [makeAgent("a1", "vibe-cli", "A CLI tool for vibes")];
     getCliMock.mockResolvedValue(items);
 
-    await CliPageContent();
+    await CliPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getCliMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
@@ -100,9 +100,29 @@ describe("CliPageContent — passes real CLI data to client island", () => {
     } as any);
     getCliMock.mockResolvedValue([]);
 
-    await CliPageContent();
+    await CliPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getCliMock).toHaveBeenCalledWith(undefined, "da");
+  });
+
+  it("passes ?q= as search to getCli when present", async () => {
+    const items = [makeAgent("a1", "vibe-cli", "A CLI tool for vibes")];
+    getCliMock.mockResolvedValue(items);
+
+    await CliPageContent({ searchParams: Promise.resolve({ q: "vibe" }) });
+
+    expect(getCliMock).toHaveBeenCalledWith(
+      "vibe", // search term from ?q= param
+      "en"
+    );
+  });
+
+  it("passes undefined search when q is empty string", async () => {
+    getCliMock.mockResolvedValue([]);
+
+    await CliPageContent({ searchParams: Promise.resolve({ q: "" }) });
+
+    expect(getCliMock).toHaveBeenCalledWith(undefined, "en");
   });
 });
 
@@ -118,7 +138,7 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
     ];
     getCliMock.mockResolvedValue(items);
 
-    const result = await CliPageContent();
+    const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
     // The result is an AgentsExplorer element.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,7 +152,7 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
   it("passes an empty array when there are no CLI items (not undefined)", async () => {
     getCliMock.mockResolvedValue([]);
 
-    const result = await CliPageContent();
+    const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const el = result as any;
@@ -144,7 +164,7 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
   it("passes scope='cli' so AgentsExplorer uses the CLI detail base and copy", async () => {
     getCliMock.mockResolvedValue([]);
 
-    const result = await CliPageContent();
+    const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result as any).props.scope).toBe("cli");

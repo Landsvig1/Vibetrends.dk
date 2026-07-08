@@ -65,17 +65,20 @@ export async function SkillsPageContent({
 
   const resolvedParams = await searchParams;
   const view = getValidView(resolvedParams?.view);
+  const search = resolvedParams?.q || undefined;
 
   // Full catalog and the view-specific board are independent cached reads —
   // fetch them concurrently rather than sequentially.
+  // When ?q= is present (human search box or ?format=json agent call), pass it
+  // through so both fetches and the JSON-LD reflect the filtered result.
   const skillView = view !== "all" ? (view as SkillView) : undefined;
   const [allSkills, initialViewSkills] = await Promise.all([
     // Drives client-side search and per-topic counts for the topic cards.
-    // No view arg → all skills ordered by upvotes.
-    getSkills(undefined, undefined, lang),
+    // No view arg → all skills ordered by upvotes (filtered by search if set).
+    getSkills(search, undefined, lang),
     // Only fetched when the initial view is a board view, not the topic-cards
     // "all" view (which uses the full catalog for counts).
-    skillView ? getSkills(undefined, undefined, lang, skillView) : Promise.resolve([]),
+    skillView ? getSkills(search, undefined, lang, skillView) : Promise.resolve([]),
   ]);
 
   // Build JSON-LD server-side from the full catalog so crawlers see it in the

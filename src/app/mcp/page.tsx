@@ -18,14 +18,18 @@ export const metadata: Metadata = entityMetadata({
  * showing nothing. /mcp has no dedicated loading.tsx so an inline fallback is
  * used instead.
  */
-export default async function McpPage() {
+export default async function McpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-text-secondary font-semibold">Indlæser…</div>
       </div>
     }>
-      <McpPageContent />
+      <McpPageContent searchParams={searchParams} />
     </Suspense>
   );
 }
@@ -40,15 +44,25 @@ export default async function McpPage() {
  * then passes the result as initialItems to AgentsExplorer so the MCP hub
  * renders real content on first paint instead of a skeleton-then-fetch.
  *
+ * When ?q= is present (human search box or ?format=json agent call), passes it
+ * to getAgents() so the server-rendered initial list reflects the filtered result.
+ *
  * Exported for unit testing.
  */
-export async function McpPageContent() {
+export async function McpPageContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
+  const resolvedParams = await searchParams;
+  const search = resolvedParams?.q || undefined;
+
   // Cached read — getAgents() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). Scoped to 'MCP Server' category matching the AgentsExplorer scope.
-  const items = await getAgents(undefined, "MCP Server", lang);
+  const items = await getAgents(search, "MCP Server", lang);
 
   return <AgentsExplorer scope="mcp" initialItems={items} />;
 }
