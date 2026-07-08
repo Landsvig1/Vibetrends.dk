@@ -466,24 +466,18 @@ export async function upvoteSkill(id: string) {
     return adminCount;
   }
 
-  const { error } = await supabase.from('skill_upvotes').insert({
-    user_id: user.id,
-    skill_id: id,
+  // U8: collapse the 2-3 round-trip insert/delete/select pattern into a single
+  // toggle_upvote RPC call. The RPC performs the join-table insert-or-delete and
+  // returns the trigger-updated count from the parent table in one transaction.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'skill',
+    target_id: id,
   });
 
-  if (error && error.code === '23505') {
-    await supabase
-      .from('skill_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('skill_id', id);
+  if (rpcError || rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC failed for skill', id, rpcError);
+    return null;
   }
-
-  const { data } = await supabasePublic
-    .from('skills')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
 
   // Invalidate immediately after the mutation so the next read reflects the
   // new count. Called without a profile argument for immediate expiry (not
@@ -491,9 +485,7 @@ export async function upvoteSkill(id: string) {
   revalidateTag('skills-list')
   revalidateTag(`skill-${id}`)
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  return rpcData as number;
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sort: 'top' | 'new' | 'az' = 'new') {
@@ -585,35 +577,24 @@ export async function upvoteProject(id: string) {
     return adminCount;
   }
 
-  // Attempt to insert join table row (toggle pattern)
-  const { error } = await supabase.from('vibes_upvotes').insert({
-    user_id: user.id,
-    project_id: id,
+  // U8: collapse the 2-3 round-trip insert/delete/select pattern into a single
+  // toggle_upvote RPC call. The RPC performs the join-table insert-or-delete and
+  // returns the trigger-updated count from the parent table in one transaction.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'vibe',
+    target_id: id,
   });
 
-  if (error && error.code === '23505') {
-    // Unique violation constraint -> user already upvoted -> toggle it off (delete it)
-    await supabase
-      .from('vibes_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('project_id', id);
+  if (rpcError || rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC failed for project', id, rpcError);
+    return null;
   }
-
-  // Query updated count
-  const { data } = await supabasePublic
-    .from('vibes')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
 
   // Invalidate immediately after the mutation — KTD2 hard constraint.
   revalidateTag('projects-list')
   revalidateTag(`project-${id}`)
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  return rpcData as number;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
@@ -687,32 +668,22 @@ export async function upvoteThread(id: string) {
     return adminCount;
   }
 
-  const { error } = await supabase.from('thread_upvotes').insert({
-    user_id: user.id,
-    thread_id: id,
+  // U8: single toggle_upvote RPC replaces insert/delete/select pattern.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'thread',
+    target_id: id,
   });
 
-  if (error && error.code === '23505') {
-    await supabase
-      .from('thread_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('thread_id', id);
+  if (rpcError || rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC failed for thread', id, rpcError);
+    return null;
   }
-
-  const { data } = await supabasePublic
-    .from('forum_threads')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
 
   // Invalidate immediately after the mutation — KTD2 hard constraint.
   revalidateTag('threads-list')
   revalidateTag(`thread-${id}`)
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  return rpcData as number;
 }
 
 export async function upvoteReply(id: string) {
@@ -733,24 +704,25 @@ export async function upvoteReply(id: string) {
     return adminCount;
   }
 
-  const { error } = await supabase.from('reply_upvotes').insert({
-    user_id: user.id,
-    reply_id: id,
+  // U8: single toggle_upvote RPC for the count. Replies still require a
+  // secondary SELECT to get thread_id for specific cache-tag invalidation
+  // (getThreadById uses 'thread-{id}' not 'threads-list'). This reduces
+  // from 3 round-trips (insert + delete + select) to 2 (RPC + thread_id select).
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'reply',
+    target_id: id,
   });
 
-  if (error && error.code === '23505') {
-    await supabase
-      .from('reply_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('reply_id', id);
+  if (rpcError || rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC failed for reply', id, rpcError);
+    return null;
   }
 
-  // Fetch the updated upvote count AND the thread_id so we can invalidate the
-  // specific thread detail cache entry in addition to the broad list tag.
-  const { data } = await supabasePublic
+  // Fetch thread_id so we can invalidate the specific thread detail cache entry
+  // in addition to the broad list tag (getThreadById caches under 'thread-{id}').
+  const { data: replyData } = await supabasePublic
     .from('forum_replies')
-    .select('upvotes, thread_id')
+    .select('thread_id')
     .eq('id', id)
     .single();
 
@@ -758,13 +730,11 @@ export async function upvoteReply(id: string) {
   // tag covers all getThreads() variants. The specific thread tag covers the
   // getThreadById() cache for this reply's parent thread.
   revalidateTag('threads-list')
-  if (data?.thread_id) {
-    revalidateTag(`thread-${data.thread_id}`)
+  if (replyData?.thread_id) {
+    revalidateTag(`thread-${replyData.thread_id}`)
   }
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  return rpcData as number;
 }
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
@@ -940,32 +910,22 @@ export async function upvoteAgent(id: string) {
     return adminCount;
   }
 
-  const { error } = await supabase.from('agent_upvotes').insert({
-    user_id: user.id,
-    agent_id: id,
+  // U8: single toggle_upvote RPC replaces insert/delete/select pattern.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
+    kind: 'agent',
+    target_id: id,
   });
 
-  if (error && error.code === '23505') {
-    await supabase
-      .from('agent_upvotes')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('agent_id', id);
+  if (rpcError || rpcData === null || rpcData === undefined) {
+    console.error('toggle_upvote RPC failed for agent', id, rpcError);
+    return null;
   }
-
-  const { data } = await supabasePublic
-    .from('agents')
-    .select('upvotes')
-    .eq('id', id)
-    .single();
 
   // Invalidate immediately after the mutation — KTD2 hard constraint.
   revalidateTag('agents-list')
   revalidateTag(`agent-${id}`)
 
-  // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
-  if (!data) return null;
-  return data.upvotes ?? 0;
+  return rpcData as number;
 }
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, actingAs?: ActingAs) {

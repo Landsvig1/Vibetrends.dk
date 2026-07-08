@@ -413,168 +413,235 @@ describe("category guards and search filters", () => {
   });
 });
 
-describe("upvoteProject toggle and null-vs-0 semantics", () => {
-  it("returns 0 and does not insert when unauthenticated", async () => {
+describe("upvoteProject — U8 toggle_upvote RPC single round-trip", () => {
+  it("returns 0 and does not call toggle_upvote RPC when unauthenticated", async () => {
     state.user = null;
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => { rpcCalls.push({ fn, args }); return { data: null, error: null }; };
     const result = await db.upvoteProject("p1");
     expect(result).toBe(0);
-    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+    expect(rpcCalls.some(c => c.fn === "toggle_upvote")).toBe(false);
   });
 
-  it("inserts a join row on first upvote", async () => {
+  it("calls toggle_upvote RPC with kind='vibe' and target_id on first upvote", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null }); // insert succeeds
-    state.publicHandler = () => ({ data: { upvotes: 5 }, error: null });
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === "admin_bump_upvotes") return { data: null, error: null }; // not admin
+      return { data: 5, error: null }; // toggle_upvote returns new count
+    };
     const result = await db.upvoteProject("p1");
-    const insert = state.serverCalls.find((c) => c.table === "vibes_upvotes");
-    expect(insert?.method).toBe("insert");
-    expect(insert?.payload).toEqual({ user_id: "u1", project_id: "p1" });
+    const toggleCall = rpcCalls.find(c => c.fn === "toggle_upvote");
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: "vibe", target_id: "p1" });
     expect(result).toBe(5);
   });
 
-  it("toggles off (deletes) on a 23505 unique violation", async () => {
+  it("uses the RPC count directly — no secondary SELECT on the parent table", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = (ops) => {
-      if (ops.method === "insert") return { data: null, error: { code: "23505" } };
-      return { data: null, error: null }; // delete
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: 7, error: null };
     };
-    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
-    const result = await db.upvoteProject("p1");
-    const del = state.serverCalls.find((c) => c.method === "delete");
-    expect(del?.table).toBe("vibes_upvotes");
-    expect(del?.filters).toContainEqual(["eq", "user_id", "u1"]);
-    expect(del?.filters).toContainEqual(["eq", "project_id", "p1"]);
-    expect(result).toBe(0); // legitimate toggle-off count of 0, not null
+    await db.upvoteProject("p1");
+    // No SELECT on 'vibes' for upvotes — count came from RPC.
+    const vibesSelect = state.publicCalls.find(c => c.table === "vibes" && c.select === "upvotes");
+    expect(vibesSelect).toBeUndefined();
   });
 
-  it("returns null when the project row is missing (distinct from 0)", async () => {
+  it("toggle-off (second vote) calls the RPC once and returns the decremented count — no client arithmetic", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: null, error: null }); // no row
+    // The RPC handles toggle internally; it returns the authoritative post-delete count.
+    let toggleCallCount = 0;
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      toggleCallCount++;
+      return { data: 0, error: null }; // authoritative decremented count from RPC
+    };
+    const result = await db.upvoteProject("p1");
+    expect(toggleCallCount).toBe(1); // single round-trip, not 2 or 3
+    expect(result).toBe(0); // authoritative count — not client-computed "pre-delete value minus one"
+  });
+
+  it("returns null when toggle_upvote RPC returns null (entity not found)", async () => {
+    state.user = { id: "u1" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null }; // entity not found → null
+    };
     const result = await db.upvoteProject("p1");
     expect(result).toBeNull();
   });
 
-  it("admins bypass the toggle: admin_bump_upvotes result is returned, no insert", async () => {
+  it("returns null and does not call revalidateTag when toggle_upvote RPC errors", async () => {
+    state.user = { id: "u1" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: { message: "RPC failed", code: "500" } };
+    };
+    const result = await db.upvoteProject("p1");
+    expect(result).toBeNull();
+    // No cache invalidation should occur when the RPC failed — avoids
+    // triggering a re-fetch on an incomplete/inconsistent state.
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("admins bypass toggle_upvote: admin_bump_upvotes result is returned directly", async () => {
     state.user = { id: "admin" };
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
     state.rpcHandler = (fn, args) => {
-      expect(fn).toBe("admin_bump_upvotes");
-      expect(args).toEqual({ kind: "vibe", target_id: "p1" });
-      return { data: 42, error: null };
+      rpcCalls.push({ fn, args });
+      if (fn === "admin_bump_upvotes") return { data: 42, error: null };
+      return { data: 0, error: null };
     };
     const result = await db.upvoteProject("p1");
     expect(result).toBe(42);
-    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+    // admin_bump_upvotes was called; toggle_upvote was NOT called.
+    expect(rpcCalls.some(c => c.fn === "admin_bump_upvotes")).toBe(true);
+    expect(rpcCalls.some(c => c.fn === "toggle_upvote")).toBe(false);
   });
 });
 
-describe("upvoteThread / upvoteAgent mirror the toggle semantics on the right tables", () => {
-  it("upvoteThread inserts into thread_upvotes then returns the new count", async () => {
+describe("upvoteThread / upvoteSkill / upvoteAgent / upvoteReply — U8 toggle_upvote RPC", () => {
+  // Helper to build an rpcHandler that returns null for admin_bump_upvotes
+  // (not admin) and the given count for toggle_upvote.
+  function makeToggleHandler(count: number) {
+    return (fn: string) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: count, error: null };
+    };
+  }
+
+  it("upvoteThread calls toggle_upvote RPC with kind='thread' and returns the authoritative count", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 4 }, error: null });
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => { rpcCalls.push({ fn, args }); return makeToggleHandler(4)(fn); };
     const result = await db.upvoteThread("t1");
-    const insert = state.serverCalls.find((c) => c.table === "thread_upvotes");
-    expect(insert?.method).toBe("insert");
-    expect(insert?.payload).toEqual({ user_id: "u1", thread_id: "t1" });
+    const toggleCall = rpcCalls.find(c => c.fn === "toggle_upvote");
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: "thread", target_id: "t1" });
     expect(result).toBe(4);
+    // No secondary SELECT on forum_threads for upvotes.
+    expect(state.publicCalls.some(c => c.table === "forum_threads" && c.select === "upvotes")).toBe(false);
   });
 
-  it("upvoteThread toggles off on 23505 via a delete keyed by thread_id", async () => {
-    state.user = { id: "u1" };
-    state.serverHandler = (ops) =>
-      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
-    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
-    const result = await db.upvoteThread("t1");
-    const del = state.serverCalls.find((c) => c.method === "delete");
-    expect(del?.table).toBe("thread_upvotes");
-    expect(del?.filters).toContainEqual(["eq", "thread_id", "t1"]);
-    expect(result).toBe(0);
-  });
-
-  it("upvoteThread returns 0 and does not insert when unauthenticated", async () => {
+  it("upvoteThread returns 0 and does not call toggle_upvote when unauthenticated", async () => {
     state.user = null;
+    const rpcCalls: Array<string> = [];
+    state.rpcHandler = (fn) => { rpcCalls.push(fn); return { data: null, error: null }; };
     expect(await db.upvoteThread("t1")).toBe(0);
-    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+    expect(rpcCalls.includes("toggle_upvote")).toBe(false);
   });
 
-  it("upvoteSkill inserts into skill_upvotes keyed by skill_id", async () => {
+  it("upvoteSkill calls toggle_upvote RPC with kind='skill' and returns the authoritative count", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 3 }, error: null });
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => { rpcCalls.push({ fn, args }); return makeToggleHandler(3)(fn); };
     const result = await db.upvoteSkill("s1");
-    const insert = state.serverCalls.find((c) => c.table === "skill_upvotes");
-    expect(insert?.payload).toEqual({ user_id: "u1", skill_id: "s1" });
+    const toggleCall = rpcCalls.find(c => c.fn === "toggle_upvote");
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: "skill", target_id: "s1" });
     expect(result).toBe(3);
   });
 
   it("upvoteSkill routes admins through admin_bump_upvotes with kind 'skill'", async () => {
     state.user = { id: "admin" };
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
     state.rpcHandler = (fn, args) => {
-      expect(fn).toBe("admin_bump_upvotes");
-      expect(args).toEqual({ kind: "skill", target_id: "s1" });
-      return { data: 9, error: null };
+      rpcCalls.push({ fn, args });
+      if (fn === "admin_bump_upvotes") return { data: 9, error: null };
+      return { data: 0, error: null };
     };
     const result = await db.upvoteSkill("s1");
     expect(result).toBe(9);
-    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+    expect(rpcCalls.some(c => c.fn === "admin_bump_upvotes" && (c.args as Record<string, string>).kind === "skill")).toBe(true);
+    expect(rpcCalls.some(c => c.fn === "toggle_upvote")).toBe(false);
   });
 
-  it("upvoteAgent inserts into agent_upvotes keyed by agent_id", async () => {
+  it("upvoteAgent calls toggle_upvote RPC with kind='agent' and returns the authoritative count", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 7 }, error: null });
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => { rpcCalls.push({ fn, args }); return makeToggleHandler(7)(fn); };
     const result = await db.upvoteAgent("a1");
-    const insert = state.serverCalls.find((c) => c.table === "agent_upvotes");
-    expect(insert?.payload).toEqual({ user_id: "u1", agent_id: "a1" });
+    const toggleCall = rpcCalls.find(c => c.fn === "toggle_upvote");
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: "agent", target_id: "a1" });
     expect(result).toBe(7);
+    // No secondary SELECT on agents table for upvotes.
+    expect(state.publicCalls.some(c => c.table === "agents" && c.select === "upvotes")).toBe(false);
   });
 
-  it("upvoteAgent toggles off on 23505 via a delete keyed by agent_id", async () => {
+  it("upvoteAgent returns null when toggle_upvote RPC returns null (entity not found)", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = (ops) =>
-      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
-    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
-    await db.upvoteAgent("a1");
-    const del = state.serverCalls.find((c) => c.method === "delete");
-    expect(del?.table).toBe("agent_upvotes");
-    expect(del?.filters).toContainEqual(["eq", "agent_id", "a1"]);
-  });
-
-  it("upvoteAgent returns null when the agent row is missing", async () => {
-    state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: null, error: null });
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: null };
+    };
     expect(await db.upvoteAgent("a1")).toBeNull();
   });
 
-  it("upvoteReply inserts into reply_upvotes keyed by reply_id and returns the count", async () => {
+  it("upvoteReply calls toggle_upvote RPC with kind='reply' and returns the count from RPC (not from a re-select)", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 2 }, error: null });
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => { rpcCalls.push({ fn, args }); return makeToggleHandler(2)(fn); };
+    // publicHandler returns thread_id for the secondary SELECT (needed for cache tag)
+    state.publicHandler = () => ({ data: { thread_id: "t99" }, error: null });
     const result = await db.upvoteReply("r1");
-    const insert = state.serverCalls.find((c) => c.table === "reply_upvotes");
-    expect(insert?.method).toBe("insert");
-    expect(insert?.payload).toEqual({ user_id: "u1", reply_id: "r1" });
+    const toggleCall = rpcCalls.find(c => c.fn === "toggle_upvote");
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: "reply", target_id: "r1" });
     expect(result).toBe(2);
+    // The secondary SELECT is for thread_id only — NOT for upvotes.
+    const replySelect = state.publicCalls.find(c => c.table === "forum_replies");
+    // If a SELECT was made, it must not have been asking for upvotes count (that came from RPC).
+    if (replySelect) {
+      expect(replySelect.select).not.toBe("upvotes");
+    }
   });
 
-  it("upvoteReply toggles off on 23505 via a delete keyed by reply_id", async () => {
-    state.user = { id: "u1" };
-    state.serverHandler = (ops) =>
-      ops.method === "insert" ? { data: null, error: { code: "23505" } } : { data: null, error: null };
-    state.publicHandler = () => ({ data: { upvotes: 0 }, error: null });
-    const result = await db.upvoteReply("r1");
-    const del = state.serverCalls.find((c) => c.method === "delete");
-    expect(del?.table).toBe("reply_upvotes");
-    expect(del?.filters).toContainEqual(["eq", "reply_id", "r1"]);
-    expect(result).toBe(0);
-  });
-
-  it("upvoteReply returns 0 and does not insert when unauthenticated", async () => {
+  it("upvoteReply returns 0 and does not call toggle_upvote when unauthenticated", async () => {
     state.user = null;
+    const rpcCalls: Array<string> = [];
+    state.rpcHandler = (fn) => { rpcCalls.push(fn); return { data: null, error: null }; };
     expect(await db.upvoteReply("r1")).toBe(0);
-    expect(state.serverCalls.some((c) => c.method === "insert")).toBe(false);
+    expect(rpcCalls.includes("toggle_upvote")).toBe(false);
+  });
+
+  it("failed toggle_upvote RPC returns null without calling revalidateTag (no partial state)", async () => {
+    state.user = { id: "u1" };
+    state.rpcHandler = (fn) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null };
+      return { data: null, error: { message: "DB error", code: "500" } };
+    };
+    const result = await db.upvoteAgent("a1");
+    expect(result).toBeNull();
+    // revalidateTag must NOT fire when the RPC failed — no partial/inconsistent state.
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("admin multi-upvote path (adminBumpUpvotes) is unaffected by U8 — still returns count directly", async () => {
+    // Verify admin_bump_upvotes RPC is still called (not replaced by toggle_upvote)
+    // for admin users across all entity types. U8 only changes the non-admin path.
+    state.user = { id: "admin" };
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === "admin_bump_upvotes") return { data: 99, error: null };
+      return { data: 0, error: null };
+    };
+
+    // Thread
+    rpcCalls.length = 0;
+    expect(await db.upvoteThread("t1")).toBe(99);
+    expect(rpcCalls.some(c => c.fn === "admin_bump_upvotes" && (c.args as Record<string, string>).kind === "thread")).toBe(true);
+    expect(rpcCalls.some(c => c.fn === "toggle_upvote")).toBe(false);
+
+    // Agent
+    rpcCalls.length = 0;
+    expect(await db.upvoteAgent("a1")).toBe(99);
+    expect(rpcCalls.some(c => c.fn === "admin_bump_upvotes" && (c.args as Record<string, string>).kind === "agent")).toBe(true);
+    expect(rpcCalls.some(c => c.fn === "toggle_upvote")).toBe(false);
   });
 });
 
@@ -1410,10 +1477,19 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     }
   }
 
+  // Helper for U2 revalidateTag tests: after U8 the count comes from the
+  // toggle_upvote RPC, not from a re-select.  admin_bump_upvotes must return
+  // null so the non-admin path (toggle_upvote) executes.
+  function makeU2RpcHandler(toggleCount = 5) {
+    return (fn: string) => {
+      if (fn === "admin_bump_upvotes") return { data: null, error: null }; // not admin
+      return { data: toggleCount, error: null }; // toggle_upvote returns count
+    };
+  }
+
   it("upvoteSkill calls revalidateTag('skills-list') and revalidateTag('skill-{id}') with no profile arg", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 5 }, error: null });
+    state.rpcHandler = makeU2RpcHandler(5);
     await db.upvoteSkill("s1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('skills-list');
@@ -1423,7 +1499,7 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
 
   it("upvoteSkill admin path also calls revalidateTag (admin path also mutates counts)", async () => {
     state.user = { id: "admin" };
-    state.rpcHandler = () => ({ data: 42, error: null });
+    state.rpcHandler = () => ({ data: 42, error: null }); // admin_bump_upvotes returns 42
     await db.upvoteSkill("s1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('skills-list');
@@ -1439,8 +1515,7 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
 
   it("upvoteProject calls revalidateTag('projects-list') and revalidateTag('project-{id}')", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 3 }, error: null });
+    state.rpcHandler = makeU2RpcHandler(3);
     await db.upvoteProject("p1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('projects-list');
@@ -1450,8 +1525,7 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
 
   it("upvoteAgent calls revalidateTag('agents-list') and revalidateTag('agent-{id}')", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 7 }, error: null });
+    state.rpcHandler = makeU2RpcHandler(7);
     await db.upvoteAgent("a1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('agents-list');
@@ -1461,8 +1535,7 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
 
   it("upvoteThread calls revalidateTag('threads-list') and revalidateTag('thread-{id}')", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 4 }, error: null });
+    state.rpcHandler = makeU2RpcHandler(4);
     await db.upvoteThread("t1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('threads-list');
@@ -1472,9 +1545,10 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
 
   it("upvoteReply calls revalidateTag('threads-list') and revalidateTag('thread-{threadId}') from reply row", async () => {
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    // Reply row includes thread_id so upvoteReply can invalidate the specific thread cache.
-    state.publicHandler = () => ({ data: { upvotes: 2, thread_id: "t99" }, error: null });
+    state.rpcHandler = makeU2RpcHandler(2);
+    // publicHandler returns thread_id for the secondary SELECT upvoteReply still makes.
+    // (upvoteReply needs thread_id to invalidate the specific getThreadById cache entry.)
+    state.publicHandler = () => ({ data: { thread_id: "t99" }, error: null });
     await db.upvoteReply("r1");
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('threads-list');
@@ -1571,8 +1645,7 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     // Confirm upvoteSkill's revalidation tag matches the broad tag that
     // a filtered getSkills call carries (verified separately in the cacheTag suite).
     state.user = { id: "u1" };
-    state.serverHandler = () => ({ data: null, error: null });
-    state.publicHandler = () => ({ data: { upvotes: 8 }, error: null });
+    state.rpcHandler = makeU2RpcHandler(8);
     await db.upvoteSkill("s1");
     // The broad tag that getSkills ALWAYS emits (regardless of filter args) must
     // appear in the revalidateTag calls so every cached variant gets expired.
