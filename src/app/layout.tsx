@@ -56,6 +56,7 @@ export const viewport: Viewport = {
 import { Suspense } from "react";
 import RouteTransitionProvider from "./components/RouteTransitionProvider";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "./components/AuthProvider";
 import { cookies } from "next/headers";
 import { LanguageProvider } from "./components/LanguageProvider";
@@ -102,6 +103,7 @@ export default function RootLayout({
           <RootLayoutInner>{children}</RootLayoutInner>
         </Suspense>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
