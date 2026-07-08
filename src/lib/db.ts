@@ -318,19 +318,20 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
 // DB API functions utilizing Supabase
 
 /**
- * Sanitize a user-supplied search term before use in search operations.
+ * Sanitize a user-supplied search term before embedding it in a PostgREST
+ * `.or()` filter string (KTD3 injection resistance).
  *
  * Strips characters with syntactic meaning in PostgREST's filter grammar
- * (`,` `.` `(` `)` `*`) and SQL LIKE wildcards (`%` `_`) so the term is
- * always treated as a plain literal substring — identical to the current JS
- * `.includes()` behavior and safe for future SQL `.or()` / `ilike` use
- * (KTD3 injection resistance requirement).
+ * (`,` `.` `(` `)` `*`) and SQL LIKE wildcards (`%` `_`) so the term can
+ * only ever populate the `ilike` pattern position — it cannot redefine the
+ * filter structure or introduce extra wildcard behaviour.
  *
- * Currently the search filter runs in JS (not SQL) because PostgREST has no
- * array-element substring operator: pushing tag/tools search to SQL would
- * require either a custom RPC or dropping tag-only matches (a regression).
- * This function is a forward-compatible hook: when SQL search is added for
- * title/description columns, pass the sanitized term into the `.or()` string.
+ * The sanitized term is used in `.or()` filter strings of the form:
+ *   `title_da.ilike.%term%,tags::text.ilike.%term%,...`
+ * where the outer `%` wildcards are added by the calling code (not the user).
+ * Casting array columns to text (`tags::text`) produces the PostgreSQL text
+ * representation `{elem1,elem2}`, which ilike can match against for
+ * element-substring searches without a custom RPC or exact-element operators.
  */
 export function sanitizeSearchTerm(raw: string): string {
   return raw.replace(/[,.()*%_]/g, '');
@@ -367,29 +368,44 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.order('upvotes', { ascending: false });
   }
 
+  // SQL-side narrowing: push all search dimensions into a single .or() clause
+  // before the fetch so only matching rows travel over the wire. The sanitized
+  // term strips PostgREST grammar chars (KTD3) so it can't redefine the filter
+  // structure. Casting the tags array to text (`tags::text`) produces the
+  // PostgreSQL text representation `{elem1,elem2,...}` — ilike with `%term%`
+  // then matches any element whose substring contains the term, replicating the
+  // current JS `.includes()` behavior without a custom RPC or exact-element
+  // operators (.contains()/.overlaps() test exact element equality and would
+  // narrow matches compared to today).
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // Search filters on raw DB rows (before mapping) so both language columns are
-  // checked in one pass. Tags use JS substring matching because PostgREST's
-  // array operators (.contains()/.overlaps()) test exact element equality — they
-  // cannot replicate today's `tag.includes(q)` substring behavior. Pushing only
-  // title/description to SQL and keeping tags in JS would lose items that match
-  // exclusively via tags (a regression). The sanitized term is PostgREST-safe
-  // for a future SQL push once an array-substring construct is available.
-  if (search) {
-    const q = sanitizeSearchTerm(search).toLowerCase();
-    if (q) {
-      return data
-        .filter(s =>
-          s.title_da.toLowerCase().includes(q) ||
-          s.title_en.toLowerCase().includes(q) ||
-          s.description_da.toLowerCase().includes(q) ||
-          s.description_en.toLowerCase().includes(q) ||
-          (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
-        )
-        .map(s => mapSkill(s, lang));
-    }
+  // JS safety net on the already-SQL-narrowed result. In production this runs
+  // on a small filtered set (not the full table). In mock-based tests the mock
+  // ignores the SQL filter, so this layer provides output-correctness guarantees.
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(s =>
+        s.title_da.toLowerCase().includes(q) ||
+        s.title_en.toLowerCase().includes(q) ||
+        s.description_da.toLowerCase().includes(q) ||
+        s.description_en.toLowerCase().includes(q) ||
+        (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(s => mapSkill(s, lang));
   }
 
   return data.map(s => mapSkill(s, lang));
@@ -448,24 +464,35 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
     query = query.order('created_at', { ascending: false });
   }
 
+  // SQL-side narrowing (see getSkills for full rationale). tools::text cast
+  // covers array element substring matching without a custom RPC.
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tools::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // Search on raw rows so both language columns are checked (see getSkills for
-  // the full rationale). Tools is an array — same substring-in-JS approach as tags.
-  if (search) {
-    const q = sanitizeSearchTerm(search).toLowerCase();
-    if (q) {
-      return data
-        .filter(p =>
-          p.title_da.toLowerCase().includes(q) ||
-          p.title_en.toLowerCase().includes(q) ||
-          p.description_da.toLowerCase().includes(q) ||
-          p.description_en.toLowerCase().includes(q) ||
-          (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
-        )
-        .map(p => mapProject(p, lang));
-    }
+  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(p =>
+        p.title_da.toLowerCase().includes(q) ||
+        p.title_en.toLowerCase().includes(q) ||
+        p.description_da.toLowerCase().includes(q) ||
+        p.description_en.toLowerCase().includes(q) ||
+        (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(p => mapProject(p, lang));
   }
 
   return data.map(p => mapProject(p, lang));
@@ -726,23 +753,34 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
     query = query.neq('category', 'MCP Server');
   }
 
+  // SQL-side narrowing (see getSkills for full rationale). `name` is not
+  // bilingual. tags::text cast covers array element substring matching.
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(
+        `name.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
+      );
+    }
+  }
+
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // Search on raw rows so both language columns are checked (see getSkills for
-  // the full rationale). `name` is not localized. Tags use JS substring matching.
-  if (search) {
-    const q = sanitizeSearchTerm(search).toLowerCase();
-    if (q) {
-      return data
-        .filter(a =>
-          a.name.toLowerCase().includes(q) ||
-          a.description_da.toLowerCase().includes(q) ||
-          a.description_en.toLowerCase().includes(q) ||
-          (a.tags || []).some((t: string) => t.toLowerCase().includes(q))
-        )
-        .map(a => mapAgent(a, lang));
-    }
+  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
+  if (searchTerm) {
+    const q = searchTerm;
+    return data
+      .filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.description_da.toLowerCase().includes(q) ||
+        a.description_en.toLowerCase().includes(q) ||
+        (a.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      .map(a => mapAgent(a, lang));
   }
 
   return data.map(a => mapAgent(a, lang));

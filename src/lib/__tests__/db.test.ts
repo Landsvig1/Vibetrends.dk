@@ -19,6 +19,8 @@ interface BuilderOps {
   payload?: unknown;
   single: boolean;
   filters: Array<[string, ...unknown[]]>;
+  /** Raw filter strings passed to .or() — used to assert SQL-side search narrowing. */
+  orClauses: string[];
 }
 
 type Handler = (ops: BuilderOps) => { data?: unknown; error: unknown; count?: number };
@@ -40,7 +42,7 @@ const state = vi.hoisted(() => {
 });
 
 function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
-  const ops: BuilderOps = { table, method: "select", filters: [], single: false };
+  const ops: BuilderOps = { table, method: "select", filters: [], single: false, orClauses: [] };
   let recorded = false;
   const record = () => {
     if (!recorded) {
@@ -91,6 +93,10 @@ function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
     },
     order(col: string, opt: unknown) {
       ops.filters.push(["order", col, opt]);
+      return builder;
+    },
+    or(filter: string) {
+      ops.orClauses.push(filter);
       return builder;
     },
     single() {
@@ -870,6 +876,49 @@ describe("U1 — getSkills search (bilingual, tag substring)", () => {
     expect(results.map(r => r.id)).toEqual(["a"]);
   });
 
+  it("SQL .or() clause is sent to the query builder when a search term is given", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills("react");
+    const call = state.publicCalls.find(c => c.table === "skills")!;
+    expect(call.orClauses).toHaveLength(1);
+    const clause = call.orClauses[0];
+    // All title/description columns (both languages) must be in the SQL clause.
+    expect(clause).toContain("title_da.ilike.%react%");
+    expect(clause).toContain("title_en.ilike.%react%");
+    expect(clause).toContain("description_da.ilike.%react%");
+    expect(clause).toContain("description_en.ilike.%react%");
+    // tags::text cast covers array element substring matching at SQL level.
+    expect(clause).toContain("tags::text.ilike.%react%");
+  });
+
+  it("no SQL .or() clause is added when the search term is empty or all-stripped", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills("");
+    const callEmpty = state.publicCalls.find(c => c.table === "skills")!;
+    expect(callEmpty.orClauses).toHaveLength(0);
+
+    state.publicCalls = [];
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills(",.*");  // strips to empty — treated as no search
+    const callStripped = state.publicCalls.find(c => c.table === "skills")!;
+    expect(callStripped.orClauses).toHaveLength(0);
+  });
+
+  it("injection term is sanitized before embedding in the SQL .or() clause", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills("x),category.eq.Hidden,title_da.ilike.%(");
+    const call = state.publicCalls.find(c => c.table === "skills")!;
+    expect(call.orClauses).toHaveLength(1);
+    const clause = call.orClauses[0];
+    // Dangerous chars stripped — the embedded term is the sanitized literal only.
+    expect(clause).not.toContain("),");
+    expect(clause).not.toContain("category.eq");
+    // The sanitized + lowercased term is embedded safely (lowercase because the
+    // db function calls .toLowerCase() on the sanitized output before building
+    // the filter string).
+    expect(clause).toContain("xcategoryeqhiddentitledailike");
+  });
+
   it("search is case-insensitive", async () => {
     const rows = [{ ...skillRow, id: "a", title_da: "REACT hooks", title_en: "REACT hooks" }];
     state.publicHandler = () => ({ data: rows, error: null });
@@ -978,6 +1027,27 @@ describe("U1 — getProjects search (bilingual, tools substring)", () => {
     expect((await db.getProjects("curs")).map(r => r.id)).toEqual(["a"]);
   });
 
+  it("SQL .or() clause is sent to the query builder when a search term is given", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getProjects("cursor");
+    const call = state.publicCalls.find(c => c.table === "vibes")!;
+    expect(call.orClauses).toHaveLength(1);
+    const clause = call.orClauses[0];
+    expect(clause).toContain("title_da.ilike.%cursor%");
+    expect(clause).toContain("title_en.ilike.%cursor%");
+    expect(clause).toContain("description_da.ilike.%cursor%");
+    expect(clause).toContain("description_en.ilike.%cursor%");
+    // tools::text cast covers array element substring matching at SQL level.
+    expect(clause).toContain("tools::text.ilike.%cursor%");
+  });
+
+  it("no SQL .or() clause is added when the search term is empty", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getProjects("");
+    const call = state.publicCalls.find(c => c.table === "vibes")!;
+    expect(call.orClauses).toHaveLength(0);
+  });
+
   it("empty search returns all rows", async () => {
     const rows = [{ ...showcaseRow, id: "a" }, { ...showcaseRow, id: "b" }];
     state.publicHandler = () => ({ data: rows, error: null });
@@ -1039,6 +1109,26 @@ describe("U1 — getAgents search (name, bilingual description, tag substring)",
     ];
     state.publicHandler = () => ({ data: rows, error: null });
     expect((await db.getAgents("code")).map(r => r.id)).toEqual(["a"]);
+  });
+
+  it("SQL .or() clause is sent to the query builder when a search term is given", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getAgents("claude");
+    const call = state.publicCalls.find(c => c.table === "agents")!;
+    expect(call.orClauses).toHaveLength(1);
+    const clause = call.orClauses[0];
+    expect(clause).toContain("name.ilike.%claude%");
+    expect(clause).toContain("description_da.ilike.%claude%");
+    expect(clause).toContain("description_en.ilike.%claude%");
+    // tags::text cast covers array element substring matching at SQL level.
+    expect(clause).toContain("tags::text.ilike.%claude%");
+  });
+
+  it("no SQL .or() clause is added when the search term is empty", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getAgents("");
+    const call = state.publicCalls.find(c => c.table === "agents")!;
+    expect(call.orClauses).toHaveLength(0);
   });
 
   it("empty search returns all rows", async () => {
