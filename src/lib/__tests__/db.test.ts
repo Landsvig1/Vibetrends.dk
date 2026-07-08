@@ -38,6 +38,10 @@ const state = vi.hoisted(() => {
       fn: string,
       args: unknown
     ) => { data: unknown; error: unknown },
+    // U2 — tracks calls to next/cache functions for tag-scheme verification.
+    cacheTagCalls: [] as string[][],
+    cacheLifeCalls: [] as string[],
+    revalidateTagCalls: [] as Array<string[]>,
   };
 });
 
@@ -112,6 +116,17 @@ function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
   return builder;
 }
 
+// Mock next/cache so the "use cache" directive and cacheTag/cacheLife/revalidateTag
+// calls in db.ts are captured without requiring a real Next.js runtime. In Vitest,
+// the "use cache" string directive has no effect (it's just a no-op expression), so
+// functions execute normally — we can only verify the tag *calls*, not actual cache
+// hit/miss behavior, which requires the real Next.js runtime.
+vi.mock("next/cache", () => ({
+  cacheTag: (...tags: string[]) => { state.cacheTagCalls.push(tags); },
+  cacheLife: (profile: string) => { state.cacheLifeCalls.push(profile); },
+  revalidateTag: (...args: string[]) => { state.revalidateTagCalls.push(args); },
+}));
+
 vi.mock("@/lib/supabase-server", () => {
   return {
     supabasePublic: {
@@ -153,6 +168,9 @@ beforeEach(() => {
   state.publicCalls = [];
   state.serverCalls = [];
   state.rpcHandler = () => ({ data: null, error: null });
+  state.cacheTagCalls = [];
+  state.cacheLifeCalls = [];
+  state.revalidateTagCalls = [];
 });
 
 describe("mappers (language + null coalescing)", () => {
@@ -1176,5 +1194,413 @@ describe("delete operations reflect RLS row visibility", () => {
   it("returns false on a delete error", async () => {
     state.serverHandler = () => ({ data: null, error: { message: "denied" } });
     expect(await db.deleteProject("p1")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// U2 — Cache Components caching with tagged revalidation
+//
+// IMPORTANT: "use cache", cacheTag, and revalidateTag are Next.js runtime APIs.
+// In Vitest (no Next.js compiler), "use cache" is an inert string expression —
+// the actual cache hit/miss behavior CANNOT be tested here. What we verify:
+//
+// 1. cacheTag is called with BOTH the broad entity-wide tag AND the
+//    variant-specific tag on every read function invocation (so any mutation
+//    calling revalidateTag('entity-list') invalidates ALL cached variants, not
+//    just the default one — exact-string matching means every variant must carry
+//    the broad tag explicitly).
+//
+// 2. revalidateTag is called with the correct tags and NO second argument
+//    (immediate expiry, not stale-while-revalidate — KTD2 hard constraint).
+//    A second argument of 'max' or any profile string would silently
+//    reintroduce the stale-upvote-count bug this unit exists to prevent.
+//
+// 3. Mutations call revalidateTag on ALL success paths (authenticated user,
+//    including the admin bypass path).
+//
+// 4. Functions excluded from caching in this unit (getCounts, getTopProjects,
+//    getTopSkills, getTopAgents, getLatestPosts) do NOT call cacheTag.
+//
+// Full behavioral verification (cache invalidation actually dropping stale
+// data on next read) requires a deployed Vercel preview environment with the
+// real Next.js runtime — both prior stale-count bugs were invisible locally.
+// ---------------------------------------------------------------------------
+
+describe("U2 — cacheTag: broad + variant tags on every read function", () => {
+  it("getSkills calls cacheTag with 'skills-list' (broad) AND variant tag", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    await db.getSkills("react", "agent-methodology", "en", "hot");
+    // There must be at least one cacheTag call whose first arg is the broad tag
+    // AND that same call includes the variant-specific tag.
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'skills-list');
+    expect(call, "cacheTag('skills-list', ...) must be called").toBeDefined();
+    expect(call!.length).toBeGreaterThan(1);
+    // Variant tag encodes category, search, lang, and view.
+    const variantTag = call![1];
+    expect(variantTag).toContain('agent-methodology');
+    expect(variantTag).toContain('react');
+    expect(variantTag).toContain('en');
+    expect(variantTag).toContain('hot');
+  });
+
+  it("getSkills with no args still calls cacheTag with the broad 'skills-list' tag", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills();
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'skills-list');
+    expect(call).toBeDefined();
+    // Both broad and variant tags must be present even for the default call.
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("getProjects calls cacheTag with 'projects-list' (broad) AND variant tag", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getProjects("cursor", "da", "top");
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'projects-list');
+    expect(call).toBeDefined();
+    const variantTag = call![1];
+    expect(variantTag).toContain('cursor');
+    expect(variantTag).toContain('da');
+    expect(variantTag).toContain('top');
+  });
+
+  it("getAgents calls cacheTag with 'agents-list' (broad) AND variant tag", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getAgents("claude", "CLI", "en");
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'agents-list');
+    expect(call).toBeDefined();
+    const variantTag = call![1];
+    expect(variantTag).toContain('CLI');
+    expect(variantTag).toContain('claude');
+    expect(variantTag).toContain('en');
+  });
+
+  it("getCli calls cacheTag with 'agents-list' (broad) — same broad tag as getAgents", async () => {
+    // getCli shares the 'agents-list' broad tag with getAgents so that
+    // revalidateTag('agents-list') invalidates both cache entries at once.
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getCli("tool", "da");
+    // getCli may call cacheTag once (itself) and then getAgents also calls cacheTag —
+    // find the call that has 'CLI' in the variant tag.
+    const cliCall = state.cacheTagCalls.find(
+      tags => tags[0] === 'agents-list' && tags.some(t => t.includes('CLI'))
+    );
+    expect(cliCall, "getCli must call cacheTag('agents-list', '...CLI...')").toBeDefined();
+  });
+
+  it("getSkillById calls cacheTag with entity-specific tag 'skill-{id}' AND variant", async () => {
+    state.publicHandler = () => ({ data: skillRow, error: null });
+    await db.getSkillById("s1", "en");
+    const call = state.cacheTagCalls.find(tags => tags.some(t => t === 'skill-s1'));
+    expect(call, "cacheTag must include 'skill-s1'").toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+    // Variant tag must include the id and lang.
+    expect(call!.join(' ')).toContain('s1');
+    expect(call!.join(' ')).toContain('en');
+  });
+
+  it("getProjectById calls cacheTag with 'project-{id}' AND variant", async () => {
+    state.publicHandler = () => ({ data: null, error: null });
+    await db.getProjectById("p42", "da");
+    const call = state.cacheTagCalls.find(tags => tags.some(t => t === 'project-p42'));
+    expect(call).toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("getAgentById calls cacheTag with 'agent-{id}' AND variant", async () => {
+    state.publicHandler = () => ({ data: null, error: null });
+    await db.getAgentById("a99", "en");
+    const call = state.cacheTagCalls.find(tags => tags.some(t => t === 'agent-a99'));
+    expect(call).toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("getThreads calls cacheTag with 'threads-list' (broad) AND variant tag", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "forum_threads"
+        ? { data: [{ id: "t1", title_da: "T", title_en: "T", author: "a", category: "General", content_da: "c", content_en: "c", upvotes: 1, created_at: "2026-01-01" }], error: null }
+        : { data: [], error: null };
+    await db.getThreads("General", "da", 5, "new");
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'threads-list');
+    expect(call).toBeDefined();
+    const variantTag = call![1];
+    expect(variantTag).toContain('General');
+    expect(variantTag).toContain('da');
+    expect(variantTag).toContain('5');
+    expect(variantTag).toContain('new');
+  });
+
+  it("getThreadById calls cacheTag with 'thread-{id}' AND variant", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "forum_threads") return {
+        data: { id: "t5", title_da: "T", title_en: "T", author: "a", category: "General", content_da: "c", content_en: "c", upvotes: 1, created_at: "2026-01-01" },
+        error: null
+      };
+      return { data: [], error: null };
+    };
+    await db.getThreadById("t5", "en");
+    const call = state.cacheTagCalls.find(tags => tags.some(t => t === 'thread-t5'));
+    expect(call).toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+    expect(call!.join(' ')).toContain('en');
+  });
+
+  it("getBlogPosts calls cacheTag with 'blog-posts' (broad) AND lang-scoped variant", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getBlogPosts("en");
+    const call = state.cacheTagCalls.find(tags => tags[0] === 'blog-posts');
+    expect(call).toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+    expect(call!.join(' ')).toContain('en');
+  });
+
+  it("getBlogPostById calls cacheTag with 'blog-post-{id}' AND variant", async () => {
+    state.publicHandler = () => ({ data: null, error: null });
+    await db.getBlogPostById("b7", "da");
+    const call = state.cacheTagCalls.find(tags => tags.some(t => t === 'blog-post-b7'));
+    expect(call).toBeDefined();
+    expect(call!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // The most important tag-scoping test: a filtered/searched variant must carry the
+  // broad entity-wide tag so revalidateTag('skills-list') invalidates it — not just
+  // the default unfiltered variant. This is the test that catches the "only the
+  // default variant gets invalidated" tag-scoping bug described in the plan.
+  it("a filtered getSkills call (category + search) carries BOTH broad 'skills-list' AND variant-specific tag", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills("agent", "productivity", "da");
+    const broadTagCall = state.cacheTagCalls.find(tags => tags[0] === 'skills-list');
+    expect(broadTagCall, "filtered call must carry broad 'skills-list' tag").toBeDefined();
+    const variantTag = broadTagCall![1];
+    // Variant must encode both the category AND the search term so it's distinct
+    // from the default-view cache entry.
+    expect(variantTag).toContain('productivity');
+    expect(variantTag).toContain('agent');
+    // The broad tag is always index 0: a single revalidateTag('skills-list') call
+    // from upvoteSkill will expire THIS filtered cache entry too, not just the
+    // default 'skills-list:all::da:' entry.
+    expect(broadTagCall![0]).toBe('skills-list');
+  });
+
+  it("functions excluded from U2 caching do NOT call cacheTag", async () => {
+    state.publicHandler = (ops) => ({ count: 0, data: null, error: null });
+    await db.getCounts();
+    const countsBefore = state.cacheTagCalls.length;
+
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getTopProjects(1, "da");
+    await db.getTopSkills(1, "da");
+    await db.getTopAgents(1, "da");
+    await db.getLatestPosts(1, "da");
+
+    // None of the above should have called cacheTag.
+    expect(state.cacheTagCalls.length).toBe(countsBefore);
+  });
+});
+
+describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation paths", () => {
+  // Hard constraint from KTD2: revalidateTag must be called WITHOUT a profile
+  // argument. A second arg of 'max' or any profile string gives stale-while-
+  // revalidate semantics and would silently reintroduce the stale-count bug.
+  // We verify this by checking that every revalidateTag call recorded in state
+  // has exactly one element (just the tag string, no second arg).
+
+  function assertNoProfileArg() {
+    for (const call of state.revalidateTagCalls) {
+      expect(call.length, `revalidateTag called with extra args: ${JSON.stringify(call)}`).toBe(1);
+    }
+  }
+
+  it("upvoteSkill calls revalidateTag('skills-list') and revalidateTag('skill-{id}') with no profile arg", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 5 }, error: null });
+    await db.upvoteSkill("s1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('skills-list');
+    expect(tags).toContain('skill-s1');
+    assertNoProfileArg();
+  });
+
+  it("upvoteSkill admin path also calls revalidateTag (admin path also mutates counts)", async () => {
+    state.user = { id: "admin" };
+    state.rpcHandler = () => ({ data: 42, error: null });
+    await db.upvoteSkill("s1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('skills-list');
+    expect(tags).toContain('skill-s1');
+    assertNoProfileArg();
+  });
+
+  it("upvoteSkill unauthenticated path does NOT call revalidateTag (no mutation occurred)", async () => {
+    state.user = null;
+    await db.upvoteSkill("s1");
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("upvoteProject calls revalidateTag('projects-list') and revalidateTag('project-{id}')", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 3 }, error: null });
+    await db.upvoteProject("p1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('projects-list');
+    expect(tags).toContain('project-p1');
+    assertNoProfileArg();
+  });
+
+  it("upvoteAgent calls revalidateTag('agents-list') and revalidateTag('agent-{id}')", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 7 }, error: null });
+    await db.upvoteAgent("a1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('agents-list');
+    expect(tags).toContain('agent-a1');
+    assertNoProfileArg();
+  });
+
+  it("upvoteThread calls revalidateTag('threads-list') and revalidateTag('thread-{id}')", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 4 }, error: null });
+    await db.upvoteThread("t1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    expect(tags).toContain('thread-t1');
+    assertNoProfileArg();
+  });
+
+  it("upvoteReply calls revalidateTag('threads-list') and revalidateTag('thread-{threadId}') from reply row", async () => {
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    // Reply row includes thread_id so upvoteReply can invalidate the specific thread cache.
+    state.publicHandler = () => ({ data: { upvotes: 2, thread_id: "t99" }, error: null });
+    await db.upvoteReply("r1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    expect(tags).toContain('thread-t99');
+    assertNoProfileArg();
+  });
+
+  it("createProject calls revalidateTag('projects-list') on successful insert", async () => {
+    const row = { id: "p_new", title_da: "T", title_en: "T", author: "a", description_da: "d", description_en: "d", tools: null, prompts: null, upvotes: 1, demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01" };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createProject("Title", "Author", "Desc", [], [], "https://demo.com");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('projects-list');
+    assertNoProfileArg();
+  });
+
+  it("createProject does NOT call revalidateTag on insert failure", async () => {
+    state.serverHandler = () => ({ data: null, error: { message: "insert failed" } });
+    await expect(db.createProject("Title", "Author", "Desc", [], [], "https://demo.com")).rejects.toThrow();
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("deleteProject calls revalidateTag('projects-list') and revalidateTag('project-{id}') when succeeded", async () => {
+    state.serverHandler = () => ({ data: [{ id: "p1" }], error: null });
+    await db.deleteProject("p1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('projects-list');
+    expect(tags).toContain('project-p1');
+    assertNoProfileArg();
+  });
+
+  it("deleteProject does NOT call revalidateTag when no row deleted (not owner or not found)", async () => {
+    state.serverHandler = () => ({ data: [], error: null });
+    await db.deleteProject("p1");
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+
+  it("deleteThread calls revalidateTag('threads-list') and revalidateTag('thread-{id}') when succeeded", async () => {
+    state.serverHandler = () => ({ data: [{ id: "t1" }], error: null });
+    await db.deleteThread("t1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    expect(tags).toContain('thread-t1');
+    assertNoProfileArg();
+  });
+
+  it("deleteReply calls revalidateTag('threads-list') and revalidateTag('thread-{threadId}') when succeeded", async () => {
+    state.serverHandler = () => ({ data: [{ id: "r1" }], error: null });
+    await db.deleteReply("t5", "r1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    expect(tags).toContain('thread-t5');
+    assertNoProfileArg();
+  });
+
+  it("createSkill calls revalidateTag('skills-list') on successful insert", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: "d", description_en: "d", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", []);
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('skills-list');
+    assertNoProfileArg();
+  });
+
+  it("createAgent calls revalidateTag('agents-list') on successful insert", async () => {
+    const row = { id: "a_new", name: "Agent", developer: "dev", category: "CLI", description_da: "d", description_en: "d", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [] };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createAgent("Agent", "dev", "CLI", "Desc", "npx agent", "system prompt", []);
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('agents-list');
+    assertNoProfileArg();
+  });
+
+  it("deleteAgent calls revalidateTag('agents-list') and revalidateTag('agent-{id}') when succeeded", async () => {
+    state.serverHandler = () => ({ data: [{ id: "a1" }], error: null });
+    await db.deleteAgent("a1");
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('agents-list');
+    expect(tags).toContain('agent-a1');
+    assertNoProfileArg();
+  });
+
+  // This is the key correctness test for filtered views: upvoting from any variant
+  // (filtered by category/search) must cause the next read of THAT variant to
+  // reflect the new count. In practice this is guaranteed because:
+  // 1. The filtered variant carries the broad 'skills-list' tag (verified in the
+  //    cacheTag suite above).
+  // 2. upvoteSkill calls revalidateTag('skills-list') with NO profile arg (verified
+  //    here), which expires ALL cache entries tagged 'skills-list' — including the
+  //    filtered variant — not just the default one.
+  // The "cache actually drops the stale entry" part requires the real Next.js
+  // runtime; what we verify here is the structural guarantee that makes it work.
+  it("upvoteSkill invalidates 'skills-list' — the broad tag that ALL filtered getSkills variants carry", async () => {
+    // Confirm upvoteSkill's revalidation tag matches the broad tag that
+    // a filtered getSkills call carries (verified separately in the cacheTag suite).
+    state.user = { id: "u1" };
+    state.serverHandler = () => ({ data: null, error: null });
+    state.publicHandler = () => ({ data: { upvotes: 8 }, error: null });
+    await db.upvoteSkill("s1");
+    // The broad tag that getSkills ALWAYS emits (regardless of filter args) must
+    // appear in the revalidateTag calls so every cached variant gets expired.
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('skills-list');
+    // No profile arg — immediate expiry, not stale-while-revalidate.
+    assertNoProfileArg();
+  });
+
+  it("cacheLife is called with 'max' on read functions (tag-only invalidation, effectively infinite TTL)", async () => {
+    // 'max' profile means the cache never self-expires via TTL — only revalidateTag
+    // can invalidate it. This is the KTD2 guarantee: counts are never served from
+    // a timed expiry window after a vote; they're only refreshed when we explicitly
+    // call revalidateTag.
+    state.publicHandler = () => ({ data: [], error: null });
+    await db.getSkills();
+    expect(state.cacheLifeCalls).toContain('max');
+
+    state.cacheLifeCalls = [];
+    await db.getProjects();
+    expect(state.cacheLifeCalls).toContain('max');
+
+    state.cacheLifeCalls = [];
+    await db.getAgents();
+    expect(state.cacheLifeCalls).toContain('max');
+
+    state.cacheLifeCalls = [];
+    await db.getBlogPosts();
+    expect(state.cacheLifeCalls).toContain('max');
   });
 });

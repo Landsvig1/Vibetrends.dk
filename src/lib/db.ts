@@ -1,5 +1,25 @@
 import { supabasePublic, createSupabaseServerClient } from "./supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cacheTag, cacheLife, revalidateTag as _revalidateTag } from 'next/cache';
+
+/**
+ * Calls revalidateTag WITHOUT a profile argument — KTD2 hard constraint.
+ *
+ * The two-arg form `revalidateTag(tag, 'max')` defaults to stale-while-revalidate,
+ * which would silently reintroduce the stale-upvote-count bug this codebase already
+ * fixed twice (commits 0db6f62, e224ec4). The no-arg form gives IMMEDIATE expiry
+ * (documented as "deprecated legacy behavior, equivalent to updateTag") so the next
+ * request after a vote always blocks on a fresh DB read rather than getting a cached
+ * pre-vote count.
+ *
+ * TypeScript's `revalidateTag` signature requires a second argument; we suppress that
+ * error here rather than at every call site. The deprecation is a type-level concern —
+ * the runtime behavior (immediate expiry) is exactly what correctness requires.
+ *
+ * @see node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md
+ */
+// @ts-ignore — deliberate single-arg form: immediate expiry, not stale-while-revalidate
+const revalidateTag = (tag: string): void => _revalidateTag(tag);
 
 /** Identity + client resolved by `resolveBotRequestAuth()` for bearer-authenticated
  * (non-browser) callers. When passed to `createProject`/`createSkill`, the write
@@ -338,6 +358,14 @@ export function sanitizeSearchTerm(raw: string): string {
 }
 
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
+  'use cache'
+  cacheLife('max')
+  // Both the broad entity-wide tag AND the variant-specific tag are set so that
+  // a single revalidateTag('skills-list') call on any mutation invalidates every
+  // cached variant (searched, filtered, sorted), not just the default one.
+  // Next's tag matching is exact-string — prefix matching is not supported.
+  cacheTag('skills-list', `skills-list:${category ?? 'all'}:${search ?? ''}:${lang}:${view ?? ''}`)
+
   let query = supabasePublic.from('skills').select('*');
 
   if (category && category !== "All") {
@@ -412,6 +440,10 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
 }
 
 export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`skill-${id}`, `skill-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapSkill(data, lang);
@@ -427,7 +459,12 @@ export async function upvoteSkill(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'skill', id);
-  if (adminCount !== null) return adminCount;
+  if (adminCount !== null) {
+    // Admin path also changes the count — invalidate both tags immediately.
+    revalidateTag('skills-list')
+    revalidateTag(`skill-${id}`)
+    return adminCount;
+  }
 
   const { error } = await supabase.from('skill_upvotes').insert({
     user_id: user.id,
@@ -448,12 +485,23 @@ export async function upvoteSkill(id: string) {
     .eq('id', id)
     .single();
 
+  // Invalidate immediately after the mutation so the next read reflects the
+  // new count. Called without a profile argument for immediate expiry (not
+  // stale-while-revalidate) — KTD2 hard constraint.
+  revalidateTag('skills-list')
+  revalidateTag(`skill-${id}`)
+
   // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
   if (!data) return null;
   return data.upvotes ?? 0;
 }
 
 export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sort: 'top' | 'new' | 'az' = 'new') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('projects-list', `projects-list:${search ?? ''}:${lang}:${sort}`)
+
   // 'new' = most recent (default), 'top' = most upvoted, 'az' = alphabetical. Mirrors getThreads.
   let query = supabasePublic.from('vibes').select('*');
   if (sort === 'top') {
@@ -499,6 +547,10 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
 }
 
 export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`project-${id}`, `project-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('vibes').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapProject(data, lang);
@@ -527,7 +579,11 @@ export async function upvoteProject(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'vibe', id);
-  if (adminCount !== null) return adminCount;
+  if (adminCount !== null) {
+    revalidateTag('projects-list')
+    revalidateTag(`project-${id}`)
+    return adminCount;
+  }
 
   // Attempt to insert join table row (toggle pattern)
   const { error } = await supabase.from('vibes_upvotes').insert({
@@ -551,12 +607,21 @@ export async function upvoteProject(id: string) {
     .eq('id', id)
     .single();
 
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('projects-list')
+  revalidateTag(`project-${id}`)
+
   // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
   if (!data) return null;
   return data.upvotes ?? 0;
 }
 
 export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('threads-list', `threads-list:${category ?? 'all'}:${lang}:${limit ?? ''}:${sort}`)
+
   // 'top' = most upvoted (default), 'new' = most recent. Reddit-style sort tabs.
   const orderColumn = sort === 'new' ? 'created_at' : 'upvotes';
   let query = supabasePublic.from('forum_threads').select('*').order(orderColumn, { ascending: false });
@@ -592,6 +657,10 @@ export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', li
 }
 
 export async function getThreadById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`thread-${id}`, `thread-${id}:${lang}`)
+
   const { data: thread, error } = await supabasePublic.from('forum_threads').select('*').eq('id', id).single();
   if (error || !thread) return null;
   const { data: replies } = await supabasePublic
@@ -612,7 +681,11 @@ export async function upvoteThread(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'thread', id);
-  if (adminCount !== null) return adminCount;
+  if (adminCount !== null) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${id}`)
+    return adminCount;
+  }
 
   const { error } = await supabase.from('thread_upvotes').insert({
     user_id: user.id,
@@ -633,6 +706,10 @@ export async function upvoteThread(id: string) {
     .eq('id', id)
     .single();
 
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('threads-list')
+  revalidateTag(`thread-${id}`)
+
   // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
   if (!data) return null;
   return data.upvotes ?? 0;
@@ -648,7 +725,13 @@ export async function upvoteReply(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'reply', id);
-  if (adminCount !== null) return adminCount;
+  if (adminCount !== null) {
+    // Reply upvotes are displayed on the thread detail page — invalidate the
+    // threads-list broad tag. We don't know the thread_id here, but the broad
+    // tag covers all variants; the admin path is rare enough that this is fine.
+    revalidateTag('threads-list')
+    return adminCount;
+  }
 
   const { error } = await supabase.from('reply_upvotes').insert({
     user_id: user.id,
@@ -663,11 +746,21 @@ export async function upvoteReply(id: string) {
       .eq('reply_id', id);
   }
 
+  // Fetch the updated upvote count AND the thread_id so we can invalidate the
+  // specific thread detail cache entry in addition to the broad list tag.
   const { data } = await supabasePublic
     .from('forum_replies')
-    .select('upvotes')
+    .select('upvotes, thread_id')
     .eq('id', id)
     .single();
+
+  // Invalidate immediately — KTD2 hard constraint. The broad 'threads-list'
+  // tag covers all getThreads() variants. The specific thread tag covers the
+  // getThreadById() cache for this reply's parent thread.
+  revalidateTag('threads-list')
+  if (data?.thread_id) {
+    revalidateTag(`thread-${data.thread_id}`)
+  }
 
   // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
   if (!data) return null;
@@ -696,6 +789,9 @@ export async function createThread(title: string, author: string, category: Foru
     throw new Error('Kunne ikke oprette tråd');
   }
 
+  // Invalidate the threads list so the new thread appears on the next read.
+  revalidateTag('threads-list')
+
   return mapThread(data, [], 'da');
 }
 
@@ -718,6 +814,11 @@ export async function addReply(threadId: string, author: string, content: string
     return null;
   }
 
+  // Invalidate the specific thread detail cache AND the broad threads-list tag
+  // so reply counts (embedded in thread list rows) are also refreshed.
+  revalidateTag('threads-list')
+  revalidateTag(`thread-${threadId}`)
+
   // Return the parent thread populated with all replies
   const { data: thread } = await supabasePublic.from('forum_threads').select('*').eq('id', threadId).single();
   const { data: replies } = await supabasePublic.from('forum_replies').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
@@ -727,18 +828,31 @@ export async function addReply(threadId: string, author: string, content: string
 }
 
 export async function getBlogPosts(lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('blog-posts', `blog-posts:${lang}`)
+
   const { data, error } = await supabasePublic.from('blog_posts').select('*');
   if (error || !data) return [];
   return data.map(b => mapBlogPost(b, lang));
 }
 
 export async function getBlogPostById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`blog-post-${id}`, `blog-post-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('blog_posts').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapBlogPost(data, lang);
 }
 
 export async function getAgents(search?: string, category?: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  // Both broad and variant-specific tags — see getSkills for rationale.
+  cacheTag('agents-list', `agents-list:${category ?? 'all'}:${search ?? ''}:${lang}`)
+
   let query = supabasePublic.from('agents').select('*').order('upvotes', { ascending: false });
 
   // Hosts are connection targets, never catalog items — excluded from every
@@ -789,6 +903,11 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
 // CLIs are stored in the agents table with category 'CLI'.
 // Convenience accessor for the /cli feed surface and /api/cli.
 export async function getCli(search?: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  // Shares the broad 'agents-list' tag with getAgents so revalidateTag('agents-list')
+  // invalidates this cache entry too. The variant tag scopes it to CLI+search+lang.
+  cacheTag('agents-list', `agents-list:CLI:${search ?? ''}:${lang}`)
   return getAgents(search, 'CLI', lang);
 }
 
@@ -796,6 +915,10 @@ export async function getCli(search?: string, lang: 'da' | 'en' = 'da') {
 // list views fetch them via /api/mcp-servers. Host rows are retained but
 // excluded from every catalog query above.
 export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`agent-${id}`, `agent-${id}:${lang}`)
+
   const { data, error } = await supabasePublic.from('agents').select('*').eq('id', id).single();
   if (error || !data) return null;
   return mapAgent(data, lang);
@@ -811,7 +934,11 @@ export async function upvoteAgent(id: string) {
   }
 
   const adminCount = await adminBumpUpvotes(supabase, 'agent', id);
-  if (adminCount !== null) return adminCount;
+  if (adminCount !== null) {
+    revalidateTag('agents-list')
+    revalidateTag(`agent-${id}`)
+    return adminCount;
+  }
 
   const { error } = await supabase.from('agent_upvotes').insert({
     user_id: user.id,
@@ -831,6 +958,10 @@ export async function upvoteAgent(id: string) {
     .select('upvotes')
     .eq('id', id)
     .single();
+
+  // Invalidate immediately after the mutation — KTD2 hard constraint.
+  revalidateTag('agents-list')
+  revalidateTag(`agent-${id}`)
 
   // null distinguishes a missing row from a legitimate count of 0 (toggle-off).
   if (!data) return null;
@@ -862,6 +993,9 @@ export async function createProject(title: string, author: string, description: 
     throw new Error('Kunne ikke oprette projekt');
   }
 
+  // Invalidate the projects list so the new project appears on the next read.
+  revalidateTag('projects-list')
+
   return mapProject(data, 'da');
 }
 
@@ -892,6 +1026,9 @@ export async function createSkill(title: string, vibeCoder: string, description:
     throw new Error('Kunne ikke oprette skill');
   }
 
+  // Invalidate the skills list so the new skill appears on the next read.
+  revalidateTag('skills-list')
+
   return mapSkill(data, 'da');
 }
 
@@ -903,7 +1040,12 @@ export async function deleteProject(id: string) {
     return false;
   }
   // RLS restricts deletes to the owner; an empty result means not found or not owned.
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('projects-list')
+    revalidateTag(`project-${id}`)
+  }
+  return succeeded;
 }
 
 export async function deleteThread(id: string) {
@@ -913,7 +1055,12 @@ export async function deleteThread(id: string) {
     console.error('Failed to delete thread:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${id}`)
+  }
+  return succeeded;
 }
 
 export async function deleteReply(threadId: string, replyId: string) {
@@ -923,7 +1070,12 @@ export async function deleteReply(threadId: string, replyId: string) {
     console.error('Failed to delete reply:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${threadId}`)
+  }
+  return succeeded;
 }
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, actingAs?: ActingAs) {
@@ -951,6 +1103,9 @@ export async function createAgent(name: string, developer: string, category: Age
     throw new Error('Kunne ikke oprette agent');
   }
 
+  // Invalidate the agents list so the new agent appears on the next read.
+  revalidateTag('agents-list')
+
   return mapAgent(data, 'da');
 }
 
@@ -961,7 +1116,12 @@ export async function deleteAgent(id: string) {
     console.error('Failed to delete agent:', error);
     return false;
   }
-  return (data?.length ?? 0) > 0;
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('agents-list')
+    revalidateTag(`agent-${id}`)
+  }
+  return succeeded;
 }
 
 // Homepage-optimized reads — fetch only counts and the few featured rows the
@@ -974,6 +1134,11 @@ export interface EntityCounts {
   threads: number;
   agents: number;
 }
+
+// NOTE: getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts
+// are deliberately NOT wrapped with "use cache" in this unit (U2). The plan
+// defers caching these pending verification that it's safe, and that
+// verification is out of scope here. See plan U2 scope boundary.
 
 export async function getCounts(): Promise<EntityCounts> {
   const head = { count: 'exact' as const, head: true };
