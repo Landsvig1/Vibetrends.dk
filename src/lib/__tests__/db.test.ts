@@ -1449,7 +1449,7 @@ describe("U2 — cacheTag: broad + variant tags on every read function", () => {
   });
 
   it("functions excluded from U2 caching do NOT call cacheTag", async () => {
-    state.publicHandler = (ops) => ({ count: 0, data: null, error: null });
+    state.publicHandler = () => ({ count: 0, data: null, error: null });
     await db.getCounts();
     const countsBefore = state.cacheTagCalls.length;
 

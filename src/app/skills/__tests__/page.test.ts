@@ -365,17 +365,4 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
     expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
   });
 
-  it("passes the validated initialView prop to SkillsExplorer", async () => {
-    getSkillsMock.mockResolvedValue([]);
-
-    const result = await SkillsPageContent({
-      searchParams: Promise.resolve({ view: "trending" }),
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
-
-    expect(explorerEl.props.initialView).toBe("trending");
-  });
 });

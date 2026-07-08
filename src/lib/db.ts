@@ -18,7 +18,7 @@ import { cacheTag, cacheLife, revalidateTag as _revalidateTag } from 'next/cache
  *
  * @see node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md
  */
-// @ts-ignore — deliberate single-arg form: immediate expiry, not stale-while-revalidate
+// @ts-expect-error — deliberate single-arg form: immediate expiry, not stale-while-revalidate
 const revalidateTag = (tag: string): void => _revalidateTag(tag);
 
 /** Identity + client resolved by `resolveBotRequestAuth()` for bearer-authenticated
@@ -466,9 +466,9 @@ export async function upvoteSkill(id: string) {
     return adminCount;
   }
 
-  // U8: collapse the 2-3 round-trip insert/delete/select pattern into a single
-  // toggle_upvote RPC call. The RPC performs the join-table insert-or-delete and
-  // returns the trigger-updated count from the parent table in one transaction.
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
   const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
     kind: 'skill',
     target_id: id,
@@ -577,9 +577,9 @@ export async function upvoteProject(id: string) {
     return adminCount;
   }
 
-  // U8: collapse the 2-3 round-trip insert/delete/select pattern into a single
-  // toggle_upvote RPC call. The RPC performs the join-table insert-or-delete and
-  // returns the trigger-updated count from the parent table in one transaction.
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
   const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
     kind: 'vibe',
     target_id: id,
@@ -668,7 +668,9 @@ export async function upvoteThread(id: string) {
     return adminCount;
   }
 
-  // U8: single toggle_upvote RPC replaces insert/delete/select pattern.
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
   const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
     kind: 'thread',
     target_id: id,
@@ -686,7 +688,10 @@ export async function upvoteThread(id: string) {
   return rpcData as number;
 }
 
-export async function upvoteReply(id: string) {
+/** `threadId` is optional only for backward compatibility with older callers;
+ * pass it whenever known (the route handler already has it from the URL) to
+ * avoid a second round-trip just to look it up. */
+export async function upvoteReply(id: string, threadId?: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -697,17 +702,13 @@ export async function upvoteReply(id: string) {
 
   const adminCount = await adminBumpUpvotes(supabase, 'reply', id);
   if (adminCount !== null) {
-    // Reply upvotes are displayed on the thread detail page — invalidate the
-    // threads-list broad tag. We don't know the thread_id here, but the broad
-    // tag covers all variants; the admin path is rare enough that this is fine.
     revalidateTag('threads-list')
+    if (threadId) revalidateTag(`thread-${threadId}`)
     return adminCount;
   }
 
-  // U8: single toggle_upvote RPC for the count. Replies still require a
-  // secondary SELECT to get thread_id for specific cache-tag invalidation
-  // (getThreadById uses 'thread-{id}' not 'threads-list'). This reduces
-  // from 3 round-trips (insert + delete + select) to 2 (RPC + thread_id select).
+  // U8: single toggle_upvote RPC replaces the old insert/delete/select pattern
+  // for the count itself.
   const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
     kind: 'reply',
     target_id: id,
@@ -718,20 +719,16 @@ export async function upvoteReply(id: string) {
     return null;
   }
 
-  // Fetch thread_id so we can invalidate the specific thread detail cache entry
-  // in addition to the broad list tag (getThreadById caches under 'thread-{id}').
-  const { data: replyData } = await supabasePublic
-    .from('forum_replies')
-    .select('thread_id')
-    .eq('id', id)
-    .single();
-
   // Invalidate immediately — KTD2 hard constraint. The broad 'threads-list'
   // tag covers all getThreads() variants. The specific thread tag covers the
-  // getThreadById() cache for this reply's parent thread.
+  // getThreadById() cache for this reply's parent thread. Falls back to a
+  // lookup only if the caller didn't already know the thread id.
   revalidateTag('threads-list')
-  if (replyData?.thread_id) {
-    revalidateTag(`thread-${replyData.thread_id}`)
+  const resolvedThreadId = threadId ?? (
+    await supabasePublic.from('forum_replies').select('thread_id').eq('id', id).single()
+  ).data?.thread_id;
+  if (resolvedThreadId) {
+    revalidateTag(`thread-${resolvedThreadId}`)
   }
 
   return rpcData as number;
@@ -910,7 +907,9 @@ export async function upvoteAgent(id: string) {
     return adminCount;
   }
 
-  // U8: single toggle_upvote RPC replaces insert/delete/select pattern.
+  // U8: toggle_upvote RPC replaces the old insert/delete/select pattern for
+  // the count itself (the adminBumpUpvotes check above is a separate,
+  // pre-existing round-trip on the non-admin path — not eliminated by U8).
   const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_upvote', {
     kind: 'agent',
     target_id: id,

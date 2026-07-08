@@ -66,16 +66,17 @@ export async function SkillsPageContent({
   const resolvedParams = await searchParams;
   const view = getValidView(resolvedParams?.view);
 
-  // Full catalog — cached read. Drives client-side search and per-topic counts
-  // for the topic cards. No view arg → all skills ordered by upvotes.
-  const allSkills = await getSkills(undefined, undefined, lang);
-
-  // View-specific board — only fetched when the initial view is a board view,
-  // not the topic-cards "all" view (which uses the full catalog for counts).
+  // Full catalog and the view-specific board are independent cached reads —
+  // fetch them concurrently rather than sequentially.
   const skillView = view !== "all" ? (view as SkillView) : undefined;
-  const initialViewSkills = skillView
-    ? await getSkills(undefined, undefined, lang, skillView)
-    : [];
+  const [allSkills, initialViewSkills] = await Promise.all([
+    // Drives client-side search and per-topic counts for the topic cards.
+    // No view arg → all skills ordered by upvotes.
+    getSkills(undefined, undefined, lang),
+    // Only fetched when the initial view is a board view, not the topic-cards
+    // "all" view (which uses the full catalog for counts).
+    skillView ? getSkills(undefined, undefined, lang, skillView) : Promise.resolve([]),
+  ]);
 
   // Build JSON-LD server-side from the full catalog so crawlers see it in the
   // initial response. Previously this was built from client state that starts
@@ -95,7 +96,6 @@ export async function SkillsPageContent({
       <SkillsExplorer
         initialAllSkills={allSkills}
         initialViewSkills={initialViewSkills}
-        initialView={view}
       />
     </>
   );

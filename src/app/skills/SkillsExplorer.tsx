@@ -45,10 +45,6 @@ export function filterSkills(skills: Skill[], query: string): Skill[] {
 interface SkillsExplorerProps {
   initialAllSkills: Skill[];
   initialViewSkills: Skill[];
-  /** The view the server pre-fetched data for (matches the URL param or "danish"
-   *  as default). Passed so the skip-first-mount logic knows the server already
-   *  fetched the right state — no need to re-fetch on mount. */
-  initialView: string;
 }
 
 export default function SkillsExplorer({
@@ -73,7 +69,9 @@ export default function SkillsExplorer({
 
   // In-flight view/language refetch loading affordance — keeps the current
   // grid visible at reduced opacity rather than replacing it with a skeleton.
-  const [isRefetching, setIsRefetching] = useState(false);
+  const [isRefetchingAll, setIsRefetchingAll] = useState(false);
+  const [isRefetchingView, setIsRefetchingView] = useState(false);
+  const isRefetching = isRefetchingAll || isRefetchingView;
 
   // Form states
   const [subTitle, setSubTitle] = useState("");
@@ -97,36 +95,38 @@ export default function SkillsExplorer({
     // no-store: the route's public max-age header is for external API
     // consumers; the interactive page must always read fresh counts, or a
     // reload right after upvoting shows the pre-vote cached response.
-    setIsRefetching(true);
+    setIsRefetchingAll(true);
     fetch("/api/skills", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setAllSkills(data);
-        setIsRefetching(false);
+        setIsRefetchingAll(false);
       })
       .catch((err) => {
         console.error("Error fetching skills:", err);
-        setIsRefetching(false);
+        setIsRefetchingAll(false);
       });
   }, [language]);
 
   // Refetch view-specific board when view or language changes post-mount.
   useEffect(() => {
-    if (skipViewSkillsFetch.current) {
-      skipViewSkillsFetch.current = false;
+    const isFirstMount = skipViewSkillsFetch.current;
+    skipViewSkillsFetch.current = false;
+    const isBoardView = view === "danish" || view === "hot" || view === "trending";
+    if (isFirstMount || !isBoardView) {
       return;
     }
-    if (view !== "danish" && view !== "hot" && view !== "trending") return;
-    setIsRefetching(true);
+
+    setIsRefetchingView(true);
     fetch(`/api/skills?view=${view}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setViewSkills(data);
-        setIsRefetching(false);
+        setIsRefetchingView(false);
       })
       .catch((err) => {
         console.error("Error fetching skills:", err);
-        setIsRefetching(false);
+        setIsRefetchingView(false);
       });
   }, [view, language]);
 
