@@ -139,12 +139,11 @@ describe("ForumPageContent — passes real thread data to client island", () => 
       searchParams: Promise.resolve({ view: "new" }),
     });
 
-    expect(getThreadsMock).toHaveBeenCalledWith(
-      undefined, // no category (All → undefined)
-      "en",      // lang from mocked cookie
-      undefined, // no limit
-      "new"      // 'new' view maps directly to server sort 'new'
-    );
+    expect(getThreadsMock).toHaveBeenCalledWith({
+      category: undefined, // All → undefined
+      lang: "en",           // lang from mocked cookie
+      sort: "new",          // 'new' view maps directly to server sort 'new'
+    });
   });
 
   it("defaults lang to 'da' when the cookie is absent", async () => {
@@ -156,7 +155,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
 
     await ForumPageContent({ searchParams: Promise.resolve({}) });
 
-    expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
+    expect(getThreadsMock).toHaveBeenCalledWith({ category: undefined, lang: "da", sort: "top" });
   });
 
   it("defaults to the 'danish' view (server sort 'top') when searchParams has no view", async () => {
@@ -164,7 +163,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
 
     await ForumPageContent({ searchParams: Promise.resolve({}) });
 
-    expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
+    expect(getThreadsMock).toHaveBeenCalledWith({ category: undefined, lang: "da", sort: "top" });
   });
 
   it("falls back to the 'danish' view (server sort 'top') for an unrecognised view param value", async () => {
@@ -174,7 +173,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
       searchParams: Promise.resolve({ view: "random" }),
     });
 
-    expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
+    expect(getThreadsMock).toHaveBeenCalledWith({ category: undefined, lang: "da", sort: "top" });
   });
 
   it("passes the category to getThreads when it is not 'All'", async () => {
@@ -184,7 +183,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
       searchParams: Promise.resolve({ category: "Tools" }),
     });
 
-    expect(getThreadsMock).toHaveBeenCalledWith("Tools", "da", undefined, "top");
+    expect(getThreadsMock).toHaveBeenCalledWith({ category: "Tools", lang: "da", sort: "top" });
   });
 
   it("passes undefined for category when it is 'All'", async () => {
@@ -194,7 +193,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
       searchParams: Promise.resolve({ category: "All" }),
     });
 
-    expect(getThreadsMock).toHaveBeenCalledWith(undefined, "da", undefined, "top");
+    expect(getThreadsMock).toHaveBeenCalledWith({ category: undefined, lang: "da", sort: "top" });
   });
 });
 

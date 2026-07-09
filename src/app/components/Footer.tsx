@@ -67,6 +67,11 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/agent-guide" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                    {t("footer.agent_guide")}
+                  </Link>
+                </li>
+                <li>
                   <Link href="/privacy" className="text-sm text-text-secondary hover:text-foreground transition-colors">
                     {t("footer.privacy")}
                   </Link>

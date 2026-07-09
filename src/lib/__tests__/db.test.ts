@@ -815,7 +815,7 @@ describe("getThreads reply mapping", () => {
   it("orders threads by created_at desc when sort is 'new'", async () => {
     state.publicHandler = (ops) =>
       ops.table === "forum_threads" ? { data: [thread], error: null } : { data: [], error: null };
-    await db.getThreads(undefined, "da", undefined, "new");
+    await db.getThreads({ lang: "da", sort: "new" });
     const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
     expect(call.filters).toContainEqual(["order", "created_at", { ascending: false }]);
   });
@@ -924,7 +924,7 @@ describe("homepage-optimized reads", () => {
       ops.table === "forum_threads"
         ? { data: [{ id: "t1", title_da: "T", title_en: "T", author: "a", category: "General", content_da: "c", content_en: "c", upvotes: 1, created_at: "2026-01-01" }], error: null }
         : { data: [], error: null };
-    await db.getThreads(undefined, "da", 2);
+    await db.getThreads({ lang: "da", limit: 2 });
     const call = state.publicCalls.find((c) => c.table === "forum_threads")!;
     expect(call.filters).toContainEqual(["limit", 2]);
   });
@@ -1485,7 +1485,7 @@ describe("U2 — cacheTag: broad + variant tags on every read function", () => {
       ops.table === "forum_threads"
         ? { data: [{ id: "t1", title_da: "T", title_en: "T", author: "a", category: "General", content_da: "c", content_en: "c", upvotes: 1, created_at: "2026-01-01" }], error: null }
         : { data: [], error: null };
-    await db.getThreads("General", "da", 5, "new");
+    await db.getThreads({ category: "General", lang: "da", limit: 5, sort: "new" });
     const call = state.cacheTagCalls.find(tags => tags[0] === 'threads-list');
     expect(call).toBeDefined();
     const variantTag = call![1];

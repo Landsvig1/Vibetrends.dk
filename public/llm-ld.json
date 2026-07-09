@@ -39,6 +39,12 @@
       "@id": "https://vibetrends.dk/api/mcp-servers",
       "name": "MCP Server Feed",
       "contentType": "SoftwareApplication"
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/forum",
+      "name": "Developer Forum Feed",
+      "contentType": "DiscussionForumPosting"
     }
   ],
   "llm_ld_version": "2.1",
