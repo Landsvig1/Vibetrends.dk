@@ -1148,6 +1148,47 @@ export async function createAgent(name: string, developer: string, category: Age
   return mapAgent(data, 'da');
 }
 
+export async function createBlogPost(
+  title: string,
+  excerpt: string,
+  content: string,
+  author: string,
+  readTime: string,
+  publishedAt: string,
+  imageUrl: string,
+  category: BlogPost["category"],
+  actingAs?: ActingAs
+) {
+  const { supabase, userId } = await resolveActor(actingAs);
+
+  const newId = 'b_' + Date.now();
+  const { data, error } = await supabase.from('blog_posts').insert({
+    id: newId,
+    title_da: title,
+    title_en: title,
+    excerpt_da: excerpt,
+    excerpt_en: excerpt,
+    content_da: content,
+    content_en: content,
+    author,
+    read_time: readTime,
+    published_at: publishedAt,
+    image_url: imageUrl,
+    category,
+    user_id: userId,
+  }).select().single();
+
+  if (error || !data) {
+    console.error('Failed to create blog post:', error);
+    throw new Error('Kunne ikke oprette blogindlæg');
+  }
+
+  // Invalidate the blog posts list so the new post appears on the next read.
+  revalidateTag('blog-posts')
+
+  return mapBlogPost(data, 'da');
+}
+
 export async function deleteAgent(id: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from('agents').delete().eq('id', id).select('id');
