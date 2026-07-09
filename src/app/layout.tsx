@@ -54,6 +54,7 @@ export const viewport: Viewport = {
 };
 
 import { Suspense } from "react";
+import Script from "next/script";
 import RouteTransitionProvider from "./components/RouteTransitionProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -77,6 +78,11 @@ export default function RootLayout({
       <head>
         <link rel="agent-permissions" href="/agent-permissions.json" />
         <link rel="ara-manifest" href="/ara.json" />
+        <Script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="CPNdamSkIs1Veg2zV/8HUg"
+          strategy="afterInteractive"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
