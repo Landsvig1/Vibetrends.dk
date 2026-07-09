@@ -35,7 +35,7 @@ export const translations = {
 
     // Home Page
     "home.hero_title": "Se hvad folk bygger med AI.",
-    "home.hero_desc": "Bliv inspireret af hvad folk bygger med AI — og vis dit eget. Plus agent tools, MCP servere, skills og CLI-tools til dine workflows.",
+    "home.hero_desc": "Bliv inspireret af hvad folk bygger med AI, og vis dit eget. Plus agent tools, MCP servere, skills og CLI-tools til dine workflows.",
     "home.btn_showcase": "Se Showcase",
     "home.btn_find_freelancer": "Se vores tools",
     "home.btn_submit_project": "Indsend dit projekt",
@@ -235,7 +235,7 @@ export const translations = {
 
     // Home Page
     "home.hero_title": "Get inspired. Show what you built.",
-    "home.hero_desc": "Discover what people are building with AI — and show what you've built. Plus agent tools, MCP servers, skills, and CLI tools for your workflows.",
+    "home.hero_desc": "Discover what people are building with AI, and show what you've built. Plus agent tools, MCP servers, skills, and CLI tools for your workflows.",
     "home.btn_showcase": "See Showcase",
     "home.btn_find_freelancer": "Explore our tools",
     "home.btn_submit_project": "Submit your project",
