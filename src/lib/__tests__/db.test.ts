@@ -1547,19 +1547,40 @@ describe("U2 — cacheTag: broad + variant tags on every read function", () => {
     expect(broadTagCall![0]).toBe('skills-list');
   });
 
-  it("functions excluded from U2 caching do NOT call cacheTag", async () => {
+  it("getCounts and getLatestPosts remain excluded from caching", async () => {
     state.publicHandler = () => ({ count: 0, data: null, error: null });
     await db.getCounts();
     const countsBefore = state.cacheTagCalls.length;
 
     state.publicHandler = () => ({ data: [], error: null });
-    await db.getTopProjects(1, "da");
-    await db.getTopSkills(1, "da");
-    await db.getTopAgents(1, "da");
     await db.getLatestPosts(1, "da");
 
-    // None of the above should have called cacheTag.
+    // Neither should have called cacheTag.
     expect(state.cacheTagCalls.length).toBe(countsBefore);
+  });
+
+  // U6 (Ahrefs SEO fix plan) — getTopProjects/getTopSkills/getTopAgents were
+  // verified safe to cache: fixed limit/lang call shape from the homepage,
+  // and they reuse the existing broad list tags so any mutation that already
+  // calls revalidateTag('projects-list' | 'skills-list' | 'agents-list')
+  // also invalidates these homepage aggregates.
+  it("getTopProjects/getTopSkills/getTopAgents carry the existing broad list tag plus a variant tag", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+
+    await db.getTopProjects(5, "da");
+    const topProjectsTag = state.cacheTagCalls.at(-1);
+    expect(topProjectsTag![0]).toBe('projects-list');
+    expect(topProjectsTag![1]).toBe('top-projects:5:da');
+
+    await db.getTopSkills(4, "en");
+    const topSkillsTag = state.cacheTagCalls.at(-1);
+    expect(topSkillsTag![0]).toBe('skills-list');
+    expect(topSkillsTag![1]).toBe('top-skills:4:en');
+
+    await db.getTopAgents(1, "da");
+    const topAgentsTag = state.cacheTagCalls.at(-1);
+    expect(topAgentsTag![0]).toBe('agents-list');
+    expect(topAgentsTag![1]).toBe('top-agents:1:da');
   });
 });
 

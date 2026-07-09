@@ -2,7 +2,7 @@ import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!agent || agent.category === "MCP Server" || agent.category === "Host") return { title: "Agent ikke fundet" };
 
   return entityMetadata({
-    title: `${agent.name} - AI Agent Registry`,
+    title: `${truncateTitle(agent.name, " - AI Agent Registry".length)} - AI Agent Registry`,
     description: agent.description,
     path: `/agents/${id}`,
     lang,

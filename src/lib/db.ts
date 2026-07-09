@@ -1174,10 +1174,15 @@ export interface EntityCounts {
   agents: number;
 }
 
-// NOTE: getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts
-// are deliberately NOT wrapped with "use cache" in this unit (U2). The plan
-// defers caching these pending verification that it's safe, and that
-// verification is out of scope here. See plan U2 scope boundary.
+// NOTE: getCounts and getLatestPosts remain deliberately uncached — getCounts
+// is a cheap head-only count query per table, and getLatestPosts already
+// shares getBlogPosts' cache path indirectly via its own future unit. See
+// docs/plans/2026-07-08-001-feat-site-wide-performance-seo-optimization-plan.md
+// (U2) for that original deferral. getTopProjects/getTopSkills/getTopAgents
+// below were verified safe to cache (fixed limit/lang call shape from the
+// homepage, reuses the existing broad list tags so every mutation that
+// already revalidates 'projects-list'/'skills-list'/'agents-list' also
+// invalidates these) — see docs/plans/2026-07-09-001-fix-ahrefs-seo-issues-plan.md (U6).
 
 export async function getCounts(): Promise<EntityCounts> {
   const head = { count: 'exact' as const, head: true };
@@ -1199,6 +1204,10 @@ export async function getCounts(): Promise<EntityCounts> {
 }
 
 export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('projects-list', `top-projects:${limit}:${lang}`)
+
   const { data, error } = await supabasePublic
     .from('vibes')
     .select('*')
@@ -1209,6 +1218,10 @@ export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('skills-list', `top-skills:${limit}:${lang}`)
+
   // Homepage feature spot: showcase the Danish catalog — Denmark-specific
   // skills (job portals, property data, transit …) ahead of general tooling
   // from Danish contributors. (Previously ordered by the legacy rating
@@ -1225,6 +1238,10 @@ export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('agents-list', `top-agents:${limit}:${lang}`)
+
   const { data, error } = await supabasePublic
     .from('agents')
     .select('*')

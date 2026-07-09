@@ -2,7 +2,7 @@ import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
 
   return entityMetadata({
-    title: `${agent.name} - MCP Server Registry`,
+    title: `${truncateTitle(agent.name, " - MCP Server Registry".length)} - MCP Server Registry`,
     description: agent.description,
     path: `/mcp/${id}`,
     lang,
