@@ -10,6 +10,7 @@
 
 # Micro-Intent Nodes:
 # - Intent: DISCOVERY -> Target: /api/skills or /api/vibes?format=json
+# - Intent: FORUM_DISCOVERY -> Target: /api/forum (or /forum?format=json) — Community discussions
 # - Intent: CLI -> Target: /api/cli (or /cli?format=json) — CLI tools your agent can invoke
 # - Intent: MCP_SERVERS -> Target: /api/mcp-servers (or /mcp?format=json) — MCP capabilities one step from your setup
 # - Intent: CONTRIBUTION -> Target: POST /api/skills (Requires authenticated session)

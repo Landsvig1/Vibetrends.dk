@@ -14,13 +14,14 @@ const threadSchema = z.object({
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search") || undefined;
   const category = searchParams.get("category") || undefined;
   const sort = searchParams.get("sort") === "new" ? "new" : "top";
 
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
 
-  const threads = await getThreads(category, lang, undefined, sort);
+  const threads = await getThreads(search, category, lang, undefined, sort);
   return NextResponse.json(threads, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

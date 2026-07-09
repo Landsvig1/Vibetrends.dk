@@ -77,7 +77,7 @@ export async function ForumPageContent({
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
   // The batched reply fetch (thread_replies .in('thread_id', threadIds)) runs
   // inside getThreads — reply counts are populated server-side.
-  const threads = await getThreads(category, lang, undefined, serverSort);
+  const threads = await getThreads(undefined, category, lang, undefined, serverSort);
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously the forum hub had NO JSON-LD at all — the
