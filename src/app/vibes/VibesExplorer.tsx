@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, ArrowUpRight, Flag, Flame } from "lucide-react";
+import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, Info, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
@@ -371,10 +371,12 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
               className="relative rounded-xl glass-card overflow-hidden flex flex-col group"
             >
               {/* Card-wide overlay: screenshot, title, and whitespace all open
-                  the project detail page (same pattern as SkillCard); the
-                  delete/upvote/visit controls sit above it at z-20. */}
+                  the project's live site directly; the delete/upvote/detail
+                  controls sit above it at z-20. */}
               <Link
-                href={`/vibes/${project.id}`}
+                href={project.demoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label={project.title}
                 className="absolute inset-0 z-10 rounded-xl"
               />
@@ -408,6 +410,16 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{project.upvotes}</span>
                 </button>
+
+                <Link
+                  href={`/vibes/${project.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={t("showcase.details")}
+                  title={t("showcase.details")}
+                  className="absolute top-[3.25rem] right-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-card-border text-text-secondary hover:text-foreground backdrop-blur-md transition cursor-pointer z-20"
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
               </div>
 
               <div className="p-6 flex-1 flex flex-col gap-4">
@@ -419,17 +431,6 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     {project.description}
                   </p>
                 </div>
-
-                <a
-                  href={project.demoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="relative z-20 flex items-center justify-center gap-2 py-3 rounded-lg btn-primary text-sm font-bold transition hover:scale-[1.02]"
-                >
-                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                  {t("showcase.visit")}
-                </a>
               </div>
             </div>
           ))}
