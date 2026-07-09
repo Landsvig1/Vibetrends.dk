@@ -2,11 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 import {
-  Sparkles, ArrowRight, Heart, PlusCircle,
-  MessageSquare, Cpu, Layers, Briefcase,
-  Clock, Info
+  ArrowRight, Heart, PlusCircle,
+  Cpu, Layers, Briefcase, Sparkles,
+  Info
 } from "lucide-react";
-import { getCounts, getTopProjects, getTopSkills, getTopAgents, getLatestPosts, getThreads } from "@/lib/db";
+import { getTopProjects, getTopSkills, getTopAgents, getProjectById, getAgentById, getSkillById } from "@/lib/db";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 
@@ -31,29 +31,28 @@ async function HomeContent() {
   const tDict = translations[lang] || translations.da;
   const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  // Fetch what the landing page renders: counts for the stats band, a small
-  // grid of top items per section, and the most-upvoted threads (with their
-  // replies) for the forum snapshot.
-  const [counts, featuredProjects, featuredSkills, [featuredAgent], featuredPosts, threads] =
+  // Fetch what the landing page renders: a small grid of top items per section,
+  // plus three hand-picked spotlight items (fixed IDs, not query-driven) so the
+  // fold gives new visitors something concrete immediately.
+  const [topProjects, topSkills, [featuredAgent], spotlightVibe, spotlightMcp, spotlightSkill] =
     await Promise.all([
-      getCounts(),
-      getTopProjects(4, lang),
-      getTopSkills(3, lang),
+      getTopProjects(5, lang), // one extra: absorbs the spotlight filter below without leaving a gap in the 4-col grid
+      getTopSkills(4, lang), // one extra: same reason, for the 3-col grid
       getTopAgents(1, lang),
-      getLatestPosts(3, lang),
-      getThreads(undefined, lang, 3),
+      getProjectById("p_1782890295301", lang), // Rentemester
+      getAgentById("a_1783085673265", lang), // aula-mcp by Casperjuel
+      getSkillById("s_1782976394478", lang), // Jobindex Search
     ]);
+
+  // Spotlighted items already appear above the fold — drop them from the
+  // top-N grids below so the same card doesn't render twice on one page.
+  const featuredProjects = topProjects.filter((p) => p.id !== spotlightVibe?.id).slice(0, 4);
+  const featuredSkills = topSkills.filter((s) => s.id !== spotlightSkill?.id).slice(0, 3);
 
   return (
     <div className="space-y-16">
       {/* Hero Section */}
       <section className="relative text-center py-8 sm:py-16 overflow-hidden">
-        
-        <div className="pill-badge mb-6">
-          <Sparkles className="h-3.5 w-3.5 text-accent-primary" />
-          <span>{t("home.badge")}</span>
-        </div>
-
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {lang === "da" ? (
             <>
@@ -103,25 +102,124 @@ async function HomeContent() {
         </Link>
       </section>
 
-      {/* Stats Counter */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 rounded-2xl glass-panel">
-        <div className="text-center space-y-2 border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.vibes}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.projects")}</p>
-        </div>
-        <div className="text-center space-y-2 md:border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.skills}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.skills")}</p>
-        </div>
-        <div className="text-center space-y-2 border-r border-card-border">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.threads}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.threads")}</p>
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-3xl font-extrabold text-foreground font-mono">{counts.agents}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{t("home.stat.agents")}</p>
-        </div>
-      </section>
+      {/* Spotlight — three hand-picked items (one vibe, one MCP server, one
+          skill) so a first-time visitor sees concrete, specific content
+          immediately instead of scrolling past generic top-N grids. */}
+      {(spotlightVibe || spotlightMcp || spotlightSkill) && (
+        <section aria-label={t("home.section.spotlight")} className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center">
+            <Sparkles className="mr-2 h-5 w-5 text-accent-primary" />
+            {t("home.section.spotlight")}
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {spotlightVibe && (
+              <article className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
+                <Link
+                  href={`/vibes/${spotlightVibe.id}`}
+                  aria-label={spotlightVibe.title}
+                  className="absolute inset-0 z-10 rounded-xl"
+                />
+                <div className="h-40 relative overflow-hidden bg-card-border">
+                  <Image
+                    src={spotlightVibe.imageUrl}
+                    alt={spotlightVibe.title}
+                    fill
+                    sizes="(max-width: 767px) 100vw, 33vw"
+                    priority
+                    className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded text-xs font-semibold bg-background text-text-secondary border border-card-border">
+                    {t("home.spotlight.vibe_label")}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3 min-w-0">
+                  <div className="space-y-1.5 min-w-0">
+                    <h3 className="text-base font-bold leading-tight [text-wrap:balance]">
+                      {spotlightVibe.title}
+                    </h3>
+                    <p className="text-sm text-text-secondary line-clamp-2">
+                      {spotlightVibe.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-card-border text-xs text-text-secondary">
+                    <span className="flex items-center font-medium">
+                      <Heart className="h-3.5 w-3.5 mr-1 text-accent-primary" />
+                      {spotlightVibe.upvotes} upvotes
+                    </span>
+                  </div>
+                </div>
+              </article>
+            )}
+
+            {spotlightMcp && (
+              <article className="rounded-xl glass-card p-5 flex flex-col justify-between space-y-4 min-w-0">
+                <div className="space-y-2 min-w-0">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
+                    <Cpu className="h-3 w-3" aria-hidden="true" />
+                    {spotlightMcp.category}
+                  </span>
+                  <h3 className="text-base font-bold leading-tight pt-1 [text-wrap:balance]">
+                    {spotlightMcp.name}
+                  </h3>
+                  <p className="text-sm text-text-secondary line-clamp-2">
+                    {spotlightMcp.description}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="bg-background border border-card-border rounded-lg p-2 font-mono text-[11px] text-text-secondary select-all overflow-x-auto whitespace-nowrap">
+                    {spotlightMcp.installCommand}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span className="truncate">{t("home.by")} {spotlightMcp.developer}</span>
+                    <Link
+                      href={`/mcp/${spotlightMcp.id}`}
+                      className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
+                    >
+                      {t("home.see_all")}
+                      <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            )}
+
+            {spotlightSkill && (
+              <article className="rounded-xl glass-card p-5 flex flex-col justify-between space-y-4 min-w-0">
+                <div className="space-y-2 min-w-0">
+                  <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
+                    {spotlightSkill.categoryLabel}
+                  </span>
+                  <h3 className="text-base font-bold leading-tight pt-1 [text-wrap:balance]">
+                    {spotlightSkill.title}
+                  </h3>
+                  <p className="text-sm text-text-secondary line-clamp-2">
+                    {spotlightSkill.description}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {spotlightSkill.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-card-border text-xs text-text-secondary">
+                  <span className="truncate">{spotlightSkill.vibeCoder}</span>
+                  <Link
+                    href={`/skills/${spotlightSkill.id}`}
+                    className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
+                  >
+                    {t("home.see_all")}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              </article>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Showcase Highlight */}
       <section className="space-y-4">
@@ -137,7 +235,7 @@ async function HomeContent() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProjects.map((project, i) => (
+          {featuredProjects.map((project) => (
             <div key={project.id} className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
               {/* Card-wide overlay: screenshot and title open the project
                   detail page (same pattern as SkillCard). */}
@@ -152,7 +250,6 @@ async function HomeContent() {
                   alt={project.title}
                   fill
                   sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 25vw"
-                  priority={i === 0}
                   className="object-cover opacity-80 group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
@@ -247,108 +344,6 @@ async function HomeContent() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Forum & Blog snapshot */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Forum Section */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center">
-              <MessageSquare className="mr-2 h-5 w-5 text-accent-primary" />
-              {t("home.section.forum")}
-            </h2>
-            <Link href="/forum" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              {t("home.go_to_forum")}
-              <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {threads.map((thread) => (
-              <Link 
-                key={thread.id} 
-                href="/forum"
-                className="block p-5 rounded-xl glass-card group"
-              >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold text-text-secondary px-2 py-0.5 rounded bg-background border border-card-border">
-                      {thread.category}
-                    </span>
-                    <h3 className="text-base font-bold leading-snug group-hover:text-accent-primary transition-colors pt-1">
-                      {thread.title}
-                    </h3>
-                  </div>
-                  <span className="flex items-center text-xs text-text-secondary bg-background border border-card-border px-2 py-1 rounded">
-                    <Heart className="h-3.5 w-3.5 text-accent-primary mr-1" />
-                    {thread.upvotes}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-4 mt-4 pt-3 border-t border-card-border text-xs text-text-secondary">
-                  <span>{t("home.thread_by")} @{thread.author}</span>
-                  <span>&middot;</span>
-                  <span className="flex items-center">
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    {thread.replies.length} {t("home.replies")}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Blog Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center">
-              <Cpu className="mr-2 h-5 w-5 text-accent-primary" />
-              {t("home.section.blog")}
-            </h2>
-            <Link href="/blog" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-              {t("home.read_blog")}
-              <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-4">
-            {featuredPosts.map((post) => (
-              <div key={post.id} className="rounded-xl glass-card overflow-hidden">
-                <div className="h-36 relative bg-card-border overflow-hidden">
-                  <Image
-                    src={post.imageUrl}
-                    alt={post.title}
-                    fill
-                    sizes="(max-width: 1023px) 100vw, 33vw"
-                    className="object-cover opacity-90"
-                  />
-                </div>
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-text-secondary">
-                    <span className="font-semibold text-accent-primary">{post.category}</span>
-                    <span className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {post.readTime}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold leading-snug">
-                    {post.title}
-                  </h3>
-                  <p className="text-xs text-text-secondary line-clamp-2">
-                    {post.excerpt}
-                  </p>
-                  <Link
-                    href="/blog"
-                    className="inline-flex items-center text-xs font-semibold text-accent-primary hover:opacity-80 pt-2"
-                  >
-                    {t("home.read_article")}
-                    <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
