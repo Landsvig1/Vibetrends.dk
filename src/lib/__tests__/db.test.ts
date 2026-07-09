@@ -1797,3 +1797,208 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     expect(state.cacheLifeCalls).toContain('max');
   });
 });
+
+// ---------------------------------------------------------------------------
+// U3 — actingAs: forum mutations accept bearer-authenticated identity
+// ---------------------------------------------------------------------------
+//
+// Pattern mirrors createProject/createSkill (already verified via the U2
+// revalidateTag suite). Key invariants:
+//   1. When actingAs is provided, resolveActor uses actingAs.supabase instead
+//      of calling createSupabaseServerClient — verified by checking that
+//      state.serverCalls remains empty (nothing flowed through the mock server
+//      client) while the actingAs-supabase captures the insert.
+//   2. When actingAs is omitted, existing behavior is unchanged — existing
+//      tests above cover this path and must continue to pass unmodified.
+// ---------------------------------------------------------------------------
+
+/** Build a minimal synthetic ActingAs with its own call recorder. */
+function makeActingAsMock(userId: string, handlerOverride?: Handler) {
+  const calls: BuilderOps[] = [];
+  // Default handler: succeed for inserts (return a minimal row), no-op for selects.
+  const h: Handler = handlerOverride ?? ((ops) => {
+    if (ops.method === 'insert') {
+      // Return a minimal thread/reply row so mapThread / mapThread can succeed.
+      return {
+        data: {
+          id: 'mock-id',
+          title_da: 'T', title_en: 'T',
+          author: 'bot', category: 'General',
+          content_da: 'c', content_en: 'c',
+          upvotes: 1, created_at: '2026-01-01',
+        },
+        error: null,
+      };
+    }
+    return { data: [], error: null };
+  });
+
+  const mockSupabase = {
+    from: (table: string) => makeBuilder(table, calls, h),
+    auth: { getUser: async () => ({ data: { user: { id: userId } } }) },
+    rpc: async (fn: string, args: unknown) => state.rpcHandler(fn, args),
+  };
+
+  const actingAs: db.ActingAs = {
+    user: { id: userId, username: 'testbot' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: mockSupabase as any,
+  };
+
+  return { actingAs, calls, h };
+}
+
+describe("U3 — createThread with actingAs", () => {
+  it("inserts with user_id matching actingAs.user.id and does not touch the server client", async () => {
+    const { actingAs, calls } = makeActingAsMock('bot-uid-123');
+
+    await db.createThread('My Thread', 'testbot', 'General', 'Thread content here.', actingAs);
+
+    // Insert must have gone through the actingAs supabase, not the mock server client.
+    expect(state.serverCalls.length).toBe(0);
+    const insert = calls.find(c => c.table === 'forum_threads' && c.method === 'insert');
+    expect(insert).toBeDefined();
+    expect((insert!.payload as Record<string, unknown>).user_id).toBe('bot-uid-123');
+  });
+
+  it("still calls revalidateTag('threads-list') on successful insert with actingAs", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-123');
+    await db.createThread('My Thread', 'testbot', 'General', 'Thread content here.', actingAs);
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    // Single-arg form only — KTD7 hard constraint.
+    for (const call of state.revalidateTagCalls) {
+      expect(call.length).toBe(1);
+    }
+  });
+
+  it("backward compat: omitting actingAs uses the cookie-based server client (existing behavior)", async () => {
+    const threadRow = {
+      id: 't_new', title_da: 'T', title_en: 'T', author: 'a',
+      category: 'General', content_da: 'c', content_en: 'c',
+      upvotes: 1, created_at: '2026-01-01',
+    };
+    state.serverHandler = () => ({ data: threadRow, error: null });
+    // No actingAs — must fall back to the mock server client.
+    await db.createThread('Title', 'author', 'General', 'Some content for thread.');
+    const insert = state.serverCalls.find(c => c.table === 'forum_threads' && c.method === 'insert');
+    expect(insert).toBeDefined();
+  });
+});
+
+describe("U3 — addReply with actingAs", () => {
+  it("inserts with user_id matching actingAs.user.id and does not touch the server client", async () => {
+    const { actingAs, calls } = makeActingAsMock('bot-uid-456', (ops) => {
+      if (ops.method === 'insert') return { data: null, error: null };
+      // publicHandler still handles the thread/reply re-fetch after insert.
+      return { data: [], error: null };
+    });
+    // publicHandler must return a thread row for the re-fetch after insert.
+    state.publicHandler = (ops) => {
+      if (ops.table === 'forum_threads') return {
+        data: { id: 't1', title_da: 'T', title_en: 'T', author: 'a', category: 'General', content_da: 'c', content_en: 'c', upvotes: 1, created_at: '2026-01-01' },
+        error: null,
+      };
+      if (ops.table === 'forum_replies') return { data: [], error: null };
+      return { data: [], error: null };
+    };
+
+    await db.addReply('t1', 'testbot', 'Reply content text.', actingAs);
+
+    expect(state.serverCalls.length).toBe(0);
+    const insert = calls.find(c => c.table === 'forum_replies' && c.method === 'insert');
+    expect(insert).toBeDefined();
+    expect((insert!.payload as Record<string, unknown>).user_id).toBe('bot-uid-456');
+  });
+
+  it("addReply with actingAs and invalid threadId still returns null on insert failure (existing contract)", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-789', () => ({
+      data: null,
+      error: { message: 'insert failed' },
+    }));
+    const result = await db.addReply('nonexistent-thread', 'testbot', 'content', actingAs);
+    expect(result).toBeNull();
+  });
+
+  it("addReply with actingAs still calls revalidateTag with single-arg form (KTD7)", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-123', (ops) => {
+      if (ops.method === 'insert') return { data: null, error: null };
+      return { data: [], error: null };
+    });
+    state.publicHandler = (ops) => {
+      if (ops.table === 'forum_threads') return {
+        data: { id: 't1', title_da: 'T', title_en: 'T', author: 'a', category: 'General', content_da: 'c', content_en: 'c', upvotes: 1, created_at: '2026-01-01' },
+        error: null,
+      };
+      return { data: [], error: null };
+    };
+
+    await db.addReply('t1', 'testbot', 'Some reply content', actingAs);
+
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('threads-list');
+    expect(tags).toContain('thread-t1');
+    for (const call of state.revalidateTagCalls) {
+      expect(call.length).toBe(1);
+    }
+  });
+});
+
+describe("U3 — upvoteThread with actingAs", () => {
+  it("uses actingAs identity instead of server client, calls toggle_upvote RPC with bearer client", async () => {
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    const { actingAs } = makeActingAsMock('bot-uid-upvote');
+    // Override rpcHandler to capture calls and return non-admin for admin check, count for toggle.
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: 3, error: null };
+    };
+
+    const result = await db.upvoteThread('t1', actingAs);
+
+    // Server client must not have been called for auth or DB.
+    expect(state.serverCalls.length).toBe(0);
+    // The toggle_upvote RPC should have been called.
+    const toggleCall = rpcCalls.find(c => c.fn === 'toggle_upvote');
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: 'thread', target_id: 't1' });
+    expect(result).toBe(3);
+  });
+
+  it("upvoteThread with actingAs whose userId doesn't match RLS returns same error shape as unauthenticated (null or 0)", async () => {
+    // Simulate RLS rejection: toggle_upvote RPC returns an error.
+    state.rpcHandler = (fn) => {
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: null, error: { message: 'violates RLS policy', code: '42501' } };
+    };
+    const { actingAs } = makeActingAsMock('unauthorized-uid');
+
+    const result = await db.upvoteThread('t1', actingAs);
+    // Same error shape as a transport error: 'rpc_error' sentinel.
+    expect(result).toBe('rpc_error');
+    // No revalidation on failure.
+    expect(state.revalidateTagCalls.length).toBe(0);
+  });
+});
+
+describe("U3 — upvoteReply with actingAs", () => {
+  it("uses actingAs identity instead of server client, calls toggle_upvote RPC", async () => {
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    const { actingAs } = makeActingAsMock('bot-uid-reply');
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: 2, error: null };
+    };
+    state.publicHandler = () => ({ data: { thread_id: 't99' }, error: null });
+
+    const result = await db.upvoteReply('r1', 't99', actingAs);
+
+    expect(state.serverCalls.length).toBe(0);
+    const toggleCall = rpcCalls.find(c => c.fn === 'toggle_upvote');
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: 'reply', target_id: 'r1' });
+    expect(result).toBe(2);
+  });
+});
