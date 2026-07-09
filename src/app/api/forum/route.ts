@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
 
-  const threads = await getThreads(search, category, lang, undefined, sort);
+  const threads = await getThreads({ search, category, lang, sort });
   return NextResponse.json(threads, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

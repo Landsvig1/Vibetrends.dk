@@ -625,7 +625,21 @@ export async function upvoteProject(id: string) {
   return rpcData as number;
 }
 
-export async function getThreads(search?: string, category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
+export interface GetThreadsOptions {
+  search?: string;
+  category?: string;
+  lang?: 'da' | 'en';
+  limit?: number;
+  sort?: 'top' | 'new';
+}
+
+export async function getThreads({
+  search,
+  category,
+  lang = 'da',
+  limit,
+  sort = 'top',
+}: GetThreadsOptions = {}) {
   'use cache'
   cacheLife('max')
   // Both broad and variant-specific tags — see getSkills for rationale.
