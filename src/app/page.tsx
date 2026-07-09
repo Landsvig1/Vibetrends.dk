@@ -50,9 +50,9 @@ async function HomeContent() {
   const featuredSkills = topSkills.filter((s) => s.id !== spotlightSkill?.id).slice(0, 3);
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-12 sm:space-y-14">
       {/* Hero Section */}
-      <section className="relative text-center py-8 sm:py-16 overflow-hidden">
+      <section className="relative text-center py-4 sm:py-8 overflow-hidden">
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {lang === "da" ? (
             <>
@@ -64,12 +64,12 @@ async function HomeContent() {
             </>
           )}
         </h1>
-        
-        <p className="mt-6 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">
+
+        <p className="mt-4 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">
           {t("home.hero_desc")}
         </p>
 
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
+        <div className="mt-6 flex flex-wrap justify-center gap-4">
           <Link
             href="/vibes"
             className="btn-primary"
@@ -95,7 +95,7 @@ async function HomeContent() {
 
         <Link
           href="/about"
-          className="mt-6 inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
+          className="mt-4 inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
         >
           <Info className="mr-1.5 h-3.5 w-3.5" />
           {t("home.btn_about")}
