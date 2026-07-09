@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { addReply } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase-server";
+import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { z } from "zod";
 
 const replySchema = z.object({
@@ -10,10 +10,11 @@ const replySchema = z.object({
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getAuthUser();
-    if (!user) {
+    const identity = await resolveRequestIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, botAuth: actingAs } = identity;
 
     const { id: threadId } = await params;
     const body = await request.json();
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const thread = await addReply(threadId, user.username, result.data.content);
+    const thread = await addReply(threadId, user.username, result.data.content, actingAs);
     if (!thread) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }

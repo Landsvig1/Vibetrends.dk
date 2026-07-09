@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { upvoteReply } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase-server";
+import { resolveRequestIdentity } from "@/lib/supabase-server";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string; replyId: string }> }
 ) {
-  const user = await getAuthUser();
-  if (!user) {
+  const identity = await resolveRequestIdentity(request);
+  if (!identity) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { botAuth: actingAs } = identity;
 
   const { id: threadId, replyId } = await params;
-  const upvotes = await upvoteReply(replyId, threadId);
+  const upvotes = await upvoteReply(replyId, threadId, actingAs);
   if (upvotes === 'rpc_error') {
     return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
