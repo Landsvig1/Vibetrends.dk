@@ -16,6 +16,7 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   'https://va.vercel-scripts.com',
+  'https://analytics.ahrefs.com',
   ...(isProd ? [] : ["'unsafe-eval'"]),
 ].join(' ');
 
@@ -25,7 +26,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   `img-src 'self' blob: data: ${allowedImageHostnames.map((h) => `https://${h}`).join(' ')}`.trimEnd(),
   "font-src 'self' https://fonts.gstatic.com",
-  `connect-src 'self' https://vitals.vercel-insights.com ${supabaseUrl} ${supabaseWs}`.trim(),
+  `connect-src 'self' https://vitals.vercel-insights.com https://analytics.ahrefs.com ${supabaseUrl} ${supabaseWs}`.trim(),
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
