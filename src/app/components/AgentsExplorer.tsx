@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
+import EmptyState from "./EmptyState";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
@@ -349,111 +351,156 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
       {/* Grid — opacity overlay during in-flight language refetch */}
       {filteredAgents.length > 0 ? (
-        <div
+        <motion.div
+          layout
           className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${
             isRefetching ? "opacity-50 pointer-events-none" : ""
           }`}
         >
-          {filteredAgents.map((agent) => (
-            <div
-              key={agent.id}
-              data-testid={isMcp ? "mcp-card" : isCli ? "cli-card" : "agent-card"}
-              className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition"
-            >
-              <Link
-                href={`${detailBase}/${agent.id}`}
-                aria-label={agent.name}
-                className="absolute inset-0 z-10 rounded-xl"
-              />
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
-                        {categoryIcons[agent.category as keyof typeof categoryIcons]}
-                        {agent.category}
+          <AnimatePresence mode="popLayout">
+            {filteredAgents.map((agent, index) => (
+              <motion.div
+                key={agent.id}
+                layout
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, delay: index * 0.04 }}
+                data-testid={isMcp ? "mcp-card" : isCli ? "cli-card" : "agent-card"}
+                className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
+              >
+                <Link
+                  href={`${detailBase}/${agent.id}`}
+                  aria-label={agent.name}
+                  className="absolute inset-0 z-10 rounded-xl"
+                />
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
+                          {categoryIcons[agent.category as keyof typeof categoryIcons]}
+                          {agent.category}
+                        </div>
+                        {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id, e); }}
+                            aria-label={t("agents.confirm_delete")}
+                            className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </motion.button>
+                        )}
                       </div>
-                      {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id, e); }}
-                          aria-label={t("agents.confirm_delete")}
-                          className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
-                      )}
+                      <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight pt-1">
+                        {agent.name}
+                      </h3>
                     </div>
-                    <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight pt-1">
-                      {agent.name}
-                    </h3>
+
+                    <div className="flex items-center gap-2">
+                      {agent.sourceUrl && (
+                        <motion.a
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          href={agent.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
+                          className="relative flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                        >
+                          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+                        </motion.a>
+                      )}
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
+                        aria-label={`Upvote ${agent.name}`}
+                        className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                      >
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 0.3 }}
+                          key={agent.upvotes}
+                        >
+                          <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                        </motion.div>
+                        <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                      </motion.button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {agent.sourceUrl && (
-                      <a
-                        href={agent.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
-                        className="relative flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-                      >
-                        <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-                      </a>
-                    )}
+                  <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
+                    {agent.description}
+                  </p>
+
+                  <div className="flex items-center justify-between rounded-lg bg-background border border-card-border p-3 font-mono text-[10px] text-accent-primary relative group/install">
+                    <span className="truncate pr-8">{agent.installCommand}</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
-                      aria-label={`Upvote ${agent.name}`}
-                      className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                      onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
+                      aria-label={copiedId === agent.id ? "Kopieret" : "Kopiér installationskommando"}
+                      className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-20"
                     >
-                      <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                      <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                      {copiedId === agent.id ? (
+                        <CheckCircle className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                      )}
                     </button>
                   </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {agent.tags.slice(0, 4).map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
-                  {agent.description}
-                </p>
-
-                <div className="flex items-center justify-between rounded-lg bg-background border border-card-border p-3 font-mono text-[10px] text-accent-primary relative group/install">
-                  <span className="truncate pr-8">{agent.installCommand}</span>
-                  <button
-                    onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
-                    aria-label={copiedId === agent.id ? "Kopieret" : "Kopiér installationskommando"}
-                    className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-20"
-                  >
-                    {copiedId === agent.id ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                    )}
-                  </button>
+                <div className="flex items-center justify-between pt-4 border-t border-card-border text-[10px] text-text-secondary uppercase font-bold tracking-widest">
+                  <span>{t("agents.by")} {agent.developer}</span>
+                  <span className="text-accent-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                    {t("agents.details")} <span className="text-xs">&rarr;</span>
+                  </span>
                 </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {agent.tags.slice(0, 4).map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-card-border text-[10px] text-text-secondary uppercase font-bold tracking-widest">
-                <span>{t("agents.by")} {agent.developer}</span>
-                <span className="text-accent-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                  {t("agents.details")} <span className="text-xs">&rarr;</span>
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       ) : (
-        <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-          <Cpu className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">{t("agents.empty")}</p>
-        </div>
+        <EmptyState
+          icon={Cpu}
+          title={t("agents.empty")}
+          description={
+            language === "da"
+              ? "Prøv at søge efter noget andet eller bidrag selv med et nyt værktøj."
+              : "Try searching for something else or contribute a new tool yourself."
+          }
+          actionLabel={
+            isMcp
+              ? (language === "da" ? "Tilføj MCP-server" : "Add MCP server")
+              : isCli
+                ? (language === "da" ? "Tilføj CLI" : "Add CLI")
+                : t("agents.btn_register")
+          }
+          onAction={() => setAddOpen(true)}
+          suggestions={
+            searchActive && initialItems.length > 0
+              ? {
+                  title: language === "da" ? "Populære agenter" : "Popular agents",
+                  items: initialItems.slice(0, 3).map((a) => ({
+                    id: a.id,
+                    title: a.name,
+                    href: `${detailBase}/${a.id}`,
+                  })),
+                }
+              : undefined
+          }
+        />
       )}
 
       {/* Add Modal */}
