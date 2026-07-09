@@ -7,6 +7,7 @@
     "list_cli": "GET /api/cli - CLI tools an agent can invoke (a feed type you attach to a host).",
     "list_mcp_servers": "GET /api/mcp-servers - MCP capabilities one step from your setup.",
     "list_threads": "GET /api/forum - Community discussions and help threads.",
+    "search_forum": "GET /api/forum?search={query} - Search for discussions, prompts, and questions.",
     "create_skill": "POST /api/skills - Contribute a new AI skill to the library.",
     "create_project": "POST /api/vibes - Submit a project to the showcase.",
     "create_feed_item": "POST /api/agents - Register a feed item (set category to 'CLI' or 'MCP Server'). Hosts are connection targets, not catalog items.",

@@ -625,11 +625,25 @@ export async function upvoteProject(id: string) {
   return rpcData as number;
 }
 
-export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', limit?: number, sort: 'top' | 'new' = 'top') {
+export interface GetThreadsOptions {
+  search?: string;
+  category?: string;
+  lang?: 'da' | 'en';
+  limit?: number;
+  sort?: 'top' | 'new';
+}
+
+export async function getThreads({
+  search,
+  category,
+  lang = 'da',
+  limit,
+  sort = 'top',
+}: GetThreadsOptions = {}) {
   'use cache'
   cacheLife('max')
   // Both broad and variant-specific tags — see getSkills for rationale.
-  cacheTag('threads-list', `threads-list:${category ?? 'all'}:${lang}:${limit ?? ''}:${sort}`)
+  cacheTag('threads-list', `threads-list:${category ?? 'all'}:${search ?? ''}:${lang}:${limit ?? ''}:${sort}`)
 
   // 'top' = most upvoted (default), 'new' = most recent. Reddit-style sort tabs.
   const orderColumn = sort === 'new' ? 'created_at' : 'upvotes';
@@ -643,8 +657,29 @@ export async function getThreads(category?: string, lang: 'da' | 'en' = 'da', li
     query = query.limit(limit);
   }
 
-  const { data: threads, error: threadErr } = await query;
-  if (threadErr || !threads) return [];
+  // SQL-side narrowing (see getSkills for full rationale).
+  let searchTerm: string | undefined;
+  if (search) {
+    const term = sanitizeSearchTerm(search).toLowerCase();
+    if (term) {
+      searchTerm = term;
+      const p = `%${term}%`;
+      query = query.or(`title_da.ilike.${p},title_en.ilike.${p},content_da.ilike.${p},content_en.ilike.${p}`);
+    }
+  }
+
+  const { data: rawThreads, error: threadErr } = await query;
+  if (threadErr || !rawThreads) return [];
+
+  // JS safety net on the already-SQL-narrowed result (see getSkills for rationale).
+  const threads = searchTerm
+    ? rawThreads.filter(t =>
+        t.title_da.toLowerCase().includes(searchTerm) ||
+        t.title_en.toLowerCase().includes(searchTerm) ||
+        t.content_da.toLowerCase().includes(searchTerm) ||
+        t.content_en.toLowerCase().includes(searchTerm)
+      )
+    : rawThreads;
 
   // Scope the reply fetch to the threads we actually return. The previous
   // implementation read the entire forum_replies table on every call (including
