@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
 
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!skill) return { title: "Skill ikke fundet" };
 
   return entityMetadata({
-    title: `${skill.title} - Skills Library`,
+    title: `${truncateTitle(skill.title, " - Skills Library".length)} - Skills Library`,
     description: skill.description,
     path: `/skills/${id}`,
     lang,

@@ -3,16 +3,19 @@ import BlogList from "./BlogList";
 import { BookOpen } from "lucide-react";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata() {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  return {
-    title: lang === "da" ? "Blog - vibetrends.dk" : "Blog - vibetrends.dk",
-    description: lang === "da" 
+  return entityMetadata({
+    title: "Blog - vibetrends.dk",
+    description: lang === "da"
       ? "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow."
       : "Guides, tutorials, and deep-dive articles on how to maximize your AI workflow.",
-  };
+    path: "/blog",
+    lang,
+  });
 }
 
 export default async function BlogPage() {

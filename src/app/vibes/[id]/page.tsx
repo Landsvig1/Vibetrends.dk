@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import ShareButton from "@/app/components/ShareButton";
 
 // Custom Github Icon matching Lucide style
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!project) return { title: "Projekt ikke fundet" };
 
   return entityMetadata({
-    title: `${project.title} - Vibe Coding Showcase`,
+    title: `${truncateTitle(project.title, " - Vibe Coding Showcase".length)} - Vibe Coding Showcase`,
     description: project.description,
     path: `/vibes/${id}`,
     lang,

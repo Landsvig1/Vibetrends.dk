@@ -11,6 +11,7 @@ export const metadata: Metadata = entityMetadata({
   title: "CLI Tools",
   description: "Find CLI-tools og kommandolinje-hjælpere til dine AI-workflows og agent-opsætninger.",
   path: "/cli",
+  image: "/images/og-default.jpg",
 });
 
 /**

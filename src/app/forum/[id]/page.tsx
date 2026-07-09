@@ -4,7 +4,7 @@ import { getThreadById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { translations, Language } from "@/lib/translations";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, forumThreadJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { forumCategoryLabel } from "@/lib/forumCategories";
 import ForumReplySection from "./ForumReplySection";
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!thread) return { title: "Tråd ikke fundet" };
 
   return entityMetadata({
-    title: `${thread.title} - Vibe Trends Forum`,
+    title: `${truncateTitle(thread.title, " - Vibe Trends Forum".length)} - Vibe Trends Forum`,
     description: thread.content.substring(0, 160),
     path: `/forum/${id}`,
     lang,
@@ -76,6 +76,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
               title: thread.title,
               author: thread.author,
               url: `https://vibetrends.dk/forum/${id}`,
+              image: "https://vibetrends.dk/images/og-default.jpg",
               datePublished: thread.createdAt,
             })
           ),

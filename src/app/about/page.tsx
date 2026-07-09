@@ -3,17 +3,20 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Sparkles, Layers, Briefcase, MessageSquare, PlusCircle, Terminal, Cpu } from "lucide-react";
 import { Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  return {
+  return entityMetadata({
     title: lang === "da" ? "Om vibetrends.dk" : "About vibetrends.dk",
     description:
       lang === "da"
         ? "Hvad vibetrends.dk er, hvordan du bruger det, og hvorfor det findes — det danske community for vibe-kodede projekter, AI-tools og agent-skills."
         : "What vibetrends.dk is, how to use it, and why it exists — the Danish community for vibe-coded projects, AI tools, and agent skills.",
-  };
+    path: "/about",
+    lang,
+  });
 }
 
 export default async function AboutPage() {

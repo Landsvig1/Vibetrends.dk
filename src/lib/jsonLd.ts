@@ -13,6 +13,8 @@ export function articleJsonLd(opts: {
   description: string;
   author: string;
   url: string;
+  /** Required by Google's Article rich-result validator. */
+  image: string;
   datePublished?: string;
 }) {
   return {
@@ -20,6 +22,7 @@ export function articleJsonLd(opts: {
     "@type": "Article",
     headline: opts.title,
     description: opts.description,
+    image: opts.image,
     author: { "@type": "Person", name: opts.author },
     url: opts.url,
     ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),
@@ -29,7 +32,7 @@ export function articleJsonLd(opts: {
 
 /** schema.org ItemList of skills, shared by the Skills hub and topic landings. */
 export function skillsListJsonLd(
-  skills: { title: string; description: string; vibeCoder: string }[],
+  skills: { title: string; description: string; vibeCoder: string; githubUrl?: string }[],
   name: string,
   description: string,
 ) {
@@ -47,12 +50,18 @@ export function skillsListJsonLd(
         name: skill.title,
         description: skill.description,
         author: { "@type": "Person", name: skill.vibeCoder },
+        ...(skill.githubUrl ? { codeRepositoryUrl: skill.githubUrl } : {}),
       },
     })),
   };
 }
 
-/** schema.org SoftwareApplication for an agent / MCP server detail page. */
+/**
+ * schema.org SoftwareApplication for an agent / MCP server / CLI detail page.
+ * No `offers` or `aggregateRating`: these are free community-submitted tools
+ * with no real pricing or rating data, and Google treats fabricated rating
+ * claims as a manual-action risk — omit rather than fabricate.
+ */
 export function softwareAppJsonLd(opts: {
   name: string;
   description: string;
@@ -67,7 +76,6 @@ export function softwareAppJsonLd(opts: {
     applicationCategory: "DeveloperApplication",
     author: { "@type": "Organization", name: opts.developer },
     url: opts.url,
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
 }
 
@@ -90,12 +98,15 @@ export function forumThreadJsonLd(opts: {
   title: string;
   author: string;
   url: string;
+  /** Required by Google's rich-result validator; pass the site default when no thread-specific image exists. */
+  image: string;
   datePublished?: string;
 }) {
   return {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
     headline: opts.title,
+    image: opts.image,
     author: { "@type": "Person", name: opts.author },
     url: opts.url,
     ...(opts.datePublished ? { datePublished: opts.datePublished } : {}),

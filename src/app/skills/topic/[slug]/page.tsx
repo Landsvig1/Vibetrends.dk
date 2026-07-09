@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
 import { translations, Language } from "@/lib/translations";
-import { entityMetadata } from "@/lib/seo";
+import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import { TopicIcon } from "@/app/components/TopicIcon";
 import { SkillCard } from "@/app/components/SkillCard";
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const desc = lang === "en" ? topic.descEn : topic.descDa;
 
   return entityMetadata({
-    title: `${label} skills - Skills Library`,
+    title: `${truncateTitle(label, " skills - Skills Library".length)} skills - Skills Library`,
     description: desc,
     path: `/skills/topic/${slug}`,
     lang,
