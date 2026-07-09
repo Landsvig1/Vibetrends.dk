@@ -11,6 +11,7 @@ export const metadata: Metadata = entityMetadata({
   title: "Agent & MCP Registry",
   description: "Find færdigbyggede systemprompts, custom GPT configs og MCP servere. Kobl dem direkte til dine AI-agenter.",
   path: "/agents",
+  image: "/images/og-default.jpg",
 });
 
 /**

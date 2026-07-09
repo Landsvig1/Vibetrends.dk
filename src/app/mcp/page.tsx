@@ -10,6 +10,7 @@ export const metadata: Metadata = entityMetadata({
   title: "MCP Servere",
   description: "Find Model Context Protocol (MCP) servere til Claude, Cursor og andre AI-agenter. Gratis og open source.",
   path: "/mcp",
+  image: "/images/og-default.jpg",
 });
 
 /**
