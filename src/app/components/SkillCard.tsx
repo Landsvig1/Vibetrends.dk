@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Heart, Plug } from "lucide-react";
+import { motion } from "framer-motion";
 import { Skill } from "@/lib/db";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -62,15 +63,23 @@ export function SkillCard({
           </div>
 
           {onUpvote ? (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
               onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
               aria-label={`Upvote ${skill.title}`}
               data-testid="skill-upvote"
               className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
             >
-              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.3 }}
+                key={skill.upvotes}
+              >
+                <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              </motion.div>
               <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
-            </button>
+            </motion.button>
           ) : (
             <span
               data-testid="skill-upvote-count"

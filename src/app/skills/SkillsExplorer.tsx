@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Briefcase,
@@ -20,6 +21,7 @@ import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
+import EmptyState from "../components/EmptyState";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), {
   ssr: false,
@@ -383,31 +385,52 @@ export default function SkillsExplorer({
       {/* Skill grid (search / Dansk / Trending) — opacity overlay during refetch */}
       {!showTopicCards &&
         (gridSkills.length > 0 ? (
-          <div
+          <motion.div
+            layout
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${
               isRefetching ? "opacity-50 pointer-events-none" : ""
             }`}
           >
-            {gridSkills.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                githubLabel={t("skills.github")}
-                connectLabel={t("skills.connect")}
-                onUpvote={handleUpvote}
-              />
-            ))}
-          </div>
+            <AnimatePresence mode="popLayout">
+              {gridSkills.map((skill, index) => (
+                <motion.div
+                  key={skill.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2, delay: index * 0.04 }}
+                >
+                  <SkillCard
+                    skill={skill}
+                    githubLabel={t("skills.github")}
+                    connectLabel={t("skills.connect")}
+                    onUpvote={handleUpvote}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         ) : (
-          <div className="text-center py-16 rounded-xl border border-card-border bg-background">
-            <Briefcase className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-            <p className="text-text-secondary font-semibold">
-              {t("skills.empty")}
-            </p>
-            <p className="text-text-secondary text-sm mt-1">
-              {t("skills.empty_sub")}
-            </p>
-          </div>
+          <EmptyState
+            icon={Briefcase}
+            title={t("skills.empty")}
+            description={t("skills.empty_sub")}
+            actionLabel={t("skills.btn_share")}
+            onAction={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
+            suggestions={
+              searchActive && initialAllSkills.length > 0
+                ? {
+                    title: language === "da" ? "Trender lige nu" : "Trending now",
+                    items: initialAllSkills.slice(0, 3).map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                      href: `/skills/${s.id}`,
+                    })),
+                  }
+                : undefined
+            }
+          />
         ))}
 
       {/* Submit Modal */}

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, type LucideIcon } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
@@ -41,10 +42,17 @@ export default function Header() {
 
   const navItems: NavItem[] = [
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
-    { name: t("nav.skills"), href: "/skills", icon: Briefcase },
-    { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
-    { name: t("nav.cli"), href: "/cli", icon: TerminalSquare },
     { name: t("nav.showcase"), href: "/vibes", icon: Layers },
+    {
+      name: t("nav.tools"),
+      icon: Cpu,
+      isDropdown: true,
+      items: [
+        { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
+        { name: t("nav.cli"), href: "/cli", icon: TerminalSquare },
+        { name: t("nav.skills"), href: "/skills", icon: Briefcase },
+      ],
+    },
     { name: t("nav.blog"), href: "/blog", icon: BookOpen },
   ];
 
@@ -77,7 +85,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-1">
             {navItems.map((item, idx) => {
               const isActive = isItemActive(item);
               const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
@@ -147,7 +155,7 @@ export default function Header() {
           </nav>
 
           {/* Action button & Mini language toggle */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center space-x-4">
             {/* MINI LANGUAGE TOGGLE */}
             <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
               <button
@@ -207,7 +215,7 @@ export default function Header() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex md:hidden">
+          <div className="flex lg:hidden">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -227,8 +235,15 @@ export default function Header() {
       </div>
 
       {/* Mobile menu panel */}
-      {mobileMenuOpen && (
-        <div id="mobile-menu" className="md:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1">
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            id="mobile-menu"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1 overflow-hidden"
+          >
           {navItems.map((item, idx) => {
             const isActive = isItemActive(item);
             const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
@@ -343,8 +358,9 @@ export default function Header() {
               </button>
             </div>
           )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       </header>
       {loginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} />}
     </>
