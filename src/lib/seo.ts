@@ -22,10 +22,23 @@ const DESCRIPTION_MAX = 160;
 const DESCRIPTION_PAD_DA = " Find det og meget mere på vibetrends.dk — det danske community for vibe-kodede projekter, AI-skills og udviklerværktøjer.";
 const DESCRIPTION_PAD_EN = " Find it and much more on vibetrends.dk — the Danish community for vibe-coded projects, AI skills, and developer tools.";
 
-/** Truncate at the last word boundary at or before `max` chars (never mid-word). */
+/**
+ * Truncate at the last sentence/clause boundary (". " or " — ") at or before
+ * `max` chars when one exists, else the last word boundary, never mid-word.
+ * Also backs off one char when the cut would split a UTF-16 surrogate pair
+ * (e.g. an emoji), which would otherwise render as a mangled U+FFFD.
+ */
 function truncateAtWordBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
-  const cut = text.slice(0, max);
+  let cut = text.slice(0, max);
+  const lastCode = cut.charCodeAt(cut.length - 1);
+  if (lastCode >= 0xd800 && lastCode <= 0xdbff) {
+    cut = cut.slice(0, -1);
+  }
+  const periodIdx = cut.lastIndexOf(". ");
+  if (periodIdx > 0) return cut.slice(0, periodIdx + 1).trimEnd();
+  const dashIdx = cut.lastIndexOf(" — ");
+  if (dashIdx > 0) return cut.slice(0, dashIdx).trimEnd();
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd();
 }
@@ -52,8 +65,8 @@ export function clampDescription(description: string, lang: "da" | "en" = "da"):
 }
 
 const TITLE_MAX = 60;
-/** Chars reserved for the longest known suffix + root template (" | vibetrends.dk" = 18 chars). */
-const TITLE_TEMPLATE_SUFFIX_BUDGET = 18;
+/** Chars reserved for the root layout's title template (" | vibetrends.dk" = 16 chars). */
+const TITLE_TEMPLATE_SUFFIX_BUDGET = " | vibetrends.dk".length;
 
 /**
  * Truncate the entity-name portion of a title so the full rendered <title>

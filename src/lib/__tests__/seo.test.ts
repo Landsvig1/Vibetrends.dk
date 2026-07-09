@@ -67,6 +67,27 @@ describe("clampDescription", () => {
   it("leaves an empty description unchanged", () => {
     expect(clampDescription("")).toBe("");
   });
+
+  it("truncates a short description's padding at the clause boundary, not mid-clause", () => {
+    // 80 chars: short enough to need padding, long enough that description+pad exceeds 160.
+    const short = "x".repeat(80);
+    const result = clampDescription(short, "da");
+    expect(result.length).toBeLessThanOrEqual(160);
+    // Must not end mid-clause inside the pad's second half (after the em dash).
+    expect(result.endsWith("vibetrends.dk")).toBe(true);
+  });
+
+  it("never splits a UTF-16 surrogate pair when truncating (no U+FFFD)", () => {
+    const long = ("a".repeat(158) + "\u{1F600}\u{1F600}").normalize(); // emoji straddle the 160 cut
+    const result = clampDescription(long);
+    expect(result).not.toContain("�");
+  });
+
+  it("hard-cuts a single space-free token rather than throwing", () => {
+    const long = "a".repeat(200);
+    const result = clampDescription(long);
+    expect(result.length).toBeLessThanOrEqual(160);
+  });
 });
 
 describe("truncateTitle", () => {
@@ -76,9 +97,13 @@ describe("truncateTitle", () => {
 
   it("truncates at a word boundary when the title plus suffix would exceed 60 chars", () => {
     const long = "GDPR Data Processing Agreement Generator"; // 41 chars
-    const suffix = " - Skills Library"; // 18 chars; total with root template (18) would be 77
+    const suffix = " - Skills Library"; // 18 chars; total with root template (16) would be 75
     const result = truncateTitle(long, suffix.length);
-    expect((result + suffix).length).toBeLessThanOrEqual(42); // 60 - 18 (root template)
+    expect((result + suffix).length).toBeLessThanOrEqual(44); // 60 - 16 (root template)
     expect(result.endsWith(" ")).toBe(false);
+  });
+
+  it("no-ops when suffixLength alone exhausts the budget, rather than throwing or emptying the title", () => {
+    expect(truncateTitle("A Title", 50)).toBe("A Title");
   });
 });
