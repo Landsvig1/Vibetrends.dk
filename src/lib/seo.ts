@@ -24,7 +24,10 @@ const DESCRIPTION_PAD_EN = " Find it and much more on vibetrends.dk — the Dani
 
 /**
  * Truncate at the last sentence/clause boundary (". " or " — ") at or before
- * `max` chars when one exists, else the last word boundary, never mid-word.
+ * `max` chars when one exists, else the last word boundary. Falls back to a
+ * hard cut only when the text has no space within the truncation window
+ * (e.g. a single long token) — accepted for that narrow case rather than
+ * appending an ellipsis, which would itself eat into the char budget.
  * Also backs off one char when the cut would split a UTF-16 surrogate pair
  * (e.g. an emoji), which would otherwise render as a mangled U+FFFD.
  */
