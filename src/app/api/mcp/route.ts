@@ -18,9 +18,7 @@ import {
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
-import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
-
-const BLOG_CATEGORIES = ["Guides", "Industry", "Workflow"] as const satisfies BlogPost["category"][];
+import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).

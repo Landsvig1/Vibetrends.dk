@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { getBlogPosts, getBlogPostById, createBlogPost } from "@/lib/db";
-import type { BlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { z } from "zod";
+import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 
 import { cookies } from "next/headers";
-
-const BLOG_CATEGORIES = ["Guides", "Industry", "Workflow"] as const satisfies BlogPost["category"][];
 
 export const blogPostSchema = z.object({
   title: z.string().min(1).max(200),
