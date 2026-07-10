@@ -376,6 +376,7 @@ export default function ForumExplorer({
                 {filteredThreads.map((thread, index) => (
                   <motion.div
                     key={thread.id}
+                    data-testid="thread-card"
                     layout
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}

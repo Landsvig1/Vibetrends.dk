@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getThreads, createThread } from "@/lib/db";
-import { getAuthUser } from "@/lib/supabase-server";
+import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
@@ -37,10 +37,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getAuthUser();
-    if (!user) {
+    const identity = await resolveRequestIdentity(request);
+    if (!identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { user, botAuth: actingAs } = identity;
 
     const body = await request.json();
     if (!validateHoneypot(body)) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
 
     const { title, category, content } = result.data;
 
-    const thread = await createThread(title, user.username, category, content);
+    const thread = await createThread(title, user.username, category, content, actingAs);
     return NextResponse.json(thread, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });

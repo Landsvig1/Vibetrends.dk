@@ -10,46 +10,53 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // Check Hero
     await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
     
-    // Check Navigation — Agents has been demoted out of primary nav; the
-    // CLI feed type takes its place. (Matches Header.tsx navItems:
-    // Forum, Skills, MCP, CLI, Showcase=Vibes, Blog.)
-    const navItems = ['Forum', 'Skills', 'MCP', 'CLI', 'Vibes', 'Blog'];
-    for (const item of navItems) {
-      await expect(page.locator('nav').getByText(item)).toBeVisible();
+    // Check Navigation — Header.tsx groups Skills/MCP/CLI under a "Tools"
+    // dropdown (opens on hover); Forum, Vibes, and Blog are direct top-level
+    // links. Directly-visible items are checked without interaction; the
+    // dropdown's sub-items only render in the DOM as visible after hover.
+    const directNavItems = ['Forum', 'Vibes', 'Blog'];
+    for (const item of directNavItems) {
+      await expect(page.locator('nav').getByText(item, { exact: true })).toBeVisible();
     }
+
+    const toolsTrigger = page.locator('nav').getByRole('button', { name: 'Tools' });
+    await expect(toolsTrigger).toBeVisible();
+    await toolsTrigger.hover();
+    for (const item of ['Skills', 'MCP', 'CLI']) {
+      await expect(page.locator('nav').getByText(item, { exact: true })).toBeVisible();
+    }
+
     // Agents is no longer a primary-nav entry.
     await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
   });
 
-  test('should show Showcase projects with a working "Se Projekt" CTA', async ({ page }) => {
+  test('project card overlay links directly to the project\'s live demo site', async ({ page }) => {
     // The card carries two links: a card-wide overlay (aria-label = project
-    // title) that navigates to the internal /vibes/[id] detail page, and this
-    // external "Se Projekt" CTA that opens the project's demoUrl in a new
-    // tab. This test asserts the external CTA; the overlay is covered by the
-    // detail-navigation test below.
+    // title) that opens the project's live demoUrl in a new tab, and a small
+    // info icon (aria-label = "Se Detaljer & Prompts") that navigates to the
+    // internal /vibes/[id] detail page. This test asserts the overlay; the
+    // info icon is covered by the detail-navigation test below.
     await page.goto('/vibes');
 
-    // Wait for heading
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
-    // Select the first project card
     const firstProject = page.getByTestId('project-card').first();
     await expect(firstProject).toBeVisible();
-    const projectTitle = await firstProject.locator('h3').innerText();
+    const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
-    const cta = firstProject.getByRole('link', { name: 'Se Projekt' });
-    await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute('target', '_blank');
+    const overlay = firstProject.getByRole('link', { name: projectTitle });
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toHaveAttribute('target', '_blank');
 
     // Cross-check the rendered href against the API's demoUrl for this
     // project, rather than only asserting the href is non-empty.
     const projects = await (await page.request.get('/api/vibes')).json();
-    const project = projects.find((p: { title: string }) => p.title === projectTitle.trim());
+    const project = projects.find((p: { title: string }) => p.title === projectTitle);
     expect(project?.demoUrl).toBeTruthy();
-    await expect(cta).toHaveAttribute('href', project.demoUrl);
+    await expect(overlay).toHaveAttribute('href', project.demoUrl);
   });
 
-  test('project card overlay opens the /vibes/[id] detail page', async ({ page }) => {
+  test('project card info icon opens the /vibes/[id] detail page', async ({ page }) => {
     await page.goto('/vibes');
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
@@ -57,9 +64,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(firstProject).toBeVisible();
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
-    // The card-wide overlay link is named by the project title; clicking the
-    // screenshot or title lands on it because it covers the whole card.
-    await firstProject.getByRole('link', { name: projectTitle }).click();
+    // The card-wide overlay now opens the external demo site (see the test
+    // above), so detail navigation goes through the dedicated info icon link.
+    await firstProject.getByRole('link', { name: 'Se Detaljer & Prompts' }).click();
     await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
     await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
   });

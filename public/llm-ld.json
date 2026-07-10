@@ -45,6 +45,19 @@
       "@id": "https://vibetrends.dk/api/forum",
       "name": "Developer Forum Feed",
       "contentType": "DiscussionForumPosting"
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/blog",
+      "name": "Blog Feed",
+      "contentType": "BlogPosting"
+    },
+    {
+      "@type": "DataFeed",
+      "@id": "https://vibetrends.dk/api/mcp",
+      "name": "MCP Tool Protocol (JSON-RPC 2.0)",
+      "contentType": "SoftwareApplication",
+      "description": "Search and write tools over the same content as the REST feeds above, via the Model Context Protocol. Distinct from /api/mcp-servers, which is a read-only REST catalog of MCP server listings."
     }
   ],
   "llm_ld_version": "2.1",
