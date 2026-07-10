@@ -12,6 +12,9 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveBotRequestAuth: vi.fn(),
   resolveRequestIdentity: vi.fn(),
 }));
+vi.mock("@/lib/rate-limit", () => ({
+  checkAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
 }));
@@ -19,6 +22,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -247,5 +251,37 @@ describe("POST /api/blog — cache invalidation", () => {
     const callArgs = vi.mocked(createBlogPost).mock.calls[0];
     // Last positional arg is actingAs
     expect(callArgs[callArgs.length - 1]).toBe(MOCK_ACTING_AS);
+  });
+
+  it("rejects a bearer-authenticated write with 429 once the identity's write budget is exhausted, without touching createBlogPost", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+    vi.mocked(checkAgentWriteRateLimit).mockResolvedValueOnce(false);
+
+    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.error).toBeDefined();
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
+  });
+
+  it("does not rate-limit cookie-authenticated (non-bot) writes", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      // no botAuth — a real human session
+    });
+    vi.mocked(createBlogPost).mockResolvedValue({
+      id: "b_998",
+      ...VALID_BODY,
+      author: MOCK_ACTING_AS.user.username,
+    });
+
+    const response = await POST(makeRequest(VALID_BODY));
+
+    expect(response.status).toBe(201);
+    expect(vi.mocked(checkAgentWriteRateLimit)).not.toHaveBeenCalled();
   });
 });

@@ -38,8 +38,14 @@ vi.mock("@/lib/honeypot", () => ({
   validateHoneypot: () => true,
 }));
 
+// Mock rate-limit — always within budget unless a test overrides it.
+vi.mock("@/lib/rate-limit", () => ({
+  checkAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
+}));
+
 import * as dbMod from "@/lib/db";
 import * as serverMod from "@/lib/supabase-server";
+import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
 import type { ActingAs } from "@/lib/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -215,6 +221,16 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
 
     const [, calledActingAs] = vi.mocked(dbMod.upvoteThread).mock.calls[0];
     expect(calledActingAs).toBe(actingAs);
+  });
+
+  it("returns 429 and skips upvoteThread once the bearer identity's write budget is exhausted", async () => {
+    const { identity } = makeBotIdentity("bot-upvote");
+    resolveRequestIdentityMock.mockResolvedValue(identity);
+    vi.mocked(checkAgentWriteRateLimit).mockResolvedValueOnce(false);
+
+    const res = await threadUpvotePost(makeRequest({}), { params });
+    expect(res.status).toBe(429);
+    expect(dbMod.upvoteThread).not.toHaveBeenCalled();
   });
 
   it("returns 503 on rpc_error", async () => {

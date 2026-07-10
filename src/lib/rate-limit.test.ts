@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase-server', () => ({
   },
 }));
 
-import { hashIp, checkRateLimit } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteRateLimit } from '@/lib/rate-limit';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
@@ -87,5 +87,30 @@ describe('checkRateLimit', () => {
   it('throws when the RPC returns an error', async () => {
     state.rpcResponse = { data: null, error: { message: 'connection refused' } };
     await expect(checkRateLimit('key', 5, 60)).rejects.toThrow('Rate limit RPC failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkAgentWriteRateLimit
+// ---------------------------------------------------------------------------
+
+describe('checkAgentWriteRateLimit', () => {
+  it('scopes the rate-limit key to the identity, not the IP', async () => {
+    await checkAgentWriteRateLimit('user-abc-123');
+    expect(state.lastRpcCall?.params).toMatchObject({
+      p_key: 'agentwrite:user-abc-123',
+    });
+  });
+
+  it('returns false once the identity has exceeded its write budget', async () => {
+    state.rpcResponse = { data: false, error: null };
+    const result = await checkAgentWriteRateLimit('user-abc-123');
+    expect(result).toBe(false);
+  });
+
+  it('returns true while the identity is within its write budget', async () => {
+    state.rpcResponse = { data: true, error: null };
+    const result = await checkAgentWriteRateLimit('user-abc-123');
+    expect(result).toBe(true);
   });
 });

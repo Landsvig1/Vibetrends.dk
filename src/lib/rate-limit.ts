@@ -48,3 +48,19 @@ export async function checkRateLimit(
 
   return data as boolean;
 }
+
+/** Cost-control ceiling on bearer-authenticated (agent) writes — upvotes,
+ * submissions, replies. Scoped per identity (`user.id`), not per IP: a
+ * refreshed session keeps the same identity indefinitely (see
+ * docs/decisions/2026-06-19-agent-auth.md's refresh-token amendment), so
+ * per-identity is the only bound that still holds once an agent stops
+ * re-provisioning through /api/agentauth's own IP rate limit. Deliberately
+ * NOT applied to cookie-authenticated humans — that path already requires a
+ * real Supabase signup, a much higher friction barrier than an anonymous
+ * bearer token. */
+const AGENT_WRITE_LIMIT = 20;
+const AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
+
+export async function checkAgentWriteRateLimit(userId: string): Promise<boolean> {
+  return checkRateLimit(`agentwrite:${userId}`, AGENT_WRITE_LIMIT, AGENT_WRITE_WINDOW_SECONDS);
+}

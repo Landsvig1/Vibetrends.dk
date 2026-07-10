@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getProjects, createProject } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
 import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
 import { z } from "zod";
 
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { user, botAuth: actingAs } = identity;
+
+    if (actingAs && !(await checkAgentWriteRateLimit(actingAs.user.id))) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const body = await request.json();
     if (!validateHoneypot(body)) {

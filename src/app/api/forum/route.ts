@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getThreads, createThread } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
@@ -42,6 +43,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { user, botAuth: actingAs } = identity;
+
+    if (actingAs && !(await checkAgentWriteRateLimit(actingAs.user.id))) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const body = await request.json();
     if (!validateHoneypot(body)) {

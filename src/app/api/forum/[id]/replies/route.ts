@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { addReply } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const replySchema = z.object({
@@ -15,6 +16,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { user, botAuth: actingAs } = identity;
+
+    if (actingAs && !(await checkAgentWriteRateLimit(actingAs.user.id))) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
 
     const { id: threadId } = await params;
     const body = await request.json();
