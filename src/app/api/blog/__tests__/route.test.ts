@@ -157,6 +157,20 @@ describe("POST /api/blog — auth", () => {
     const body = await response.json();
     expect(body).toMatchObject({ id: "b_123456", title: VALID_BODY.title });
   });
+
+  it("returns 403 and skips the DB call when the honeypot field is filled", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+
+    const response = await POST(makeRequest({ ...VALID_BODY, website_url: "http://spam.example" }, "Bearer token-xyz"));
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "Access denied" });
+    expect(createBlogPost).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------

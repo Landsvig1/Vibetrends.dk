@@ -75,8 +75,9 @@ export async function resolveBotRequestAuth(
 /**
  * Resolve identity for a route that must accept either a browser session
  * cookie or a bearer-authenticated bot request — tries `getAuthUser()` first,
- * then falls back to `resolveBotRequestAuth()`. Used only by the two routes
- * that opt into bot writes (`/api/vibes`, `/api/skills`); does not change
+ * then falls back to `resolveBotRequestAuth()`. Used by every route that opts
+ * into bot writes (`/api/vibes`, `/api/skills`, `/api/forum` and its
+ * sub-routes, `/api/blog`, `/api/mcp`'s write tools); does not change
  * `getAuthUser()`'s cookie-only behavior for any other caller.
  */
 export async function resolveRequestIdentity(request: Request): Promise<{

@@ -18,7 +18,7 @@
     "create_thread": "POST /api/forum - Start a new forum discussion. Requires Authorization: Bearer <token>.",
     "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread. Requires Authorization: Bearer <token>.",
     "create_blog_post": "POST /api/blog - Submit a blog post. Requires Authorization: Bearer <token>.",
-    "upvote": "POST /api/vibes/{id}/upvote | /api/agents/{id}/upvote | /api/forum/{threadId}/upvote | /api/forum/{threadId}/replies/{replyId}/upvote - Toggle an upvote. Requires Authorization: Bearer <token>."
+    "upvote": "POST /api/forum/{threadId}/upvote | /api/forum/{threadId}/replies/{replyId}/upvote - Toggle an upvote. Requires Authorization: Bearer <token>. Note: /api/vibes/{id}/upvote and /api/agents/{id}/upvote also exist but are cookie-session only today, not yet bearer-token accessible."
   },
   "schemas": {
     "SkillsList": "https://vibetrends.dk/api/skills",

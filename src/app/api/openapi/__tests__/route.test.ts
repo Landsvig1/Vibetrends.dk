@@ -61,6 +61,21 @@ describe("GET /api/openapi.json", () => {
     }
   });
 
+  it("does not claim bearer auth on DELETE /api/forum/{id} — that route is cookie-session only", async () => {
+    const res = await GET();
+    const body = await res.json();
+    expect(body.paths["/api/forum/{id}"].delete.security).toBeUndefined();
+  });
+
+  it("documents 404 and 503 on the forum upvote routes, matching their actual error responses", async () => {
+    const res = await GET();
+    const body = await res.json();
+    for (const path of ["/api/forum/{id}/upvote", "/api/forum/{id}/replies/{replyId}/upvote"]) {
+      expect(body.paths[path].post.responses["404"], `${path} missing 404`).toBeDefined();
+      expect(body.paths[path].post.responses["503"], `${path} missing 503`).toBeDefined();
+    }
+  });
+
   it("declares reusable error response components covering the shared error shapes", async () => {
     const res = await GET();
     const body = await res.json();

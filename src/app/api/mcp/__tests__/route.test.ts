@@ -395,6 +395,124 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     expect(body.result.content[0].type).toBe("text");
   });
 
+  it("upvote_thread returns SERVICE_UNAVAILABLE (not a false success) when the db layer reports rpc_error", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.upvoteThread).mockResolvedValueOnce("rpc_error" as never);
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 70, method: "tools/call", params: { name: "upvote_thread", arguments: { threadId: "t_1" } } })
+    );
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+    expect(body.result).toBeUndefined();
+  });
+
+  it("upvote_thread returns NOT_FOUND (not a false success) when the thread doesn't exist", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.upvoteThread).mockResolvedValueOnce(null as never);
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 71, method: "tools/call", params: { name: "upvote_thread", arguments: { threadId: "t_missing" } } })
+    );
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+    expect(body.result).toBeUndefined();
+  });
+
+  it("upvote_reply returns SERVICE_UNAVAILABLE (not a false success) when the db layer reports rpc_error", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.upvoteReply).mockResolvedValueOnce("rpc_error" as never);
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 72, method: "tools/call", params: { name: "upvote_reply", arguments: { replyId: "r_1" } } })
+    );
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+    expect(body.result).toBeUndefined();
+  });
+
+  it("upvote_reply returns NOT_FOUND (not a false success) when the reply doesn't exist", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.upvoteReply).mockResolvedValueOnce(null as never);
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 73, method: "tools/call", params: { name: "upvote_reply", arguments: { replyId: "r_missing" } } })
+    );
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+    expect(body.result).toBeUndefined();
+  });
+
+  it("submit_project accepts a payload with no demoUrl (matches REST's optional demoUrl, no contract drift)", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 74,
+        method: "tools/call",
+        params: { name: "submit_project", arguments: { title: "No demo yet", description: "Still in progress" } },
+      })
+    );
+    const body = await res.json();
+    expect(body.error).toBeUndefined();
+    expect(db.createProject).toHaveBeenCalled();
+  });
+
+  it("submit_project rejects an imageUrl host not on the allowlist (matches REST's isAllowedImageUrl guard)", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 75,
+        method: "tools/call",
+        params: {
+          name: "submit_project",
+          arguments: { title: "X", description: "Y", imageUrl: "https://evil.example.com/x.png" },
+        },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.createProject).not.toHaveBeenCalled();
+  });
+
+  it("submit_skill rejects a category not in SKILL_CATEGORY_SLUGS", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 76,
+        method: "tools/call",
+        params: { name: "submit_skill", arguments: { title: "X", category: "not-a-real-category", githubUrl: "https://x.com" } },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.createSkill).not.toHaveBeenCalled();
+  });
+
+  it("submit_blog_post rejects a category not in BLOG_CATEGORIES", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 77,
+        method: "tools/call",
+        params: {
+          name: "submit_blog_post",
+          arguments: {
+            title: "X",
+            excerpt: "Y",
+            content: "Z",
+            readTime: "1 min",
+            publishedAt: "2026-07-10",
+            imageUrl: "https://images.unsplash.com/x.jpg",
+            category: "not-a-real-category",
+          },
+        },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.createBlogPost).not.toHaveBeenCalled();
+  });
+
   it("a submit_skill MCP call is visible via search_skills on a subsequent call (cache invalidation is exercised through the same db.ts path as REST)", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
     await POST(

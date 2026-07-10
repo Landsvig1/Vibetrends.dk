@@ -19,6 +19,7 @@ import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
+import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -178,11 +179,11 @@ const TOOLS = [
         description: { type: "string", description: "Beskrivelse (10-500 tegn)" },
         tools: { type: "array", items: { type: "string" }, description: "Op til 10 værktøjer brugt (valgfri)" },
         prompts: { type: "array", items: { type: "string" }, description: "Prompts brugt til at bygge projektet (valgfri)" },
-        demoUrl: { type: "string", description: "URL til den kørende demo" },
+        demoUrl: { type: "string", description: "Valgfri URL til den kørende demo" },
         githubUrl: { type: "string", description: "Valgfri URL til projektets repo" },
-        imageUrl: { type: "string", description: "Valgfrit skærmbillede-URL" },
+        imageUrl: { type: "string", description: "Valgfrit skærmbillede-URL (skal matche next.config.ts's tilladte billed-hosts)" },
       },
-      required: ["title", "description", "demoUrl"],
+      required: ["title", "description"],
     },
   },
   {
@@ -221,6 +222,7 @@ const INVALID_PARAMS = -32602;
 const INTERNAL_ERROR = -32603;
 // -32000 to -32099 is the JSON-RPC 2.0 reserved range for implementation-defined server errors.
 const NOT_FOUND_ERROR = -32001;
+const SERVICE_UNAVAILABLE_ERROR = -32002;
 
 type JsonRpcId = string | number | null;
 
@@ -257,12 +259,18 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     case "upvote_thread": {
       const threadId = asString(args.threadId);
       if (!threadId) return { error: "INVALID_PARAMS", message: "threadId is required" };
-      return textContent({ upvotes: await upvoteThread(threadId, actingAs) });
+      const upvotes = await upvoteThread(threadId, actingAs);
+      if (upvotes === "rpc_error") return { error: "SERVICE_UNAVAILABLE", message: "Upvote service unavailable" };
+      if (upvotes === null) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
+      return textContent({ upvotes });
     }
     case "upvote_reply": {
       const replyId = asString(args.replyId);
       if (!replyId) return { error: "INVALID_PARAMS", message: "replyId is required" };
-      return textContent({ upvotes: await upvoteReply(replyId, asString(args.threadId), actingAs) });
+      const upvotes = await upvoteReply(replyId, asString(args.threadId), actingAs);
+      if (upvotes === "rpc_error") return { error: "SERVICE_UNAVAILABLE", message: "Upvote service unavailable" };
+      if (upvotes === null) return { error: "NOT_FOUND", message: `Reply not found: ${replyId}` };
+      return textContent({ upvotes });
     }
     case "reply_to_thread": {
       const threadId = asString(args.threadId);
@@ -282,6 +290,9 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       if (!title || !category || !githubUrl) {
         return { error: "INVALID_PARAMS", message: "title, category, and githubUrl are required" };
       }
+      if (!SKILL_CATEGORY_SLUGS.includes(category)) {
+        return { error: "INVALID_PARAMS", message: `category must be one of: ${SKILL_CATEGORY_SLUGS.join(", ")}` };
+      }
       const submitterUsername = username ?? "agent";
       const skill = await createSkill(
         title,
@@ -296,11 +307,19 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       return textContent(skill);
     }
     case "submit_project": {
+      // Required set mirrors projectSchema in src/app/api/vibes/route.ts — demoUrl
+      // is optional there too; requiring it here would reject payloads REST accepts.
       const title = asString(args.title);
       const description = asString(args.description);
-      const demoUrl = asString(args.demoUrl);
-      if (!title || !description || !demoUrl) {
-        return { error: "INVALID_PARAMS", message: "title, description, and demoUrl are required" };
+      if (!title || !description) {
+        return { error: "INVALID_PARAMS", message: "title and description are required" };
+      }
+      const imageUrl = asString(args.imageUrl);
+      if (imageUrl && !isAllowedImageUrl(imageUrl)) {
+        return {
+          error: "INVALID_PARAMS",
+          message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
+        };
       }
       const submitterUsername = username ?? "agent";
       const project = await createProject(
@@ -309,9 +328,9 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         description,
         asStringArray(args.tools),
         asStringArray(args.prompts),
-        demoUrl,
+        asString(args.demoUrl) ?? "",
         asString(args.githubUrl),
-        asString(args.imageUrl),
+        imageUrl,
         actingAs
       );
       return textContent(project);
@@ -329,6 +348,9 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
           error: "INVALID_PARAMS",
           message: "title, excerpt, content, readTime, publishedAt, imageUrl, and category are required",
         };
+      }
+      if (!BLOG_CATEGORIES.includes(category)) {
+        return { error: "INVALID_PARAMS", message: `category must be one of: ${BLOG_CATEGORIES.join(", ")}` };
       }
       const submitterUsername = username ?? "agent";
       const post = await createBlogPost(title, excerpt, content, submitterUsername, readTime, publishedAt, imageUrl, category, actingAs);
@@ -456,7 +478,10 @@ export async function POST(request: Request) {
       }
       if (typeof result === "object" && result !== null && "error" in result) {
         const { error: errorKind, message } = result as { error: string; message: string };
-        const code = errorKind === "INVALID_PARAMS" ? INVALID_PARAMS : NOT_FOUND_ERROR;
+        const code =
+          errorKind === "INVALID_PARAMS" ? INVALID_PARAMS
+          : errorKind === "SERVICE_UNAVAILABLE" ? SERVICE_UNAVAILABLE_ERROR
+          : NOT_FOUND_ERROR;
         return rpcError(id, code, message);
       }
       return rpcResult(id, result);

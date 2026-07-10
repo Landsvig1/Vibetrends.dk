@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 
 /**
  * Hand-authored OpenAPI 3.1 document for the REST surface — a plain object
@@ -227,7 +228,7 @@ const OPENAPI_DOCUMENT = {
     "/api/forum/{id}": {
       delete: {
         summary: "Delete a forum thread (owner or admin only)",
-        security: [{ bearerAuth: [] }],
+        description: "Cookie-session auth only — this route does not accept a bearer token. Deletion is intentionally not exposed to bearer-authenticated agent callers.",
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: { "200": { description: "Deleted" }, "401": { $ref: "#/components/responses/Unauthorized" }, "404": { $ref: "#/components/responses/NotFound" } },
       },
@@ -254,7 +255,12 @@ const OPENAPI_DOCUMENT = {
         summary: "Upvote a forum thread",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-        responses: { "200": { description: "OK" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        responses: {
+          "200": { description: "OK" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
       },
     },
     "/api/forum/{id}/replies/{replyId}/upvote": {
@@ -265,7 +271,12 @@ const OPENAPI_DOCUMENT = {
           { name: "id", in: "path", required: true, schema: { type: "string" } },
           { name: "replyId", in: "path", required: true, schema: { type: "string" } },
         ],
-        responses: { "200": { description: "OK" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        responses: {
+          "200": { description: "OK" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "503": { $ref: "#/components/responses/ServiceUnavailable" },
+        },
       },
     },
     "/api/blog": {
@@ -286,7 +297,7 @@ const OPENAPI_DOCUMENT = {
                   readTime: { type: "string", maxLength: 50 },
                   publishedAt: { type: "string" },
                   imageUrl: { type: "string", format: "uri" },
-                  category: { type: "string", enum: ["Guides", "Industry", "Workflow"] },
+                  category: { type: "string", enum: [...BLOG_CATEGORIES] },
                 },
               },
             },

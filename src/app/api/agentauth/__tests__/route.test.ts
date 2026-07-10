@@ -16,11 +16,11 @@ vi.mock("@/lib/rate-limit", () => ({
 import { POST } from "@/app/api/agentauth/route";
 import { checkRateLimit, hashIp } from "@/lib/rate-limit";
 
-function makeRequest(ip?: string) {
-  return new Request("http://localhost/api/agentauth", {
-    method: "POST",
-    headers: ip ? { "x-forwarded-for": ip } : {},
-  });
+function makeRequest(forwardedFor?: string, realIp?: string) {
+  const headers: Record<string, string> = {};
+  if (forwardedFor) headers["x-forwarded-for"] = forwardedFor;
+  if (realIp) headers["x-real-ip"] = realIp;
+  return new Request("http://localhost/api/agentauth", { method: "POST", headers });
 }
 
 const VALID_SESSION = {
@@ -137,7 +137,7 @@ describe("POST /api/agentauth", () => {
     expect(body.error).toMatch(/anonymous/i);
   });
 
-  it("takes only the first entry of a multi-hop x-forwarded-for header", async () => {
+  it("trusts the LAST entry of a multi-hop x-forwarded-for header, not the first (the first is client-controlled)", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     signInAnonymously.mockResolvedValue({
       data: { session: VALID_SESSION, user: { id: "anon-user-1" } },
@@ -146,6 +146,32 @@ describe("POST /api/agentauth", () => {
 
     await POST(makeRequest("203.0.113.10, 70.41.3.18, 150.172.238.178"));
 
-    expect(hashIp).toHaveBeenCalledWith("203.0.113.10");
+    expect(hashIp).toHaveBeenCalledWith("150.172.238.178");
+  });
+
+  it("cannot be rate-limit-bypassed by a spoofed leading x-forwarded-for entry — same real (last-hop) IP always hashes to the same key", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    signInAnonymously.mockResolvedValue({
+      data: { session: VALID_SESSION, user: { id: "anon-user-1" } },
+      error: null,
+    });
+
+    await POST(makeRequest("1.2.3.4, 150.172.238.178"));
+    await POST(makeRequest("9.9.9.9, 150.172.238.178"));
+
+    expect(hashIp).toHaveBeenNthCalledWith(1, "150.172.238.178");
+    expect(hashIp).toHaveBeenNthCalledWith(2, "150.172.238.178");
+  });
+
+  it("prefers x-real-ip over x-forwarded-for when both are present", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    signInAnonymously.mockResolvedValue({
+      data: { session: VALID_SESSION, user: { id: "anon-user-1" } },
+      error: null,
+    });
+
+    await POST(makeRequest("1.2.3.4, 5.6.7.8", "203.0.113.99"));
+
+    expect(hashIp).toHaveBeenCalledWith("203.0.113.99");
   });
 });

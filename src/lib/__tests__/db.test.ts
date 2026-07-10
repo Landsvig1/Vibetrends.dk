@@ -2002,3 +2002,74 @@ describe("U3 — upvoteReply with actingAs", () => {
     expect(result).toBe(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// U4 — createBlogPost: direct unit coverage (previously only exercised via
+// the mocked POST /api/blog route test, never the db.ts function itself).
+// ---------------------------------------------------------------------------
+
+describe("U4 — createBlogPost", () => {
+  it("inserts with user_id matching actingAs.user.id and does not touch the server client", async () => {
+    const blogRow = {
+      id: 'b_mock', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E',
+      content_da: 'C', content_en: 'C', author: 'agent_abc', read_time: '4 min',
+      published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Industry',
+    };
+    const { actingAs, calls } = makeActingAsMock('bot-uid-blog', (ops) => {
+      if (ops.method === 'insert') return { data: blogRow, error: null };
+      return { data: [], error: null };
+    });
+
+    const result = await db.createBlogPost(
+      'T', 'E', 'C', 'agent_abc', '4 min', '2026-07-10',
+      'https://images.unsplash.com/x.jpg', 'Industry', actingAs
+    );
+
+    expect(state.serverCalls.length).toBe(0);
+    const insert = calls.find(c => c.table === 'blog_posts' && c.method === 'insert');
+    expect(insert).toBeDefined();
+    expect((insert!.payload as Record<string, unknown>).user_id).toBe('bot-uid-blog');
+    expect(result?.id).toBe('b_mock');
+  });
+
+  it("calls revalidateTag('blog-posts') with the single-arg form (KTD7)", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-blog', (ops) => {
+      if (ops.method === 'insert') return {
+        data: { id: 'b1', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E', content_da: 'C', content_en: 'C', author: 'a', read_time: '1 min', published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Guides' },
+        error: null,
+      };
+      return { data: [], error: null };
+    });
+
+    await db.createBlogPost('T', 'E', 'C', 'a', '1 min', '2026-07-10', 'https://images.unsplash.com/x.jpg', 'Guides', actingAs);
+
+    const tags = state.revalidateTagCalls.map(c => c[0]);
+    expect(tags).toContain('blog-posts');
+    for (const call of state.revalidateTagCalls) {
+      expect(call.length).toBe(1);
+    }
+  });
+
+  it("throws when the insert fails, rather than returning a partial/null post", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-blog', () => ({
+      data: null,
+      error: { message: 'insert failed' },
+    }));
+
+    await expect(
+      db.createBlogPost('T', 'E', 'C', 'a', '1 min', '2026-07-10', 'https://images.unsplash.com/x.jpg', 'Guides', actingAs)
+    ).rejects.toThrow();
+  });
+
+  it("backward compat: omitting actingAs uses the cookie-based server client", async () => {
+    state.serverHandler = () => ({
+      data: { id: 'b_new', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E', content_da: 'C', content_en: 'C', author: 'a', read_time: '1 min', published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Workflow' },
+      error: null,
+    });
+
+    await db.createBlogPost('T', 'E', 'C', 'a', '1 min', '2026-07-10', 'https://images.unsplash.com/x.jpg', 'Workflow');
+
+    const insert = state.serverCalls.find(c => c.table === 'blog_posts' && c.method === 'insert');
+    expect(insert).toBeDefined();
+  });
+});
