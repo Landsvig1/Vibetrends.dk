@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GET } from "@/app/api/openapi/route";
+import { GET } from "@/app/api/openapi.json/route";
 
 const ROUTE_FILES_UNDER_TEST = [
   "/api/agentauth",
