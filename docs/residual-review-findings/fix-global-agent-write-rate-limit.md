@@ -48,6 +48,17 @@ autonomous scope (see global instructions: hard-to-reverse actions affecting
 shared/production systems warrant explicit confirmation, not autonomous
 action).
 
+**Detection shipped in the meantime** (`supabase/migrations/20260710000000_rate_limit_rpc_audit.sql`):
+every call to `check_and_increment_rate_limit` now logs to
+`public.rate_limit_rpc_audit` with an `is_expected` flag, computed against
+the three exact `(key-shape, limit, window)` combinations this app's own
+code ever sends. A `false` row is proof of a direct/foreign caller. Verified
+live: a real `/api/agentauth` call logged `is_expected: true`; a simulated
+direct `supabase-js` call with the public anon key and a mismatched
+`p_limit` logged `is_expected: false`. This is detection, not prevention —
+the RPC is still directly callable and the HMAC fix above is still the real
+close.
+
 ## P0 — Rate limiting is enforced only in application code, not at the database layer
 
 **File:** `src/app/api/agentauth/route.ts:99`
