@@ -5,6 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const state = vi.hoisted(() => ({
   rpcResponse: { data: true as boolean | null, error: null as { message: string } | null },
   lastRpcCall: null as { fn: string; params: Record<string, unknown> } | null,
+  // Per-key overrides and call-order tracking — used by checkAgentWriteAllowed
+  // tests to verify the identity check is evaluated before the global one.
+  rpcResponseByKey: {} as Record<string, boolean>,
+  calledKeys: [] as string[],
 }));
 
 // Mock the supabase-server module so we control supabasePublic.rpc() without
@@ -15,16 +19,23 @@ vi.mock('@/lib/supabase-server', () => ({
   supabasePublic: {
     rpc: vi.fn(async (fn: string, params: Record<string, unknown>) => {
       state.lastRpcCall = { fn, params };
+      const key = params.p_key as string;
+      state.calledKeys.push(key);
+      if (key in state.rpcResponseByKey) {
+        return { data: state.rpcResponseByKey[key], error: null };
+      }
       return state.rpcResponse;
     }),
   },
 }));
 
-import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit, checkAgentWriteAllowed } from '@/lib/rate-limit';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
   state.lastRpcCall = null;
+  state.rpcResponseByKey = {};
+  state.calledKeys = [];
   vi.clearAllMocks();
 });
 
@@ -145,5 +156,42 @@ describe('checkGlobalAgentWriteRateLimit', () => {
     state.rpcResponse = { data: false, error: null };
     const result = await checkGlobalAgentWriteRateLimit();
     expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkAgentWriteAllowed
+// ---------------------------------------------------------------------------
+
+describe('checkAgentWriteAllowed', () => {
+  it('returns true when both the identity and global budgets are within limit', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
+    const result = await checkAgentWriteAllowed('user-abc-123');
+    expect(result).toBe(true);
+  });
+
+  it('returns false when only the identity budget is exhausted', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
+    const result = await checkAgentWriteAllowed('user-abc-123');
+    expect(result).toBe(false);
+  });
+
+  it('returns false when only the global budget is exhausted', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': false };
+    const result = await checkAgentWriteAllowed('user-abc-123');
+    expect(result).toBe(false);
+  });
+
+  it('checks the identity budget before the global budget', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
+    await checkAgentWriteAllowed('user-abc-123');
+    expect(state.calledKeys).toEqual(['agentwrite:user-abc-123', 'agentwrite:global']);
+  });
+
+  it('short-circuits before touching the global counter when the identity is already over budget', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
+    await checkAgentWriteAllowed('user-abc-123');
+    expect(state.calledKeys).toEqual(['agentwrite:user-abc-123']);
+    expect(state.calledKeys).not.toContain('agentwrite:global');
   });
 });

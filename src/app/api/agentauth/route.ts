@@ -39,7 +39,6 @@ function getClientIp(request: Request): string {
  * instead of calling this endpoint again — a second call provisions a brand
  * new anonymous identity, discarding the first one's authorship/history.
  *
-
  * RLS is never bypassed: the returned token is a real Supabase session, so
  * every subsequent write still requires `auth.uid() = user_id` exactly like
  * a human-authenticated request. This endpoint automates getting a valid

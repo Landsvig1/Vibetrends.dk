@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { z } from "zod";
 
@@ -52,10 +52,7 @@ export async function POST(request: Request) {
     }
     const { user, botAuth: actingAs } = identity;
 
-    if (actingAs && !(await checkAgentWriteRateLimit(actingAs.user.id))) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-    }
-    if (actingAs && !(await checkGlobalAgentWriteRateLimit())) {
+    if (actingAs && !(await checkAgentWriteAllowed(actingAs.user.id))) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 

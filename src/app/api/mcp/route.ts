@@ -16,7 +16,7 @@ import {
   type ActingAs,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
@@ -474,18 +474,10 @@ export async function POST(request: Request) {
         username = identity.user.username;
 
         // Cost-control ceiling — only applies to bearer-token (agent) callers,
-        // not cookie-authenticated humans. See checkAgentWriteRateLimit's doc.
-        // checkGlobalAgentWriteRateLimit is the site-wide backstop alongside
-        // it — see that function's doc for why per-identity alone isn't enough.
-        if (actingAs) {
-          const withinLimit = await checkAgentWriteRateLimit(actingAs.user.id);
-          if (!withinLimit) {
-            return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
-          }
-          const withinGlobalLimit = await checkGlobalAgentWriteRateLimit();
-          if (!withinGlobalLimit) {
-            return rpcError(id, RATE_LIMITED_ERROR, `Site-wide write rate limit exceeded for tool: ${name}`);
-          }
+        // not cookie-authenticated humans. Checks both the per-identity and
+        // site-wide budgets; see checkAgentWriteAllowed's doc.
+        if (actingAs && !(await checkAgentWriteAllowed(actingAs.user.id))) {
+          return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
         }
       }
 

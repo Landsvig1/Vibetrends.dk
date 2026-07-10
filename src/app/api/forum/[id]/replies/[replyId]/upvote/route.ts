@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { upvoteReply } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
@@ -13,10 +13,7 @@ export async function POST(
   }
   const { botAuth: actingAs } = identity;
 
-  if (actingAs && !(await checkAgentWriteRateLimit(actingAs.user.id))) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-  }
-  if (actingAs && !(await checkGlobalAgentWriteRateLimit())) {
+  if (actingAs && !(await checkAgentWriteAllowed(actingAs.user.id))) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

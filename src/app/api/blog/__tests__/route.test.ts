@@ -13,8 +13,7 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveRequestIdentity: vi.fn(),
 }));
 vi.mock("@/lib/rate-limit", () => ({
-  checkAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
-  checkGlobalAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
+  checkAgentWriteAllowed: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
@@ -23,7 +22,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -254,27 +253,12 @@ describe("POST /api/blog — cache invalidation", () => {
     expect(callArgs[callArgs.length - 1]).toBe(MOCK_ACTING_AS);
   });
 
-  it("rejects a bearer-authenticated write with 429 once the identity's write budget is exhausted, without touching createBlogPost", async () => {
+  it("rejects a bearer-authenticated write with 429 once the write budget (identity or site-wide) is exhausted, without touching createBlogPost", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue({
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
     });
-    vi.mocked(checkAgentWriteRateLimit).mockResolvedValueOnce(false);
-
-    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
-    const body = await response.json();
-
-    expect(response.status).toBe(429);
-    expect(body.error).toBeDefined();
-    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
-  });
-
-  it("rejects a bearer-authenticated write with 429 once the site-wide write budget is exhausted, even when the identity's own budget is fine", async () => {
-    vi.mocked(resolveRequestIdentity).mockResolvedValue({
-      user: MOCK_ACTING_AS.user,
-      botAuth: MOCK_ACTING_AS,
-    });
-    vi.mocked(checkGlobalAgentWriteRateLimit).mockResolvedValueOnce(false);
+    vi.mocked(checkAgentWriteAllowed).mockResolvedValueOnce(false);
 
     const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
     const body = await response.json();
@@ -298,7 +282,6 @@ describe("POST /api/blog — cache invalidation", () => {
     const response = await POST(makeRequest(VALID_BODY));
 
     expect(response.status).toBe(201);
-    expect(vi.mocked(checkAgentWriteRateLimit)).not.toHaveBeenCalled();
-    expect(vi.mocked(checkGlobalAgentWriteRateLimit)).not.toHaveBeenCalled();
+    expect(vi.mocked(checkAgentWriteAllowed)).not.toHaveBeenCalled();
   });
 });

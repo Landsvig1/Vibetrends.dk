@@ -19,14 +19,13 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  checkAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
-  checkGlobalAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
+  checkAgentWriteAllowed: vi.fn().mockResolvedValue(true),
 }));
 
 import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 
 const MOCK_IDENTITY = {
   user: { id: "user-1", username: "agent_abc123" },
@@ -284,35 +283,14 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     expect(JSON.parse(body.result.content[0].text)).toEqual({ id: "b1", title: "New Post" });
   });
 
-  it("rejects a bearer-authenticated write tool once the identity's write budget is exhausted, without calling the underlying mutation", async () => {
+  it("rejects a bearer-authenticated write tool once the write budget (identity or site-wide) is exhausted, without calling the underlying mutation", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
-    vi.mocked(checkAgentWriteRateLimit).mockResolvedValueOnce(false);
+    vi.mocked(checkAgentWriteAllowed).mockResolvedValueOnce(false);
 
     const res = await POST(
       rpc({
         jsonrpc: "2.0",
         id: 55,
-        method: "tools/call",
-        params: {
-          name: "submit_skill",
-          arguments: { title: "New Skill", category: "backend-data", githubUrl: "https://github.com/x/y" },
-        },
-      })
-    );
-    const body = await res.json();
-
-    expect(body.error).toBeDefined();
-    expect(db.createSkill).not.toHaveBeenCalled();
-  });
-
-  it("rejects a bearer-authenticated write tool once the site-wide write budget is exhausted, even when the identity's own budget is fine", async () => {
-    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
-    vi.mocked(checkGlobalAgentWriteRateLimit).mockResolvedValueOnce(false);
-
-    const res = await POST(
-      rpc({
-        jsonrpc: "2.0",
-        id: 56,
         method: "tools/call",
         params: {
           name: "submit_skill",

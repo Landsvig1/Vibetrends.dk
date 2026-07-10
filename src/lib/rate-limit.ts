@@ -82,3 +82,17 @@ const GLOBAL_AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
 export async function checkGlobalAgentWriteRateLimit(): Promise<boolean> {
   return checkRateLimit('agentwrite:global', GLOBAL_AGENT_WRITE_LIMIT, GLOBAL_AGENT_WRITE_WINDOW_SECONDS);
 }
+
+/** Combines both agent write guards into the single check every write route
+ * needs. Order is deliberate, not incidental: `checkRateLimit` increments on
+ * every call, so checking the per-identity budget first means an identity
+ * that's already over its own limit short-circuits before ever touching the
+ * shared global counter. Running both concurrently (e.g. Promise.all) would
+ * let an already-throttled identity keep consuming the site-wide budget on
+ * every retry — turning the global backstop into a DoS surface against every
+ * other agent instead of a cost ceiling. */
+export async function checkAgentWriteAllowed(userId: string): Promise<boolean> {
+  const withinIdentityLimit = await checkAgentWriteRateLimit(userId);
+  if (!withinIdentityLimit) return false;
+  return checkGlobalAgentWriteRateLimit();
+}
