@@ -14,6 +14,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 vi.mock("@/lib/rate-limit", () => ({
   checkAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
+  checkGlobalAgentWriteRateLimit: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
@@ -22,7 +23,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteRateLimit } from "@/lib/rate-limit";
+import { checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -268,6 +269,21 @@ describe("POST /api/blog — cache invalidation", () => {
     expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
   });
 
+  it("rejects a bearer-authenticated write with 429 once the site-wide write budget is exhausted, even when the identity's own budget is fine", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+    vi.mocked(checkGlobalAgentWriteRateLimit).mockResolvedValueOnce(false);
+
+    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.error).toBeDefined();
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
+  });
+
   it("does not rate-limit cookie-authenticated (non-bot) writes", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue({
       user: MOCK_ACTING_AS.user,
@@ -283,5 +299,6 @@ describe("POST /api/blog — cache invalidation", () => {
 
     expect(response.status).toBe(201);
     expect(vi.mocked(checkAgentWriteRateLimit)).not.toHaveBeenCalled();
+    expect(vi.mocked(checkGlobalAgentWriteRateLimit)).not.toHaveBeenCalled();
   });
 });

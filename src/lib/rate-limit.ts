@@ -64,3 +64,21 @@ const AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
 export async function checkAgentWriteRateLimit(userId: string): Promise<boolean> {
   return checkRateLimit(`agentwrite:${userId}`, AGENT_WRITE_LIMIT, AGENT_WRITE_WINDOW_SECONDS);
 }
+
+/** Site-wide backstop, independent of identity or IP. The per-identity cap
+ * above bounds one identity's abuse but not horizontal scaling: /api/agentauth
+ * mints a fresh identity on every call (capped at 5/hour per IP, uncapped
+ * across distinct IPs), and each identity now renews forever via its refresh
+ * token. An attacker rotating IPs can mint unbounded identities, each with
+ * its own fresh 20/hour budget — so aggregate write throughput has no
+ * ceiling without this. Fixed key, no per-identity or per-IP component: 10
+ * identities at full legitimate throughput (200 / 20) is generous headroom
+ * for this site's current traffic while still bounding worst-case cost to a
+ * known number regardless of identity count. Same bot-only scope as the
+ * per-identity check — never applied to cookie-authenticated humans. */
+const GLOBAL_AGENT_WRITE_LIMIT = 200;
+const GLOBAL_AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
+
+export async function checkGlobalAgentWriteRateLimit(): Promise<boolean> {
+  return checkRateLimit('agentwrite:global', GLOBAL_AGENT_WRITE_LIMIT, GLOBAL_AGENT_WRITE_WINDOW_SECONDS);
+}

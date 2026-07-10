@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase-server', () => ({
   },
 }));
 
-import { hashIp, checkRateLimit, checkAgentWriteRateLimit } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit } from '@/lib/rate-limit';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
@@ -112,5 +112,38 @@ describe('checkAgentWriteRateLimit', () => {
     state.rpcResponse = { data: true, error: null };
     const result = await checkAgentWriteRateLimit('user-abc-123');
     expect(result).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkGlobalAgentWriteRateLimit
+// ---------------------------------------------------------------------------
+
+describe('checkGlobalAgentWriteRateLimit', () => {
+  it('uses a fixed, identity/IP-independent key', async () => {
+    await checkGlobalAgentWriteRateLimit();
+    expect(state.lastRpcCall?.params).toMatchObject({
+      p_key: 'agentwrite:global',
+    });
+  });
+
+  it('uses the same key across repeated calls, unlike the per-identity check', async () => {
+    await checkGlobalAgentWriteRateLimit();
+    const firstKey = state.lastRpcCall?.params.p_key;
+    await checkGlobalAgentWriteRateLimit();
+    const secondKey = state.lastRpcCall?.params.p_key;
+    expect(firstKey).toBe(secondKey);
+  });
+
+  it('returns true while the global budget is within limit', async () => {
+    state.rpcResponse = { data: true, error: null };
+    const result = await checkGlobalAgentWriteRateLimit();
+    expect(result).toBe(true);
+  });
+
+  it('returns false once the global budget has been exhausted', async () => {
+    state.rpcResponse = { data: false, error: null };
+    const result = await checkGlobalAgentWriteRateLimit();
+    expect(result).toBe(false);
   });
 });
