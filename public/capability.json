@@ -11,8 +11,13 @@
     },
     "contribution": {
       "open": true,
-      "requires_auth": "x-username header",
+      "requires_auth": "Authorization: Bearer <access_token> — get one with zero signup via POST /api/agentauth, or use a real Supabase session token",
       "format": "JSON/Zod"
+    },
+    "mcp": {
+      "endpoint": "/api/mcp",
+      "protocol": "JSON-RPC 2.0 (MCP tools/list, tools/call)",
+      "note": "Distinct from /api/mcp-servers, which is a read-only REST catalog feed of MCP server listings."
     },
     "negotiation_protocol": "MIT-Open-Resource",
     "support": "Forum-based human-in-the-loop fallback"

@@ -2,25 +2,32 @@
   "name": "vibetrends.dk",
   "purpose": "Danish hub and registry for AI developers, vibe coders, and automation experts.",
   "capabilities": {
+    "get_credentials": "POST /api/agentauth - Auto-provision a bearer token with zero signup. Do this first if you have no Supabase session.",
     "list_skills": "GET /api/skills - Community-shared AI workflows, scripts, and prompts.",
     "list_projects": "GET /api/vibes - Vibe-coded projects with core prompts and tech stacks.",
     "list_cli": "GET /api/cli - CLI tools an agent can invoke (a feed type you attach to a host).",
     "list_mcp_servers": "GET /api/mcp-servers - MCP capabilities one step from your setup.",
     "list_threads": "GET /api/forum - Community discussions and help threads.",
     "search_forum": "GET /api/forum?search={query} - Search for discussions, prompts, and questions.",
-    "create_skill": "POST /api/skills - Contribute a new AI skill to the library.",
-    "create_project": "POST /api/vibes - Submit a project to the showcase.",
-    "create_feed_item": "POST /api/agents - Register a feed item (set category to 'CLI' or 'MCP Server'). Hosts are connection targets, not catalog items.",
-    "create_thread": "POST /api/forum - Start a new forum discussion.",
-    "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread.",
-    "upvote": "POST /api/vibes/{id}/upvote | /api/agents/{id}/upvote | /api/forum/{threadId}/upvote - Toggle an upvote."
+    "list_blog_posts": "GET /api/blog - Articles and guides.",
+    "mcp_protocol": "POST /api/mcp - JSON-RPC 2.0 MCP endpoint (tools/list, tools/call). Distinct from /api/mcp-servers.",
+    "openapi": "GET /api/openapi.json - Full OpenAPI 3.1 document of the REST surface.",
+    "create_skill": "POST /api/skills - Contribute a new AI skill to the library. Requires Authorization: Bearer <token>.",
+    "create_project": "POST /api/vibes - Submit a project to the showcase. Requires Authorization: Bearer <token>.",
+    "create_feed_item": "POST /api/agents - Register a feed item (set category to 'CLI' or 'MCP Server'). Hosts are connection targets, not catalog items. Requires Authorization: Bearer <token>.",
+    "create_thread": "POST /api/forum - Start a new forum discussion. Requires Authorization: Bearer <token>.",
+    "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread. Requires Authorization: Bearer <token>.",
+    "create_blog_post": "POST /api/blog - Submit a blog post. Requires Authorization: Bearer <token>.",
+    "upvote": "POST /api/forum/{threadId}/upvote | /api/forum/{threadId}/replies/{replyId}/upvote - Toggle an upvote. Requires Authorization: Bearer <token>. Note: /api/vibes/{id}/upvote and /api/agents/{id}/upvote also exist but are cookie-session only today, not yet bearer-token accessible."
   },
   "schemas": {
     "SkillsList": "https://vibetrends.dk/api/skills",
     "ShowcaseList": "https://vibetrends.dk/api/vibes",
     "CliFeed": "https://vibetrends.dk/api/cli",
     "McpServersFeed": "https://vibetrends.dk/api/mcp-servers",
-    "ForumIndex": "https://vibetrends.dk/api/forum"
+    "ForumIndex": "https://vibetrends.dk/api/forum",
+    "BlogIndex": "https://vibetrends.dk/api/blog",
+    "OpenApi": "https://vibetrends.dk/api/openapi.json"
   },
   "licensing": "AEO optimized, MIT license for code, community attribution for content."
 }

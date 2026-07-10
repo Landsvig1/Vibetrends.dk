@@ -715,11 +715,10 @@ export async function getThreadById(id: string, lang: 'da' | 'en' = 'da') {
   return mapThread(thread, replies || [], lang);
 }
 
-export async function upvoteThread(id: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function upvoteThread(id: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
-  if (!user) {
+  if (!userId) {
     console.warn('Cannot upvote thread: User is not authenticated');
     return 0;
   }
@@ -758,11 +757,10 @@ export async function upvoteThread(id: string) {
 /** `threadId` is optional only for backward compatibility with older callers;
  * pass it whenever known (the route handler already has it from the URL) to
  * avoid a second round-trip just to look it up. */
-export async function upvoteReply(id: string, threadId?: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function upvoteReply(id: string, threadId?: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
-  if (!user) {
+  if (!userId) {
     console.warn('Cannot upvote reply: User is not authenticated');
     return 0;
   }
@@ -810,9 +808,8 @@ export async function upvoteReply(id: string, threadId?: string) {
   return rpcData as number;
 }
 
-export async function createThread(title: string, author: string, category: ForumThread["category"], content: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function createThread(title: string, author: string, category: ForumThread["category"], content: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 't_' + Date.now();
   const { data, error } = await supabase.from('forum_threads').insert({
@@ -824,7 +821,7 @@ export async function createThread(title: string, author: string, category: Foru
     content_da: content,
     content_en: content,
     upvotes: 1,
-    user_id: user?.id || null,
+    user_id: userId,
   }).select().single();
 
   if (error || !data) {
@@ -838,9 +835,8 @@ export async function createThread(title: string, author: string, category: Foru
   return mapThread(data, [], 'da');
 }
 
-export async function addReply(threadId: string, author: string, content: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function addReply(threadId: string, author: string, content: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'r_' + Date.now();
   const { error } = await supabase.from('forum_replies').insert({
@@ -849,7 +845,7 @@ export async function addReply(threadId: string, author: string, content: string
     author,
     content_da: content,
     content_en: content,
-    user_id: user?.id || null,
+    user_id: userId,
   });
 
   if (error) {
@@ -1146,6 +1142,47 @@ export async function createAgent(name: string, developer: string, category: Age
   revalidateTag('agents-list')
 
   return mapAgent(data, 'da');
+}
+
+export async function createBlogPost(
+  title: string,
+  excerpt: string,
+  content: string,
+  author: string,
+  readTime: string,
+  publishedAt: string,
+  imageUrl: string,
+  category: BlogPost["category"],
+  actingAs?: ActingAs
+) {
+  const { supabase, userId } = await resolveActor(actingAs);
+
+  const newId = 'b_' + Date.now();
+  const { data, error } = await supabase.from('blog_posts').insert({
+    id: newId,
+    title_da: title,
+    title_en: title,
+    excerpt_da: excerpt,
+    excerpt_en: excerpt,
+    content_da: content,
+    content_en: content,
+    author,
+    read_time: readTime,
+    published_at: publishedAt,
+    image_url: imageUrl,
+    category,
+    user_id: userId,
+  }).select().single();
+
+  if (error || !data) {
+    console.error('Failed to create blog post:', error);
+    throw new Error('Kunne ikke oprette blogindlæg');
+  }
+
+  // Invalidate the blog posts list so the new post appears on the next read.
+  revalidateTag('blog-posts')
+
+  return mapBlogPost(data, 'da');
 }
 
 export async function deleteAgent(id: string) {
