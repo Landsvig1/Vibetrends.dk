@@ -233,6 +233,16 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
     expect(dbMod.upvoteThread).not.toHaveBeenCalled();
   });
 
+  it("returns 503 (not an unhandled exception) when checkAgentWriteAllowed itself throws — this route has no top-level try/catch", async () => {
+    const { identity } = makeBotIdentity("bot-upvote");
+    resolveRequestIdentityMock.mockResolvedValue(identity);
+    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("Rate limit RPC failed: connection refused"));
+
+    const res = await threadUpvotePost(makeRequest({}), { params });
+    expect(res.status).toBe(503);
+    expect(dbMod.upvoteThread).not.toHaveBeenCalled();
+  });
+
   it("returns 503 on rpc_error", async () => {
     resolveRequestIdentityMock.mockResolvedValue(makeCookieIdentity());
     vi.mocked(dbMod.upvoteThread).mockResolvedValue("rpc_error");

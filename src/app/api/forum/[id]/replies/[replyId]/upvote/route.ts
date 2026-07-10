@@ -13,8 +13,16 @@ export async function POST(
   }
   const { botAuth: actingAs } = identity;
 
-  if (actingAs && !(await checkAgentWriteAllowed(actingAs.user.id))) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (actingAs) {
+    let withinLimit: boolean;
+    try {
+      withinLimit = await checkAgentWriteAllowed(actingAs.user.id);
+    } catch {
+      return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+    }
+    if (!withinLimit) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
   }
 
   const { id: threadId, replyId } = await params;

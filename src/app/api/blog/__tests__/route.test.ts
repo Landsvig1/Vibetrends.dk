@@ -268,6 +268,21 @@ describe("POST /api/blog — cache invalidation", () => {
     expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
   });
 
+  it("returns 503 (not 400) when checkAgentWriteAllowed itself throws, e.g. a rate-limiter RPC outage", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("Rate limit RPC failed: connection refused"));
+
+    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBeDefined();
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
+  });
+
   it("does not rate-limit cookie-authenticated (non-bot) writes", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue({
       user: MOCK_ACTING_AS.user,
