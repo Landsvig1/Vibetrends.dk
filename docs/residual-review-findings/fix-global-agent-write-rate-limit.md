@@ -48,16 +48,30 @@ autonomous scope (see global instructions: hard-to-reverse actions affecting
 shared/production systems warrant explicit confirmation, not autonomous
 action).
 
-**Detection shipped in the meantime** (`supabase/migrations/20260710000000_rate_limit_rpc_audit.sql`):
-every call to `check_and_increment_rate_limit` now logs to
-`public.rate_limit_rpc_audit` with an `is_expected` flag, computed against
-the three exact `(key-shape, limit, window)` combinations this app's own
-code ever sends. A `false` row is proof of a direct/foreign caller. Verified
-live: a real `/api/agentauth` call logged `is_expected: true`; a simulated
-direct `supabase-js` call with the public anon key and a mismatched
-`p_limit` logged `is_expected: false`. This is detection, not prevention —
-the RPC is still directly callable and the HMAC fix above is still the real
-close.
+**Partial detection shipped in the meantime** (`supabase/migrations/20260710000000_rate_limit_rpc_audit.sql`,
+hardened `20260711000000_rate_limit_rpc_audit_hardening.sql`): every call to
+`check_and_increment_rate_limit` that doesn't match one of the three exact
+`(key-shape, limit, window)` combinations this app's own code ever sends now
+logs to `public.rate_limit_rpc_audit`. A logged row is proof of a
+direct/foreign caller.
+
+**What this catches:** blunt, unsophisticated direct calls — wrong limit,
+malformed key shape, random probing. Verified live: a real `/api/agentauth`
+call produced no audit row (matches an expected shape); a call with a
+mismatched `p_limit` against `agentwrite:global`, and a call using a
+36-character key that isn't real UUID shape, both logged correctly.
+
+**What this does NOT catch — and this is the important caveat:** a caller
+who already knows the app's exact constants (they're in this public
+migration file) and sends a *real* shape — `agentwrite:global` with
+`limit=200, window=3600` (the exact attack this whole finding is about), or
+a real victim's `agentwrite:<uuid>` with `limit=20, window=3600` — is
+indistinguishable from a legitimate app call and produces **no audit row at
+all**. The realistic, damaging attacks are invisible to this mechanism; it
+only catches the unrealistic, careless ones. Detection cannot close this gap
+without an out-of-band secret — that's exactly what the HMAC fix above
+provides and this audit log does not. Do not treat "detection shipped" as
+license to deprioritize it.
 
 ## P0 — Rate limiting is enforced only in application code, not at the database layer
 
