@@ -137,6 +137,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               src={project.imageUrl}
               alt={project.title}
               fill
+              sizes="(max-width: 1023px) 100vw, 66vw"
               priority
               className="object-cover opacity-90"
             />

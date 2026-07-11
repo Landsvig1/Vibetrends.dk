@@ -95,7 +95,7 @@ export default function BlogList() {
                   src={post.imageUrl}
                   alt={post.title}
                   fill
-                  sizes="(max-w-7xl) 50vw, 100vw"
+                  sizes="(max-width: 767px) 100vw, 50vw"
                   priority={index === 0}
                   className="object-cover opacity-70 group-hover:scale-105 transition duration-500"
                 />

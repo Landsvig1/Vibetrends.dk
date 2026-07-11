@@ -385,7 +385,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   src={project.imageUrl}
                   alt={project.title}
                   fill
-                  sizes="(max-w-7xl) 33vw, 100vw"
+                  sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw"
                   priority={index < 2}
                   className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
                 />
