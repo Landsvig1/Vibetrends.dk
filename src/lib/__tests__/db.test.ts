@@ -948,6 +948,11 @@ describe("sanitizeSearchTerm (KTD3 injection resistance)", () => {
     expect(sanitizeSearchTerm("100%_test")).toBe("100test");
   });
 
+  it("strips backslashes to prevent ILIKE escape character bypasses", () => {
+    expect(sanitizeSearchTerm("foo\\bar")).toBe("foobar");
+    expect(sanitizeSearchTerm("foo\\")).toBe("foo");
+  });
+
   it("leaves ordinary alphanumeric and hyphen characters untouched", () => {
     expect(sanitizeSearchTerm("vibe-coding")).toBe("vibe-coding");
     expect(sanitizeSearchTerm("react")).toBe("react");

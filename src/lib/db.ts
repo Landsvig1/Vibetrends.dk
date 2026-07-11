@@ -374,7 +374,7 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
  * element-substring searches without a custom RPC or exact-element operators.
  */
 export function sanitizeSearchTerm(raw: string): string {
-  return raw.replace(/[,.()*%_]/g, '');
+  return raw.replace(/[,.()*%_\\]/g, '');
 }
 
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {

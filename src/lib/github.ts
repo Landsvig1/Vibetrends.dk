@@ -3,8 +3,10 @@
 // (tree/branch, blob/file, issues/N) since those are common copy-paste
 // sources users paste from their browser address bar.
 export function parseGithubRepoUrl(url: string): { owner: string; repo: string } | null {
-  const match = url.match(
-    /^https?:\/\/(?:www\.)?github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?(?:\/.*)?$/
+  // Strip any query parameters or hash fragments first to prevent parameter/fragment injection
+  const cleanUrl = url.split(/[?#]/)[0];
+  const match = cleanUrl.match(
+    /^https?:\/\/(?:www\.)?github\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_.]+?)(?:\.git)?(?:\/.*)?$/
   );
   if (!match) return null;
   const [, owner, repo] = match;
