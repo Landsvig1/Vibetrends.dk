@@ -1,0 +1,3 @@
+## 2026-07-11 - [O(N * M) nested-loop in getThreads forum hot path]
+**Learning:** In list views with related collections (such as forum threads and their replies), querying relations in bulk and joining them via nested `.filter()` inside a `.map()` creates an O(N * M) performance bottleneck. While SQL-side scoping limits the records, JS execution time still degrades quadratically as local threads and replies counts scale.
+**Action:** Use a linear-time Map/hash table lookup to group relational data (e.g., grouping replies by `thread_id` into a `Map` first) before mapping parents, achieving O(N + M) execution efficiency.
