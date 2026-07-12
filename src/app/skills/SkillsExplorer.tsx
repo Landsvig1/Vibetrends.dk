@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -219,7 +219,7 @@ export default function SkillsExplorer({
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
-  const handleUpvote = async (id: string) => {
+  const handleUpvote = useCallback(async (id: string) => {
     if (!user) {
       setLoginModalOpen(true);
       return;
@@ -244,7 +244,7 @@ export default function SkillsExplorer({
       onRollback: () => { setAllSkills(restore); setViewSkills(restore); },
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  };
+  }, [user, allSkills, viewSkills]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
