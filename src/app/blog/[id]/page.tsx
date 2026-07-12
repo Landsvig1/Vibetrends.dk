@@ -105,7 +105,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
             src={post.imageUrl}
             alt={post.title}
             fill
-            sizes="(max-w-3xl) 100vw, 800px"
+            sizes="(max-width: 767px) 100vw, 768px"
             priority
             className="object-cover opacity-80"
           />
