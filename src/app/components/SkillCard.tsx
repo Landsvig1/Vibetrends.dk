@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { Heart, Plug } from "lucide-react";
 import { motion } from "framer-motion";
@@ -28,7 +29,7 @@ const GithubIcon = ({ className }: { className?: string }) => (
  * hook of its own. The compact Connect affordance links to the detail page,
  * where the full host picker (ConnectBlock) lives.
  */
-export function SkillCard({
+function SkillCardComponent({
   skill,
   githubLabel,
   connectLabel = "Connect",
@@ -136,3 +137,10 @@ export function SkillCard({
     </div>
   );
 }
+
+/**
+ * Memoized version of the presentational SkillCard component.
+ * Eliminates unneeded re-renders when the parent component re-renders (e.g.,
+ * during active typing in search inputs).
+ */
+export const SkillCard = memo(SkillCardComponent);
