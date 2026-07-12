@@ -13,6 +13,27 @@ export function hashIp(ip: string): string {
 }
 
 /**
+ * Retrieve the client's real IP address from Vercel-specific or standard HTTP headers.
+ *
+ * Prefers `x-real-ip` (Vercel edge router IP) as it is not client-controlled,
+ * falling back to the last element of `x-forwarded-for` (which represents the
+ * direct client connection seen by Vercel edge) to prevent IP spoofing via a
+ * spoofed leading entry.
+ */
+export function getClientIp(request: Request): string {
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
+  return "unknown";
+}
+
+/**
  * Check whether `key` is within the allowed rate limit for the current window,
  * incrementing the counter atomically in the same round-trip.
  *

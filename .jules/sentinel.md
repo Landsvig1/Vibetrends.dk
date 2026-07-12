@@ -6,3 +6,8 @@
 **Prevention:**
 1. Always split or strip URL queries (`?`) and hash fragments (`#`) before performing regex parsing on URL paths.
 2. Apply strict character whitelists and length limits to matched segments before trusting them in downstream API requests (e.g., restricting GitHub owners to `/^[a-zA-Z0-9-]+$/` and max 39 characters, and repos to `/^[a-zA-Z0-9-_.]+$/` and max 100 characters).
+
+## 2026-07-10 - Proxy Endpoint Rate Limit Exhaustion and Denial of Service
+**Vulnerability:** Unauthenticated server-side proxy endpoints (such as `/api/github-meta`) that relay requests to third-party APIs (like GitHub) without client-side rate limiting are susceptible to quota/token exhaustion and Abuse/Denial of Service. Attackers can spam these routes to drain pool limits or API keys, disabling core application features for all other users.
+**Learning:** Proxy endpoints designed to keep third-party APIs out of browser CSP must have independent, server-side ingress control (such as IP-based rate limiting) to prevent cascading resource starvation or rate-limiting on upstream APIs.
+**Prevention:** Always bound unauthenticated proxy endpoints to tight IP-based sliding-window rate limits using local database-backed atomic operations (e.g. `checkRateLimit`) to prevent bad actors from abusing server egress budgets.

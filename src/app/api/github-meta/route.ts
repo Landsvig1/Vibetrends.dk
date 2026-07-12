@@ -1,9 +1,24 @@
 import { NextResponse } from "next/server";
 import { parseGithubRepoUrl } from "@/lib/github";
+import { checkRateLimit, hashIp, getClientIp } from "@/lib/rate-limit";
+
+const RATE_LIMIT = 30;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 // Server-side proxy for GitHub's public repo API. Keeps api.github.com out of
 // the browser's connect-src CSP — the client never talks to GitHub directly.
 export async function GET(request: Request) {
+  const ip = getClientIp(request);
+  const withinLimit = await checkRateLimit(
+    `githubmeta:${hashIp(ip)}`,
+    RATE_LIMIT,
+    RATE_LIMIT_WINDOW_SECONDS
+  );
+
+  if (!withinLimit) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url") || "";
 
@@ -36,7 +51,8 @@ export async function GET(request: Request) {
       { name: data.name, description: data.description },
       { headers: { "Cache-Control": "public, max-age=300" } }
     );
-  } catch {
+  } catch (error) {
+    console.error("API error:", error);
     return NextResponse.json({ error: "Failed to reach GitHub" }, { status: 502 });
   }
 }

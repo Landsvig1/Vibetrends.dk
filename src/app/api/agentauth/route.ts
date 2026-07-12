@@ -1,31 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { checkRateLimit, hashIp } from "@/lib/rate-limit";
+import { checkRateLimit, hashIp, getClientIp } from "@/lib/rate-limit";
 
 /** Token issuances per IP per window — the load-bearing cost control (KTD4).
  * Each issuance is a real Supabase anonymous auth.users row, which is
  * MAU-billed, so this bounds the rate of new rows, not just request volume. */
 const RATE_LIMIT = 5;
 const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
-
-// Vercel sets x-real-ip from the actual TCP connection — a client cannot
-// override it. x-forwarded-for is a client-appendable chain; the FIRST entry
-// is attacker-controlled (an attacker can freely set their own x-forwarded-for
-// header to defeat IP-based rate limiting), so if we must fall back to it,
-// only the LAST entry — appended by Vercel's own edge, not the client — is
-// trustworthy.
-function getClientIp(request: Request): string {
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
-    if (hops.length > 0) return hops[hops.length - 1];
-  }
-
-  return "unknown";
-}
 
 /**
  * Auto-provisions a Supabase anonymous identity and returns a bearer access
