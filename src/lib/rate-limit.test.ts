@@ -29,7 +29,7 @@ vi.mock('@/lib/supabase-server', () => ({
   },
 }));
 
-import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit, checkAgentWriteAllowed } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit, checkAgentWriteAllowed, enforceAgentWriteRateLimit } from '@/lib/rate-limit';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
@@ -193,5 +193,41 @@ describe('checkAgentWriteAllowed', () => {
     await checkAgentWriteAllowed('user-abc-123');
     expect(state.calledKeys).toEqual(['agentwrite:user-abc-123']);
     expect(state.calledKeys).not.toContain('agentwrite:global');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforceAgentWriteRateLimit
+//
+// The route-facing wrapper every write route calls. Exercised against the
+// real checkAgentWriteAllowed (via the mocked supabasePublic.rpc above), not
+// a mocked checkAgentWriteAllowed — this is the seam route tests now stub
+// out, so its own translation from boolean/throw to NextResponse/null is
+// only covered here.
+// ---------------------------------------------------------------------------
+
+describe('enforceAgentWriteRateLimit', () => {
+  it('returns null (proceed) when both budgets are within limit', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
+    const result = await enforceAgentWriteRateLimit('user-abc-123');
+    expect(result).toBeNull();
+  });
+
+  it('returns a 429 NextResponse when the write budget is exhausted', async () => {
+    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
+    const result = await enforceAgentWriteRateLimit('user-abc-123');
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(429);
+    const body = await result?.json();
+    expect(body.error).toBeDefined();
+  });
+
+  it('returns a 503 NextResponse instead of throwing when the underlying RPC fails', async () => {
+    state.rpcResponse = { data: null, error: { message: 'connection refused' } };
+    const result = await enforceAgentWriteRateLimit('user-abc-123');
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(503);
+    const body = await result?.json();
+    expect(body.error).toBeDefined();
   });
 });

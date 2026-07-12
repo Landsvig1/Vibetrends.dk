@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
 
 // Mock the data layer and Supabase server client so importing the route is
 // hermetic (no DB / env required during unit tests).
@@ -13,7 +14,7 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveRequestIdentity: vi.fn(),
 }));
 vi.mock("@/lib/rate-limit", () => ({
-  checkAgentWriteAllowed: vi.fn().mockResolvedValue(true),
+  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
@@ -22,7 +23,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteAllowed } from "@/lib/rate-limit";
+import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -258,7 +259,9 @@ describe("POST /api/blog — cache invalidation", () => {
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
     });
-    vi.mocked(checkAgentWriteAllowed).mockResolvedValueOnce(false);
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    );
 
     const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
     const body = await response.json();
@@ -268,12 +271,14 @@ describe("POST /api/blog — cache invalidation", () => {
     expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
   });
 
-  it("returns 503 (not 400) when checkAgentWriteAllowed itself throws, e.g. a rate-limiter RPC outage", async () => {
+  it("returns 503 (not 400) when the rate-limit check itself throws, e.g. a rate-limiter RPC outage", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue({
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
     });
-    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("Rate limit RPC failed: connection refused"));
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+    );
 
     const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
     const body = await response.json();
@@ -297,6 +302,6 @@ describe("POST /api/blog — cache invalidation", () => {
     const response = await POST(makeRequest(VALID_BODY));
 
     expect(response.status).toBe(201);
-    expect(vi.mocked(checkAgentWriteAllowed)).not.toHaveBeenCalled();
+    expect(vi.mocked(enforceAgentWriteRateLimit)).not.toHaveBeenCalled();
   });
 });

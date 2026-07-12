@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
 // U3 — Forum API route integration tests for actingAs / bearer-token path
@@ -38,14 +39,14 @@ vi.mock("@/lib/honeypot", () => ({
   validateHoneypot: () => true,
 }));
 
-// Mock rate-limit — always within budget unless a test overrides it.
+// Mock rate-limit — always within budget (proceed) unless a test overrides it.
 vi.mock("@/lib/rate-limit", () => ({
-  checkAgentWriteAllowed: vi.fn().mockResolvedValue(true),
+  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 
 import * as dbMod from "@/lib/db";
 import * as serverMod from "@/lib/supabase-server";
-import { checkAgentWriteAllowed } from "@/lib/rate-limit";
+import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import type { ActingAs } from "@/lib/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -226,17 +227,21 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
   it("returns 429 and skips upvoteThread once the write budget (identity or site-wide) is exhausted", async () => {
     const { identity } = makeBotIdentity("bot-upvote");
     resolveRequestIdentityMock.mockResolvedValue(identity);
-    vi.mocked(checkAgentWriteAllowed).mockResolvedValueOnce(false);
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    );
 
     const res = await threadUpvotePost(makeRequest({}), { params });
     expect(res.status).toBe(429);
     expect(dbMod.upvoteThread).not.toHaveBeenCalled();
   });
 
-  it("returns 503 (not an unhandled exception) when checkAgentWriteAllowed itself throws — this route has no top-level try/catch", async () => {
+  it("returns 503 (not an unhandled exception) when the rate-limit check itself throws — this route has no top-level try/catch", async () => {
     const { identity } = makeBotIdentity("bot-upvote");
     resolveRequestIdentityMock.mockResolvedValue(identity);
-    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("Rate limit RPC failed: connection refused"));
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+    );
 
     const res = await threadUpvotePost(makeRequest({}), { params });
     expect(res.status).toBe(503);

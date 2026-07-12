@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBlogPosts, getBlogPostById, createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteAllowed } from "@/lib/rate-limit";
+import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { validateHoneypot } from "@/lib/honeypot";
 import { z } from "zod";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
@@ -52,18 +52,8 @@ export async function POST(request: Request) {
     const { user, botAuth: actingAs } = identity;
 
     if (actingAs) {
-      let withinLimit: boolean;
-      try {
-        withinLimit = await checkAgentWriteAllowed(actingAs.user.id);
-      } catch {
-        // Distinguish a rate-limiter outage (503) from the outer catch's
-        // "malformed request body" (400) — a thrown RPC error here is not
-        // the caller's fault.
-        return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
-      }
-      if (!withinLimit) {
-        return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-      }
+      const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
+      if (rateLimited) return rateLimited;
     }
 
     const body = await request.json();

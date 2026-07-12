@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { NextResponse } from 'next/server';
 import { supabasePublic } from '@/lib/supabase-server';
 
 /**
@@ -95,4 +96,28 @@ export async function checkAgentWriteAllowed(userId: string): Promise<boolean> {
   const withinIdentityLimit = await checkAgentWriteRateLimit(userId);
   if (!withinIdentityLimit) return false;
   return checkGlobalAgentWriteRateLimit();
+}
+
+/** REST write routes' single entry point for the agent-write cost-control
+ * ceiling: `if (actingAs) { const blocked = await enforceAgentWriteRateLimit(actingAs.user.id); if (blocked) return blocked; }`
+ * Was previously the same 8-line try/catch copy-pasted into every write
+ * route — centralized here so a future write route can't add itself
+ * without the guard, and so the two failure responses (503 on RPC error,
+ * 429 on limit exceeded) can't drift between routes the way the mcp route's
+ * inline copy already had.
+ *
+ * @returns The `NextResponse` to return immediately if the caller is
+ *          rate-limited or the check itself failed; `null` if the caller is
+ *          within budget and the route should proceed. */
+export async function enforceAgentWriteRateLimit(userId: string): Promise<NextResponse | null> {
+  let withinLimit: boolean;
+  try {
+    withinLimit = await checkAgentWriteAllowed(userId);
+  } catch {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
+  if (!withinLimit) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+  return null;
 }
