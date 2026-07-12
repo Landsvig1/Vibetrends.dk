@@ -475,9 +475,20 @@ export async function POST(request: Request) {
 
         // Cost-control ceiling — only applies to bearer-token (agent) callers,
         // not cookie-authenticated humans. Checks both the per-identity and
-        // site-wide budgets; see checkAgentWriteAllowed's doc.
-        if (actingAs && !(await checkAgentWriteAllowed(actingAs.user.id))) {
-          return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
+        // site-wide budgets; see checkAgentWriteAllowed's doc. Caught locally
+        // (like the REST write routes) so an RPC failure maps to the same
+        // SERVICE_UNAVAILABLE signal instead of falling through to the
+        // generic INTERNAL_ERROR catch below.
+        if (actingAs) {
+          let withinLimit: boolean;
+          try {
+            withinLimit = await checkAgentWriteAllowed(actingAs.user.id);
+          } catch {
+            return rpcError(id, SERVICE_UNAVAILABLE_ERROR, "Service unavailable");
+          }
+          if (!withinLimit) {
+            return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
+          }
         }
       }
 

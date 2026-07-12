@@ -304,6 +304,28 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     expect(db.createSkill).not.toHaveBeenCalled();
   });
 
+  it("returns a distinct SERVICE_UNAVAILABLE error when the rate-limit check itself throws, without calling the underlying mutation", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("rpc failure"));
+
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 56,
+        method: "tools/call",
+        params: {
+          name: "submit_skill",
+          arguments: { title: "New Skill", category: "backend-data", githubUrl: "https://github.com/x/y" },
+        },
+      })
+    );
+    const body = await res.json();
+
+    expect(body.error).toBeDefined();
+    expect(body.error.code).toBe(-32002);
+    expect(db.createSkill).not.toHaveBeenCalled();
+  });
+
   it("upvote_thread with a valid identity succeeds", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
     const res = await POST(
