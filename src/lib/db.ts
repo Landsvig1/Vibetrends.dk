@@ -694,8 +694,21 @@ export async function getThreads({
     .order('created_at', { ascending: true });
   if (replyErr) return [];
 
+  // Bolt Optimization ⚡: Group replies by thread_id into a Map.
+  // This reduces the previous O(N * M) nested-loop lookup inside threads.map()
+  // to a highly efficient O(N + M) linear-time execution.
+  const repliesByThreadId = new Map<string, ReplyRow[]>();
+  for (const r of (replies || [])) {
+    let group = repliesByThreadId.get(r.thread_id);
+    if (!group) {
+      group = [];
+      repliesByThreadId.set(r.thread_id, group);
+    }
+    group.push(r);
+  }
+
   return threads.map(t => {
-    const threadReplies = (replies || []).filter(r => r.thread_id === t.id);
+    const threadReplies = repliesByThreadId.get(t.id) || [];
     return mapThread(t, threadReplies, lang);
   });
 }
