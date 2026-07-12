@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const signInAnonymously = vi.fn();
+const { signInAnonymously } = vi.hoisted(() => ({
+  signInAnonymously: vi.fn(),
+}));
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(() => ({
@@ -11,6 +13,18 @@ vi.mock("@supabase/supabase-js", () => ({
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
   hashIp: vi.fn((ip: string) => `hashed:${ip}`),
+  getClientIp: vi.fn((request: Request) => {
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp.trim();
+
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    if (forwardedFor) {
+      const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
+      if (hops.length > 0) return hops[hops.length - 1];
+    }
+
+    return "unknown";
+  }),
 }));
 
 import { POST } from "@/app/api/agentauth/route";
