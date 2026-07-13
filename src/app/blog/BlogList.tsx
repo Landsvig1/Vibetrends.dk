@@ -1,13 +1,38 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { BookOpen, Clock, Calendar, User, Search, Trash2 } from "lucide-react";
+import { BookOpen, Clock, Search, Trash2, Layers, Cpu, Grid } from "lucide-react";
 import { BlogPost } from "@/lib/db";
 import { useLanguage } from "../components/LanguageProvider";
 import { useAuth } from "../components/AuthProvider";
+
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case "Guides":
+      return <BookOpen className="h-4.5 w-4.5 text-accent-primary" />;
+    case "Workflow":
+      return <Layers className="h-4.5 w-4.5 text-violet-600" />;
+    case "Industry":
+      return <Cpu className="h-4.5 w-4.5 text-emerald-600" />;
+    default:
+      return <BookOpen className="h-4.5 w-4.5 text-accent-primary" />;
+  }
+};
+
+const getCategoryFilterIcon = (category: string) => {
+  switch (category) {
+    case "All":
+      return <Grid className="h-3.5 w-3.5" />;
+    case "Guides":
+      return <BookOpen className="h-3.5 w-3.5" />;
+    case "Workflow":
+      return <Layers className="h-3.5 w-3.5" />;
+    case "Industry":
+      return <Cpu className="h-3.5 w-3.5" />;
+    default:
+      return <Grid className="h-3.5 w-3.5" />;
+  }
+};
 
 export default function BlogList() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -89,78 +114,80 @@ export default function BlogList() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer snap-center shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer snap-center shrink-0 ${
                 selectedCategory === cat
-                  ? "bg-violet-600 text-white font-extrabold shadow-md shadow-violet-500/20"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                  ? "bg-accent-primary text-white font-bold border border-accent-primary shadow-sm"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border/50 hover:text-foreground"
               }`}
             >
-              {cat === "All" ? (language === "da" ? "Alle" : "All") : cat}
+              {getCategoryFilterIcon(cat)}
+              <span>{cat === "All" ? (language === "da" ? "Alle" : "All") : cat}</span>
             </button>
           ))}
         </div>
       </div>
 
       {filteredPosts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {filteredPosts.map((post, index) => (
-            <Link
-              key={post.id}
-              href={`/blog/${post.id}`}
-              className="rounded-xl glass-card overflow-hidden flex flex-col justify-between group h-full"
-            >
-              <div className="h-56 relative bg-background overflow-hidden">
-                <Image
-                  src={post.imageUrl}
-                  alt={post.title}
-                  fill
-                  sizes="(max-w-7xl) 50vw, 100vw"
-                  priority={index === 0}
-                  className="object-cover opacity-70 group-hover:scale-105 transition duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+        <div className="relative pl-0 md:pl-8 py-2">
+          {/* Vertical timeline line */}
+          <div className="hidden absolute inset-y-2 left-[20px] w-px bg-card-border md:block"></div>
 
-                {user?.isAdmin && (
-                  <button
-                    onClick={(e) => handleDeletePost(post.id, e)}
-                    aria-label={t("blog.confirm_delete")}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
+          <div className="flex flex-col gap-6">
+            {filteredPosts.map((post) => (
+              <Link
+                key={post.id}
+                href={`/blog/${post.id}`}
+                className="flex gap-4 items-start relative group rounded-xl p-4 -mx-4 hover:bg-accent-light/50 transition-all duration-300"
+              >
+                {/* Category Icon (Timeline Node) */}
+                <div className="relative z-10 shrink-0 w-10 h-10 rounded-lg border border-card-border bg-card-bg flex items-center justify-center text-text-secondary group-hover:bg-accent-light group-hover:border-accent-primary/20 transition-all duration-300 hidden md:flex">
+                  {getCategoryIcon(post.category)}
+                </div>
 
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-text-secondary">
-                    <span className="font-semibold text-accent-primary">{post.category}</span>
+                {/* Content Area */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-accent-primary md:hidden">
+                    {post.category}
+                  </div>
+
+                  <h3 className="text-lg sm:text-xl font-bold text-foreground group-hover:text-accent-primary transition-colors leading-snug">
+                    {post.title}
+                  </h3>
+
+                  <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed max-w-3xl">
+                    {post.excerpt}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary pt-1">
+                    <div className="flex items-center gap-1.5 font-medium text-foreground">
+                      <div className="w-5 h-5 rounded-full bg-accent-light text-accent-primary font-bold text-[10px] flex items-center justify-center border border-accent-primary/10 select-none">
+                        {post.author.charAt(0).toUpperCase()}
+                      </div>
+                      <span>{post.author}</span>
+                    </div>
+                    <span className="text-card-border">•</span>
+                    <span>{post.publishedAt}</span>
+                    <span className="text-card-border">•</span>
                     <span className="flex items-center">
                       <Clock className="h-3.5 w-3.5 mr-1" />
                       {post.readTime}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-foreground group-hover:text-accent-primary transition-colors leading-snug">
-                    {post.title}
-                  </h3>
-                  <p className="text-sm text-text-secondary line-clamp-3 leading-relaxed pt-1">
-                    {post.excerpt}
-                  </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-card-border text-xs text-text-secondary">
-                  <div className="flex items-center space-x-1">
-                    <User className="h-3.5 w-3.5 text-text-secondary" />
-                    <span>{t("blog.detail.author")} {post.author}</span>
-                  </div>
-                  <span className="flex items-center">
-                    <Calendar className="h-3.5 w-3.5 mr-1 text-text-secondary" />
-                    {post.publishedAt}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+                {/* Admin delete button */}
+                {user?.isAdmin && (
+                  <button
+                    onClick={(e) => handleDeletePost(post.id, e)}
+                    aria-label={t("blog.confirm_delete")}
+                    className="flex items-center justify-center p-1.5 rounded-lg bg-card-bg border border-card-border hover:bg-red-50 hover:border-red-200 text-text-secondary hover:text-red-600 transition cursor-pointer shrink-0 z-20"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
+              </Link>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
