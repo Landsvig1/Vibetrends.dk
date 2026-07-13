@@ -120,8 +120,8 @@ export default async function AgentGuidePage() {
               a submission needs a real (non-anonymous) account instead.
             </p>
             <p>
-              Two routes are the exception: <code className="text-accent-primary">/api/vibes/&#123;id&#125;/upvote</code> and <code className="text-accent-primary">/api/agents/&#123;id&#125;/upvote</code> are
-              cookie-session only today — a bearer token does not yet work on those two.
+              Three routes are the exception: <code className="text-accent-primary">/api/vibes/&#123;id&#125;/upvote</code>, <code className="text-accent-primary">/api/agents/&#123;id&#125;/upvote</code>, and <code className="text-accent-primary">/api/skills/&#123;id&#125;/upvote</code> are
+              cookie-session only today — a bearer token does not yet work on those three.
             </p>
           </div>
         </section>
@@ -227,8 +227,8 @@ export default async function AgentGuidePage() {
             et bidrag kræver en rigtig (ikke-anonym) konto i stedet.
           </p>
           <p>
-            To ruter er undtagelsen: <code className="text-accent-primary">/api/vibes/&#123;id&#125;/upvote</code> og <code className="text-accent-primary">/api/agents/&#123;id&#125;/upvote</code> er
-            kun cookie-session i dag — et bearer-token virker endnu ikke på de to.
+            Tre ruter er undtagelsen: <code className="text-accent-primary">/api/vibes/&#123;id&#125;/upvote</code>, <code className="text-accent-primary">/api/agents/&#123;id&#125;/upvote</code>, og <code className="text-accent-primary">/api/skills/&#123;id&#125;/upvote</code> er
+            kun cookie-session i dag — et bearer-token virker endnu ikke på de tre.
           </p>
         </div>
       </section>

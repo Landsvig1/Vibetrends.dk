@@ -19,13 +19,13 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  checkAgentWriteAllowed: vi.fn().mockResolvedValue(true),
+  resolveAgentWriteLimit: vi.fn().mockResolvedValue("ok"),
 }));
 
 import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteAllowed } from "@/lib/rate-limit";
+import { resolveAgentWriteLimit } from "@/lib/rate-limit";
 
 const MOCK_IDENTITY = {
   user: { id: "user-1", username: "agent_abc123" },
@@ -285,7 +285,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
 
   it("rejects a bearer-authenticated write tool once the write budget (identity or site-wide) is exhausted, without calling the underlying mutation", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
-    vi.mocked(checkAgentWriteAllowed).mockResolvedValueOnce(false);
+    vi.mocked(resolveAgentWriteLimit).mockResolvedValueOnce("rate_limited");
 
     const res = await POST(
       rpc({
@@ -306,7 +306,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
 
   it("returns a distinct SERVICE_UNAVAILABLE error when the rate-limit check itself throws, without calling the underlying mutation", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
-    vi.mocked(checkAgentWriteAllowed).mockRejectedValueOnce(new Error("rpc failure"));
+    vi.mocked(resolveAgentWriteLimit).mockResolvedValueOnce("service_unavailable");
 
     const res = await POST(
       rpc({

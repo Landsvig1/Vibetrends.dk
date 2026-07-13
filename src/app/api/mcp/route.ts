@@ -16,7 +16,7 @@ import {
   type ActingAs,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkAgentWriteAllowed } from "@/lib/rate-limit";
+import { resolveAgentWriteLimit } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
@@ -475,18 +475,15 @@ export async function POST(request: Request) {
 
         // Cost-control ceiling — only applies to bearer-token (agent) callers,
         // not cookie-authenticated humans. Checks both the per-identity and
-        // site-wide budgets; see checkAgentWriteAllowed's doc. Caught locally
-        // (like the REST write routes) so an RPC failure maps to the same
-        // SERVICE_UNAVAILABLE signal instead of falling through to the
-        // generic INTERNAL_ERROR catch below.
+        // site-wide budgets; shares its 503-vs-429 classification and error
+        // logging with the REST write routes' enforceAgentWriteRateLimit via
+        // resolveAgentWriteLimit, so the two can't drift.
         if (actingAs) {
-          let withinLimit: boolean;
-          try {
-            withinLimit = await checkAgentWriteAllowed(actingAs.user.id);
-          } catch {
+          const outcome = await resolveAgentWriteLimit(actingAs.user.id);
+          if (outcome === "service_unavailable") {
             return rpcError(id, SERVICE_UNAVAILABLE_ERROR, "Service unavailable");
           }
-          if (!withinLimit) {
+          if (outcome === "rate_limited") {
             return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
           }
         }
