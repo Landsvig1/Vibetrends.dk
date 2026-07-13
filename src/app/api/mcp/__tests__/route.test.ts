@@ -18,7 +18,7 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveRequestIdentity: vi.fn(),
 }));
 
-import { POST, GET } from "@/app/api/mcp/route";
+import { POST, GET, _mcpRateLimitMap } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 
@@ -37,6 +37,7 @@ function rpc(payload: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  _mcpRateLimitMap.clear();
 });
 
 describe("GET /api/mcp (discovery)", () => {
@@ -535,5 +536,51 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
       rpc({ jsonrpc: "2.0", id: 61, method: "tools/call", params: { name: "search_skills", arguments: {} } })
     );
     expect((await searchRes.json()).result.content[0].type).toBe("text");
+  });
+});
+
+describe("POST /api/mcp — local rate limiting", () => {
+  function rpcWithIp(payload: unknown, ip: string) {
+    return new Request("http://localhost/api/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-real-ip": ip,
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  it("allows up to 60 requests within 1 minute for a single IP", async () => {
+    const ip = "1.2.3.4";
+    for (let i = 0; i < 60; i++) {
+      const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: i, method: "initialize" }, ip));
+      expect(res.status).toBe(200);
+    }
+
+    // The 61st request should be rejected with 429
+    const blockedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 60, method: "initialize" }, ip));
+    expect(blockedRes.status).toBe(429);
+    const body = await blockedRes.json();
+    expect(body.error).toBe("Too many requests");
+  });
+
+  it("applies rate limits independently to different IPs", async () => {
+    const ip1 = "11.22.33.44";
+    const ip2 = "55.66.77.88";
+
+    // Hit the limit for ip1
+    for (let i = 0; i < 60; i++) {
+      const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: i, method: "initialize" }, ip1));
+      expect(res.status).toBe(200);
+    }
+
+    // ip1 is blocked
+    const blockedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 60, method: "initialize" }, ip1));
+    expect(blockedRes.status).toBe(429);
+
+    // ip2 can still make requests successfully
+    const allowedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 100, method: "initialize" }, ip2));
+    expect(allowedRes.status).toBe(200);
   });
 });
