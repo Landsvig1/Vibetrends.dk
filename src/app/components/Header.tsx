@@ -303,20 +303,6 @@ export default function Header() {
             );
           })}
 
-          {/* Mobile Primary CTA */}
-          <div className="pt-2 pb-1">
-            <Link
-              href="/vibes"
-              prefetch={false}
-              transitionTypes={["nav-forward"]}
-              onClick={() => setMobileMenuOpen(false)}
-              className="btn-primary flex items-center justify-center gap-1.5 text-sm w-full py-2.5"
-            >
-              <Sparkles className="h-4 w-4" />
-              {t("btn.showcase_project")}
-            </Link>
-          </div>
-
           {/* Mobile Language Toggle */}
           <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
             <span id="mobile-lang-label" className="text-xs font-semibold text-text-secondary">Sprog / Language</span>

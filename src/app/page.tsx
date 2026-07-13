@@ -69,7 +69,7 @@ async function HomeContent() {
           {t("home.hero_desc")}
         </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-4">
+        <div className="mt-6 hidden sm:flex flex-wrap justify-center gap-4">
           <Link
             href="/vibes"
             className="btn-primary"
@@ -95,7 +95,7 @@ async function HomeContent() {
 
         <Link
           href="/about"
-          className="mt-4 inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
+          className="mt-4 hidden sm:inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
         >
           <Info className="mr-1.5 h-3.5 w-3.5" />
           {t("home.btn_about")}
