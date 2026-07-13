@@ -21,6 +21,10 @@ import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
+import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
+
+const RATE_LIMIT_LIMIT = 60;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -407,6 +411,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const withinLimit = await checkRateLimit(
+    `mcp:${hashIp(ip)}`,
+    RATE_LIMIT_LIMIT,
+    RATE_LIMIT_WINDOW_SECONDS
+  );
+  if (!withinLimit) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
