@@ -8,6 +8,7 @@ import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, Trendi
 import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "../components/LanguageProvider";
 import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
@@ -161,13 +162,13 @@ export default function ForumExplorer({
   const searchActive = search.trim() !== "";
 
   // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
-  // Danish contributors, Denmark-specific threads first — same pattern as
+  // Danish contributors, ranked by upvotes — same pattern as
   // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
   const viewThreads =
     view === "danish"
       ? [...threads]
           .filter((t) => t.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+          .sort((a, b) => b.upvotes - a.upvotes)
       : threads;
 
   const filteredThreads = filterThreads(viewThreads, search);
@@ -424,7 +425,7 @@ export default function ForumExplorer({
                             {timeAgo(thread.createdAt, language)}
                           </span>
 
-                          {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
+                          {canDelete(user, thread.author, (a) => a.startsWith("vibecoder_")) && (
                             <motion.button
                               whileHover={{ scale: 1.1, color: "#ef4444" }}
                               whileTap={{ scale: 0.9 }}

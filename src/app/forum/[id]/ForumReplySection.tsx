@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trash2, Send, MessageSquare, Heart } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
@@ -104,7 +105,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
           <div className="space-y-4">
             {thread.replies.map((reply) => (
               <div key={reply.id} className="rounded-xl bg-background border border-card-border p-5 space-y-4 relative group/reply animate-in slide-in-from-bottom-2 duration-300">
-                {user && (reply.author === user.username || reply.author.startsWith("vibecoder_")) && (
+                {canDelete(user, reply.author, (a) => a.startsWith("vibecoder_")) && (
                   <button
                     onClick={() => handleDeleteReply(reply.id)}
                     className="absolute top-4 right-4 flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary transition opacity-0 group-hover/reply:opacity-100 focus-visible:opacity-100"

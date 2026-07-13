@@ -7,6 +7,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "./EmptyState";
@@ -255,14 +256,14 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
   // Search overrides the view (same contract as the /skills tabs). The server
   // returns the list upvotes-desc, which IS the Hot order; Dansk filters to
-  // Danish contributors with Denmark-specific tools first; Alle is the full
-  // catalog alphabetically.
+  // Danish contributors, ranked by upvotes; Alle is the full catalog
+  // alphabetically.
   const viewAgents = searchActive
     ? agents
     : view === "danish"
       ? [...agents]
           .filter((a) => a.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific))
+          .sort((a, b) => b.upvotes - a.upvotes)
       : view === "all"
         ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
         : agents;
@@ -382,7 +383,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                           {categoryIcons[agent.category as keyof typeof categoryIcons]}
                           {agent.category}
                         </div>
-                        {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
+                        {canDelete(user, agent.developer, (a) => a.startsWith("vibecoder_")) && (
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}

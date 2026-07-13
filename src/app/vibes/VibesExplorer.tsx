@@ -5,6 +5,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import { Search, Code, PlusCircle, CheckCircle2, Sparkles, X, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
+import { canDelete } from "@/lib/permissions";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import { ProjectCard } from "../components/ProjectCard";
@@ -188,14 +189,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
   // Search overrides the view (same contract as the /skills, /cli, /mcp, and
   // /agents tabs). The base fetch is already upvotes-desc (sort=top), which
-  // IS the Hot order; Dansk filters to Danish contributors with
-  // Denmark-specific projects first; Alle is the full catalog alphabetically.
+  // IS the Hot order; Dansk filters to Danish contributors, ranked by
+  // upvotes; Alle is the full catalog alphabetically.
   const viewProjects = searchActive
     ? projects
     : view === "danish"
       ? [...projects]
           .filter((p) => p.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+          .sort((a, b) => b.upvotes - a.upvotes)
       : view === "all"
         ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
         : projects;
@@ -365,13 +366,13 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           }`}
         >
           {filteredProjects.map((project, index) => {
-            const canDelete = !!(user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym"));
+            const canDeleteProject = canDelete(user, project.author, (a) => a === "Dig (Vibe Coder)" || a === "Anonym");
             return (
               <ProjectCard
                 key={project.id}
                 project={project}
                 isPriority={index < 2}
-                canDelete={canDelete}
+                canDelete={canDeleteProject}
                 confirmDeleteLabel={t("showcase.detail.confirm_delete")}
                 detailsLabel={t("showcase.details")}
                 onDelete={handleDeleteProject}

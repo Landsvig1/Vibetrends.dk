@@ -241,14 +241,13 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
 
-  it("view=danish filters to is_danish=true, sorts denmark_specific first then upvotes", async () => {
+  it("view=danish filters to is_danish=true, sorts by upvotes", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills(undefined, undefined, "da", "danish");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
     const orders = call.filters.filter((f) => f[0] === "order");
     expect(orders).toEqual([
-      ["order", "denmark_specific", { ascending: false }],
       ["order", "upvotes", { ascending: false }],
     ]);
   });
@@ -897,13 +896,13 @@ describe("homepage-optimized reads", () => {
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
-  it("getTopSkills features danish skills, denmark-specific first, and limits", async () => {
+  it("getTopSkills features danish skills ranked by upvotes, and limits", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     const res = await db.getTopSkills(1, "da");
     expect(res).toHaveLength(1);
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
-    expect(call.filters).toContainEqual(["order", "denmark_specific", { ascending: false }]);
+    expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
@@ -2013,7 +2012,7 @@ describe("U4 — createBlogPost", () => {
     const blogRow = {
       id: 'b_mock', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E',
       content_da: 'C', content_en: 'C', author: 'agent_abc', read_time: '4 min',
-      published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Industry',
+      published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Agents',
     };
     const { actingAs, calls } = makeActingAsMock('bot-uid-blog', (ops) => {
       if (ops.method === 'insert') return { data: blogRow, error: null };
@@ -2022,7 +2021,7 @@ describe("U4 — createBlogPost", () => {
 
     const result = await db.createBlogPost(
       'T', 'E', 'C', 'agent_abc', '4 min', '2026-07-10',
-      'https://images.unsplash.com/x.jpg', 'Industry', actingAs
+      'https://images.unsplash.com/x.jpg', 'Agents', actingAs
     );
 
     expect(state.serverCalls.length).toBe(0);
