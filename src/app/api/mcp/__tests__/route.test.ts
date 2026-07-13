@@ -18,9 +18,27 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveRequestIdentity: vi.fn(),
 }));
 
-import { POST, GET, _mcpRateLimitMap } from "@/app/api/mcp/route";
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(),
+  hashIp: vi.fn((ip: string) => `hashed:${ip}`),
+  getClientIp: vi.fn((request: Request) => {
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp.trim();
+
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    if (forwardedFor) {
+      const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
+      if (hops.length > 0) return hops[hops.length - 1];
+    }
+
+    return "unknown";
+  }),
+}));
+
+import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const MOCK_IDENTITY = {
   user: { id: "user-1", username: "agent_abc123" },
@@ -37,7 +55,7 @@ function rpc(payload: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  _mcpRateLimitMap.clear();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
 });
 
 describe("GET /api/mcp (discovery)", () => {
@@ -539,7 +557,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
   });
 });
 
-describe("POST /api/mcp — local rate limiting", () => {
+describe("POST /api/mcp — rate limiting", () => {
   function rpcWithIp(payload: unknown, ip: string) {
     return new Request("http://localhost/api/mcp", {
       method: "POST",
@@ -551,36 +569,20 @@ describe("POST /api/mcp — local rate limiting", () => {
     });
   }
 
-  it("allows up to 60 requests within 1 minute for a single IP", async () => {
-    const ip = "1.2.3.4";
-    for (let i = 0; i < 60; i++) {
-      const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: i, method: "initialize" }, ip));
-      expect(res.status).toBe(200);
-    }
+  it("checks rate limit using the correct hashed key", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
 
-    // The 61st request should be rejected with 429
-    const blockedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 60, method: "initialize" }, ip));
-    expect(blockedRes.status).toBe(429);
-    const body = await blockedRes.json();
-    expect(body.error).toBe("Too many requests");
+    const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: 1, method: "initialize" }, "1.2.3.4"));
+    expect(res.status).toBe(200);
+    expect(checkRateLimit).toHaveBeenCalledWith("mcp:hashed:1.2.3.4", 60, 60);
   });
 
-  it("applies rate limits independently to different IPs", async () => {
-    const ip1 = "11.22.33.44";
-    const ip2 = "55.66.77.88";
+  it("returns 429 when rate limit is exceeded", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
 
-    // Hit the limit for ip1
-    for (let i = 0; i < 60; i++) {
-      const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: i, method: "initialize" }, ip1));
-      expect(res.status).toBe(200);
-    }
-
-    // ip1 is blocked
-    const blockedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 60, method: "initialize" }, ip1));
-    expect(blockedRes.status).toBe(429);
-
-    // ip2 can still make requests successfully
-    const allowedRes = await POST(rpcWithIp({ jsonrpc: "2.0", id: 100, method: "initialize" }, ip2));
-    expect(allowedRes.status).toBe(200);
+    const res = await POST(rpcWithIp({ jsonrpc: "2.0", id: 1, method: "initialize" }, "1.2.3.4"));
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error).toBe("Too many requests");
   });
 });

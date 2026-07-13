@@ -20,34 +20,10 @@ import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
-import { getClientIp, hashIp } from "@/lib/rate-limit";
-import { LRUCache } from "lru-cache";
+import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
 
 const RATE_LIMIT_LIMIT = 60;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const mcpRateLimitMap = new LRUCache<string, number[]>({
-  max: 1000,
-  ttl: RATE_LIMIT_WINDOW_MS,
-});
-
-// Exported for testing state isolation
-export const _mcpRateLimitMap = mcpRateLimitMap;
-
-function checkMcpRateLimit(ip: string): boolean {
-  const hashed = hashIp(ip);
-  const now = Date.now();
-
-  const timestamps = mcpRateLimitMap.get(hashed) || [];
-  const activeTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-
-  if (activeTimestamps.length >= RATE_LIMIT_LIMIT) {
-    return false;
-  }
-
-  activeTimestamps.push(now);
-  mcpRateLimitMap.set(hashed, activeTimestamps);
-  return true;
-}
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
@@ -434,7 +410,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  if (!checkMcpRateLimit(ip)) {
+  const withinLimit = await checkRateLimit(
+    `mcp:${hashIp(ip)}`,
+    RATE_LIMIT_LIMIT,
+    RATE_LIMIT_WINDOW_SECONDS
+  );
+  if (!withinLimit) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

@@ -14,5 +14,5 @@
 
 ## 2026-07-10 - CPU-Bound Pruning Logic in In-Memory Rate Limiting (Self-Inflicted DoS)
 **Vulnerability:** In-memory sliding-window rate limiters can introduce severe CPU bottlenecks if the map of keys is pruned manually via full iteration `O(N)` on every request when the size exceeds a certain threshold. Under high load, this O(N) traversal blocks the Node.js single-threaded event loop, leading to a self-inflicted Denial of Service (DoS) even under normal or moderate traffic volumes.
-**Learning:** Manual cache eviction and timing-based filtering are inefficient and prone to timing/CPU exhaustion. When implementing in-memory limiters, always delegate eviction and storage management to optimized, O(1) structures.
-**Prevention:** Use existing robust and highly optimized caching libraries (like `lru-cache`) to handle both maximum item constraint and timing-based eviction (`max` and `ttl`) automatically and in O(1) time complexity.
+**Learning:** Manual cache eviction and timing-based filtering are inefficient and prone to timing/CPU exhaustion. Additionally, in serverless environments (like Vercel), in-memory states are isolated and not shared across serverless instances, yielding weaker protection.
+**Prevention:** Always bound unauthenticated public or proxy endpoints to tight IP-based sliding-window rate limits using local database-backed atomic operations (such as the project's existing `checkRateLimit` helper) to prevent bad actors from bypassing limits across serverless instances.
