@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Code, PlusCircle, CheckCircle2, X, Flag, Flame } from "lucide-react";
+import { Search, Code, PlusCircle, CheckCircle2, Sparkles, X, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
@@ -434,7 +434,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
                     {t("showcase.modal.badge")}
                   </span>
                   <h3 className="text-lg font-bold text-foreground mt-1">{t("showcase.modal.title")}</h3>
@@ -494,7 +494,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   type="submit"
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
                 >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  <Sparkles className="h-4 w-4 mr-2" />
                   {t("showcase.modal.btn_submit")}
                 </button>
               </form>
