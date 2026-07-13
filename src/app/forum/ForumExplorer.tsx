@@ -162,13 +162,13 @@ export default function ForumExplorer({
   const searchActive = search.trim() !== "";
 
   // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
-  // Danish contributors, Denmark-specific threads first — same pattern as
+  // Danish contributors, ranked by upvotes — same pattern as
   // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
   const viewThreads =
     view === "danish"
       ? [...threads]
           .filter((t) => t.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+          .sort((a, b) => b.upvotes - a.upvotes)
       : threads;
 
   const filteredThreads = filterThreads(viewThreads, search);

@@ -191,14 +191,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
   // Search overrides the view (same contract as the /skills, /cli, /mcp, and
   // /agents tabs). The base fetch is already upvotes-desc (sort=top), which
-  // IS the Hot order; Dansk filters to Danish contributors with
-  // Denmark-specific projects first; Alle is the full catalog alphabetically.
+  // IS the Hot order; Dansk filters to Danish contributors, ranked by
+  // upvotes; Alle is the full catalog alphabetically.
   const viewProjects = searchActive
     ? projects
     : view === "danish"
       ? [...projects]
           .filter((p) => p.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+          .sort((a, b) => b.upvotes - a.upvotes)
       : view === "all"
         ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
         : projects;

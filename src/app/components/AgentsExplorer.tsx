@@ -256,18 +256,14 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
   // Search overrides the view (same contract as the /skills tabs). The server
   // returns the list upvotes-desc, which IS the Hot order; Dansk filters to
-  // Danish contributors with Denmark-specific tools first; Alle is the full
-  // catalog alphabetically.
+  // Danish contributors, ranked by upvotes; Alle is the full catalog
+  // alphabetically.
   const viewAgents = searchActive
     ? agents
     : view === "danish"
       ? [...agents]
           .filter((a) => a.isDanish)
-          .sort(
-            (a, b) =>
-              Number(b.denmarkSpecific) - Number(a.denmarkSpecific) ||
-              b.upvotes - a.upvotes,
-          )
+          .sort((a, b) => b.upvotes - a.upvotes)
       : view === "all"
         ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
         : agents;

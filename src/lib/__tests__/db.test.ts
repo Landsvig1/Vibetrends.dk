@@ -241,14 +241,13 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
   });
 
-  it("view=danish filters to is_danish=true, sorts denmark_specific first then upvotes", async () => {
+  it("view=danish filters to is_danish=true, sorts by upvotes", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills(undefined, undefined, "da", "danish");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
     const orders = call.filters.filter((f) => f[0] === "order");
     expect(orders).toEqual([
-      ["order", "denmark_specific", { ascending: false }],
       ["order", "upvotes", { ascending: false }],
     ]);
   });
@@ -897,13 +896,13 @@ describe("homepage-optimized reads", () => {
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 
-  it("getTopSkills features danish skills, denmark-specific first, and limits", async () => {
+  it("getTopSkills features danish skills ranked by upvotes, and limits", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     const res = await db.getTopSkills(1, "da");
     expect(res).toHaveLength(1);
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "is_danish", true]);
-    expect(call.filters).toContainEqual(["order", "denmark_specific", { ascending: false }]);
+    expect(call.filters).toContainEqual(["order", "upvotes", { ascending: false }]);
     expect(call.filters).toContainEqual(["limit", 1]);
   });
 

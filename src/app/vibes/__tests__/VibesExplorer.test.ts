@@ -350,14 +350,14 @@ describe("view-tab switching contract (Dansk/Alle/Hot)", () => {
     expect(danishOnly.map((p) => p.id)).toEqual(["p1"]);
   });
 
-  it("Dansk view sorts denmarkSpecific first, then by upvotes", () => {
+  it("Dansk view sorts by upvotes, ignoring denmarkSpecific", () => {
     const withDenmarkSpecific = [
       { ...danishProject, isDanish: true, denmarkSpecific: false, upvotes: 10 },
       { ...danishProject, id: "p3", isDanish: true, denmarkSpecific: true, upvotes: 1 },
     ];
     const sorted = withDenmarkSpecific
       .filter((p) => p.isDanish)
-      .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes);
-    expect(sorted[0].id).toBe("p3");
+      .sort((a, b) => b.upvotes - a.upvotes);
+    expect(sorted[0].id).toBe("p1");
   });
 });
