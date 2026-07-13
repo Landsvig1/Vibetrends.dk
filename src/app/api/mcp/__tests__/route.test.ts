@@ -273,7 +273,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
             readTime: "4 min",
             publishedAt: "2026-07-09",
             imageUrl: "https://example.com/x.jpg",
-            category: "Industry",
+            category: "Agents",
           },
         },
       })

@@ -3,12 +3,20 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { ADMIN_EMAIL, ADMIN_GITHUB_USERNAME } from "@/lib/permissions";
 
 export interface User {
   id: string;
   email: string;
   username: string;
   provider: "email" | "google" | "github";
+  isAdmin: boolean;
+}
+
+function checkIsAdmin(u: SupabaseUser): boolean {
+  const email = (u.email || "").toLowerCase();
+  const githubUsername = u.user_metadata?.user_name;
+  return email === ADMIN_EMAIL || githubUsername === ADMIN_GITHUB_USERNAME;
 }
 
 interface AuthContextType {
@@ -35,7 +43,8 @@ function mapSupabaseUser(u: SupabaseUser): User {
     id: u.id,
     email,
     username,
-    provider
+    provider,
+    isAdmin: checkIsAdmin(u)
   };
 }
 

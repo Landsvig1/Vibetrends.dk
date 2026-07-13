@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Link from "next/link";
-import { Heart, Plug } from "lucide-react";
+import { Heart, Plug, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skill } from "@/lib/db";
 
@@ -34,6 +34,7 @@ function SkillCardComponent({
   githubLabel,
   connectLabel = "Connect",
   onUpvote,
+  onDelete,
 }: {
   skill: Skill;
   githubLabel: string;
@@ -41,6 +42,8 @@ function SkillCardComponent({
   /** When set (client surfaces), the heart becomes an upvote button; without
    * it (server-rendered topic pages) the count is shown read-only. */
   onUpvote?: (id: string, e: React.MouseEvent) => void;
+  /** When set (admin-only, client surfaces), shows a delete affordance. */
+  onDelete?: (id: string, e: React.MouseEvent) => void;
 }) {
   return (
     <div
@@ -63,33 +66,45 @@ function SkillCardComponent({
             </h3>
           </div>
 
-          {onUpvote ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
-              aria-label={`Upvote ${skill.title}`}
-              data-testid="skill-upvote"
-              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.3 }}
-                key={skill.upvotes}
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(skill.id, e); }}
+                aria-label={`Delete ${skill.title}`}
+                data-testid="skill-delete"
+                className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+            {onUpvote ? (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
+                aria-label={`Upvote ${skill.title}`}
+                data-testid="skill-upvote"
+                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.3 }}
+                  key={skill.upvotes}
+                >
+                  <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                </motion.div>
+                <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+              </motion.button>
+            ) : (
+              <span
+                data-testid="skill-upvote-count"
+                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
               >
                 <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-              </motion.div>
-              <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
-            </motion.button>
-          ) : (
-            <span
-              data-testid="skill-upvote-count"
-              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
-            >
-              <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-              <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
-            </span>
-          )}
+                <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+              </span>
+            )}
+          </div>
         </div>
         <p className="text-sm text-text-secondary leading-relaxed">{skill.description}</p>
         <div className="flex flex-wrap gap-1.5 pt-2">

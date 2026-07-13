@@ -7,6 +7,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "./EmptyState";
@@ -262,7 +263,11 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     : view === "danish"
       ? [...agents]
           .filter((a) => a.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific))
+          .sort(
+            (a, b) =>
+              Number(b.denmarkSpecific) - Number(a.denmarkSpecific) ||
+              b.upvotes - a.upvotes,
+          )
       : view === "all"
         ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
         : agents;
@@ -382,7 +387,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                           {categoryIcons[agent.category as keyof typeof categoryIcons]}
                           {agent.category}
                         </div>
-                        {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
+                        {canDelete(user, agent.developer, (a) => a.startsWith("vibecoder_")) && (
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}

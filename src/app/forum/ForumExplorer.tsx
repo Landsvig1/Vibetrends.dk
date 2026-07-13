@@ -8,6 +8,7 @@ import { MessageSquare, Heart, PlusCircle, CheckCircle2, User, X, Trash2, Trendi
 import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "../components/LanguageProvider";
 import { timeAgo } from "@/lib/timeAgo";
 import dynamic from "next/dynamic";
@@ -424,7 +425,7 @@ export default function ForumExplorer({
                             {timeAgo(thread.createdAt, language)}
                           </span>
 
-                          {user && (thread.author === user.username || thread.author.startsWith("vibecoder_")) && (
+                          {canDelete(user, thread.author, (a) => a.startsWith("vibecoder_")) && (
                             <motion.button
                               whileHover={{ scale: 1.1, color: "#ef4444" }}
                               whileTap={{ scale: 0.9 }}

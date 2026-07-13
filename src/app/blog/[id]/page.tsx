@@ -1,6 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Clock, Calendar, User } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
@@ -100,44 +99,33 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
       </Link>
 
       <article className="max-w-3xl mx-auto rounded-xl glass-panel overflow-hidden border border-card-border shadow-2xl">
-        <div className="h-72 sm:h-96 relative bg-background overflow-hidden">
-          <Image
-            src={post.imageUrl}
-            alt={post.title}
-            fill
-            sizes="(max-w-3xl) 100vw, 800px"
-            priority
-            className="object-cover opacity-80"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent"></div>
-        </div>
-
         <div className="p-6 sm:p-10 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-card-border pb-6">
-            <div className="flex items-center space-x-3 text-xs text-text-secondary">
-              <span className="font-bold text-card-bg bg-accent-primary px-3 py-1 rounded-full uppercase tracking-tight">
+          <div className="space-y-4 border-b border-card-border pb-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-accent-primary bg-accent-light px-2.5 py-1 rounded-md">
                 {post.category}
               </span>
-              <span className="flex items-center bg-background px-3 py-1 rounded-full border border-card-border">
-                <Clock className="h-3.5 w-3.5 mr-1.5 text-accent-primary" />
+              <span className="text-xs text-text-secondary bg-background px-2.5 py-1 rounded-md border border-card-border flex items-center">
+                <Clock className="h-3 w-3 mr-1 text-accent-primary" />
                 {post.readTime}
               </span>
             </div>
-            <div className="flex items-center space-x-4 text-xs text-text-secondary">
-              <span className="flex items-center">
-                <User className="h-3.5 w-3.5 mr-1.5 text-text-secondary" />
-                @{post.author}
-              </span>
-              <span className="flex items-center">
-                <Calendar className="h-3.5 w-3.5 mr-1.5 text-text-secondary" />
-                {post.publishedAt}
-              </span>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground leading-tight tracking-tight">
+              {post.title}
+            </h1>
+
+            <div className="flex items-center gap-2 pt-2 text-xs text-text-secondary">
+              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                <div className="w-6 h-6 rounded-full bg-accent-light text-accent-primary font-bold text-[11px] flex items-center justify-center border border-accent-primary/10 select-none">
+                  {post.author.charAt(0).toUpperCase()}
+                </div>
+                <span>{post.author}</span>
+              </div>
+              <span className="text-card-border">•</span>
+              <span>{post.publishedAt}</span>
             </div>
           </div>
-
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground leading-tight">
-            {post.title}
-          </h1>
 
           <div className="text-text-secondary leading-relaxed text-lg space-y-6 pt-2">
             <p className="text-xl text-foreground font-medium leading-relaxed italic border-l-4 border-accent-primary pl-6 py-1">
