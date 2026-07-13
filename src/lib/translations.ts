@@ -74,6 +74,7 @@ export const translations = {
     "skills.modal.label_tags": "Tags (kommasepareret)",
     "skills.modal.placeholder_tags": "fx Cursor, Supabase, Workflow",
     "skills.modal.btn_submit": "Udgiv Skill",
+    "skills.confirm_delete": "Er du sikker på, at du vil slette denne skill?",
 
     // Showcase Page
     "showcase.title": "Project Showcase",
@@ -142,6 +143,7 @@ export const translations = {
     "blog.detail.back": "Tilbage til Blog",
     "blog.detail.published": "Udgivet",
     "blog.detail.author": "Skrevet af",
+    "blog.confirm_delete": "Er du sikker på, at du vil slette dette indlæg?",
 
     // Agents Page
     "agents.title": "Agent & MCP Registry",
@@ -274,6 +276,7 @@ export const translations = {
     "skills.modal.label_tags": "Tags (comma-separated)",
     "skills.modal.placeholder_tags": "e.g., Cursor, Supabase, Workflow",
     "skills.modal.btn_submit": "Publish Skill",
+    "skills.confirm_delete": "Are you sure you want to delete this skill?",
 
     // Showcase Page
     "showcase.title": "Project Showcase",
@@ -342,6 +345,7 @@ export const translations = {
     "blog.detail.back": "Back to Blog",
     "blog.detail.published": "Published",
     "blog.detail.author": "Written by",
+    "blog.confirm_delete": "Are you sure you want to delete this post?",
 
     // Agents Page
     "agents.title": "Agent & MCP Registry",

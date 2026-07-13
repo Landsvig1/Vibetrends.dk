@@ -15,6 +15,11 @@ const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
  * src/lib/supabase-server.ts). No email/password, no signup UI — this
  * replaces the manual bot-account flow `add-vibe`'s bot-auth.mjs used.
  *
+ * Also returns `refresh_token`. Call this endpoint once, store both tokens,
+ * and refresh the access token before it expires (`expires_in` seconds)
+ * instead of calling this endpoint again — a second call provisions a brand
+ * new anonymous identity, discarding the first one's authorship/history.
+ *
  * RLS is never bypassed: the returned token is a real Supabase session, so
  * every subsequent write still requires `auth.uid() = user_id` exactly like
  * a human-authenticated request. This endpoint automates getting a valid
@@ -60,11 +65,22 @@ export async function POST(request: Request) {
     );
   }
 
-  // Never return the refresh token — short-lived-only reduces the blast
-  // radius of a leaked response; the access token is all any write route needs.
+  // Returning the refresh token lets an agent keep this same identity
+  // indefinitely (Supabase rotates it on each use — swap the old value for
+  // the new one returned by /auth/v1/token?grant_type=refresh_token every
+  // time) instead of calling this endpoint again and getting a brand-new
+  // anonymous identity each time its access token expires. That re-signup
+  // path used to be the only option — see the refresh-token amendment in
+  // docs/decisions/2026-06-19-agent-auth.md. Trade-off: a leaked refresh
+  // token is now a standing credential, same blast radius as the PAT design
+  // that ADR originally considered and skipped in favor of this cheaper
+  // built-in mechanism. Write endpoints are rate-limited per identity
+  // (checkAgentWriteAllowed) specifically because this credential no
+  // longer naturally expires within an hour.
   return NextResponse.json(
     {
       access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
       token_type: "bearer",
       expires_in: data.session.expires_in,
     },

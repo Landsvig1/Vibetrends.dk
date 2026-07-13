@@ -123,3 +123,44 @@ spike scope above (the `agent_tokens` table, issue/revoke UI, and
 (rate limiting) landed as part of `/api/agentauth` token issuance, not
 per-write-tool — see the 2026-07-09 plan's Deferred to Follow-Up Work for the
 narrower scope that shipped versus what this ADR originally sketched.
+
+## Amendment — 2026-07-10: refresh tokens + per-write rate limiting
+
+Two changes to what the 2026-07-09 amendment above describes as shipped:
+
+**Refresh tokens.** `POST /api/agentauth` now also returns `refresh_token`
+(previously withheld — "never return the refresh token" — to keep sessions
+single-use-per-request). An agent renews its access token under the *same*
+identity by exchanging `refresh_token` directly against Supabase's own
+`/auth/v1/token?grant_type=refresh_token` endpoint, instead of calling
+`/api/agentauth` again — a second call provisions a brand new anonymous
+identity and orphans the first one's authorship history. This is the standard
+Supabase session-refresh flow, not new infrastructure. Trade-off: a refresh
+token is a standing credential with no natural expiry, same blast radius as
+the `agent_tokens` PAT design in Option A above (which this amendment still
+does not resurrect — the mechanism is Supabase's built-in refresh, not a
+site-issued table).
+
+**Per-write rate limiting.** Item 5 above ("rate limiting landed as part of
+token issuance, not per-write-tool") is now superseded: `checkAgentWriteAllowed`
+(`src/lib/rate-limit.ts`) gates every bearer-authenticated write — all 7 REST
+write routes plus the MCP `tools/call` dispatch — behind two tiers: 20
+writes/hour per identity, and a 200 writes/hour site-wide backstop
+(independent of identity count, since refresh tokens now let identities
+persist indefinitely and `/api/agentauth` issuance is only capped per-IP, not
+across distinct IPs).
+
+**Known residual gap, not closed by this amendment:** `check_and_increment_rate_limit`
+(the Postgres RPC both rate-limit tiers call into) is `EXECUTE`-granted to
+`anon` with a caller-supplied key and no server-side secret — a fact already
+flagged and deferred in a prior review (see
+`docs/residual-review-findings/feat-agent-native-onboarding.md`) for the
+narrower agentauth-issuance-limit context. This amendment's new
+`agentwrite:global` key is a materially higher-value target than that prior
+finding anticipated: it requires no reconnaissance (the key is a fixed,
+literal string, not a per-IP hash) and, once exhausted by a direct
+unauthenticated RPC call, denies writes to every legitimate agent site-wide.
+Closing this requires keying rate-limit buckets with an HMAC over a
+server-only secret so a caller who can invoke the RPC cannot compute the same
+key the app uses internally — deferred pending that secret's provisioning,
+not implemented in this amendment.

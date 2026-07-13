@@ -33,12 +33,13 @@ vi.mock("@/lib/rate-limit", () => ({
 
     return "unknown";
   }),
+  resolveAgentWriteLimit: vi.fn().mockResolvedValue("ok"),
 }));
 
 import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, resolveAgentWriteLimit } from "@/lib/rate-limit";
 
 const MOCK_IDENTITY = {
   user: { id: "user-1", username: "agent_abc123" },
@@ -287,7 +288,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
             readTime: "4 min",
             publishedAt: "2026-07-09",
             imageUrl: "https://example.com/x.jpg",
-            category: "Industry",
+            category: "Agents",
           },
         },
       })
@@ -295,6 +296,49 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     const body = await res.json();
     expect(db.createBlogPost).toHaveBeenCalled();
     expect(JSON.parse(body.result.content[0].text)).toEqual({ id: "b1", title: "New Post" });
+  });
+
+  it("rejects a bearer-authenticated write tool once the write budget (identity or site-wide) is exhausted, without calling the underlying mutation", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(resolveAgentWriteLimit).mockResolvedValueOnce("rate_limited");
+
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 55,
+        method: "tools/call",
+        params: {
+          name: "submit_skill",
+          arguments: { title: "New Skill", category: "backend-data", githubUrl: "https://github.com/x/y" },
+        },
+      })
+    );
+    const body = await res.json();
+
+    expect(body.error).toBeDefined();
+    expect(db.createSkill).not.toHaveBeenCalled();
+  });
+
+  it("returns a distinct SERVICE_UNAVAILABLE error when the rate-limit check itself throws, without calling the underlying mutation", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(resolveAgentWriteLimit).mockResolvedValueOnce("service_unavailable");
+
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 56,
+        method: "tools/call",
+        params: {
+          name: "submit_skill",
+          arguments: { title: "New Skill", category: "backend-data", githubUrl: "https://github.com/x/y" },
+        },
+      })
+    );
+    const body = await res.json();
+
+    expect(body.error).toBeDefined();
+    expect(body.error.code).toBe(-32002);
+    expect(db.createSkill).not.toHaveBeenCalled();
   });
 
   it("upvote_thread with a valid identity succeeds", async () => {

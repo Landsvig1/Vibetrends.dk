@@ -8,6 +8,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, Info, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
+import { canDelete } from "@/lib/permissions";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
@@ -190,14 +191,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
   // Search overrides the view (same contract as the /skills, /cli, /mcp, and
   // /agents tabs). The base fetch is already upvotes-desc (sort=top), which
-  // IS the Hot order; Dansk filters to Danish contributors with
-  // Denmark-specific projects first; Alle is the full catalog alphabetically.
+  // IS the Hot order; Dansk filters to Danish contributors, ranked by
+  // upvotes; Alle is the full catalog alphabetically.
   const viewProjects = searchActive
     ? projects
     : view === "danish"
       ? [...projects]
           .filter((p) => p.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific) || b.upvotes - a.upvotes)
+          .sort((a, b) => b.upvotes - a.upvotes)
       : view === "all"
         ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
         : projects;
@@ -392,7 +393,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
 
                 {/* Delete button for author */}
-                {user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym") && (
+                {canDelete(user, project.author, (a) => a === "Dig (Vibe Coder)" || a === "Anonym") && (
                   <button
                     onClick={(e) => handleDeleteProject(project.id, e)}
                     aria-label={t("showcase.detail.confirm_delete")}

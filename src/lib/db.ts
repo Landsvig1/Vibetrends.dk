@@ -122,7 +122,7 @@ export interface BlogPost {
   readTime: string;
   publishedAt: string;
   imageUrl: string;
-  category: "Guides" | "Industry" | "Workflow";
+  category: "Guides" | "Agents" | "Workflow";
 }
 
 export interface Agent {
@@ -392,13 +392,11 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.eq('category', category);
   }
 
-  // Danish board: skills from Danish contributors (is_danish flag), with the
-  // skills that are specifically about Denmark (job portals, property data,
-  // transit …) surfaced first, ranked by upvotes within each group.
+  // Danish board: skills from Danish contributors (is_danish flag), ranked
+  // by upvotes.
   if (view === 'danish') {
     query = query
       .eq('is_danish', true)
-      .order('denmark_specific', { ascending: false })
       .order('upvotes', { ascending: false });
   }
 
@@ -1213,6 +1211,38 @@ export async function deleteAgent(id: string) {
   return succeeded;
 }
 
+export async function deleteSkill(id: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from('skills').delete().eq('id', id).select('id');
+  if (error) {
+    console.error('Failed to delete skill:', error);
+    return false;
+  }
+  // RLS restricts deletes to admins (no owner-delete policy exists for skills).
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('skills-list')
+    revalidateTag(`skill-${id}`)
+  }
+  return succeeded;
+}
+
+export async function deleteBlogPost(id: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from('blog_posts').delete().eq('id', id).select('id');
+  if (error) {
+    console.error('Failed to delete blog post:', error);
+    return false;
+  }
+  // RLS restricts deletes to admins (no owner-delete policy exists for blog posts).
+  const succeeded = (data?.length ?? 0) > 0;
+  if (succeeded) {
+    revalidateTag('blog-posts')
+    revalidateTag(`blog-post-${id}`)
+  }
+  return succeeded;
+}
+
 // Homepage-optimized reads — fetch only counts and the few featured rows the
 // landing page renders, instead of materializing every full dataset just to
 // read `.length` and `[0]`.
@@ -1272,15 +1302,13 @@ export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag('skills-list', `top-skills:${limit}:${lang}`)
 
-  // Homepage feature spot: showcase the Danish catalog — Denmark-specific
-  // skills (job portals, property data, transit …) ahead of general tooling
-  // from Danish contributors. (Previously ordered by the legacy rating
-  // column, which is no longer rendered and identical across real rows.)
+  // Homepage feature spot: showcase the Danish catalog, ranked by upvotes.
+  // (Previously ordered by the legacy rating column, which is no longer
+  // rendered and identical across real rows.)
   const { data, error } = await supabasePublic
     .from('skills')
     .select('*')
     .eq('is_danish', true)
-    .order('denmark_specific', { ascending: false })
     .order('upvotes', { ascending: false })
     .limit(limit);
   if (error || !data) return [];

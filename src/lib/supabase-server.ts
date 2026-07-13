@@ -31,11 +31,21 @@ function deriveUsername(user: { email?: string | null; user_metadata?: Record<st
  * the display username the same way the client AuthProvider does. Returns null
  * when there is no valid session. This is the trusted server-side identity —
  * never trust a client-supplied header for auth.
+ *
+ * Rejects anonymous sessions (`user.is_anonymous`) even when the cookie
+ * itself is valid. Anonymous identities are only ever meant to authenticate
+ * via `Authorization: Bearer` (the /api/agentauth flow), which routes through
+ * resolveBotRequestAuth() and is subject to checkAgentWriteAllowed. Without
+ * this check, an agent could take the same access/refresh tokens
+ * POST /api/agentauth returns, repackage them as a Supabase SSR session
+ * cookie instead of a bearer header, and have resolveRequestIdentity()
+ * resolve them here first — leaving `botAuth` unset and every rate-limit
+ * guard (`if (actingAs && ...)`) skipped entirely.
  */
 export async function getAuthUser(): Promise<{ id: string; username: string } | null> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user || user.is_anonymous) return null;
 
   return { id: user.id, username: deriveUsername(user) };
 }

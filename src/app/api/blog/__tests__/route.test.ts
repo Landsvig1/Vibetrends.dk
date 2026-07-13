@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
 
 // Mock the data layer and Supabase server client so importing the route is
 // hermetic (no DB / env required during unit tests).
@@ -12,6 +13,9 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveBotRequestAuth: vi.fn(),
   resolveRequestIdentity: vi.fn(),
 }));
+vi.mock("@/lib/rate-limit", () => ({
+  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
 }));
@@ -19,6 +23,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,7 +36,7 @@ const VALID_BODY = {
   readTime: "4 min",
   publishedAt: "2026-07-09",
   imageUrl: "https://images.unsplash.com/photo-1234567890.jpg",
-  category: "Industry" as const,
+  category: "Agents" as const,
 };
 
 function makeRequest(body: unknown, authHeader?: string) {
@@ -101,7 +106,7 @@ describe("blogPostSchema — required fields", () => {
 
 describe("blogPostSchema — category enum", () => {
   it("accepts all three valid categories", () => {
-    for (const category of ["Guides", "Industry", "Workflow"] as const) {
+    for (const category of ["Guides", "Agents", "Workflow"] as const) {
       expect(blogPostSchema.safeParse({ ...VALID_BODY, category }).success).toBe(true);
     }
   });
@@ -247,5 +252,56 @@ describe("POST /api/blog — cache invalidation", () => {
     const callArgs = vi.mocked(createBlogPost).mock.calls[0];
     // Last positional arg is actingAs
     expect(callArgs[callArgs.length - 1]).toBe(MOCK_ACTING_AS);
+  });
+
+  it("rejects a bearer-authenticated write with 429 once the write budget (identity or site-wide) is exhausted, without touching createBlogPost", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    );
+
+    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.error).toBeDefined();
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 (not 400) when the rate-limit check itself throws, e.g. a rate-limiter RPC outage", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      botAuth: MOCK_ACTING_AS,
+    });
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+    );
+
+    const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error).toBeDefined();
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
+  });
+
+  it("does not rate-limit cookie-authenticated (non-bot) writes", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: MOCK_ACTING_AS.user,
+      // no botAuth — a real human session
+    });
+    vi.mocked(createBlogPost).mockResolvedValue({
+      id: "b_998",
+      ...VALID_BODY,
+      author: MOCK_ACTING_AS.user.username,
+    });
+
+    const response = await POST(makeRequest(VALID_BODY));
+
+    expect(response.status).toBe(201);
+    expect(vi.mocked(enforceAgentWriteRateLimit)).not.toHaveBeenCalled();
   });
 });

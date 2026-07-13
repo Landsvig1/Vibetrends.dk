@@ -39,7 +39,7 @@ function makeRequest(forwardedFor?: string, realIp?: string) {
 
 const VALID_SESSION = {
   access_token: "access-token-abc",
-  refresh_token: "refresh-token-should-never-be-returned",
+  refresh_token: "refresh-token-abc",
   expires_in: 3600,
 };
 
@@ -64,7 +64,7 @@ describe("POST /api/agentauth", () => {
     expect(body.expires_in).toBe(3600);
   });
 
-  it("never returns the refresh token", async () => {
+  it("returns the refresh token so an agent can renew this identity without re-provisioning", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     signInAnonymously.mockResolvedValue({
       data: { session: VALID_SESSION, user: { id: "anon-user-1" } },
@@ -74,8 +74,7 @@ describe("POST /api/agentauth", () => {
     const response = await POST(makeRequest("203.0.113.10"));
     const body = await response.json();
 
-    expect(body.refresh_token).toBeUndefined();
-    expect(JSON.stringify(body)).not.toContain("refresh-token-should-never-be-returned");
+    expect(body.refresh_token).toBe(VALID_SESSION.refresh_token);
   });
 
   it("sets a non-degenerate full_name in user_metadata (KTD3)", async () => {
