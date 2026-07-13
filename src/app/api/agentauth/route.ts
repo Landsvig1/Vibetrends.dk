@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   // token is now a standing credential, same blast radius as the PAT design
   // that ADR originally considered and skipped in favor of this cheaper
   // built-in mechanism. Write endpoints are rate-limited per identity
-  // (checkAgentWriteRateLimit) specifically because this credential no
+  // (checkAgentWriteAllowed) specifically because this credential no
   // longer naturally expires within an hour.
   return NextResponse.json(
     {

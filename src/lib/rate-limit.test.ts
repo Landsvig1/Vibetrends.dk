@@ -5,10 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const state = vi.hoisted(() => ({
   rpcResponse: { data: true as boolean | null, error: null as { message: string } | null },
   lastRpcCall: null as { fn: string; params: Record<string, unknown> } | null,
-  // Per-key overrides and call-order tracking — used by checkAgentWriteAllowed
-  // tests to verify the identity check is evaluated before the global one.
-  rpcResponseByKey: {} as Record<string, boolean>,
-  calledKeys: [] as string[],
+  // Override the dual-check RPC's response — used by checkAgentWriteAllowed
+  // tests to simulate the identity/global budgets independently even though
+  // they're now checked in a single round trip.
+  dualRpcResponse: null as boolean | null,
 }));
 
 // Mock the supabase-server module so we control supabasePublic.rpc() without
@@ -19,23 +19,20 @@ vi.mock('@/lib/supabase-server', () => ({
   supabasePublic: {
     rpc: vi.fn(async (fn: string, params: Record<string, unknown>) => {
       state.lastRpcCall = { fn, params };
-      const key = params.p_key as string;
-      state.calledKeys.push(key);
-      if (key in state.rpcResponseByKey) {
-        return { data: state.rpcResponseByKey[key], error: null };
+      if (fn === 'check_and_increment_dual_rate_limit' && state.dualRpcResponse !== null) {
+        return { data: state.dualRpcResponse, error: null };
       }
       return state.rpcResponse;
     }),
   },
 }));
 
-import { hashIp, checkRateLimit, checkAgentWriteRateLimit, checkGlobalAgentWriteRateLimit, checkAgentWriteAllowed, enforceAgentWriteRateLimit } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteAllowed, resolveAgentWriteLimit, enforceAgentWriteRateLimit } from '@/lib/rate-limit';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
   state.lastRpcCall = null;
-  state.rpcResponseByKey = {};
-  state.calledKeys = [];
+  state.dualRpcResponse = null;
   vi.clearAllMocks();
 });
 
@@ -102,119 +99,92 @@ describe('checkRateLimit', () => {
 });
 
 // ---------------------------------------------------------------------------
-// checkAgentWriteRateLimit
-// ---------------------------------------------------------------------------
-
-describe('checkAgentWriteRateLimit', () => {
-  it('scopes the rate-limit key to the identity, not the IP', async () => {
-    await checkAgentWriteRateLimit('user-abc-123');
-    expect(state.lastRpcCall?.params).toMatchObject({
-      p_key: 'agentwrite:user-abc-123',
-    });
-  });
-
-  it('returns false once the identity has exceeded its write budget', async () => {
-    state.rpcResponse = { data: false, error: null };
-    const result = await checkAgentWriteRateLimit('user-abc-123');
-    expect(result).toBe(false);
-  });
-
-  it('returns true while the identity is within its write budget', async () => {
-    state.rpcResponse = { data: true, error: null };
-    const result = await checkAgentWriteRateLimit('user-abc-123');
-    expect(result).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// checkGlobalAgentWriteRateLimit
-// ---------------------------------------------------------------------------
-
-describe('checkGlobalAgentWriteRateLimit', () => {
-  it('uses a fixed, identity/IP-independent key', async () => {
-    await checkGlobalAgentWriteRateLimit();
-    expect(state.lastRpcCall?.params).toMatchObject({
-      p_key: 'agentwrite:global',
-    });
-  });
-
-  it('uses the same key across repeated calls, unlike the per-identity check', async () => {
-    await checkGlobalAgentWriteRateLimit();
-    const firstKey = state.lastRpcCall?.params.p_key;
-    await checkGlobalAgentWriteRateLimit();
-    const secondKey = state.lastRpcCall?.params.p_key;
-    expect(firstKey).toBe(secondKey);
-  });
-
-  it('returns true while the global budget is within limit', async () => {
-    state.rpcResponse = { data: true, error: null };
-    const result = await checkGlobalAgentWriteRateLimit();
-    expect(result).toBe(true);
-  });
-
-  it('returns false once the global budget has been exhausted', async () => {
-    state.rpcResponse = { data: false, error: null };
-    const result = await checkGlobalAgentWriteRateLimit();
-    expect(result).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // checkAgentWriteAllowed
+//
+// Checks both the per-identity and global write budgets in a single atomic
+// RPC call (check_and_increment_dual_rate_limit) — not two sequential
+// check_and_increment_rate_limit calls — specifically so a write rejected by
+// one budget never consumes the other. See src/lib/rate-limit.ts's doc
+// comment for why the old sequential-check design let global congestion
+// drain a well-behaved identity's own budget.
 // ---------------------------------------------------------------------------
 
 describe('checkAgentWriteAllowed', () => {
-  it('returns true when both the identity and global budgets are within limit', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
+  it('calls the dual-check RPC exactly once, with both keys/limits and a shared window', async () => {
+    state.dualRpcResponse = true;
+    await checkAgentWriteAllowed('user-abc-123');
+    expect(state.lastRpcCall?.fn).toBe('check_and_increment_dual_rate_limit');
+    expect(state.lastRpcCall?.params).toEqual({
+      p_key1: 'agentwrite:user-abc-123',
+      p_limit1: 20,
+      p_key2: 'agentwrite:global',
+      p_limit2: 200,
+      p_window_seconds: 3600,
+    });
+  });
+
+  it('returns true when the RPC reports both budgets are within limit', async () => {
+    state.dualRpcResponse = true;
     const result = await checkAgentWriteAllowed('user-abc-123');
     expect(result).toBe(true);
   });
 
-  it('returns false when only the identity budget is exhausted', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
+  it('returns false when the RPC reports either budget is exhausted (identity, global, or both)', async () => {
+    state.dualRpcResponse = false;
     const result = await checkAgentWriteAllowed('user-abc-123');
     expect(result).toBe(false);
   });
 
-  it('returns false when only the global budget is exhausted', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': false };
-    const result = await checkAgentWriteAllowed('user-abc-123');
-    expect(result).toBe(false);
+  it('throws when the RPC returns an error, same as checkRateLimit', async () => {
+    state.rpcResponse = { data: null, error: { message: 'connection refused' } };
+    await expect(checkAgentWriteAllowed('user-abc-123')).rejects.toThrow('Rate limit RPC failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveAgentWriteLimit
+//
+// The shared outcome classifier both REST routes (via enforceAgentWriteRateLimit)
+// and the MCP route call — one place for the ok/rate_limited/service_unavailable
+// mapping so REST and MCP can't drift.
+// ---------------------------------------------------------------------------
+
+describe('resolveAgentWriteLimit', () => {
+  it("returns 'ok' when within budget", async () => {
+    state.dualRpcResponse = true;
+    const result = await resolveAgentWriteLimit('user-abc-123');
+    expect(result).toBe('ok');
   });
 
-  it('checks the identity budget before the global budget', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
-    await checkAgentWriteAllowed('user-abc-123');
-    expect(state.calledKeys).toEqual(['agentwrite:user-abc-123', 'agentwrite:global']);
+  it("returns 'rate_limited' when the budget is exhausted", async () => {
+    state.dualRpcResponse = false;
+    const result = await resolveAgentWriteLimit('user-abc-123');
+    expect(result).toBe('rate_limited');
   });
 
-  it('short-circuits before touching the global counter when the identity is already over budget', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
-    await checkAgentWriteAllowed('user-abc-123');
-    expect(state.calledKeys).toEqual(['agentwrite:user-abc-123']);
-    expect(state.calledKeys).not.toContain('agentwrite:global');
+  it("returns 'service_unavailable' instead of throwing when the underlying RPC fails", async () => {
+    state.rpcResponse = { data: null, error: { message: 'connection refused' } };
+    const result = await resolveAgentWriteLimit('user-abc-123');
+    expect(result).toBe('service_unavailable');
   });
 });
 
 // ---------------------------------------------------------------------------
 // enforceAgentWriteRateLimit
 //
-// The route-facing wrapper every write route calls. Exercised against the
-// real checkAgentWriteAllowed (via the mocked supabasePublic.rpc above), not
-// a mocked checkAgentWriteAllowed — this is the seam route tests now stub
-// out, so its own translation from boolean/throw to NextResponse/null is
-// only covered here.
+// The REST-facing wrapper every write route calls — translates
+// resolveAgentWriteLimit's outcome into a NextResponse or null (proceed).
 // ---------------------------------------------------------------------------
 
 describe('enforceAgentWriteRateLimit', () => {
-  it('returns null (proceed) when both budgets are within limit', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': true, 'agentwrite:global': true };
+  it('returns null (proceed) when within budget', async () => {
+    state.dualRpcResponse = true;
     const result = await enforceAgentWriteRateLimit('user-abc-123');
     expect(result).toBeNull();
   });
 
   it('returns a 429 NextResponse when the write budget is exhausted', async () => {
-    state.rpcResponseByKey = { 'agentwrite:user-abc-123': false, 'agentwrite:global': true };
+    state.dualRpcResponse = false;
     const result = await enforceAgentWriteRateLimit('user-abc-123');
     expect(result).not.toBeNull();
     expect(result?.status).toBe(429);
