@@ -246,6 +246,23 @@ export default function SkillsExplorer({
     });
   }, [user, allSkills, viewSkills]);
 
+  // Admin-only delete — RLS has no owner-delete policy for skills, so this
+  // only ever succeeds for public.is_admin() callers.
+  const handleDeleteSkill = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(t("skills.confirm_delete"))) return;
+
+    try {
+      const res = await fetch(`/api/skills/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setAllSkills((prev) => prev.filter((s) => s.id !== id));
+        setViewSkills((prev) => prev.filter((s) => s.id !== id));
+      }
+    } catch (err) {
+      console.error("Error deleting skill:", err);
+    }
+  }, [t]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -406,6 +423,7 @@ export default function SkillsExplorer({
                     githubLabel={t("skills.github")}
                     connectLabel={t("skills.connect")}
                     onUpvote={handleUpvote}
+                    onDelete={user?.isAdmin ? handleDeleteSkill : undefined}
                   />
                 </motion.div>
               ))}

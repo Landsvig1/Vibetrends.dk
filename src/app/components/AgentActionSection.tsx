@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Heart, Trash2, Terminal } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
+import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "@/app/components/LanguageProvider";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -83,7 +84,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
            </button>
         </div>
 
-        {user && (agent.developer === user.username || agent.developer.startsWith("vibecoder_")) && (
+        {canDelete(user, agent.developer, (a) => a.startsWith("vibecoder_")) && (
           <div className="pt-4 border-t border-card-border">
             <button
               onClick={handleDeleteAgent}

@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
-import { BookOpen, Clock, Calendar, User, Search } from "lucide-react";
+import { BookOpen, Clock, Calendar, User, Search, Trash2 } from "lucide-react";
 import { BlogPost } from "@/lib/db";
 import { useLanguage } from "../components/LanguageProvider";
+import { useAuth } from "../components/AuthProvider";
 
 export default function BlogList() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -14,6 +15,24 @@ export default function BlogList() {
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [loading, setLoading] = useState(true);
   const { language, t } = useLanguage();
+  const { user } = useAuth();
+
+  // Admin-only delete — RLS has no owner-delete policy for blog_posts, so
+  // this only ever succeeds for public.is_admin() callers.
+  const handleDeletePost = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(t("blog.confirm_delete"))) return;
+
+    try {
+      const res = await fetch(`/api/blog/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== id));
+      }
+    } catch (err) {
+      console.error("Error deleting blog post:", err);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/blog")
@@ -100,6 +119,16 @@ export default function BlogList() {
                   className="object-cover opacity-70 group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+
+                {user?.isAdmin && (
+                  <button
+                    onClick={(e) => handleDeletePost(post.id, e)}
+                    aria-label={t("blog.confirm_delete")}
+                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
               </div>
 
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">

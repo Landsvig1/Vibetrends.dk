@@ -8,6 +8,7 @@ import { useQueryState, parseAsString } from "nuqs";
 import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, Info, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
+import { canDelete } from "@/lib/permissions";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
@@ -392,7 +393,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
 
                 {/* Delete button for author */}
-                {user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym") && (
+                {canDelete(user, project.author, (a) => a === "Dig (Vibe Coder)" || a === "Anonym") && (
                   <button
                     onClick={(e) => handleDeleteProject(project.id, e)}
                     aria-label={t("showcase.detail.confirm_delete")}
