@@ -263,7 +263,11 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     : view === "danish"
       ? [...agents]
           .filter((a) => a.isDanish)
-          .sort((a, b) => Number(b.denmarkSpecific) - Number(a.denmarkSpecific))
+          .sort(
+            (a, b) =>
+              Number(b.denmarkSpecific) - Number(a.denmarkSpecific) ||
+              b.upvotes - a.upvotes,
+          )
       : view === "all"
         ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
         : agents;
