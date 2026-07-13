@@ -122,7 +122,7 @@ export interface BlogPost {
   readTime: string;
   publishedAt: string;
   imageUrl: string;
-  category: "Guides" | "Industry" | "Workflow";
+  category: "Guides" | "Agents" | "Workflow";
 }
 
 export interface Agent {

@@ -6,4 +6,4 @@ import type { BlogPost } from "./db";
  * inputSchema — mirrors the existing pattern in skillCategories.ts and
  * forumCategories.ts.
  */
-export const BLOG_CATEGORIES = ["Guides", "Industry", "Workflow"] as const satisfies BlogPost["category"][];
+export const BLOG_CATEGORIES = ["Guides", "Agents", "Workflow"] as const satisfies BlogPost["category"][];

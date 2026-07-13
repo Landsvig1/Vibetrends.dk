@@ -36,7 +36,7 @@ const VALID_BODY = {
   readTime: "4 min",
   publishedAt: "2026-07-09",
   imageUrl: "https://images.unsplash.com/photo-1234567890.jpg",
-  category: "Industry" as const,
+  category: "Agents" as const,
 };
 
 function makeRequest(body: unknown, authHeader?: string) {
@@ -106,7 +106,7 @@ describe("blogPostSchema — required fields", () => {
 
 describe("blogPostSchema — category enum", () => {
   it("accepts all three valid categories", () => {
-    for (const category of ["Guides", "Industry", "Workflow"] as const) {
+    for (const category of ["Guides", "Agents", "Workflow"] as const) {
       expect(blogPostSchema.safeParse({ ...VALID_BODY, category }).success).toBe(true);
     }
   });

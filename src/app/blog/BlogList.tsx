@@ -14,7 +14,7 @@ const getCategoryIcon = (category: string) => {
       return <BookOpen className="h-4.5 w-4.5 text-accent-primary" />;
     case "Workflow":
       return <Layers className="h-4.5 w-4.5 text-violet-600" />;
-    case "Industry":
+    case "Agents":
       return <Cpu className="h-4.5 w-4.5 text-emerald-600" />;
     default:
       return <BookOpen className="h-4.5 w-4.5 text-accent-primary" />;
@@ -29,7 +29,7 @@ const getCategoryFilterIcon = (category: string) => {
       return <BookOpen className="h-3.5 w-3.5" />;
     case "Workflow":
       return <Layers className="h-3.5 w-3.5" />;
-    case "Industry":
+    case "Agents":
       return <Cpu className="h-3.5 w-3.5" />;
     default:
       return <Grid className="h-3.5 w-3.5" />;
@@ -84,7 +84,7 @@ export default function BlogList() {
     return matchesCategory && matchesSearch;
   });
 
-  const categories = ["All", "Guides", "Workflow", "Industry"];
+  const categories = ["All", "Guides", "Workflow", "Agents"];
 
   if (loading) {
     return (

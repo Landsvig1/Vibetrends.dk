@@ -2013,7 +2013,7 @@ describe("U4 — createBlogPost", () => {
     const blogRow = {
       id: 'b_mock', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E',
       content_da: 'C', content_en: 'C', author: 'agent_abc', read_time: '4 min',
-      published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Industry',
+      published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Agents',
     };
     const { actingAs, calls } = makeActingAsMock('bot-uid-blog', (ops) => {
       if (ops.method === 'insert') return { data: blogRow, error: null };
@@ -2022,7 +2022,7 @@ describe("U4 — createBlogPost", () => {
 
     const result = await db.createBlogPost(
       'T', 'E', 'C', 'agent_abc', '4 min', '2026-07-10',
-      'https://images.unsplash.com/x.jpg', 'Industry', actingAs
+      'https://images.unsplash.com/x.jpg', 'Agents', actingAs
     );
 
     expect(state.serverCalls.length).toBe(0);
