@@ -9,3 +9,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-11 - [O(N * M) nested-loop in getThreads forum hot path]
 **Learning:** In list views with related collections (such as forum threads and their replies), querying relations in bulk and joining them via nested `.filter()` inside a `.map()` creates an O(N * M) performance bottleneck. While SQL-side scoping limits the records, JS execution time still degrades quadratically as local threads and replies counts scale.
 **Action:** Use a linear-time Map/hash table lookup to group relational data (e.g., grouping replies by `thread_id` into a `Map` first) before mapping parents, achieving O(N + M) execution efficiency.
+
+## 2026-07-14 - Redundant Project Showcase card re-renders
+**Learning:** Like the `SkillsExplorer`, the real-time search typing in `VibesExplorer` was causing the entire list of projects to reconcile and re-render every card on every keystroke because the cards were raw JSX elements inside the `map()` loop and upvote/delete handlers were newly created on every render.
+**Action:** Extracted the raw JSX into a memoized `<ProjectCard />` component, pre-calculating the boolean authorization flag (`canDelete`) on the parent to avoid passing dynamic user references, and stabilized the parent's `handleUpvote` and `handleDeleteProject` handlers with `useCallback`. This eliminated all redundant Project card reconciliation overhead during real-time user typing.

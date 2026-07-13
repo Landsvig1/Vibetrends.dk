@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Code, Sparkles, PlusCircle, CheckCircle2, X, Trash2, Info, Flag, Flame } from "lucide-react";
+import { Search, Code, PlusCircle, CheckCircle2, X, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { useAuth } from "../components/AuthProvider";
 import { useLanguage } from "../components/LanguageProvider";
+import { ProjectCard } from "../components/ProjectCard";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
 
@@ -213,7 +211,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
-  const handleUpvote = async (id: string, e: React.MouseEvent) => {
+  // Reference-stabilized using useCallback to prevent redundant child re-renders.
+  const handleUpvote = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
       setLoginModalOpen(true);
@@ -236,7 +235,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         ),
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  };
+  }, [user, projects]);
 
   // Submit project handler
   const handleSubmitProject = async (e: React.FormEvent) => {
@@ -284,7 +283,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   };
 
   // Delete project handler
-  const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
+  // Reference-stabilized using useCallback to prevent redundant child re-renders.
+  const handleDeleteProject = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(t("showcase.detail.confirm_delete"))) return;
 
@@ -299,7 +299,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     } catch (err) {
       console.error("Error deleting project:", err);
     }
-  };
+  }, [t]);
 
   return (
     <div className="space-y-10">
@@ -364,76 +364,21 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             isRefetching ? "opacity-50 pointer-events-none" : ""
           }`}
         >
-          {filteredProjects.map((project, index) => (
-            <div
-              key={project.id}
-              data-testid="project-card"
-              className="relative rounded-xl glass-card overflow-hidden flex flex-col group"
-            >
-              {/* Card-wide overlay: screenshot, title, and whitespace all open
-                  the project's live site directly; the delete/upvote/detail
-                  controls sit above it at z-20. */}
-              <Link
-                href={project.demoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={project.title}
-                className="absolute inset-0 z-10 rounded-xl"
+          {filteredProjects.map((project, index) => {
+            const canDelete = !!(user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym"));
+            return (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isPriority={index < 2}
+                canDelete={canDelete}
+                confirmDeleteLabel={t("showcase.detail.confirm_delete")}
+                detailsLabel={t("showcase.details")}
+                onDelete={handleDeleteProject}
+                onUpvote={handleUpvote}
               />
-              <div className="h-44 relative bg-background overflow-hidden">
-                <Image
-                  src={project.imageUrl}
-                  alt={project.title}
-                  fill
-                  sizes="(max-w-7xl) 33vw, 100vw"
-                  priority={index < 2}
-                  className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
-
-                {/* Delete button for author */}
-                {user && (project.author === user.username || project.author === "Dig (Vibe Coder)" || project.author === "Anonym") && (
-                  <button
-                    onClick={(e) => handleDeleteProject(project.id, e)}
-                    aria-label={t("showcase.detail.confirm_delete")}
-                    className="absolute top-4 left-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                )}
-
-                <button
-                  onClick={(e) => handleUpvote(project.id, e)}
-                  aria-label={`Upvote ${project.title}`}
-                  className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                >
-                  <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                  <span className="text-xs font-bold font-mono">{project.upvotes}</span>
-                </button>
-
-                <Link
-                  href={`/vibes/${project.id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={t("showcase.details")}
-                  title={t("showcase.details")}
-                  className="absolute top-[3.25rem] right-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-card-border text-text-secondary hover:text-foreground backdrop-blur-md transition cursor-pointer z-20"
-                >
-                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
-                </Link>
-              </div>
-
-              <div className="p-6 flex-1 flex flex-col gap-4">
-                <div className="space-y-2 flex-1">
-                  <h3 className="text-lg font-bold text-foreground leading-tight">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-text-secondary line-clamp-3">
-                    {project.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <EmptyState
@@ -489,7 +434,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                     {t("showcase.modal.badge")}
                   </span>
                   <h3 className="text-lg font-bold text-foreground mt-1">{t("showcase.modal.title")}</h3>
@@ -549,7 +494,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   type="submit"
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
                   {t("showcase.modal.btn_submit")}
                 </button>
               </form>
