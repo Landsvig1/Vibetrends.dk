@@ -242,7 +242,7 @@ export default function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1 overflow-hidden"
+            className="lg:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto"
           >
           {navItems.map((item, idx) => {
             const isActive = isItemActive(item);
@@ -302,11 +302,25 @@ export default function Header() {
               </Link>
             );
           })}
-          
+
+          {/* Mobile Primary CTA */}
+          <div className="pt-2 pb-1">
+            <Link
+              href="/vibes"
+              prefetch={false}
+              transitionTypes={["nav-forward"]}
+              onClick={() => setMobileMenuOpen(false)}
+              className="btn-primary flex items-center justify-center gap-1.5 text-sm w-full py-2.5"
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("btn.showcase_project")}
+            </Link>
+          </div>
+
           {/* Mobile Language Toggle */}
           <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
             <span id="mobile-lang-label" className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
-            <div role="group" aria-labelledby="mobile-lang-label" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <div role="group" aria-labelledby="mobile-lang-label" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-xs font-semibold">
               <button
                 onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
                 aria-pressed={language === "da"}
