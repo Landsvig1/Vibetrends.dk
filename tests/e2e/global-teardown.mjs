@@ -24,7 +24,10 @@ export default async function globalTeardown() {
   }
 
   const manifest = JSON.parse(fs.readFileSync(FIXTURES_MANIFEST, 'utf-8'));
-  const client = new pg.Client({ connectionString: databaseUrl });
+  const client = new pg.Client({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false }
+  });
   await client.connect();
 
   try {

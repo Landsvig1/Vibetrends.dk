@@ -54,7 +54,10 @@ async function cleanupStale(client, table) {
 }
 
 async function run() {
-  const client = new pg.Client({ connectionString: databaseUrl });
+  const client = new pg.Client({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false }
+  });
   await client.connect();
 
   try {
@@ -73,8 +76,8 @@ async function run() {
 
       await client.query(
         `insert into public.forum_threads
-           (id, title_da, title_en, author, category, content_da, content_en, upvotes)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           (id, title_da, title_en, author, category, content_da, content_en, upvotes, is_danish)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, true)`,
         [
           threadId,
           'E2E fixture-tråd (auto-genereret)',
