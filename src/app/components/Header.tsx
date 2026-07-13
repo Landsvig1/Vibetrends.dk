@@ -58,7 +58,7 @@ export default function Header() {
 
   return (
     <>
-      <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full glass-panel border-b border-card-border backdrop-blur-md">
+      <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full bg-card-bg/85 border-b border-card-border backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Every Link in this header has prefetch={false}: they're rendered on
             every page, so their background prefetches compete with any
@@ -99,7 +99,7 @@ export default function Header() {
                       aria-haspopup="true"
                       className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
                         isActive
-                          ? "text-accent-primary bg-background border-b-2 border-accent-primary"
+                          ? "text-accent-primary bg-accent-light"
                           : "text-text-secondary hover:text-foreground hover:bg-card-border"
                       }`}
                     >
@@ -109,7 +109,7 @@ export default function Header() {
                     </button>
 
                     {/* Dropdown Menu — opens on hover and on keyboard focus */}
-                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block group-focus-within:block animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block group-focus-within:block animate-in fade-in slide-in-from-top-2 duration-150 z-50 before:absolute before:-top-4 before:left-0 before:right-0 before:h-4 before:content-['']">
                       {item.items?.map((subItem) => {
                         const SubIcon = subItem.icon;
                         const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
@@ -143,7 +143,7 @@ export default function Header() {
                   transitionTypes={[directionType]}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
                     isActive
-                      ? "text-accent-primary bg-background border-b-2 border-accent-primary"
+                      ? "text-accent-primary bg-accent-light"
                       : "text-text-secondary hover:text-foreground hover:bg-card-border"
                   }`}
                 >
@@ -157,11 +157,11 @@ export default function Header() {
           {/* Action button & Mini language toggle */}
           <div className="hidden lg:flex items-center space-x-4">
             {/* MINI LANGUAGE TOGGLE */}
-            <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-[10px] font-bold font-mono">
+            <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-xs font-semibold">
               <button
                 onClick={() => setLanguage("da")}
                 aria-pressed={language === "da"}
-                className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
+                className={`px-2 py-0.5 rounded cursor-pointer transition ${
                   language === "da"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
@@ -172,7 +172,7 @@ export default function Header() {
               <button
                 onClick={() => setLanguage("en")}
                 aria-pressed={language === "en"}
-                className={`px-1.5 py-0.5 rounded cursor-pointer transition ${
+                className={`px-2 py-0.5 rounded cursor-pointer transition ${
                   language === "en"
                     ? "bg-accent-primary text-white"
                     : "text-text-secondary hover:text-foreground"
