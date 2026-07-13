@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
 // U3 — Forum API route integration tests for actingAs / bearer-token path
@@ -38,8 +39,14 @@ vi.mock("@/lib/honeypot", () => ({
   validateHoneypot: () => true,
 }));
 
+// Mock rate-limit — always within budget (proceed) unless a test overrides it.
+vi.mock("@/lib/rate-limit", () => ({
+  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+}));
+
 import * as dbMod from "@/lib/db";
 import * as serverMod from "@/lib/supabase-server";
+import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import type { ActingAs } from "@/lib/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -215,6 +222,30 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
 
     const [, calledActingAs] = vi.mocked(dbMod.upvoteThread).mock.calls[0];
     expect(calledActingAs).toBe(actingAs);
+  });
+
+  it("returns 429 and skips upvoteThread once the write budget (identity or site-wide) is exhausted", async () => {
+    const { identity } = makeBotIdentity("bot-upvote");
+    resolveRequestIdentityMock.mockResolvedValue(identity);
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    );
+
+    const res = await threadUpvotePost(makeRequest({}), { params });
+    expect(res.status).toBe(429);
+    expect(dbMod.upvoteThread).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 (not an unhandled exception) when the rate-limit check itself throws — this route has no top-level try/catch", async () => {
+    const { identity } = makeBotIdentity("bot-upvote");
+    resolveRequestIdentityMock.mockResolvedValue(identity);
+    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Service unavailable" }, { status: 503 })
+    );
+
+    const res = await threadUpvotePost(makeRequest({}), { params });
+    expect(res.status).toBe(503);
+    expect(dbMod.upvoteThread).not.toHaveBeenCalled();
   });
 
   it("returns 503 on rpc_error", async () => {

@@ -16,6 +16,7 @@ import {
   type ActingAs,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { checkAgentWriteAllowed } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
@@ -223,6 +224,7 @@ const INTERNAL_ERROR = -32603;
 // -32000 to -32099 is the JSON-RPC 2.0 reserved range for implementation-defined server errors.
 const NOT_FOUND_ERROR = -32001;
 const SERVICE_UNAVAILABLE_ERROR = -32002;
+const RATE_LIMITED_ERROR = -32003;
 
 type JsonRpcId = string | number | null;
 
@@ -470,6 +472,24 @@ export async function POST(request: Request) {
         // REST write routes (e.g. src/app/api/vibes/route.ts).
         actingAs = identity.botAuth;
         username = identity.user.username;
+
+        // Cost-control ceiling — only applies to bearer-token (agent) callers,
+        // not cookie-authenticated humans. Checks both the per-identity and
+        // site-wide budgets; see checkAgentWriteAllowed's doc. Caught locally
+        // (like the REST write routes) so an RPC failure maps to the same
+        // SERVICE_UNAVAILABLE signal instead of falling through to the
+        // generic INTERNAL_ERROR catch below.
+        if (actingAs) {
+          let withinLimit: boolean;
+          try {
+            withinLimit = await checkAgentWriteAllowed(actingAs.user.id);
+          } catch {
+            return rpcError(id, SERVICE_UNAVAILABLE_ERROR, "Service unavailable");
+          }
+          if (!withinLimit) {
+            return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
+          }
+        }
       }
 
       const result = await callTool(name, args, actingAs, username);
