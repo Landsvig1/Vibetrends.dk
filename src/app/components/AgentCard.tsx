@@ -17,6 +17,7 @@ import { Agent } from "@/lib/db";
 interface AgentCardProps {
   agent: Agent;
   detailBase: string;
+  testId: "mcp-card" | "cli-card" | "agent-card";
   isCopied: boolean;
   canDelete: boolean;
   confirmDeleteLabel: string;
@@ -39,6 +40,7 @@ const categoryIcons = {
 function AgentCardComponent({
   agent,
   detailBase,
+  testId,
   isCopied,
   canDelete,
   confirmDeleteLabel,
@@ -53,13 +55,7 @@ function AgentCardComponent({
 }: AgentCardProps) {
   return (
     <div
-      data-testid={
-        agent.category === "MCP Server"
-          ? "mcp-card"
-          : agent.category === "CLI"
-          ? "cli-card"
-          : "agent-card"
-      }
+      data-testid={testId}
       className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
     >
       <Link

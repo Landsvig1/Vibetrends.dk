@@ -15,6 +15,17 @@ import { AgentCard } from "./AgentCard";
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
 /**
+ * Card test-id is derived from the page scope, not the individual agent's
+ * category — the /agents scope shows a mixed feed (CLI + Host agents, MCP
+ * excluded) and every card there must stay "agent-card" regardless of which
+ * category an individual agent has. Only /mcp and /cli show a homogeneous
+ * feed where every card shares one testid. Extracted for unit testability.
+ */
+export function cardTestId(scope: AgentsExplorerProps["scope"]): "mcp-card" | "cli-card" | "agent-card" {
+  return scope === "mcp" ? "mcp-card" : scope === "cli" ? "cli-card" : "agent-card";
+}
+
+/**
  * Pure client-side search filter — extracted for unit testability.
  * Mirrors the server-side SQL ilike filter in getAgents() but operates on
  * the already-fetched client list without a network round-trip.
@@ -366,6 +377,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   <AgentCard
                     agent={agent}
                     detailBase={detailBase}
+                    testId={cardTestId(scope)}
                     isCopied={copiedId === agent.id}
                     canDelete={canDeleteThisAgent}
                     confirmDeleteLabel={t("agents.confirm_delete")}

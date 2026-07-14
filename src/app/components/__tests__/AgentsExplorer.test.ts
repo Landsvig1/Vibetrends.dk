@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { filterAgents, executeUpvote } from "../AgentsExplorer";
+import { filterAgents, executeUpvote, cardTestId } from "../AgentsExplorer";
 import type { Agent } from "@/lib/db";
 
 /**
@@ -265,6 +265,28 @@ describe("executeUpvote — optimistic upvote with rollback (real implementation
 
     resolveFirst!(mockResponse(200, { upvotes: 4 }));
     await p1;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cardTestId — derived from page scope, not the individual agent's category.
+// The /agents scope shows a mixed feed (CLI agents included, MCP excluded),
+// so every card there must stay "agent-card" regardless of that agent's own
+// category — a per-agent-category derivation would wrongly give CLI-category
+// agents shown on /agents a "cli-card" testid.
+// ---------------------------------------------------------------------------
+
+describe("cardTestId — scope-derived, not category-derived", () => {
+  it("mcp scope always yields mcp-card", () => {
+    expect(cardTestId("mcp")).toBe("mcp-card");
+  });
+
+  it("cli scope always yields cli-card", () => {
+    expect(cardTestId("cli")).toBe("cli-card");
+  });
+
+  it("agents scope yields agent-card, even though the mixed feed includes CLI-category agents", () => {
+    expect(cardTestId("agents")).toBe("agent-card");
   });
 });
 
