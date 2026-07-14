@@ -13,3 +13,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-14 - Redundant Project Showcase card re-renders
 **Learning:** Like the `SkillsExplorer`, the real-time search typing in `VibesExplorer` was causing the entire list of projects to reconcile and re-render every card on every keystroke because the cards were raw JSX elements inside the `map()` loop and upvote/delete handlers were newly created on every render.
 **Action:** Extracted the raw JSX into a memoized `<ProjectCard />` component, pre-calculating the boolean authorization flag (`canDelete`) on the parent to avoid passing dynamic user references, and stabilized the parent's `handleUpvote` and `handleDeleteProject` handlers with `useCallback`. This eliminated all redundant Project card reconciliation overhead during real-time user typing.
+
+## 2026-07-15 - Redundant Agent Card re-renders during active search typing
+**Learning:** In `AgentsExplorer` (which powers the CLI, MCP, and Agent views), active typing in the search input triggered parent component state updates. Because agent cards were rendered inline and upvote/delete/copy event handlers were re-instantiated on every render, React was forced to fully reconcile and re-render every single agent card in the list.
+**Action:** Extracted the inline JSX to a dedicated `<AgentCard />` component wrapped in `React.memo`, computed authorization checks (`canDelete`) on the parent, and stabilized event handlers with `useCallback`. This entirely prevents card updates when typing search queries.
