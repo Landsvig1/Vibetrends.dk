@@ -19,9 +19,7 @@ import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
-import { skillSchema } from "@/app/api/skills/route";
-import { projectSchema } from "@/app/api/vibes/route";
-import { blogPostSchema } from "@/app/api/blog/route";
+import { skillSchema, projectSchema, blogPostSchema } from "@/lib/schemas";
 
 const RATE_LIMIT_LIMIT = 60;
 const RATE_LIMIT_WINDOW_SECONDS = 60;

@@ -3,22 +3,10 @@ import { getBlogPosts, getBlogPostById, createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { validateHoneypot } from "@/lib/honeypot";
-import { z } from "zod";
-import { BLOG_CATEGORIES } from "@/lib/blogCategories";
+import { blogPostSchema } from "@/lib/schemas";
+export { blogPostSchema };
 
 import { cookies } from "next/headers";
-
-export const blogPostSchema = z.object({
-  title: z.string().min(1).max(200),
-  excerpt: z.string().min(1).max(500),
-  content: z.string().min(1).max(50000),
-  // author is derived from the authenticated identity (user.username), not the
-  // request body — mirrors how createProject/createSkill work.
-  readTime: z.string().min(1).max(50),
-  publishedAt: z.string().min(1).max(50),
-  imageUrl: z.string().url().max(500),
-  category: z.enum(BLOG_CATEGORIES),
-});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

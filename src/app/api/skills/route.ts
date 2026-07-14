@@ -3,21 +3,8 @@ import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
-import { z } from "zod";
-
-export const skillSchema = z.object({
-  title: z.string().min(1).max(100),
-  category: z.enum(SKILL_CATEGORY_SLUGS),
-  // Only title + link are essential. Description is optional (empty allowed).
-  description: z.string().max(1000).optional().or(z.literal("")),
-  tags: z.array(z.string()).max(10).optional(),
-  githubUrl: z.string().url().max(200),
-  // Attribution for bot-imported skills (e.g. the source repo URL). Optional —
-  // human submissions via the web form don't set this. Mirrors githubUrl's
-  // sibling fields (demoUrl/imageUrl) in accepting "" as "not provided".
-  source: z.string().url().max(300).optional().or(z.literal("")),
-});
+import { skillSchema } from "@/lib/schemas";
+export { skillSchema };
 
 import { cookies } from "next/headers";
 
