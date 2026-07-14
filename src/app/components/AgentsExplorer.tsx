@@ -1,18 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
-import { Search, Heart, Cpu, Copy, CheckCircle, PlusCircle, X, Trash2, Terminal, Globe, CheckCircle2, Flag, Flame } from "lucide-react";
+import { Search, Cpu, PlusCircle, X, Terminal, CheckCircle2, Flag, Flame } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { canDelete } from "@/lib/permissions";
 import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "./EmptyState";
+import { AgentCard } from "./AgentCard";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
+
+/**
+ * Card test-id is derived from the page scope, not the individual agent's
+ * category — the /agents scope shows a mixed feed (CLI + Host agents, MCP
+ * excluded) and every card there must stay "agent-card" regardless of which
+ * category an individual agent has. Only /mcp and /cli show a homogeneous
+ * feed where every card shares one testid. Extracted for unit testability.
+ */
+export function cardTestId(scope: AgentsExplorerProps["scope"]): "mcp-card" | "cli-card" | "agent-card" {
+  return scope === "mcp" ? "mcp-card" : scope === "cli" ? "cli-card" : "agent-card";
+}
 
 /**
  * Pure client-side search filter — extracted for unit testability.
@@ -153,15 +164,15 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
       });
   }, [language, fetchUrl]);
 
-  const handleCopyCommand = (id: string, command: string, e: React.MouseEvent) => {
+  const handleCopyCommand = useCallback((id: string, command: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigator.clipboard.writeText(command);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const handleUpvote = async (id: string, e: React.MouseEvent) => {
+  const handleUpvote = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
@@ -183,7 +194,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
         ),
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  };
+  }, [user, agents]);
 
   const handleSubmitAgent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,7 +239,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     }
   };
 
-  const handleDeleteAgent = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteAgent = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!confirm(t("agents.confirm_delete"))) return;
@@ -241,16 +252,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     } catch (err) {
       console.error("Error deleting:", err);
     }
-  };
-
-  // Each feed type maps to a single agents-table category, so the explorer has
-  // no sub-category chips — filtering is search-only. categoryIcons still labels
-  // each card's category badge.
-  const categoryIcons = {
-    "CLI": <Terminal className="h-4 w-4" />,
-    "MCP Server": <Cpu className="h-4 w-4" />,
-    "Host": <Globe className="h-4 w-4" />,
-  };
+  }, [t]);
 
   const searchActive = search.trim() !== "";
 
@@ -359,117 +361,38 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           }`}
         >
           <AnimatePresence mode="popLayout">
-            {filteredAgents.map((agent, index) => (
-              <motion.div
-                key={agent.id}
-                layout
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2, delay: index * 0.04 }}
-                data-testid={isMcp ? "mcp-card" : isCli ? "cli-card" : "agent-card"}
-                className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
-              >
-                <Link
-                  href={`${detailBase}/${agent.id}`}
-                  aria-label={agent.name}
-                  className="absolute inset-0 z-10 rounded-xl"
-                />
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
-                          {categoryIcons[agent.category as keyof typeof categoryIcons]}
-                          {agent.category}
-                        </div>
-                        {canDelete(user, agent.developer, (a) => a.startsWith("vibecoder_")) && (
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={(e) => { e.stopPropagation(); handleDeleteAgent(agent.id, e); }}
-                            aria-label={t("agents.confirm_delete")}
-                            className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                          </motion.button>
-                        )}
-                      </div>
-                      <h3 className="text-lg font-bold text-foreground group-hover:text-accent-primary transition-colors leading-tight pt-1">
-                        {agent.name}
-                      </h3>
-                    </div>
+            {filteredAgents.map((agent, index) => {
+              const isDeveloperVibecoder = agent.developer.startsWith("vibecoder_");
+              const canDeleteThisAgent = canDelete(user, agent.developer, () => isDeveloperVibecoder);
 
-                    <div className="flex items-center gap-2">
-                      {agent.sourceUrl && (
-                        <motion.a
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          href={agent.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
-                          className="relative flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-                        >
-                          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-                        </motion.a>
-                      )}
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => { e.stopPropagation(); handleUpvote(agent.id, e); }}
-                        aria-label={`Upvote ${agent.name}`}
-                        className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-                      >
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 0.3 }}
-                          key={agent.upvotes}
-                        >
-                          <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                        </motion.div>
-                        <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
-                      </motion.button>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
-                    {agent.description}
-                  </p>
-
-                  <div className="flex items-center justify-between rounded-lg bg-background border border-card-border p-3 font-mono text-[10px] text-accent-primary relative group/install">
-                    <span className="truncate pr-8">{agent.installCommand}</span>
-                    <button
-                      onClick={(e) => handleCopyCommand(agent.id, agent.installCommand, e)}
-                      aria-label={copiedId === agent.id ? "Kopieret" : "Kopiér installationskommando"}
-                      className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-20"
-                    >
-                      {copiedId === agent.id ? (
-                        <CheckCircle className="h-3.5 w-3.5 text-accent-primary" aria-hidden="true" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {agent.tags.slice(0, 4).map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-card-border text-[10px] text-text-secondary uppercase font-bold tracking-widest">
-                  <span>{t("agents.by")} {agent.developer}</span>
-                  <span className="text-accent-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    {t("agents.details")} <span className="text-xs">&rarr;</span>
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+              return (
+                <motion.div
+                  key={agent.id}
+                  layout
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2, delay: index * 0.04 }}
+                >
+                  <AgentCard
+                    agent={agent}
+                    detailBase={detailBase}
+                    testId={cardTestId(scope)}
+                    isCopied={copiedId === agent.id}
+                    canDelete={canDeleteThisAgent}
+                    confirmDeleteLabel={t("agents.confirm_delete")}
+                    sourceLabel={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
+                    copyLabel="Kopiér installationskommando"
+                    copiedLabel="Kopieret"
+                    byLabel={t("agents.by")}
+                    detailsLabel={t("agents.details")}
+                    onDelete={handleDeleteAgent}
+                    onUpvote={handleUpvote}
+                    onCopy={handleCopyCommand}
+                  />
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       ) : (
