@@ -49,3 +49,13 @@ export const blogPostSchema = z.object({
   imageUrl: z.string().url().max(500),
   category: z.enum(BLOG_CATEGORIES),
 });
+
+export const replySchema = z.object({
+  content: z.string().min(1).max(5000),
+});
+
+// Shared formatter for a failed Zod safeParse, used by both REST routes and
+// the MCP tool dispatcher so error message shape stays consistent everywhere.
+export function formatZodError(error: z.ZodError): string {
+  return error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+}

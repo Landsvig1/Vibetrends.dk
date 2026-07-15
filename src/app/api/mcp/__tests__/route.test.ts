@@ -448,6 +448,36 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     expect(body.error).toBeDefined();
   });
 
+  it("reply_to_thread rejects content over 5000 characters (matches REST's replySchema bound)", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 59,
+        method: "tools/call",
+        params: { name: "reply_to_thread", arguments: { threadId: "t_1", content: "x".repeat(5001) } },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.addReply).not.toHaveBeenCalled();
+  });
+
+  it("reply_to_thread rejects empty content", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 60,
+        method: "tools/call",
+        params: { name: "reply_to_thread", arguments: { threadId: "t_1", content: "" } },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.addReply).not.toHaveBeenCalled();
+  });
+
   it("read-only tools still work with no Authorization header (identity resolution stays optional for reads)", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(null);
     const res = await POST(

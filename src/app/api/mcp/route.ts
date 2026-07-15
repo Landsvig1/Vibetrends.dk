@@ -19,7 +19,7 @@ import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
-import { skillSchema, projectSchema, blogPostSchema } from "@/lib/schemas";
+import { skillSchema, projectSchema, blogPostSchema, replySchema, formatZodError } from "@/lib/schemas";
 
 const RATE_LIMIT_LIMIT = 60;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
@@ -274,13 +274,14 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     }
     case "reply_to_thread": {
       const threadId = asString(args.threadId);
-      const content = asString(args.content);
-      if (!threadId || !content) {
-        return { error: "INVALID_PARAMS", message: "threadId and content are required" };
+      if (!threadId) {
+        return { error: "INVALID_PARAMS", message: "threadId is required" };
       }
-      if (content.length < 1 || content.length > 5000) {
-        return { error: "INVALID_PARAMS", message: "content length must be between 1 and 5000 characters" };
+      const parsed = replySchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
+      const { content } = parsed.data;
       const submitterUsername = username ?? "agent";
       const thread = await addReply(threadId, submitterUsername, content, actingAs);
       if (!thread) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
@@ -289,7 +290,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     case "submit_skill": {
       const parsed = skillSchema.safeParse(args);
       if (!parsed.success) {
-        return { error: "INVALID_PARAMS", message: `Invalid input: ${parsed.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", ")}` };
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
       const { title, category, description, tags, githubUrl, source } = parsed.data;
       const submitterUsername = username ?? "agent";
@@ -308,7 +309,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     case "submit_project": {
       const parsed = projectSchema.safeParse(args);
       if (!parsed.success) {
-        return { error: "INVALID_PARAMS", message: `Invalid input: ${parsed.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", ")}` };
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
       const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl } = parsed.data;
       const submitterUsername = username ?? "agent";
@@ -328,7 +329,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     case "submit_blog_post": {
       const parsed = blogPostSchema.safeParse(args);
       if (!parsed.success) {
-        return { error: "INVALID_PARAMS", message: `Invalid input: ${parsed.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", ")}` };
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
       const { title, excerpt, content, readTime, publishedAt, imageUrl, category } = parsed.data;
       const submitterUsername = username ?? "agent";
