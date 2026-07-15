@@ -11,8 +11,6 @@ import {
   createProject,
   addReply,
   createBlogPost,
-  type Skill,
-  type BlogPost,
   type ActingAs,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
@@ -20,8 +18,8 @@ import { resolveAgentWriteLimit } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
-import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
+import { skillSchema, projectSchema, blogPostSchema, replySchema, formatZodError } from "@/lib/schemas";
 
 const RATE_LIMIT_LIMIT = 60;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
@@ -254,10 +252,6 @@ function asLang(v: unknown): "da" | "en" {
   return v === "en" ? "en" : "da";
 }
 
-function asStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-}
-
 async function callTool(name: string, args: Record<string, unknown>, actingAs?: ActingAs, username?: string) {
   const query = asString(args.query);
   const lang = asLang(args.lang);
@@ -280,86 +274,76 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
     }
     case "reply_to_thread": {
       const threadId = asString(args.threadId);
-      const content = asString(args.content);
-      if (!threadId || !content) {
-        return { error: "INVALID_PARAMS", message: "threadId and content are required" };
+      if (!threadId) {
+        return { error: "INVALID_PARAMS", message: "threadId is required" };
       }
+      const parsed = replySchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
+      }
+      const { content } = parsed.data;
       const submitterUsername = username ?? "agent";
       const thread = await addReply(threadId, submitterUsername, content, actingAs);
       if (!thread) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
       return textContent(thread);
     }
     case "submit_skill": {
-      const title = asString(args.title);
-      const category = asString(args.category) as Skill["category"] | undefined;
-      const githubUrl = asString(args.githubUrl);
-      if (!title || !category || !githubUrl) {
-        return { error: "INVALID_PARAMS", message: "title, category, and githubUrl are required" };
+      const parsed = skillSchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
-      if (!SKILL_CATEGORY_SLUGS.includes(category)) {
-        return { error: "INVALID_PARAMS", message: `category must be one of: ${SKILL_CATEGORY_SLUGS.join(", ")}` };
-      }
+      const { title, category, description, tags, githubUrl, source } = parsed.data;
       const submitterUsername = username ?? "agent";
       const skill = await createSkill(
         title,
         submitterUsername,
-        asString(args.description) ?? "",
+        description || "",
         category,
-        asStringArray(args.tags),
+        tags || [],
         githubUrl,
-        asString(args.source),
+        source || undefined,
         actingAs
       );
       return textContent(skill);
     }
     case "submit_project": {
-      // Required set mirrors projectSchema in src/app/api/vibes/route.ts — demoUrl
-      // is optional there too; requiring it here would reject payloads REST accepts.
-      const title = asString(args.title);
-      const description = asString(args.description);
-      if (!title || !description) {
-        return { error: "INVALID_PARAMS", message: "title and description are required" };
+      const parsed = projectSchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
-      const imageUrl = asString(args.imageUrl);
-      if (imageUrl && !isAllowedImageUrl(imageUrl)) {
-        return {
-          error: "INVALID_PARAMS",
-          message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
-        };
-      }
+      const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl } = parsed.data;
       const submitterUsername = username ?? "agent";
       const project = await createProject(
         title,
         submitterUsername,
         description,
-        asStringArray(args.tools),
-        asStringArray(args.prompts),
-        asString(args.demoUrl) ?? "",
-        asString(args.githubUrl),
-        imageUrl,
+        tools || [],
+        prompts || [],
+        demoUrl || "",
+        githubUrl,
+        imageUrl || undefined,
         actingAs
       );
       return textContent(project);
     }
     case "submit_blog_post": {
-      const title = asString(args.title);
-      const excerpt = asString(args.excerpt);
-      const content = asString(args.content);
-      const readTime = asString(args.readTime);
-      const publishedAt = asString(args.publishedAt);
-      const imageUrl = asString(args.imageUrl);
-      const category = asString(args.category) as BlogPost["category"] | undefined;
-      if (!title || !excerpt || !content || !readTime || !publishedAt || !imageUrl || !category) {
-        return {
-          error: "INVALID_PARAMS",
-          message: "title, excerpt, content, readTime, publishedAt, imageUrl, and category are required",
-        };
+      const parsed = blogPostSchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
-      if (!BLOG_CATEGORIES.includes(category)) {
-        return { error: "INVALID_PARAMS", message: `category must be one of: ${BLOG_CATEGORIES.join(", ")}` };
-      }
+      const { title, excerpt, content, readTime, publishedAt, imageUrl, category } = parsed.data;
       const submitterUsername = username ?? "agent";
-      const post = await createBlogPost(title, excerpt, content, submitterUsername, readTime, publishedAt, imageUrl, category, actingAs);
+      const post = await createBlogPost(
+        title,
+        excerpt,
+        content,
+        submitterUsername,
+        readTime,
+        publishedAt,
+        imageUrl,
+        category,
+        actingAs
+      );
       return textContent(post);
     }
     case "search_skills":

@@ -3,24 +3,8 @@ import { validateHoneypot } from "@/lib/honeypot";
 import { getProjects, createProject } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { isAllowedImageUrl } from "@/lib/allowedImageHosts";
-import { z } from "zod";
-
-export const projectSchema = z.object({
-  title: z.string().min(1).max(100),
-  description: z.string().min(10).max(500),
-  tools: z.array(z.string()).max(10).optional(),
-  prompts: z.array(z.string()).optional(),
-  demoUrl: z.string().url().max(200).optional().or(z.literal("")),
-  githubUrl: z.string().url().max(200).optional(),
-  // Restricted to the same hosts next.config.ts's remotePatterns/CSP allow —
-  // an imageUrl that passes .url() but isn't on that allowlist would pass
-  // validation here and then throw at render time for every visitor viewing
-  // the card (next/image rejects unconfigured hostnames).
-  imageUrl: z.string().url().max(300).refine(isAllowedImageUrl, {
-    message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
-  }).optional().or(z.literal("")),
-});
+import { projectSchema } from "@/lib/schemas";
+export { projectSchema };
 
 import { cookies } from "next/headers";
 

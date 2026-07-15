@@ -3,11 +3,7 @@ import { validateHoneypot } from "@/lib/honeypot";
 import { addReply } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { z } from "zod";
-
-const replySchema = z.object({
-  content: z.string().min(1).max(5000),
-});
+import { replySchema } from "@/lib/schemas";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
