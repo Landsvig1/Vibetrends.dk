@@ -374,7 +374,11 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
  * element-substring searches without a custom RPC or exact-element operators.
  */
 export function sanitizeSearchTerm(raw: string): string {
-  return raw.replace(/[,.()*%_]/g, '');
+  // Security concern: Stripping backslashes ('\\') alongside other delimiters is
+  // critical because backslash is the default escape character in PostgreSQL LIKE/ILIKE.
+  // Allowing unescaped backslashes can lead to escape bypass, query manipulation,
+  // or database execution errors if malformed sequences are passed.
+  return raw.replace(/[,.()*%_\\\\]/g, '');
 }
 
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {

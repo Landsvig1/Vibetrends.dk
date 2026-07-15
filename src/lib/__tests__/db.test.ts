@@ -956,6 +956,12 @@ describe("sanitizeSearchTerm (KTD3 injection resistance)", () => {
   it("returns empty string when the entire input is stripped", () => {
     expect(sanitizeSearchTerm(",.()")).toBe("");
   });
+
+  it("strips backslashes to prevent PostgreSQL ILIKE escape bypass", () => {
+    expect(sanitizeSearchTerm("foo\\bar")).toBe("foobar");
+    expect(sanitizeSearchTerm("\\\\")).toBe("");
+    expect(sanitizeSearchTerm("abc\\%_123")).toBe("abc123");
+  });
 });
 
 const agentRow = {
