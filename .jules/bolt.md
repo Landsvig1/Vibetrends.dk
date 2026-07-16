@@ -17,3 +17,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-15 - Redundant Agent Card re-renders during active search typing
 **Learning:** In `AgentsExplorer` (which powers the CLI, MCP, and Agent views), active typing in the search input triggered parent component state updates. Because agent cards were rendered inline and upvote/delete/copy event handlers were re-instantiated on every render, React was forced to fully reconcile and re-render every single agent card in the list.
 **Action:** Extracted the inline JSX to a dedicated `<AgentCard />` component wrapped in `React.memo`, computed authorization checks (`canDelete`) on the parent, and stabilized event handlers with `useCallback`. This entirely prevents card updates when typing search queries.
+
+## 2026-07-16 - Redundant Forum thread card re-renders during active search typing
+**Learning:** In `ForumExplorer`, active typing in the search input triggered parent component state updates. Because thread cards were rendered inline and upvote/delete event handlers were newly created on every render, React was forced to fully reconcile and re-render every single thread card in the list.
+**Action:** Extracted the inline JSX to a dedicated `<ThreadCard />` component wrapped in `React.memo`, pre-computed authorization checks (`canDelete`) on the parent, and stabilized event handlers with `useCallback`. This entirely prevents thread card reconciliation overhead during real-time user typing.
