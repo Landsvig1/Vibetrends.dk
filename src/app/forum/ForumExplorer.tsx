@@ -126,6 +126,15 @@ export default function ForumExplorer({
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
 
+  // Mirrors `threads` so handleUpvote can read the current list without
+  // depending on `threads` itself — keeps handleUpvote's identity stable
+  // across upvotes so memoized ThreadCard instances don't all re-render
+  // on every click.
+  const threadsRef = useRef(threads);
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
+
   // getThreads/api/forum only understand top/new — Dansk is a client-side
   // filter/sort layered on the 'top'-sorted base list (see viewThreads below).
   const serverSort = view === "new" ? "new" : "top";
@@ -186,7 +195,7 @@ export default function ForumExplorer({
       return;
     }
     // Save pre-click count so executeUpvote callbacks can roll back on failure.
-    const prevCount = threads.find((t) => t.id === id)?.upvotes ?? 0;
+    const prevCount = threadsRef.current.find((t) => t.id === id)?.upvotes ?? 0;
     await executeUpvote(id, `/api/forum/${id}/upvote`, pendingUpvoteIds.current, fetch, {
       onOptimistic: () =>
         setThreads((prev) =>
@@ -202,7 +211,7 @@ export default function ForumExplorer({
         ),
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  }, [user, threads]);
+  }, [user]);
 
   // Submit new thread via API
   const handleCreateThread = async (e: React.FormEvent) => {
