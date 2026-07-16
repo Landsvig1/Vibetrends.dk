@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
-  title: "Developer Forum",
-  description: "Stil spørgsmål, del prompts og diskuter de nyeste AI-modeller med andre danske vibe coders.",
+  title: "Forum",
+  description: "Spørg om AI. Få svar fra folk der bygger.",
   path: "/forum",
   image: "/images/og-default.jpg",
 });

@@ -9,7 +9,7 @@ import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
   title: "CLI Tools",
-  description: "Find CLI-tools og kommandolinje-hjælpere til dine AI-workflows og agent-opsætninger.",
+  description: "CLI-tools din agent kan kalde direkte. Kuraterede og testede.",
   path: "/cli",
   image: "/images/og-default.jpg",
 });

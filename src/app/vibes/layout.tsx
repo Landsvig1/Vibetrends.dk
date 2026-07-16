@@ -3,7 +3,7 @@ import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
   title: "Project Showcase",
-  description: "Se hvad folk bygger med AI. Vibe-kodede projekter fra det danske community — med tech stacks, prompts og live demos.",
+  description: "Se hvad Danmark bygger med AI. Med prompts, stacks og live demos.",
   path: "/vibes",
   image: "/images/og-default.jpg",
 });

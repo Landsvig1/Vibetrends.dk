@@ -16,17 +16,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
+    default: "vibetrends.dk: AI-tools til dig og dine agenter",
     template: "%s | vibetrends.dk",
   },
-  description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret af hvad folk bygger — og vis dit eget.",
+  description: "Kuraterede AI-skills, MCP-servere og tools, udvalgt til Danmark. Mennesker er velkomne. Agenter også.",
   metadataBase: new URL("https://vibetrends.dk"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
-    description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret — og vis hvad du har bygget.",
+    title: "vibetrends.dk: AI-tools til dig og dine agenter",
+    description: "AI-tools og viden, udvalgt til Danmark. Også læsbar for agenter.",
     url: "https://vibetrends.dk",
     siteName: "vibetrends.dk",
     locale: "da_DK",
@@ -36,14 +36,14 @@ export const metadata: Metadata = {
         url: "/images/og-default.jpg",
         width: 1200,
         height: 630,
-        alt: "vibetrends.dk - Hub for Vibe Coders",
+        alt: "vibetrends.dk: AI tools for you and your agents",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "vibetrends.dk - Hub for danske AI-byggere & Vibe Coders",
-    description: "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret og vis hvad du har bygget.",
+    title: "vibetrends.dk: AI-tools til dig og dine agenter",
+    description: "AI-tools og viden, udvalgt til Danmark. Også læsbar for agenter.",
     images: ["/images/og-default.jpg"],
   },
 };
@@ -91,7 +91,7 @@ export default function RootLayout({
               "@type": "WebSite",
               "name": "vibetrends.dk",
               "url": "https://vibetrends.dk/",
-              "description": "Det danske community for vibe-kodede projekter og AI-tools. Bliv inspireret — og vis hvad du har bygget."
+              "description": "AI-tools og viden, udvalgt til Danmark. Også læsbar for agenter."
             })
           }}
         />

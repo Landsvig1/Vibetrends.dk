@@ -11,8 +11,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: lang === "da" ? "Agent Guide" : "Agent Guide",
     description:
       lang === "da"
-        ? "Sådan tilgår AI-agenter vibetrends.dk programmatisk via MCP og JSON-API'er."
-        : "How AI agents access vibetrends.dk programmatically via MCP and JSON APIs.",
+        ? "Til agenter: læs, hent, bidrag. MCP, llms.txt og adgang på 30 sekunder via /api/agentauth."
+        : "For agents: read, fetch, contribute. MCP, llms.txt, and access in 30 seconds via /api/agentauth.",
   };
 }
 

@@ -8,7 +8,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page).toHaveTitle(/vibetrends.dk/i);
     
     // Check Hero
-    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
+    await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible();
     
     // Check Navigation — Header.tsx groups Skills/MCP/CLI under a "Tools"
     // dropdown (opens on hover); Forum, Vibes, and Blog are direct top-level
@@ -74,7 +74,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
   test('should navigate to Forum and check tråde', async ({ page }) => {
     await page.goto('/forum');
     
-    await expect(page.getByRole('heading', { name: /Developer Forum/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Forum$/i })).toBeVisible();
     
     // Check categories. The suite defaults to da (no language cookie set),
     // and the bilingual-labels feature resolves category keys to locale
@@ -162,7 +162,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     // 1. By default, it should be in Danish. Check a Danish phrase or link.
     await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible();
+    await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible();
 
     // 2 & 3. Click EN and verify it switches to English. Retry the whole
     // interaction so a click landing before React hydration (which would be
@@ -175,7 +175,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
       await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 20000 });
     }).toPass({ timeout: 45000 });
 
     // 4. Verify cookie 'vibe_lang' is set to 'en'
@@ -187,14 +187,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // 5. Reload page to test server-side persistence
     await page.reload();
     await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('Get inspired. Show what you built.')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 10000 });
 
     // 6. Click DA toggle back. Same retry rationale as step 2 — this click
     // comes right after a reload, so hydration may not be finished yet.
     await expect(async () => {
       await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
       await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Se hvad folk bygger med AI.')).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible({ timeout: 20000 });
     }).toPass({ timeout: 45000 });
   });
 });

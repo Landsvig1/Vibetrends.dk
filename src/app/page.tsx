@@ -56,11 +56,11 @@ async function HomeContent() {
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {lang === "da" ? (
             <>
-              Se hvad folk <span className="text-accent-primary italic">bygger med AI</span>.
+              Gode AI-tools. <span className="text-accent-primary italic">Selv agenter</span> henter dem her.
             </>
           ) : (
             <>
-              Get inspired. <span className="text-accent-primary italic">Show what you built.</span>
+              Good AI tools. <span className="text-accent-primary italic">Even agents</span> come here for them.
             </>
           )}
         </h1>
@@ -71,18 +71,18 @@ async function HomeContent() {
 
         <div className="mt-6 hidden sm:flex flex-wrap justify-center gap-4">
           <Link
-            href="/vibes"
-            className="btn-primary"
-          >
-            {t("home.btn_showcase")}
-            <Layers className="ml-2 h-4 w-4" />
-          </Link>
-          <Link
             href="/skills"
-            className="btn-secondary"
+            className="btn-primary"
           >
             {t("home.btn_find_freelancer")}
             <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+          <Link
+            href="/vibes"
+            className="btn-secondary"
+          >
+            {t("home.btn_showcase")}
+            <Layers className="ml-2 h-4 w-4" />
           </Link>
           <Link
             href="/vibes?submit=1"
@@ -93,13 +93,22 @@ async function HomeContent() {
           </Link>
         </div>
 
-        <Link
-          href="/about"
-          className="mt-4 hidden sm:inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
-        >
-          <Info className="mr-1.5 h-3.5 w-3.5" />
-          {t("home.btn_about")}
-        </Link>
+        <div className="mt-4 hidden sm:flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <Link
+            href="/about"
+            className="inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
+          >
+            <Info className="mr-1.5 h-3.5 w-3.5" />
+            {t("home.btn_about")}
+          </Link>
+          <Link
+            href="/agent-guide"
+            className="inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
+          >
+            <Cpu className="mr-1.5 h-3.5 w-3.5" />
+            {t("home.btn_agent_guide")}
+          </Link>
+        </div>
       </section>
 
       {/* Spotlight — three hand-picked items (one vibe, one MCP server, one

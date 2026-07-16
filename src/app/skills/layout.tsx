@@ -3,7 +3,7 @@ import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
   title: "Skills Library",
-  description: "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community — klar til at koble på din coding agent.",
+  description: "AI-skills der virker. Verdens bedste, plus dem kun Danmark har: Rejseplanen, Boliga, CVR. Din agent kan selv hente dem.",
   path: "/skills",
   image: "/images/og-default.jpg",
 });

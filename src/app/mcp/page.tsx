@@ -8,7 +8,7 @@ import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
   title: "MCP Servere",
-  description: "Find Model Context Protocol (MCP) servere til Claude, Cursor og andre AI-agenter. Gratis og open source.",
+  description: "MCP-servere, udvalgt og testet. Fra Aula og CVR til verdens bedste agent-tools. Connect-opskrift følger med.",
   path: "/mcp",
   image: "/images/og-default.jpg",
 });
