@@ -129,7 +129,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
         {t("showcase.detail.back")}
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className={`grid grid-cols-1 gap-10 ${project.prompts.length > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
         {/* Left: Project Media & Info */}
         <div className="lg:col-span-2 space-y-8">
           <div className="relative rounded-2xl overflow-hidden border border-card-border bg-background aspect-video shadow-2xl">
@@ -162,6 +162,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+              {project.tools.length > 0 && (
               <div className="p-6 rounded-xl glass-card space-y-3">
                 <h3 className="text-sm font-bold text-accent-primary uppercase tracking-wider flex items-center">
                   <Sparkles className="h-4 w-4 mr-2" />
@@ -175,6 +176,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="p-6 rounded-xl glass-card space-y-4 flex flex-col justify-center">
                  <div className="flex gap-4">
@@ -208,7 +210,8 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
           </div>
         </div>
 
-        {/* Right: Prompts & Details */}
+        {/* Right: Prompts & Details (only when the project actually has prompts) */}
+        {project.prompts.length > 0 && (
         <div className="space-y-6">
           <div className="p-6 rounded-2xl glass-panel border border-card-border space-y-6 sticky top-24">
             <div className="flex items-center space-x-2">
@@ -217,34 +220,31 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                 {t("showcase.detail.prompts")}
               </h3>
             </div>
-            
+
             <div className="space-y-4">
-              {project.prompts.length > 0 ? (
-                project.prompts.map((prompt, index) => (
-                  <div key={index} className="space-y-2">
-                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
-                      Step {index + 1}
-                    </span>
-                    <div className="p-4 rounded-xl bg-background border border-card-border text-text-secondary text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                      {prompt}
-                    </div>
+              {project.prompts.map((prompt, index) => (
+                <div key={index} className="space-y-2">
+                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
+                    Step {index + 1}
+                  </span>
+                  <div className="p-4 rounded-xl bg-background border border-card-border text-text-secondary text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                    {prompt}
                   </div>
-                ))
-              ) : (
-                <p className="text-xs text-text-secondary italic">{t("showcase.detail.no_prompts")}</p>
-              )}
+                </div>
+              ))}
             </div>
 
             <div className="pt-6 border-t border-card-border">
               <p className="text-xs text-text-secondary leading-relaxed italic">
-                {lang === "da" 
-                  ? "Disse prompts er hentet direkte fra skaberens workflow. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter."
-                  : "These prompts are fetched directly from the creator's workflow. Copy them to recreate similar features in your own projects."
+                {lang === "da"
+                  ? "Disse prompts er delt af skaberen. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter."
+                  : "These prompts were shared by the creator. Copy them to recreate similar features in your own projects."
                 }
               </p>
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

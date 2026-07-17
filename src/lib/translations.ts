@@ -79,10 +79,10 @@ export const translations = {
 
     // Showcase Page
     "showcase.title": "Project Showcase",
-    "showcase.desc": "Se hvad andre har bygget udelukkende ved hjælp af AI-prompts og vibe coding. Lær af deres prompts, se deres tech stacks, og bliv inspireret.",
+    "showcase.desc": "Se hvad andre bygger med AI. Bliv inspireret, og vis dit eget frem.",
     "showcase.btn_submit": "Indsend dit projekt",
     "showcase.search": "Søg i projekter, redskaber eller forfattere...",
-    "showcase.details": "Se Detaljer & Prompts",
+    "showcase.details": "Se Detaljer",
     "showcase.visit": "Se Projekt",
     "showcase.by": "Bygget af",
     "showcase.empty": "Ingen projekter fundet.",
@@ -91,7 +91,7 @@ export const translations = {
     "showcase.modal.badge": "Vis dit projekt frem",
     "showcase.modal.success_title": "Projektet er udgivet!",
     "showcase.modal.success_desc": "Tillykke, dit projekt er nu tilføjet til det lokale showcase! Andre kan se og stemme på dit projekt med det samme.",
-    "showcase.modal.label_github": "GitHub URL (valgfri — udfylder navn/beskrivelse automatisk)",
+    "showcase.modal.label_github": "GitHub URL (valgfri: udfylder navn/beskrivelse automatisk)",
     "showcase.modal.github_fetching": "Henter repo-info...",
     "showcase.modal.label_title": "Projekt Navn",
     "showcase.modal.label_desc": "Beskrivelse",
@@ -282,10 +282,10 @@ export const translations = {
 
     // Showcase Page
     "showcase.title": "Project Showcase",
-    "showcase.desc": "See what others have built entirely using AI prompts and vibe coding. Learn from their prompts, view their tech stacks, and get inspired.",
+    "showcase.desc": "See what others are building with AI. Get inspired, and show your own.",
     "showcase.btn_submit": "Submit your project",
     "showcase.search": "Search in projects, tools, or authors...",
-    "showcase.details": "See Details & Prompts",
+    "showcase.details": "See Details",
     "showcase.visit": "See Project",
     "showcase.by": "Built by",
     "showcase.empty": "No projects found.",
