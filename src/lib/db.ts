@@ -1346,3 +1346,114 @@ export async function getLatestPosts(limit = 1, lang: 'da' | 'en' = 'da') {
   if (error || !data) return [];
   return data.map(b => mapBlogPost(b, lang));
 }
+
+// ---------------------------------------------------------------------------
+// Market feed (docs/marketing/market-feed-brief.md)
+//
+// One merged, reverse-chronological stream of new content across skills,
+// agents (CLI / MCP Server feeds) and vibes, so agents can poll "what's new
+// in the Danish AI market since <date>". MVP derives items from the existing
+// content tables — no feed_items table yet (that arrives with editorial
+// `news` items in Phase 2).
+//
+// Timestamps: `vibes` has a real created_at column; `skills` and `agents`
+// don't, but their IDs embed epoch milliseconds (`s_<ms>` / `a_<ms>` — the
+// same fact 20260701000000_vibes_created_at.sql used to backfill vibes).
+// Rows whose ID doesn't parse fall back to epoch 0 and sort last rather
+// than being dropped.
+//
+// Deliberately NOT 'use cache': `since` makes the variant space unbounded,
+// and feed consumers are exactly the callers that must never see a stale
+// window. The API route sets Cache-Control: no-store, matching the other
+// interactive routes.
+// ---------------------------------------------------------------------------
+
+export type FeedItemType = 'skill' | 'mcp' | 'cli' | 'vibe';
+
+export interface FeedItem {
+  id: string;
+  type: FeedItemType;
+  title: string;
+  summary: string;
+  url: string;
+  tags: string[];
+  publishedAt: string; // ISO 8601
+}
+
+function epochFromId(id: string): number {
+  const m = id.match(/^[a-z]_(\d+)$/);
+  return m ? Number(m[1]) : 0;
+}
+
+export async function getFeedItems(opts: {
+  since?: string;
+  types?: FeedItemType[];
+  lang?: 'da' | 'en';
+  limit?: number;
+} = {}): Promise<FeedItem[]> {
+  const lang = opts.lang ?? 'da';
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
+  const types = opts.types?.length ? opts.types : (['skill', 'mcp', 'cli', 'vibe'] as FeedItemType[]);
+  const sinceMs = opts.since ? Date.parse(opts.since) : NaN;
+
+  const wantAgents = types.includes('mcp') || types.includes('cli');
+  const [skillsRes, agentsRes, vibesRes] = await Promise.all([
+    types.includes('skill')
+      ? supabasePublic.from('skills').select('id, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit)
+      : Promise.resolve({ data: [], error: null }),
+    wantAgents
+      ? supabasePublic.from('agents').select('id, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit)
+      : Promise.resolve({ data: [], error: null }),
+    types.includes('vibe')
+      ? supabasePublic.from('vibes').select('id, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const items: FeedItem[] = [];
+
+  for (const s of skillsRes.data ?? []) {
+    items.push({
+      id: s.id,
+      type: 'skill',
+      title: lang === 'da' ? s.title_da : s.title_en,
+      summary: lang === 'da' ? s.description_da : s.description_en,
+      url: `https://vibetrends.dk/skills/${s.id}`,
+      tags: s.tags ?? [],
+      publishedAt: new Date(epochFromId(s.id)).toISOString(),
+    });
+  }
+
+  for (const a of agentsRes.data ?? []) {
+    const type: FeedItemType = a.category === 'MCP Server' ? 'mcp' : 'cli';
+    if (!types.includes(type)) continue;
+    items.push({
+      id: a.id,
+      type,
+      title: a.name,
+      summary: lang === 'da' ? a.description_da : a.description_en,
+      url: `https://vibetrends.dk/${type}/${a.id}`,
+      tags: a.tags ?? [],
+      publishedAt: new Date(epochFromId(a.id)).toISOString(),
+    });
+  }
+
+  for (const v of vibesRes.data ?? []) {
+    items.push({
+      id: v.id,
+      type: 'vibe',
+      title: lang === 'da' ? v.title_da : v.title_en,
+      summary: lang === 'da' ? v.description_da : v.description_en,
+      url: `https://vibetrends.dk/vibes/${v.id}`,
+      tags: v.tools ?? [],
+      publishedAt: v.created_at ?? new Date(epochFromId(v.id)).toISOString(),
+    });
+  }
+
+  const filtered = Number.isNaN(sinceMs)
+    ? items
+    : items.filter(i => Date.parse(i.publishedAt) > sinceMs);
+
+  return filtered
+    .sort((x, y) => Date.parse(y.publishedAt) - Date.parse(x.publishedAt))
+    .slice(0, limit);
+}

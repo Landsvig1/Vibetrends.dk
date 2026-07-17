@@ -11,7 +11,9 @@ import {
   createProject,
   addReply,
   createBlogPost,
+  getFeedItems,
   type ActingAs,
+  type FeedItemType,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { resolveAgentWriteLimit } from "@/lib/rate-limit";
@@ -111,6 +113,24 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {},
+    },
+  },
+  {
+    name: "get_market_updates",
+    description:
+      "Hent hvad der er nyt på det danske AI-marked siden et tidspunkt: nye skills, MCP-servere, CLI-tools og showcase-projekter i én omvendt kronologisk strøm. Beregnet til periodisk polling — send 'since' med tidspunktet for dit seneste kald.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string", description: "ISO 8601-tidspunkt; kun elementer publiceret efter dette. Udelad for de seneste elementer." },
+        types: {
+          type: "array",
+          items: { type: "string", enum: ["skill", "mcp", "cli", "vibe"] },
+          description: "Valgfri filtrering på indholdstyper (standard: alle)",
+        },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
+        limit: { type: "number", description: "Maks. antal elementer, 1-100 (standard: 50)" },
+      },
     },
   },
   {
@@ -357,6 +377,25 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       return textContent(await getCli(query, lang));
     case "search_mcp_servers":
       return textContent(await getAgents(query, "MCP Server", lang));
+    case "get_market_updates": {
+      const since = asString(args.since);
+      if (since && Number.isNaN(Date.parse(since))) {
+        return { error: "INVALID_PARAMS", message: "Invalid 'since' — expected an ISO 8601 timestamp" };
+      }
+      const validTypes: FeedItemType[] = ["skill", "mcp", "cli", "vibe"];
+      let types: FeedItemType[] | undefined;
+      if (Array.isArray(args.types)) {
+        const requested = args.types.filter((t): t is string => typeof t === "string");
+        const invalid = requested.filter(t => !validTypes.includes(t as FeedItemType));
+        if (invalid.length > 0) {
+          return { error: "INVALID_PARAMS", message: `Invalid types: ${invalid.join(", ")}. Valid: ${validTypes.join(", ")}` };
+        }
+        types = requested as FeedItemType[];
+      }
+      const limit = typeof args.limit === "number" ? args.limit : undefined;
+      const items = await getFeedItems({ since, types, lang, limit });
+      return textContent({ generatedAt: new Date().toISOString(), count: items.length, items });
+    }
     case "list_topics":
       return textContent(
         SKILL_CATEGORIES.map((c) => ({

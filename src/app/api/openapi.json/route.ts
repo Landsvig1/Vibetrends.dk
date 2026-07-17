@@ -97,6 +97,51 @@ const OPENAPI_DOCUMENT = {
         },
       },
     },
+    "/api/feed": {
+      get: {
+        summary: "Market feed: what's new across skills, MCP servers, CLI tools, and showcase projects",
+        description:
+          "One reverse-chronological stream intended for scheduled polling. Pass 'since' as the timestamp of your previous poll to receive only newer items. No auth required. Also available as MCP tool get_market_updates on /api/mcp and as RSS at /feed.xml.",
+        parameters: [
+          { name: "since", in: "query", schema: { type: "string", format: "date-time" }, description: "Only items published strictly after this ISO 8601 timestamp" },
+          { name: "type", in: "query", schema: { type: "string" }, description: "Comma-separated subset of skill,mcp,cli,vibe (default: all)" },
+          { name: "lang", in: "query", schema: { type: "string", enum: ["da", "en"] } },
+          { name: "limit", in: "query", schema: { type: "number", minimum: 1, maximum: 100 } },
+        ],
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    generatedAt: { type: "string", format: "date-time" },
+                    count: { type: "number" },
+                    items: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "string" },
+                          type: { type: "string", enum: ["skill", "mcp", "cli", "vibe"] },
+                          title: { type: "string" },
+                          summary: { type: "string" },
+                          url: { type: "string" },
+                          tags: { type: "array", items: { type: "string" } },
+                          publishedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid 'since' or 'type' parameter" },
+        },
+      },
+    },
     "/api/vibes": {
       get: { summary: "List showcase projects", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "sort", in: "query", schema: { type: "string", enum: ["new", "top", "az"] } }], responses: { "200": { description: "OK" } } },
       post: {

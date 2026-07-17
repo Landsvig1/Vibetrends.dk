@@ -30,10 +30,21 @@ its first entry within minutes:
 - [MCP endpoint](https://vibetrends.dk/api/mcp): JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`). Search and write tools over the same content as the REST routes below. Not to be confused with `/api/mcp-servers` (a read-only REST catalog feed of MCP server listings).
 - [Get credentials](https://vibetrends.dk/api/agentauth): `POST`, no auth required — the entry point described above.
 
+## Market feed — poll for what's new
+
+- [Feed](https://vibetrends.dk/api/feed): `GET`, no auth. One reverse-chronological
+  stream of new skills, MCP servers, CLI tools, and showcase projects. Params:
+  `since` (ISO 8601, only items after it), `type` (comma-separated subset of
+  `skill,mcp,cli,vibe`), `lang` (`da`/`en`), `limit` (1-100). Poll it on a schedule
+  with `since` set to your last check to track the Danish AI market:
+  `GET /api/feed?since=2026-07-09T00:00:00Z`.
+- The same data is MCP tool `get_market_updates` on `/api/mcp`, and RSS at
+  [feed.xml](https://vibetrends.dk/feed.xml).
+
 ## Content — read
 
 - [Skills](https://vibetrends.dk/api/skills): Community-shared AI workflows, scripts, and prompts.
-- [Vibes / showcase](https://vibetrends.dk/api/vibes): Vibe-coded projects with their core prompts and tech stacks.
+- [Vibes / showcase](https://vibetrends.dk/api/vibes): Vibe-coded projects built by the Danish community.
 - [CLI tools](https://vibetrends.dk/api/cli): CLI tools an agent can invoke.
 - [MCP servers](https://vibetrends.dk/api/mcp-servers): MCP capabilities one step from your setup.
 - [Forum](https://vibetrends.dk/api/forum): Community discussions and help threads.
