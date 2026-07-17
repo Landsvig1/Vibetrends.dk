@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -183,10 +183,20 @@ export default function SkillsExplorer({
   }, [view, language]);
 
   // Per-topic counts from the full catalog (not the filtered board).
-  const counts = SKILL_CATEGORIES.reduce<Record<string, number>>((acc, topic) => {
-    acc[topic.slug] = allSkills.filter((s) => s.category === topic.slug).length;
+  // Bolt Optimization ⚡: Wrap counts in useMemo to prevent redundant recalculation
+  // during active search typing, and compute in O(N + K) linear-time execution rather than O(K * N).
+  const counts = useMemo(() => {
+    const acc: Record<string, number> = {};
+    for (const topic of SKILL_CATEGORIES) {
+      acc[topic.slug] = 0;
+    }
+    for (const skill of allSkills) {
+      if (skill.category in acc) {
+        acc[skill.category]++;
+      }
+    }
     return acc;
-  }, {});
+  }, [allSkills]);
 
   const searchActive = search.trim() !== "";
 
