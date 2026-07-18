@@ -74,7 +74,6 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
   }, [user, thread.id]);
 
   const handleDeleteReply = useCallback(async (replyId: string) => {
-    if (!confirm(t("forum.confirm_delete_reply"))) return;
     if (!user) return;
 
     try {
@@ -91,7 +90,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
     } catch (err) {
       console.error("Error deleting reply:", err);
     }
-  }, [user, thread.id, t]);
+  }, [user, thread.id]);
 
   return (
     <div className="space-y-6">
@@ -111,6 +110,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
                   reply={reply}
                   language={language}
                   canDelete={isDeletable}
+                  confirmDeleteLabel={t("forum.confirm_delete_reply")}
                   onUpvote={handleUpvoteReply}
                   onDelete={handleDeleteReply}
                 />

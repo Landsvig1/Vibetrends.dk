@@ -9,6 +9,7 @@ interface ReplyCardProps {
   reply: ForumReply;
   language: "da" | "en";
   canDelete: boolean;
+  confirmDeleteLabel: string;
   onUpvote: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -17,6 +18,7 @@ function ReplyCardComponent({
   reply,
   language,
   canDelete,
+  confirmDeleteLabel,
   onUpvote,
   onDelete,
 }: ReplyCardProps) {
@@ -24,7 +26,11 @@ function ReplyCardComponent({
     <div className="rounded-xl bg-background border border-card-border p-5 space-y-4 relative group/reply animate-in slide-in-from-bottom-2 duration-300">
       {canDelete && (
         <button
-          onClick={() => onDelete(reply.id)}
+          onClick={() => {
+            if (confirm(confirmDeleteLabel)) {
+              onDelete(reply.id);
+            }
+          }}
           className="absolute top-4 right-4 flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary transition opacity-0 group-hover/reply:opacity-100 focus-visible:opacity-100"
           aria-label={language === "da" ? "Slet svar" : "Delete reply"}
           title={language === "da" ? "Slet svar" : "Delete reply"}
