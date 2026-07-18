@@ -15,7 +15,7 @@ This journal contains critical performance learnings discovered while optimizing
 **Action:** Extracted the raw JSX into a memoized `<ProjectCard />` component, pre-calculating the boolean authorization flag (`canDelete`) on the parent to avoid passing dynamic user references, and stabilized the parent's `handleUpvote` and `handleDeleteProject` handlers with `useCallback`. This eliminated all redundant Project card reconciliation overhead during real-time user typing.
 
 ## 2026-07-15 - Redundant Agent Card re-renders during active search typing
-**Learning:** In `AgentsExplorer` (which powers the CLI, MCP, and Agent views), active typing in the search input triggered parent component state updates. Because agent cards were rendered inline and upvote/delete/copy event handlers were re-instantiated on every render, React was forced to fully reconcile and re-render every single agent card in the list.
+**Learning:** In `AgentsExplorer` (which powers the CLI, MCP, and Agent views), active typing in the search input triggered parent component state updates. Because agent cards were rendered inline and upvote/delete/copy event handlers were re-instantiated on every render, React was forced to fully reconcile and re-render every single agent agent card in the list.
 **Action:** Extracted the inline JSX to a dedicated `<AgentCard />` component wrapped in `React.memo`, computed authorization checks (`canDelete`) on the parent, and stabilized event handlers with `useCallback`. This entirely prevents card updates when typing search queries.
 
 ## 2026-07-16 - Redundant Forum thread card re-renders during active search typing
@@ -25,3 +25,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-17 - O(N * K) Category counts recalculation on every keystroke
 **Learning:** In `SkillsExplorer`, typing into the search input triggers state updates, forcing the component to re-render. Category counts (`counts`) were calculated on every single render by iterating over all categories and calling `.filter()` on the entire skills list. This resulted in $O(K \times N)$ execution complexity (where $K$ is the number of categories and $N$ is the number of skills), causing redundant recalculations.
 **Action:** Wrapped the `counts` calculation in `useMemo` with `allSkills` as its dependency, and optimized the calculation algorithm to $O(N + K)$ complexity using a single-pass loop and key-value mapping. This completely eliminates CPU recalculation overhead for topic counts during real-time user typing.
+
+## 2026-07-18 - Redundant Forum replies card re-renders during active reply typing
+**Learning:** In `ForumReplySection`, typing into the reply textarea triggered parent component state updates on every keystroke. Because reply cards were rendered inline and upvote/delete event handlers were re-instantiated on every render, React was forced to fully reconcile and re-render every single reply card in the list, even though the replies list itself did not change.
+**Action:** Extracted the inline reply items to a dedicated `<ReplyCard />` component in `src/app/components/ReplyCard.tsx` wrapped in `React.memo`, computed authorization checks (`canDelete`) on the parent, and stabilized event handlers with `useCallback`. This completely eliminates reply list reconciliation overhead during active reply typing.
