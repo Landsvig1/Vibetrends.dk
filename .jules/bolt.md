@@ -25,3 +25,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-17 - O(N * K) Category counts recalculation on every keystroke
 **Learning:** In `SkillsExplorer`, typing into the search input triggers state updates, forcing the component to re-render. Category counts (`counts`) were calculated on every single render by iterating over all categories and calling `.filter()` on the entire skills list. This resulted in $O(K \times N)$ execution complexity (where $K$ is the number of categories and $N$ is the number of skills), causing redundant recalculations.
 **Action:** Wrapped the `counts` calculation in `useMemo` with `allSkills` as its dependency, and optimized the calculation algorithm to $O(N + K)$ complexity using a single-pass loop and key-value mapping. This completely eliminates CPU recalculation overhead for topic counts during real-time user typing.
+
+## 2026-07-19 - Lightweight presentational cards over Framer Motion in high-frequency paths
+**Learning:** In interactive surfaces with high-frequency updates, such as `ForumReplySection` where the user types actively on every keystroke, introducing Framer Motion wrappers (`motion.div`, `motion.button`) on list item elements (`ReplyCard`) can add unnecessary JS rendering overhead and inflate bundle sizes.
+**Action:** Revert Framer Motion additions inside high-frequency render lists; prefer native lightweight HTML elements styled with native Tailwind CSS transitions to ensure absolute zero rendering lag during active typing.
