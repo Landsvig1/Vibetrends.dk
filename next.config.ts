@@ -23,9 +23,9 @@ const scriptSrc = [
 const csp = [
   "default-src 'self'",
   `script-src ${scriptSrc}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline'",
   `img-src 'self' blob: data: ${allowedImageHostnames.map((h) => `https://${h}`).join(' ')}`.trimEnd(),
-  "font-src 'self' https://fonts.gstatic.com",
+  "font-src 'self'",
   `connect-src 'self' https://vitals.vercel-insights.com https://analytics.ahrefs.com ${supabaseUrl} ${supabaseWs}`.trim(),
   "frame-ancestors 'none'",
   "base-uri 'self'",

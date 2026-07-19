@@ -12,6 +12,9 @@
     "test:e2e:seed": "node --env-file-if-exists=.env.local scripts/seed-e2e-fixtures.mjs",
     "test:e2e": "node --env-file-if-exists=.env.local node_modules/.bin/playwright test"
   },
+  "overrides": {
+    "postcss": ">=8.5.10"
+  },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
     "@supabase/ssr": "^0.12.0",
