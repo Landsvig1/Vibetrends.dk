@@ -102,3 +102,19 @@ describe("skillSchema — source", () => {
     expect(skillSchema.safeParse({ ...base, source: "not-a-url" }).success).toBe(false);
   });
 });
+
+describe("skillSchema — tags security limits", () => {
+  it("accepts valid tags array and elements", () => {
+    expect(skillSchema.safeParse({ ...base, tags: ["clean-code", "refactoring"] }).success).toBe(true);
+  });
+
+  it("rejects tags array with elements exceeding 50 characters", () => {
+    const longTag = "a".repeat(51);
+    expect(skillSchema.safeParse({ ...base, tags: [longTag] }).success).toBe(false);
+  });
+
+  it("rejects tags array exceeding 10 elements", () => {
+    const tooManyTags = Array(11).fill("tag");
+    expect(skillSchema.safeParse({ ...base, tags: tooManyTags }).success).toBe(false);
+  });
+});

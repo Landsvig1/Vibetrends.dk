@@ -68,3 +68,31 @@ describe("projectSchema — imageUrl", () => {
     ).toBe(false);
   });
 });
+
+describe("projectSchema — tools and prompts security limits", () => {
+  it("accepts valid tools and prompts", () => {
+    expect(
+      projectSchema.safeParse({ ...base, tools: ["Next.js", "Zod"], prompts: ["Act as sentinel..."] }).success
+    ).toBe(true);
+  });
+
+  it("rejects tools elements exceeding 50 characters", () => {
+    const longTool = "a".repeat(51);
+    expect(projectSchema.safeParse({ ...base, tools: [longTool] }).success).toBe(false);
+  });
+
+  it("rejects tools array exceeding 10 elements", () => {
+    const tooManyTools = Array(11).fill("tool");
+    expect(projectSchema.safeParse({ ...base, tools: tooManyTools }).success).toBe(false);
+  });
+
+  it("rejects prompts elements exceeding 2000 characters", () => {
+    const longPrompt = "a".repeat(2001);
+    expect(projectSchema.safeParse({ ...base, prompts: [longPrompt] }).success).toBe(false);
+  });
+
+  it("rejects prompts array exceeding 20 elements", () => {
+    const tooManyPrompts = Array(21).fill("prompt");
+    expect(projectSchema.safeParse({ ...base, prompts: tooManyPrompts }).success).toBe(false);
+  });
+});

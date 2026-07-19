@@ -69,3 +69,24 @@ describe("agentSchema — sourceUrl", () => {
     expect(agentSchema.safeParse({ ...base, sourceUrl: "github.com/foo/bar" }).success).toBe(false);
   });
 });
+
+describe("agentSchema — systemPrompt and tags security limits", () => {
+  it("accepts valid systemPrompt and tags", () => {
+    expect(agentSchema.safeParse({ ...base, systemPrompt: "valid prompt", tags: ["tag1", "tag2"] }).success).toBe(true);
+  });
+
+  it("rejects systemPrompt exceeding 10000 characters", () => {
+    const longPrompt = "a".repeat(10001);
+    expect(agentSchema.safeParse({ ...base, systemPrompt: longPrompt }).success).toBe(false);
+  });
+
+  it("rejects tags with elements exceeding 50 characters", () => {
+    const longTag = "a".repeat(51);
+    expect(agentSchema.safeParse({ ...base, tags: [longTag] }).success).toBe(false);
+  });
+
+  it("rejects tags array exceeding 10 elements", () => {
+    const tooManyTags = Array(11).fill("tag");
+    expect(agentSchema.safeParse({ ...base, tags: tooManyTags }).success).toBe(false);
+  });
+});

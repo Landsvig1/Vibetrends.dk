@@ -23,8 +23,10 @@ export const agentSchema = z.object({
       message: "installCommand must not contain shell metacharacters (; & | ` $ < > or newlines)",
     })
     .optional(),
-  systemPrompt: z.string().optional(),
-  tags: z.array(z.string()).max(10).optional(),
+  // Limit systemPrompt to 10000 characters to prevent database bloat/DoS.
+  systemPrompt: z.string().max(10000).optional(),
+  // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
+  tags: z.array(z.string().max(50)).max(10).optional(),
   // Canonical repo/site for the tool (rendered as an outbound link).
   sourceUrl: z.string().url().max(300).optional().or(z.literal("")),
 });
