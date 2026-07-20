@@ -13,7 +13,8 @@ export const skillSchema = z.object({
   category: z.enum(SKILL_CATEGORY_SLUGS),
   // Only title + link are essential. Description is optional (empty allowed).
   description: z.string().max(1000).optional().or(z.literal("")),
-  tags: z.array(z.string()).max(10).optional(),
+  // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
+  tags: z.array(z.string().max(50)).max(10).optional(),
   githubUrl: z.string().url().max(200),
   // Attribution for bot-imported skills (e.g. the source repo URL). Optional —
   // human submissions via the web form don't set this. Mirrors githubUrl's
@@ -24,8 +25,10 @@ export const skillSchema = z.object({
 export const projectSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().min(10).max(500),
-  tools: z.array(z.string()).max(10).optional(),
-  prompts: z.array(z.string()).optional(),
+  // Max 10 tools, and each individual tool string is limited to 50 characters.
+  tools: z.array(z.string().max(50)).max(10).optional(),
+  // Max 20 prompts, and each individual prompt string is limited to 2000 characters to prevent DoS.
+  prompts: z.array(z.string().max(2000)).max(20).optional(),
   // demoUrl is optional in both REST and MCP tool schemas.
   demoUrl: z.string().url().max(200).optional().or(z.literal("")),
   githubUrl: z.string().url().max(200).optional(),
