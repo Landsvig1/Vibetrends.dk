@@ -16,6 +16,7 @@ function makeBlogPost(
     author: "Alice",
     readTime: "5 min",
     publishedAt: "2026-07-20",
+    imageUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97",
     category,
   };
 }
