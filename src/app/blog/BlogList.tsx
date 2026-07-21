@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { BookOpen, Clock, Search, Trash2, Layers, Cpu, Grid } from "lucide-react";
@@ -35,6 +35,31 @@ const getCategoryFilterIcon = (category: string) => {
       return <Grid className="h-3.5 w-3.5" />;
   }
 };
+
+/**
+ * Filter blog posts by category and search query.
+ * Extracted and exported to allow pure unit testing without a browser DOM,
+ * and optimized to lower-case the search query once outside the filter loop.
+ */
+export function filterBlogPosts(
+  posts: BlogPost[],
+  selectedCategory: string,
+  search: string
+): BlogPost[] {
+  const query = search.toLowerCase().trim();
+  return posts.filter((post) => {
+    const matchesCategory =
+      selectedCategory === "All" || post.category === selectedCategory;
+    if (!matchesCategory) return false;
+
+    if (!query) return true;
+
+    return (
+      post.title.toLowerCase().includes(query) ||
+      post.excerpt.toLowerCase().includes(query)
+    );
+  });
+}
 
 export default function BlogList() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -74,15 +99,11 @@ export default function BlogList() {
       });
   }, [language]);
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesCategory =
-      selectedCategory === "All" || post.category === selectedCategory;
-    const matchesSearch =
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(search.toLowerCase());
-
-    return matchesCategory && matchesSearch;
-  });
+  // Optimize search: use filterBlogPosts helper wrapped in useMemo to prevent
+  // redundant calculations on every keystroke/render.
+  const filteredPosts = useMemo(() => {
+    return filterBlogPosts(posts, selectedCategory, search);
+  }, [posts, selectedCategory, search]);
 
   const categories = ["All", "Guides", "Workflow", "Agents"];
 
