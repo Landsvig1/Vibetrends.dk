@@ -29,3 +29,8 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-19 - Lightweight presentational cards over Framer Motion in high-frequency paths
 **Learning:** In interactive surfaces with high-frequency updates, such as `ForumReplySection` where the user types actively on every keystroke, introducing Framer Motion wrappers (`motion.div`, `motion.button`) on list item elements (`ReplyCard`) can add unnecessary JS rendering overhead and inflate bundle sizes.
 **Action:** Revert Framer Motion additions inside high-frequency render lists; prefer native lightweight HTML elements styled with native Tailwind CSS transitions to ensure absolute zero rendering lag during active typing.
+
+## REJECTED — 2026-07-21 — Card/memo extraction pattern (7th occurrence)
+**PR:** #74 (af7d191)
+**Reason:** Extracted BlogList's inline JSX into a memoized `<BlogPostCard />` + `useCallback`-stabilized `handleDeletePost`, same pattern already applied to SkillCard/ProjectCard/AgentCard/ThreadCard with no shared wrapper ever built (see AGENTS.md PR quality bar). Also reproduces the exact defect confirmed on PR #73: the `useCallback`/prop depends on `t` from `LanguageProvider`, which isn't memoized, so the memo chain doesn't actually hold.
+**Do not propose again unless:** a shared memoized list-card wrapper is built once and reused, AND `LanguageProvider`'s `t` is made referentially stable first. Until then, any new `<XCard/>` + `useCallback([t, ...])` PR will have the same broken premise.
