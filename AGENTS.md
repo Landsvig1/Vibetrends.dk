@@ -51,3 +51,34 @@ The pooler hostname is shared, multi-tenant infrastructure (every Supabase
 project in that region uses it) — routing to this project happens via the
 `postgres.<project-ref>` username at auth time, same password as the direct
 connection. It's not a weaker access path, just a different network route.
+
+
+# PR quality bar (for Jules/Bolt/Sentinel)
+
+This is a small community/showcase site — vibetrends.dk. Before proposing
+a performance or refactor PR, check whether the change would actually earn
+its keep at 10x current traffic. If the honest answer is "this solves a
+problem the site doesn't have," don't open the PR.
+
+Specifically:
+
+- **`LanguageProvider`'s translation function (`t`) is not memoized.**
+  Any `useCallback`/`React.memo` optimization that depends on `t` staying
+  referentially stable across renders is silently broken today — the
+  memo chain doesn't hold. Fix or account for that upstream instability
+  before proposing another card/list memoization built on top of it, or
+  the "optimization" won't actually do anything (confirmed on PR #73,
+  2026-07-20: the memo depended on `t`, so the claimed re-render fix
+  wasn't real).
+- A "performance benchmark" test must make a real assertion (a timing
+  threshold, or a render/call-count check that fails if the optimization
+  regresses) — not a bare `console.log` of a computed speedup.
+- Don't extract another list-item component into its own memoized
+  `<XCard />` wrapper as a standing default. This exact pattern (extract
+  inline JSX → `<Card />` → `React.memo` → stabilize handlers with
+  `useCallback`) has now been applied to `SkillCard`, `ProjectCard`,
+  `AgentCard`, `ThreadCard`, and again to blog/forum list cards — 6+
+  times in under 2 weeks, with no shared wrapper ever built despite the
+  repetition. If another list needs the same treatment, factor a shared
+  memoized list-card wrapper once instead of hand-rolling a 7th copy of
+  the same code.
