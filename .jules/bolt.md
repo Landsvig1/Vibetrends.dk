@@ -34,3 +34,7 @@ This journal contains critical performance learnings discovered while optimizing
 **PR:** #74 (af7d191)
 **Reason:** Extracted BlogList's inline JSX into a memoized `<BlogPostCard />` + `useCallback`-stabilized `handleDeletePost`, same pattern already applied to SkillCard/ProjectCard/AgentCard/ThreadCard with no shared wrapper ever built (see AGENTS.md PR quality bar). Also reproduces the exact defect confirmed on PR #73: the `useCallback`/prop depends on `t` from `LanguageProvider`, which isn't memoized, so the memo chain doesn't actually hold.
 **Do not propose again unless:** a shared memoized list-card wrapper is built once and reused, AND `LanguageProvider`'s `t` is made referentially stable first. Until then, any new `<XCard/>` + `useCallback([t, ...])` PR will have the same broken premise.
+
+## 2026-07-22 - Upstream Referential Instability of LanguageProvider's translation function
+**Learning:** Downstream `React.memo` and `useCallback` optimizations relying on `t` (from `LanguageProvider`) were silently invalidated because `t`, `setLanguage`, and the provider's context `value` object were completely recreated on every single render of `LanguageProvider`. This broke the memoization chain across the entire application.
+**Action:** Always fully memoize localization context functions (`t` and `setLanguage`) using `useCallback` and wrap the context provider value object in `useMemo` with proper dependencies, ensuring complete referential stability.
