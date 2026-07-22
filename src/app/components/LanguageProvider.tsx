@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { translations, Language, TranslationKey } from "@/lib/translations";
 
 interface LanguageContextProps {
@@ -31,7 +31,9 @@ export function LanguageProvider({
     setLanguageState(initialLanguage);
   }
 
-  const setLanguage = (lang: Language) => {
+  // ⚡ Optimization: Memoize setLanguage to maintain referential stability
+  // and prevent child components from re-rendering unnecessarily.
+  const setLanguage = useCallback((lang: Language) => {
     // A redundant call (language already selected, e.g. a stray double-click)
     // would trigger a second reload while the first is already in flight.
     if (lang === language) return;
@@ -48,17 +50,28 @@ export function LanguageProvider({
     // stuck on the old language. window.location.reload() can't be raced
     // that way.
     window.location.reload();
-  };
+  }, [language]);
 
-  const t = (key: TranslationKey): string => {
+  // ⚡ Optimization: Memoize the translation function t to preserve referential stability
+  // across renders. This ensures React.memo and useCallback optimizations in children
+  // (which include translations in their dependencies) actually hold.
+  const t = useCallback((key: TranslationKey): string => {
     const translationSet = translations[language] || translations.da;
     const typedSet = translationSet as unknown as Record<TranslationKey, string>;
     const defaultSet = translations.da as unknown as Record<TranslationKey, string>;
     return typedSet[key] || defaultSet[key] || key;
-  };
+  }, [language]);
+
+  // ⚡ Optimization: Memoize the context provider's value object. If language has
+  // not changed, components consuming the language context will not be forced to re-render.
+  const contextValue = useMemo(() => ({
+    language,
+    setLanguage,
+    t
+  }), [language, setLanguage, t]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );
