@@ -5,6 +5,9 @@
 export function parseGithubRepoUrl(url: string): { owner: string; repo: string } | null {
   if (typeof url !== "string") return null;
 
+  // Enforce overall URL length limit to prevent ReDoS and resource exhaustion
+  if (url.length > 500) return null;
+
   // Strip query parameters and hash fragments first to prevent parameter injection
   const cleanUrl = url.split(/[?#]/)[0];
 

@@ -378,7 +378,9 @@ export function sanitizeSearchTerm(raw: string): string {
   // critical because backslash is the default escape character in PostgreSQL LIKE/ILIKE.
   // Allowing unescaped backslashes can lead to escape bypass, query manipulation,
   // or database execution errors if malformed sequences are passed.
-  return raw.replace(/[,.()*%_\\\\]/g, '');
+  // We also limit raw search term length to 100 characters to prevent DoS/memory exhaustion.
+  const truncated = raw.slice(0, 100);
+  return truncated.replace(/[,.()*%_\\\\]/g, '');
 }
 
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {

@@ -79,6 +79,11 @@ describe("parseGithubRepoUrl", () => {
     expect(parseGithubRepoUrl(`https://github/facebook/${longRepo}`)).toBeNull();
   });
 
+  it("enforces overall URL length limits to prevent DoS/ReDoS", () => {
+    const longUrl = "https://github.com/facebook/react?" + "a".repeat(500);
+    expect(parseGithubRepoUrl(longUrl)).toBeNull();
+  });
+
   it("returns null for non-GitHub or malformed URLs", () => {
     expect(parseGithubRepoUrl("https://gitlab.com/facebook/react")).toBeNull();
     expect(parseGithubRepoUrl("https://github.com/")).toBeNull();

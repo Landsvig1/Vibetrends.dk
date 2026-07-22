@@ -962,6 +962,17 @@ describe("sanitizeSearchTerm (KTD3 injection resistance)", () => {
     expect(sanitizeSearchTerm("\\\\")).toBe("");
     expect(sanitizeSearchTerm("abc\\%_123")).toBe("abc123");
   });
+
+  it("truncates excessively long input search terms to 100 characters to prevent DoS", () => {
+    const longInput = "a".repeat(150);
+    const result = sanitizeSearchTerm(longInput);
+    expect(result).toHaveLength(100);
+    expect(result).toBe("a".repeat(100));
+
+    const longInputWithSpecialChars = "a".repeat(95) + ",.()\\\\" + "b".repeat(50);
+    const resultWithSpecial = sanitizeSearchTerm(longInputWithSpecialChars);
+    expect(resultWithSpecial).toBe("a".repeat(95));
+  });
 });
 
 const agentRow = {
