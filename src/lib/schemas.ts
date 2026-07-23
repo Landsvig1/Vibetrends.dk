@@ -49,7 +49,9 @@ export const blogPostSchema = z.object({
   // request body — mirrors how createProject/createSkill work.
   readTime: z.string().min(1).max(50),
   publishedAt: z.string().min(1).max(50),
-  imageUrl: z.string().url().max(500),
+  imageUrl: z.string().url().max(500).refine(isAllowedImageUrl, {
+    message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
+  }),
   category: z.enum(BLOG_CATEGORIES),
 });
 

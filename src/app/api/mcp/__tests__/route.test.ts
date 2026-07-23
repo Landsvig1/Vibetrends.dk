@@ -287,7 +287,7 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
             content: "Content",
             readTime: "4 min",
             publishedAt: "2026-07-09",
-            imageUrl: "https://example.com/x.jpg",
+            imageUrl: "https://images.unsplash.com/x.jpg",
             category: "Agents",
           },
         },
@@ -416,6 +416,32 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     const body = await res.json();
     expect(body.error.code).toBe(-32602);
     expect(db.createProject).not.toHaveBeenCalled();
+  });
+
+  it("submit_blog_post rejects an imageUrl host not on the allowlist (matches REST's isAllowedImageUrl guard)", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    const res = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 755,
+        method: "tools/call",
+        params: {
+          name: "submit_blog_post",
+          arguments: {
+            title: "Post",
+            excerpt: "Excerpt",
+            content: "Content",
+            readTime: "4 min",
+            publishedAt: "2026-07-09",
+            imageUrl: "https://evil.example.com/x.png",
+            category: "Agents",
+          },
+        },
+      })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32602);
+    expect(db.createBlogPost).not.toHaveBeenCalled();
   });
 
   it("submit_blog_post with missing required arguments returns INVALID_PARAMS (-32602)", async () => {
