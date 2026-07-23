@@ -98,6 +98,14 @@ describe("blogPostSchema — required fields", () => {
     const longUrl = "https://images.unsplash.com/" + "x".repeat(480);
     expect(blogPostSchema.safeParse({ ...VALID_BODY, imageUrl: longUrl }).success).toBe(false);
   });
+
+  it("rejects an imageUrl host not on the allowlist", () => {
+    expect(blogPostSchema.safeParse({ ...VALID_BODY, imageUrl: "https://malicious-domain.com/image.jpg" }).success).toBe(false);
+  });
+
+  it("accepts an imageUrl host on the allowlist", () => {
+    expect(blogPostSchema.safeParse({ ...VALID_BODY, imageUrl: "https://images.unsplash.com/photo.jpg" }).success).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
