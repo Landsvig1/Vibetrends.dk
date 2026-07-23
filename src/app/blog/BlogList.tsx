@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { BookOpen, Clock, Search, Trash2, Layers, Cpu, Grid } from "lucide-react";
@@ -46,7 +46,8 @@ export default function BlogList() {
 
   // Admin-only delete — RLS has no owner-delete policy for blog_posts, so
   // this only ever succeeds for public.is_admin() callers.
-  const handleDeletePost = async (id: string, e: React.MouseEvent) => {
+  // ⚡ Optimization: Memoize the delete callback to preserve referential stability.
+  const handleDeletePost = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!confirm(t("blog.confirm_delete"))) return;
@@ -59,7 +60,7 @@ export default function BlogList() {
     } catch (err) {
       console.error("Error deleting blog post:", err);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetch("/api/blog")
@@ -74,15 +75,22 @@ export default function BlogList() {
       });
   }, [language]);
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesCategory =
-      selectedCategory === "All" || post.category === selectedCategory;
-    const matchesSearch =
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(search.toLowerCase());
+  // ⚡ Optimization: Memoize the filtered blog posts list to prevent redundant
+  // lowercasing of search query and posts text, sorting, and filtering on every single render/keystroke.
+  const filteredPosts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return posts.filter((post) => {
+      const matchesCategory =
+        selectedCategory === "All" || post.category === selectedCategory;
+      if (!q) return matchesCategory;
 
-    return matchesCategory && matchesSearch;
-  });
+      return (
+        matchesCategory &&
+        (post.title.toLowerCase().includes(q) ||
+          post.excerpt.toLowerCase().includes(q))
+      );
+    });
+  }, [posts, selectedCategory, search]);
 
   const categories = ["All", "Guides", "Workflow", "Agents"];
 

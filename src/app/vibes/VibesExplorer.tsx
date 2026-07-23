@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Code, PlusCircle, CheckCircle2, Sparkles, X, Flag, Flame } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
@@ -191,18 +191,21 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   // /agents tabs). The base fetch is already upvotes-desc (sort=top), which
   // IS the Hot order; Dansk filters to Danish contributors, ranked by
   // upvotes; Alle is the full catalog alphabetically.
-  const viewProjects = searchActive
-    ? projects
-    : view === "danish"
-      ? [...projects]
-          .filter((p) => p.isDanish)
-          .sort((a, b) => b.upvotes - a.upvotes)
-      : view === "all"
-        ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
-        : projects;
+  // ⚡ Optimization: Memoize the filtered and sorted projects list to prevent redundant
+  // recreation, sorting, and filtering on every single render/keystroke.
+  const filteredProjects = useMemo(() => {
+    const viewProjects = searchActive
+      ? projects
+      : view === "danish"
+        ? [...projects]
+            .filter((p) => p.isDanish)
+            .sort((a, b) => b.upvotes - a.upvotes)
+        : view === "all"
+          ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
+          : projects;
 
-  // Client-side search filter on the current view — no network request.
-  const filteredProjects = filterProjects(viewProjects, search);
+    return filterProjects(viewProjects, search);
+  }, [projects, view, search, searchActive]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
     { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
