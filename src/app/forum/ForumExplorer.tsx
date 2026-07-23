@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
 import { MessageSquare, PlusCircle, CheckCircle2, X, TrendingUp, Clock, Flag, Search } from "lucide-react";
@@ -172,14 +172,18 @@ export default function ForumExplorer({
   // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
   // Danish contributors, ranked by upvotes — same pattern as
   // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
-  const viewThreads =
-    view === "danish"
-      ? [...threads]
-          .filter((t) => t.isDanish)
-          .sort((a, b) => b.upvotes - a.upvotes)
-      : threads;
+  // ⚡ Optimization: Memoize the filtered and sorted threads list to prevent redundant
+  // recreation, sorting, and filtering on every single render/keystroke.
+  const filteredThreads = useMemo(() => {
+    const list =
+      view === "danish"
+        ? [...threads]
+            .filter((t) => t.isDanish)
+            .sort((a, b) => b.upvotes - a.upvotes)
+        : threads;
 
-  const filteredThreads = filterThreads(viewThreads, search);
+    return filterThreads(list, search);
+  }, [threads, view, search]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | typeof TrendingUp | typeof Clock }[] = [
     { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryState, parseAsString } from "nuqs";
 import { Search, Cpu, PlusCircle, X, Terminal, CheckCircle2, Flag, Flame } from "lucide-react";
@@ -260,17 +260,21 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   // returns the list upvotes-desc, which IS the Hot order; Dansk filters to
   // Danish contributors, ranked by upvotes; Alle is the full catalog
   // alphabetically.
-  const viewAgents = searchActive
-    ? agents
-    : view === "danish"
-      ? [...agents]
-          .filter((a) => a.isDanish)
-          .sort((a, b) => b.upvotes - a.upvotes)
-      : view === "all"
-        ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
-        : agents;
+  // ⚡ Optimization: Memoize the filtered and sorted agents list to prevent redundant
+  // recreation, sorting, and filtering on every single render/keystroke.
+  const filteredAgents = useMemo(() => {
+    const viewAgents = searchActive
+      ? agents
+      : view === "danish"
+        ? [...agents]
+            .filter((a) => a.isDanish)
+            .sort((a, b) => b.upvotes - a.upvotes)
+        : view === "all"
+          ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
+          : agents;
 
-  const filteredAgents = filterAgents(viewAgents, search);
+    return filterAgents(viewAgents, search);
+  }, [agents, view, search, searchActive]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
     { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },

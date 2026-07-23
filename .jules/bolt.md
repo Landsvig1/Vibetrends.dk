@@ -38,3 +38,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-22 - Upstream Referential Instability of LanguageProvider's translation function
 **Learning:** Downstream `React.memo` and `useCallback` optimizations relying on `t` (from `LanguageProvider`) were silently invalidated because `t`, `setLanguage`, and the provider's context `value` object were completely recreated on every single render of `LanguageProvider`. This broke the memoization chain across the entire application.
 **Action:** Always fully memoize localization context functions (`t` and `setLanguage`) using `useCallback` and wrap the context provider value object in `useMemo` with proper dependencies, ensuring complete referential stability.
+
+## 2026-07-23 - Redundant sorting and string lowercasing in active explorer search views
+**Learning:** In list explorer components (`ForumExplorer`, `AgentsExplorer`, `VibesExplorer`, and `BlogList`), search filters and view sorts were computed on every single render. Since search inputs bind to instant state updates on keyup, every keystroke triggered array copying, `.filter()`, `.sort()`, and CPU-heavy `.toLowerCase()` computations on the entire catalog.
+**Action:** Always wrap combined search filters and view sorts in a `useMemo` block, ensuring query parsing, string mapping, and sorting are only executed when the base list, active view, or search parameters change.
