@@ -42,3 +42,7 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-23 - Redundant sorting and string lowercasing in active explorer search views
 **Learning:** In list explorer components (`ForumExplorer`, `AgentsExplorer`, `VibesExplorer`, and `BlogList`), search filters and view sorts were computed on every single render. Since search inputs bind to instant state updates on keyup, every keystroke triggered array copying, `.filter()`, `.sort()`, and CPU-heavy `.toLowerCase()` computations on the entire catalog.
 **Action:** Always wrap combined search filters and view sorts in a `useMemo` block, ensuring query parsing, string mapping, and sorting are only executed when the base list, active view, or search parameters change.
+
+## 2026-07-24 - Upvote callback referential instability breaking memoization on lists
+**Learning:** In list components with memoized cards (`SkillsExplorer`, `VibesExplorer`, `AgentsExplorer`), the upvote callbacks depended on the local items state array (e.g., `projects`, `agents`, `allSkills`). This meant any upvote action modified the state, recreated the upvote callback, and destroyed the `React.memo` benefit on all other cards, causing O(N) card reconciliation on every upvote.
+**Action:** Mirror the list state array to a `useRef` pointing to the items list, and update it inside a `useEffect` synced to the state. Reference the `useRef` inside the `handleUpvote` callback and omit the list state from the dependency array, keeping the callback reference fully stable.

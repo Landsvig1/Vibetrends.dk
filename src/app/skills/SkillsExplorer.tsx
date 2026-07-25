@@ -103,6 +103,19 @@ export default function SkillsExplorer({
   const [allSkills, setAllSkills] = useState<Skill[]>(initialAllSkills);
   // View-specific board — danish/hot/trending grid.
   const [viewSkills, setViewSkills] = useState<Skill[]>(initialViewSkills);
+
+  // Mirrors `allSkills` and `viewSkills` so handleUpvote can read the current lists without
+  // depending on them — keeps handleUpvote's identity stable across upvotes
+  // so memoized SkillCard instances don't all re-render on every upvote.
+  const allSkillsRef = useRef(allSkills);
+  const viewSkillsRef = useRef(viewSkills);
+  useEffect(() => {
+    allSkillsRef.current = allSkills;
+  }, [allSkills]);
+  useEffect(() => {
+    viewSkillsRef.current = viewSkills;
+  }, [viewSkills]);
+
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [view, setView] = useQueryState(
     "view",
@@ -202,11 +215,16 @@ export default function SkillsExplorer({
 
   // Search overrides the view. Otherwise danish/hot/trending render their
   // board and "all" shows the topic cards.
-  const gridSkills = searchActive
-    ? filterSkills(allSkills, search)
-    : view === "danish" || view === "hot" || view === "trending"
-      ? viewSkills
-      : [];
+  // ⚡ Optimization: Memoize the gridSkills computation to prevent redundant search matching
+  // and array copying during active search typing or view/language changes.
+  const gridSkills = useMemo(() => {
+    return searchActive
+      ? filterSkills(allSkills, search)
+      : view === "danish" || view === "hot" || view === "trending"
+        ? viewSkills
+        : [];
+  }, [searchActive, allSkills, search, view, viewSkills]);
+
   const showTopicCards = !searchActive && view === "all";
 
   const viewTabs: {
@@ -229,6 +247,8 @@ export default function SkillsExplorer({
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
+  // ⚡ Optimization: References allSkillsRef and viewSkillsRef to keep handleUpvote callback's identity
+  // completely stable across upvotes.
   const handleUpvote = useCallback(async (id: string) => {
     if (!user) {
       setLoginModalOpen(true);
@@ -236,8 +256,8 @@ export default function SkillsExplorer({
     }
     // Save pre-click count so executeUpvote callbacks can roll back on failure.
     const prevCount =
-      allSkills.find((s) => s.id === id)?.upvotes ??
-      viewSkills.find((s) => s.id === id)?.upvotes ??
+      allSkillsRef.current.find((s) => s.id === id)?.upvotes ??
+      viewSkillsRef.current.find((s) => s.id === id)?.upvotes ??
       0;
     const optimistic = (list: Skill[]) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: prevCount + 1 } : s));
@@ -254,7 +274,7 @@ export default function SkillsExplorer({
       onRollback: () => { setAllSkills(restore); setViewSkills(restore); },
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  }, [user, allSkills, viewSkills]);
+  }, [user]);
 
   // Admin-only delete — RLS has no owner-delete policy for skills, so this
   // only ever succeeds for public.is_admin() callers.

@@ -112,6 +112,15 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
   // Initialised from server-fetched data — no client-side fetch on first render.
   const [agents, setAgents] = useState<Agent[]>(initialItems);
+
+  // Mirrors `agents` so handleUpvote can read the current list without
+  // depending on it — keeps handleUpvote's identity stable across upvotes
+  // so memoized AgentCard instances don't all re-render on every upvote.
+  const agentsRef = useRef(agents);
+  useEffect(() => {
+    agentsRef.current = agents;
+  }, [agents]);
+
   // Search/category/view live in the URL so filtered views are shareable.
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
@@ -172,6 +181,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
+  // Handle upvoting via API — delegates to executeUpvote (exported above) which
+  // guards against duplicate in-flight requests for the same item.
+  // ⚡ Optimization: References agentsRef to keep handleUpvote callback's identity
+  // completely stable across upvotes, preventing redundant child re-renders.
   const handleUpvote = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -180,7 +193,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
       return;
     }
     // Save pre-click count so executeUpvote callbacks can roll back on failure.
-    const prevCount = agents.find((a) => a.id === id)?.upvotes ?? 0;
+    const prevCount = agentsRef.current.find((a) => a.id === id)?.upvotes ?? 0;
     await executeUpvote(id, `/api/agents/${id}/upvote`, pendingUpvoteIds.current, fetch, {
       onOptimistic: () =>
         setAgents((prev) =>
@@ -194,7 +207,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
         ),
       onAuthRequired: () => setLoginModalOpen(true),
     });
-  }, [user, agents]);
+  }, [user]);
 
   const handleSubmitAgent = async (e: React.FormEvent) => {
     e.preventDefault();
