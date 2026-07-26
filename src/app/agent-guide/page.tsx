@@ -3,17 +3,20 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Bot, Settings, Search, MessageSquare, FileJson } from "lucide-react";
 import { Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  return {
+  return entityMetadata({
     title: lang === "da" ? "Agent Guide" : "Agent Guide",
     description:
       lang === "da"
         ? "Til agenter: læs, hent, bidrag. MCP, llms.txt og adgang på 30 sekunder via /api/agentauth."
         : "For agents: read, fetch, contribute. MCP, llms.txt, and access in 30 seconds via /api/agentauth.",
-  };
+    path: "/agent-guide",
+    lang,
+  });
 }
 
 export default async function AgentGuidePage() {

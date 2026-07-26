@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  return {
+  return entityMetadata({
     title: lang === "da" ? "Privatlivspolitik" : "Privacy Policy",
-    description: lang === "da" 
+    description: lang === "da"
       ? "Privatlivspolitik for vibetrends.dk. Vi indsamler ingen sporingcookies og beskytter dine personoplysninger."
       : "Privacy policy for vibetrends.dk. We collect no tracking cookies and protect your personal data.",
-  };
+    path: "/privacy",
+    lang,
+  });
 }
 
 export default async function PrivacyPage() {

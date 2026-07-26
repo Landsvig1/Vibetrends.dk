@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Language } from "@/lib/translations";
+import { entityMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  return {
+  return entityMetadata({
     title: lang === "da" ? "Brugervilkår" : "Terms of Service",
     description: lang === "da"
       ? "Brugervilkår og ansvarsfraskrivelse for vibetrends.dk."
       : "Terms of service and disclaimer for vibetrends.dk.",
-  };
+    path: "/terms",
+    lang,
+  });
 }
 
 export default async function TermsPage() {
