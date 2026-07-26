@@ -64,7 +64,7 @@ describe("GET /api/mcp (discovery)", () => {
     const res = await GET();
     const body = await res.json();
     expect(body.protocolVersion).toBe("2025-06-18");
-    expect(body.tools).toHaveLength(13);
+    expect(body.tools).toHaveLength(14);
   });
 });
 
@@ -88,6 +88,7 @@ describe("POST /api/mcp (JSON-RPC)", () => {
       "search_cli",
       "search_mcp_servers",
       "list_topics",
+      "get_market_updates",
       "list_feed_types",
       "upvote_thread",
       "upvote_reply",
