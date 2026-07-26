@@ -39,6 +39,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# working docs, not codebase material
+docs/marketing/gtm-90-days.md
+
 # vercel
 .vercel
 
