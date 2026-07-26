@@ -82,3 +82,13 @@ Specifically:
   repetition. If another list needs the same treatment, factor a shared
   memoized list-card wrapper once instead of hand-rolling a 7th copy of
   the same code.
+- **Never commit `pnpm-lock.yaml`.** This repo uses npm
+  (`package-lock.json`). A stray pnpm lockfile has been stripped from or
+  caused rejection of at least five PRs (most recently #80, 2026-07-26).
+  A PR whose diff contains `pnpm-lock.yaml` will be treated as bloat
+  regardless of the code change it carries.
+- **Before opening a PR, check the repo's open PRs for one touching the
+  same file or component.** Same-day duplicate pairs (#30/#31, and
+  Koalafilm's #33/#34) each cost a full review cycle to close as
+  duplicates. If an open PR already covers the file, extend or wait —
+  don't open a parallel PR.
