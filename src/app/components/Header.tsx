@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
@@ -33,14 +33,8 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
 
-  const isItemActive = (item: NavItem) => {
-    if (item.isDropdown) {
-      return item.items?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href)) ?? false;
-    }
-    return item.href ? (pathname === item.href || pathname.startsWith(item.href)) : false;
-  };
-
-  const navItems: NavItem[] = [
+  // ⚡ Optimization: Memoize navItems to prevent reallocation and translations lookup on every render.
+  const navItems = useMemo((): NavItem[] => [
     { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
     { name: t("nav.showcase"), href: "/vibes", icon: Layers },
     {
@@ -54,7 +48,19 @@ export default function Header() {
       ],
     },
     { name: t("nav.blog"), href: "/blog", icon: BookOpen },
-  ];
+  ], [t]);
+
+  // ⚡ Optimization: Precompute active index outside of mapping loops.
+  // This reduces loop calculation from O(N^2) to O(N) where N is the number of navigation items,
+  // avoiding calling `.some` and regexes repetitively inside JSX.
+  const activeIdx = useMemo(() => {
+    return navItems.findIndex((item) => {
+      if (item.isDropdown) {
+        return item.items?.some((subItem) => pathname === subItem.href || pathname.startsWith(subItem.href)) ?? false;
+      }
+      return item.href ? (pathname === item.href || pathname.startsWith(item.href)) : false;
+    });
+  }, [navItems, pathname]);
 
   return (
     <>
@@ -87,8 +93,7 @@ export default function Header() {
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center space-x-1">
             {navItems.map((item, idx) => {
-              const isActive = isItemActive(item);
-              const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
+              const isActive = idx === activeIdx;
               const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
               const Icon = item.icon;
 
@@ -245,8 +250,7 @@ export default function Header() {
             className="lg:hidden border-t border-card-border bg-card-bg px-4 py-3 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto"
           >
           {navItems.map((item, idx) => {
-            const isActive = isItemActive(item);
-            const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
+            const isActive = idx === activeIdx;
             const directionType = idx > activeIdx ? "nav-forward" : "nav-back";
             const Icon = item.icon;
 
