@@ -46,3 +46,8 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-07-24 - Upvote callback referential instability breaking memoization on lists
 **Learning:** In list components with memoized cards (`SkillsExplorer`, `VibesExplorer`, `AgentsExplorer`), the upvote callbacks depended on the local items state array (e.g., `projects`, `agents`, `allSkills`). This meant any upvote action modified the state, recreated the upvote callback, and destroyed the `React.memo` benefit on all other cards, causing O(N) card reconciliation on every upvote.
 **Action:** Mirror the list state array to a `useRef` pointing to the items list, and update it inside a `useEffect` synced to the state. Reference the `useRef` inside the `handleUpvote` callback and omit the list state from the dependency array, keeping the callback reference fully stable.
+
+## REJECTED — 2026-07-26 — Stray pnpm-lock.yaml + useMemo on a 4-item static nav (#80)
+**PR:** #80 (bolt/header-navigation-memoization)
+**Reason:** Added a 5,414-line `pnpm-lock.yaml` to this npm repo (recurring habit — see AGENTS.md PR quality bar; this lockfile has now been stripped or caused rejection on at least five PRs across the three repos). The code change memoized the Header's 4-item static nav array and its active-index calculation — a fixed-size, props-less computation with no measurable render cost. Memoization of trivially small static structures is complexity without benefit.
+**Do not propose again unless:** the nav becomes dynamic (driven by data/props that change at runtime) or profiling shows Header re-renders are a measurable cost under real traffic. Never commit `pnpm-lock.yaml` here — this repo uses npm (`package-lock.json`).
