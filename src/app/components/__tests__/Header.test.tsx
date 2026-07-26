@@ -3,8 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import Header from "../Header";
 
 // Spy on useMemo and useState
-const useMemoSpy = vi.fn((fn) => fn());
-const useStateSpy = vi.fn((init) => [init, vi.fn()]);
+const useMemoSpy = vi.fn<(fn: any, deps?: any) => any>((fn) => fn());
+const useStateSpy = vi.fn<(init: any) => [any, any]>((init) => [init, vi.fn()]);
 
 // Mock react
 vi.mock("react", async (importOriginal) => {
