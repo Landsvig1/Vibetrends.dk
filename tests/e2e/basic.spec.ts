@@ -33,7 +33,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
   test('project card overlay links directly to the project\'s live demo site', async ({ page }) => {
     // The card carries two links: a card-wide overlay (aria-label = project
     // title) that opens the project's live demoUrl in a new tab, and a small
-    // info icon (aria-label = "Se Detaljer & Prompts") that navigates to the
+    // info icon (aria-label = "Se Detaljer") that navigates to the
     // internal /vibes/[id] detail page. This test asserts the overlay; the
     // info icon is covered by the detail-navigation test below.
     await page.goto('/vibes');
@@ -66,7 +66,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     // The card-wide overlay now opens the external demo site (see the test
     // above), so detail navigation goes through the dedicated info icon link.
-    await firstProject.getByRole('link', { name: 'Se Detaljer & Prompts' }).click();
+    await firstProject.getByRole('link', { name: 'Se Detaljer' }).click();
     await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
     await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
   });
@@ -74,7 +74,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
   test('should navigate to Forum and check tråde', async ({ page }) => {
     await page.goto('/forum');
     
-    await expect(page.getByRole('heading', { name: /^Forum$/i })).toBeVisible();
+    // The h1 renders "Developer <span>Forum</span>" (accessible name
+    // "Developer Forum") — a bare /^Forum$/ can never match it.
+    await expect(page.getByRole('heading', { name: 'Developer Forum' })).toBeVisible();
     
     // Check categories. The suite defaults to da (no language cookie set),
     // and the bilingual-labels feature resolves category keys to locale
