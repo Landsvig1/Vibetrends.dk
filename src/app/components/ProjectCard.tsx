@@ -45,7 +45,7 @@ function ProjectCardComponent({
           src={project.imageUrl}
           alt={project.title}
           fill
-          sizes="(max-w-7xl) 33vw, 100vw"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
           priority={isPriority}
           className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
         />
