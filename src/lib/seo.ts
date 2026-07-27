@@ -12,24 +12,24 @@ interface EntityMetaInput {
   image?: string;
 }
 
-const DESCRIPTION_MIN = 110;
 const DESCRIPTION_MAX = 160;
 /**
- * Generic, factually-neutral padding appended to descriptions under
- * DESCRIPTION_MIN. Deliberately >= DESCRIPTION_MIN chars on its own so that
- * even a 1-character input description reaches the minimum once padded.
+ * Cutting back to a sentence boundary is only worth it when it keeps most of
+ * the budget. Without this floor, a description whose first sentence ends
+ * early collapses to that sentence alone — a real 176-char entry was being
+ * served as 89 chars because its opening sentence happened to end there.
  */
-const DESCRIPTION_PAD_DA = " Find det og meget mere på vibetrends.dk — det danske community for vibe-kodede projekter, AI-skills og udviklerværktøjer.";
-const DESCRIPTION_PAD_EN = " Find it and much more on vibetrends.dk — the Danish community for vibe-coded projects, AI skills, and developer tools.";
+const SENTENCE_BOUNDARY_MIN_KEEP = 0.6;
 
 /**
- * Truncate at the last sentence/clause boundary (". " or " — ") at or before
- * `max` chars when one exists, else the last word boundary. Falls back to a
- * hard cut only when the text has no space within the truncation window
- * (e.g. a single long token) — accepted for that narrow case rather than
- * appending an ellipsis, which would itself eat into the char budget.
- * Also backs off one char when the cut would split a UTF-16 surrogate pair
- * (e.g. an emoji), which would otherwise render as a mangled U+FFFD.
+ * Truncate at the last sentence boundary (". ") at or before `max` chars when
+ * one exists and keeps at least SENTENCE_BOUNDARY_MIN_KEEP of the budget, else
+ * the last word boundary. Falls back to a hard cut only when the text has no
+ * space within the truncation window (e.g. a single long token) — accepted for
+ * that narrow case rather than appending an ellipsis, which would itself eat
+ * into the char budget. Also backs off one char when the cut would split a
+ * UTF-16 surrogate pair (e.g. an emoji), which would otherwise render as a
+ * mangled U+FFFD.
  */
 function truncateAtWordBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -39,32 +39,30 @@ function truncateAtWordBoundary(text: string, max: number): string {
     cut = cut.slice(0, -1);
   }
   const periodIdx = cut.lastIndexOf(". ");
-  if (periodIdx > 0) return cut.slice(0, periodIdx + 1).trimEnd();
-  const dashIdx = cut.lastIndexOf(" — ");
-  if (dashIdx > 0) return cut.slice(0, dashIdx).trimEnd();
+  if (periodIdx > max * SENTENCE_BOUNDARY_MIN_KEEP) {
+    return cut.slice(0, periodIdx + 1).trimEnd();
+  }
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd();
 }
 
 /**
- * Clamp a description to the 110-160 char range Google/social crawlers expect.
- * Truncates long descriptions at a word boundary; pads short-but-non-empty
- * descriptions with a generic, factually-neutral site suffix. Empty input and
- * input already in range pass through unchanged.
+ * Cap a description at the 160 chars Google/social crawlers display, cutting
+ * at a sentence or word boundary. Short descriptions pass through as-is.
+ *
+ * There is deliberately no minimum length. An earlier version padded anything
+ * under 110 chars with a generic site suffix, but the pad always overshot the
+ * 160 cap and was then truncated back — on all 108 descriptions it touched it
+ * produced a run-on cut mid-boilerplate ("...and screenshot Find det og meget
+ * mere på vibetrends.dk"), and never once landed a description in the intended
+ * range. Short-but-accurate beats padded-and-garbled, and description length
+ * is not a ranking factor, so the padding was removed rather than repaired.
  */
-export function clampDescription(description: string, lang: "da" | "en" = "da"): string {
+export function clampDescription(description: string): string {
   if (!description) return description;
-  if (description.length > DESCRIPTION_MAX) {
-    return truncateAtWordBoundary(description, DESCRIPTION_MAX);
-  }
-  if (description.length < DESCRIPTION_MIN) {
-    const pad = lang === "en" ? DESCRIPTION_PAD_EN : DESCRIPTION_PAD_DA;
-    const padded = description + pad;
-    return padded.length > DESCRIPTION_MAX
-      ? truncateAtWordBoundary(padded, DESCRIPTION_MAX)
-      : padded;
-  }
-  return description;
+  return description.length > DESCRIPTION_MAX
+    ? truncateAtWordBoundary(description, DESCRIPTION_MAX)
+    : description;
 }
 
 const TITLE_MAX = 60;
@@ -99,7 +97,7 @@ export function entityMetadata({
   image,
 }: EntityMetaInput): Metadata {
   const locale = lang === "en" ? "en_US" : "da_DK";
-  const clampedDescription = clampDescription(description, lang);
+  const clampedDescription = clampDescription(description);
 
   return {
     title,

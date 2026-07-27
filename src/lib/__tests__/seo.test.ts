@@ -28,12 +28,18 @@ describe("entityMetadata", () => {
     ).toBe("article");
   });
 
-  it("clamps the description before assigning it to top-level, openGraph, and twitter fields", () => {
+  it("assigns the same clamped description to top-level, openGraph, and twitter fields", () => {
+    const long = entityMetadata({ title: "T", description: "word ".repeat(50).trim(), path: "/x" });
+    expect((long.description as string).length).toBeLessThanOrEqual(160);
+    expect((long.openGraph as { description?: string }).description).toBe(long.description);
+    expect((long.twitter as { description?: string }).description).toBe(long.description);
+  });
+
+  it("passes a short description through untouched, in every field", () => {
     const short = entityMetadata({ title: "T", description: "Short.", path: "/x" });
-    expect((short.description as string).length).toBeGreaterThanOrEqual(110);
-    expect((short.description as string).length).toBeLessThanOrEqual(160);
-    expect((short.openGraph as { description?: string }).description).toBe(short.description);
-    expect((short.twitter as { description?: string }).description).toBe(short.description);
+    expect(short.description).toBe("Short.");
+    expect((short.openGraph as { description?: string }).description).toBe("Short.");
+    expect((short.twitter as { description?: string }).description).toBe("Short.");
   });
 });
 
@@ -51,30 +57,42 @@ describe("clampDescription", () => {
     expect(long.startsWith(result)).toBe(true);
   });
 
-  it("pads descriptions under 110 chars to land within range", () => {
+  // There is deliberately no minimum length — see clampDescription's doc comment.
+  // These two pin that: the old padding produced garbled run-ons on every one of
+  // the 108 live descriptions it touched, so short input must survive verbatim.
+  it("leaves a short description exactly as-is rather than padding it", () => {
     const short = "A tiny description.";
-    const result = clampDescription(short, "da");
-    expect(result.length).toBeGreaterThanOrEqual(110);
-    expect(result.length).toBeLessThanOrEqual(160);
-    expect(result.startsWith(short)).toBe(true);
+    expect(clampDescription(short)).toBe(short);
   });
 
-  it("uses the English padding suffix when lang is en", () => {
-    const result = clampDescription("A tiny description.", "en");
-    expect(result).toContain("Danish community");
+  it("never appends site boilerplate to a short description", () => {
+    const short = "Full browser automation: navigate, click, fill forms, extract data, and screenshot";
+    const result = clampDescription(short);
+    expect(result).toBe(short);
+    expect(result).not.toContain("vibetrends.dk");
   });
 
   it("leaves an empty description unchanged", () => {
     expect(clampDescription("")).toBe("");
   });
 
-  it("truncates a short description's padding at the clause boundary, not mid-clause", () => {
-    // 80 chars: short enough to need padding, long enough that description+pad exceeds 160.
-    const short = "x".repeat(80);
-    const result = clampDescription(short, "da");
+  it("keeps most of the budget when the first sentence ends early", () => {
+    // Real row (176 chars) that the unbounded sentence-rewind cut down to 89.
+    const real =
+      "A REST API that gives developers and AI agents access to Danish CVR company registry data. " +
+      "Lookup by CVR number, name, or address, with structured JSON responses for agents.";
+    expect(real.length).toBeGreaterThan(160); // fixture must actually need truncating
+    const result = clampDescription(real);
     expect(result.length).toBeLessThanOrEqual(160);
-    // Must not end mid-clause inside the pad's second half (after the em dash).
-    expect(result.endsWith("vibetrends.dk")).toBe(true);
+    // The old behaviour returned just the 89-char opening sentence.
+    expect(result.length).toBeGreaterThan(120);
+    expect(real.startsWith(result)).toBe(true);
+  });
+
+  it("still cuts back to a late sentence boundary when one keeps the budget", () => {
+    const text = "x".repeat(120) + ". " + "y".repeat(60);
+    const result = clampDescription(text);
+    expect(result).toBe("x".repeat(120) + ".");
   });
 
   it("never splits a UTF-16 surrogate pair when truncating (no U+FFFD)", () => {
