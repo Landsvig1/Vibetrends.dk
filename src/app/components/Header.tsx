@@ -65,7 +65,7 @@ export default function Header() {
             in-flight router.refresh() (e.g. the language toggle) — the
             browser can abort the real refresh's request in favor of a
             redundant prefetch, silently dropping the update. */}
-        <div className="flex h-16 items-center justify-between">
+        <div className="relative flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" prefetch={false} transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
@@ -85,7 +85,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item, idx) => {
               const isActive = isItemActive(item);
               const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
@@ -194,15 +194,13 @@ export default function Header() {
             </Link>
 
             {user ? (
-              <div className="flex items-center space-x-3">
-                <span className="text-xs text-text-secondary">@{user.username}</span>
-                <button
-                  onClick={logout}
-                  className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-semibold text-text-secondary hover:text-foreground hover:bg-card-border cursor-pointer"
-                >
-                  {t("btn.logout")}
-                </button>
-              </div>
+              <button
+                onClick={logout}
+                className="btn-secondary text-xs"
+                style={{ padding: '8px 16px' }}
+              >
+                {t("btn.logout")}
+              </button>
             ) : (
               <button
                 onClick={() => setLoginModalOpen(true)}
