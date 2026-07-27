@@ -138,6 +138,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               alt={project.title}
               fill
               priority
+              sizes="(min-width: 1024px) 66vw, 100vw"
               className="object-cover opacity-90"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
