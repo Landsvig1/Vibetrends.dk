@@ -51,3 +51,7 @@ This journal contains critical performance learnings discovered while optimizing
 **PR:** #80 (bolt/header-navigation-memoization)
 **Reason:** Added a 5,414-line `pnpm-lock.yaml` to this npm repo (recurring habit — see AGENTS.md PR quality bar; this lockfile has now been stripped or caused rejection on at least five PRs across the three repos). The code change memoized the Header's 4-item static nav array and its active-index calculation — a fixed-size, props-less computation with no measurable render cost. Memoization of trivially small static structures is complexity without benefit.
 **Do not propose again unless:** the nav becomes dynamic (driven by data/props that change at runtime) or profiling shows Header re-renders are a measurable cost under real traffic. Never commit `pnpm-lock.yaml` here — this repo uses npm (`package-lock.json`).
+
+## 2026-07-28 - Database-level date filtering in getFeedItems
+**Learning:** Polling on interactive endpoints like `/api/feed` with a `since` parameter was previously fetching the full set of entries in SQL and filtering by date in JS memory. For larger catalogs, this wastes DB resources, CPU, and network transfer, and creates a critical correctness bug (truncating the feed list due to hard `.limit` queries before the date filtering occurs in JS).
+**Action:** Filter dates at the database level by dynamically appending `.gt()` filters in SQL (lexicographical matching epoch-millisecond prefixed ID strings for skills/agents, and ISO-8601 strings on the real `created_at` timestamp column for vibes).
