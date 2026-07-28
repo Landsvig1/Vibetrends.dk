@@ -420,33 +420,22 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
     query = query.order('upvotes', { ascending: false });
   }
 
-  // SQL-side narrowing: push all search dimensions into a single .or() clause
-  // before the fetch so only matching rows travel over the wire. The sanitized
-  // term strips PostgREST grammar chars (KTD3) so it can't redefine the filter
-  // structure. Casting the tags array to text (`tags::text`) produces the
-  // PostgreSQL text representation `{elem1,elem2,...}` — ilike with `%term%`
-  // then matches any element whose substring contains the term, replicating the
-  // current JS `.includes()` behavior without a custom RPC or exact-element
-  // operators (.contains()/.overlaps() test exact element equality and would
-  // narrow matches compared to today).
+  // Search filters in JS, not SQL. A `tags::text.ilike` term inside .or() is
+  // invalid PostgREST filter grammar (`::` casts aren't allowed there) — the
+  // whole query 400s with PGRST100, the error branch below swallows it, and
+  // every search returns []. Array-element substring matching has no valid
+  // or= expression (.cs/.ov test exact equality), so the term can't just be
+  // dropped from the clause either — a tags-only match would never be
+  // fetched. The tables are small (~100 rows), so fetching the (category/
+  // view-narrowed) set and filtering here is correct and cheap.
   let searchTerm: string | undefined;
   if (search) {
     const term = sanitizeSearchTerm(search).toLowerCase();
-    if (term) {
-      searchTerm = term;
-      const p = `%${term}%`;
-      query = query.or(
-        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
-      );
-    }
+    if (term) searchTerm = term;
   }
 
   const { data, error } = await query;
   if (error || !data) return [];
-
-  // JS safety net on the already-SQL-narrowed result. In production this runs
-  // on a small filtered set (not the full table). In mock-based tests the mock
-  // ignores the SQL filter, so this layer provides output-correctness guarantees.
   if (searchTerm) {
     const q = searchTerm;
     return data
@@ -532,24 +521,17 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
     query = query.order('created_at', { ascending: false });
   }
 
-  // SQL-side narrowing (see getSkills for full rationale). tools::text cast
-  // covers array element substring matching without a custom RPC.
+  // Search filters in JS, not SQL — a `tools::text` cast inside .or() is
+  // invalid PostgREST grammar and made every search 400 → [] (see getSkills).
   let searchTerm: string | undefined;
   if (search) {
     const term = sanitizeSearchTerm(search).toLowerCase();
-    if (term) {
-      searchTerm = term;
-      const p = `%${term}%`;
-      query = query.or(
-        `title_da.ilike.${p},title_en.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tools::text.ilike.${p}`
-      );
-    }
+    if (term) searchTerm = term;
   }
 
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
   if (searchTerm) {
     const q = searchTerm;
     return data
@@ -923,24 +905,18 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
     query = query.neq('category', 'MCP Server');
   }
 
-  // SQL-side narrowing (see getSkills for full rationale). `name` is not
-  // bilingual. tags::text cast covers array element substring matching.
+  // Search filters in JS, not SQL — a `tags::text` cast inside .or() is
+  // invalid PostgREST grammar and made every search 400 → [] (see getSkills).
+  // `name` is not bilingual.
   let searchTerm: string | undefined;
   if (search) {
     const term = sanitizeSearchTerm(search).toLowerCase();
-    if (term) {
-      searchTerm = term;
-      const p = `%${term}%`;
-      query = query.or(
-        `name.ilike.${p},description_da.ilike.${p},description_en.ilike.${p},tags::text.ilike.${p}`
-      );
-    }
+    if (term) searchTerm = term;
   }
 
   const { data, error } = await query;
   if (error || !data) return [];
 
-  // JS safety net on the SQL-narrowed result (see getSkills for rationale).
   if (searchTerm) {
     const q = searchTerm;
     return data
