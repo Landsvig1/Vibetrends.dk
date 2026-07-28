@@ -150,8 +150,10 @@ export default function AgentDetailView({
           </div>
         </div>
 
-        {/* Right: Actions & Stats */}
-        <div className="space-y-6">
+        {/* Right: Actions & Stats. min-w-0 because a grid item defaults to
+            min-width:auto, so ConnectBlock's <pre> config snippet would widen
+            the track instead of scrolling inside itself. */}
+        <div className="min-w-0 space-y-6">
            <ConnectBlock
              feedType={feedType}
              item={{ name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}

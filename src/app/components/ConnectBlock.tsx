@@ -110,7 +110,10 @@ export default function ConnectBlock({
         <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
           {stepsLabel}
         </span>
-        <ol className="list-decimal list-inside space-y-1 text-sm text-text-secondary">
+        {/* break-words: steps embed the entry's raw repo URL, which has no
+            break opportunity and otherwise widens the column past the viewport
+            and scrolls the whole page sideways. */}
+        <ol className="list-decimal list-inside space-y-1 text-sm text-text-secondary break-words">
           {recipe.steps.map((step, i) => (
             <li key={i}>{step}</li>
           ))}
