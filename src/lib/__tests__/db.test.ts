@@ -87,6 +87,10 @@ function makeBuilder(table: string, sink: BuilderOps[], handler: Handler) {
       ops.filters.push(["neq", col, val]);
       return builder;
     },
+    gt(col: string, val: unknown) {
+      ops.filters.push(["gt", col, val]);
+      return builder;
+    },
     in(col: string, vals: unknown[]) {
       ops.filters.push(["in", col, vals]);
       return builder;
@@ -1842,6 +1846,58 @@ describe("U3 — createThread with actingAs", () => {
     await db.createThread('Title', 'author', 'General', 'Some content for thread.');
     const insert = state.serverCalls.find(c => c.table === 'forum_threads' && c.method === 'insert');
     expect(insert).toBeDefined();
+  });
+});
+
+describe("getFeedItems performance optimization", () => {
+  it("does not add database-level .gt filters if 'since' is omitted", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+
+    await db.getFeedItems();
+
+    // Verify no 'gt' filter was applied in database queries
+    for (const call of state.publicCalls) {
+      const gtFilter = call.filters.find(f => f[0] === "gt");
+      expect(gtFilter).toBeUndefined();
+    }
+  });
+
+  it("applies database-level .gt filters on 'id' and 'created_at' when 'since' is provided", async () => {
+    const sinceTimestamp = "2026-07-09T00:00:00.000Z";
+    const sinceMs = Date.parse(sinceTimestamp);
+
+    state.publicHandler = (ops) => {
+      if (ops.table === "skills") {
+        return { data: [{ id: "s_1782976394478", title_da: "S DA", title_en: "S EN", description_da: "D", description_en: "D", tags: [] }], error: null };
+      }
+      if (ops.table === "agents") {
+        return { data: [{ id: "a_1783085673265", name: "A", category: "CLI", description_da: "D", description_en: "D", tags: [] }], error: null };
+      }
+      if (ops.table === "vibes") {
+        return { data: [{ id: "p_1782890295301", title_da: "V DA", title_en: "V EN", description_da: "D", description_en: "D", tools: [], created_at: "2026-07-10T00:00:00.000Z" }], error: null };
+      }
+      return { data: [], error: null };
+    };
+
+    const result = await db.getFeedItems({ since: sinceTimestamp });
+
+    // Assert database-level filters were applied correctly
+    const skillsCall = state.publicCalls.find(c => c.table === "skills");
+    expect(skillsCall).toBeDefined();
+    const skillsGt = skillsCall!.filters.find(f => f[0] === "gt");
+    expect(skillsGt).toEqual(["gt", "id", "s_" + sinceMs]);
+
+    const agentsCall = state.publicCalls.find(c => c.table === "agents");
+    expect(agentsCall).toBeDefined();
+    const agentsGt = agentsCall!.filters.find(f => f[0] === "gt");
+    expect(agentsGt).toEqual(["gt", "id", "a_" + sinceMs]);
+
+    const vibesCall = state.publicCalls.find(c => c.table === "vibes");
+    expect(vibesCall).toBeDefined();
+    const vibesGt = vibesCall!.filters.find(f => f[0] === "gt");
+    expect(vibesGt).toEqual(["gt", "created_at", new Date(sinceMs).toISOString()]);
+
+    expect(result.length).toBeGreaterThan(0);
   });
 });
 

@@ -1373,16 +1373,29 @@ export async function getFeedItems(opts: {
   const sinceMs = opts.since ? Date.parse(opts.since) : NaN;
 
   const wantAgents = types.includes('mcp') || types.includes('cli');
+
+  let skillsQuery = supabasePublic.from('skills').select('id, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit);
+  if (!Number.isNaN(sinceMs)) {
+    // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (s_ + ms)
+    skillsQuery = skillsQuery.gt('id', 's_' + sinceMs);
+  }
+
+  let agentsQuery = supabasePublic.from('agents').select('id, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit);
+  if (!Number.isNaN(sinceMs)) {
+    // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (a_ + ms)
+    agentsQuery = agentsQuery.gt('id', 'a_' + sinceMs);
+  }
+
+  let vibesQuery = supabasePublic.from('vibes').select('id, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit);
+  if (!Number.isNaN(sinceMs)) {
+    // Bolt Optimization ⚡: Filter at database-level using real created_at timestamp column
+    vibesQuery = vibesQuery.gt('created_at', new Date(sinceMs).toISOString());
+  }
+
   const [skillsRes, agentsRes, vibesRes] = await Promise.all([
-    types.includes('skill')
-      ? supabasePublic.from('skills').select('id, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit)
-      : Promise.resolve({ data: [], error: null }),
-    wantAgents
-      ? supabasePublic.from('agents').select('id, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit)
-      : Promise.resolve({ data: [], error: null }),
-    types.includes('vibe')
-      ? supabasePublic.from('vibes').select('id, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit)
-      : Promise.resolve({ data: [], error: null }),
+    types.includes('skill') ? skillsQuery : Promise.resolve({ data: [], error: null }),
+    wantAgents ? agentsQuery : Promise.resolve({ data: [], error: null }),
+    types.includes('vibe') ? vibesQuery : Promise.resolve({ data: [], error: null }),
   ]);
 
   const items: FeedItem[] = [];
