@@ -462,6 +462,50 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
   return mapSkill(data, lang);
 }
 
+/** The stored SKILL.md/README.md snapshot rendered on /skills/{id}. */
+export interface SkillDoc {
+  /** Raw markdown from the source repo — untrusted, sanitize before rendering. */
+  markdown: string;
+  /** Path within the repo, e.g. "SKILL.md" or "skill-creator/README.md". */
+  path: string;
+  /** Canonical github.com/blob URL, for attribution. */
+  sourceUrl: string;
+  /** Upstream file was longer than the cap and was cut short. */
+  truncated: boolean;
+  fetchedAt: string | null;
+}
+
+/**
+ * Fetched separately from `getSkillById` on purpose: the doc is up to 14 KB per
+ * row, and `getSkills` selects `*` for the listing pages. Keeping it out of the
+ * Skill shape means the list payloads don't grow by ~1.4 MB.
+ *
+ * Refreshed out-of-band by scripts/refresh-skill-docs.mjs; returns null when the
+ * skill has no github_url, its repo has no SKILL.md/README.md, or it has never
+ * been refreshed. Callers must render fine in all of those cases.
+ */
+export async function getSkillDoc(id: string): Promise<SkillDoc | null> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`skill-${id}`, `skill-doc-${id}`)
+
+  const { data, error } = await supabasePublic
+    .from('skills')
+    .select('doc_markdown, doc_path, doc_source_url, doc_truncated, doc_fetched_at')
+    .eq('id', id)
+    .single();
+
+  if (error || !data?.doc_markdown || !data.doc_source_url) return null;
+
+  return {
+    markdown: data.doc_markdown,
+    path: data.doc_path ?? '',
+    sourceUrl: data.doc_source_url,
+    truncated: Boolean(data.doc_truncated),
+    fetchedAt: data.doc_fetched_at ?? null,
+  };
+}
+
 export async function upvoteSkill(id: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();

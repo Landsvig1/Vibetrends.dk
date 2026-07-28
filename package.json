@@ -21,11 +21,13 @@
     "framer-motion": "^12.40.0",
     "lru-cache": "^11.5.1",
     "lucide-react": "^1.18.0",
+    "marked": "^18.0.7",
     "next": "16.2.12",
     "nuqs": "^2.8.9",
     "pg": "^8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "sanitize-html": "^2.17.6",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",

@@ -8,6 +8,7 @@ import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
+import SkillDocSection from "./SkillDocSection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -95,7 +96,10 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 space-y-8">
+        {/* min-w-0: a grid item defaults to min-width:auto, so a wide <pre> in
+            the fetched documentation would widen the whole track and scroll the
+            page sideways instead of scrolling inside its own block. */}
+        <div className="lg:col-span-2 min-w-0 space-y-8">
           <div className="p-8 rounded-2xl glass-panel border border-card-border space-y-6 shadow-2xl">
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-3">
@@ -130,9 +134,12 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
               </div>
             </div>
           </div>
+
+          {/* Renders nothing when the skill has no stored SKILL.md/README.md. */}
+          <SkillDocSection id={id} lang={lang} />
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div id="connect" className="scroll-mt-24">
             <ConnectBlock
               feedType="skills"
