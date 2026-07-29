@@ -1398,9 +1398,14 @@ export async function getFeedItems(opts: {
     types.includes('vibe') ? vibesQuery : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const items: FeedItem[] = [];
+  interface FeedItemWithEpoch extends FeedItem {
+    publishedAtMs: number;
+  }
+
+  const items: FeedItemWithEpoch[] = [];
 
   for (const s of skillsRes.data ?? []) {
+    const publishedAtMs = epochFromId(s.id);
     items.push({
       id: s.id,
       type: 'skill',
@@ -1408,13 +1413,15 @@ export async function getFeedItems(opts: {
       summary: lang === 'da' ? s.description_da : s.description_en,
       url: `https://vibetrends.dk/skills/${s.id}`,
       tags: s.tags ?? [],
-      publishedAt: new Date(epochFromId(s.id)).toISOString(),
+      publishedAt: new Date(publishedAtMs).toISOString(),
+      publishedAtMs,
     });
   }
 
   for (const a of agentsRes.data ?? []) {
     const type: FeedItemType = a.category === 'MCP Server' ? 'mcp' : 'cli';
     if (!types.includes(type)) continue;
+    const publishedAtMs = epochFromId(a.id);
     items.push({
       id: a.id,
       type,
@@ -1422,11 +1429,13 @@ export async function getFeedItems(opts: {
       summary: lang === 'da' ? a.description_da : a.description_en,
       url: `https://vibetrends.dk/${type}/${a.id}`,
       tags: a.tags ?? [],
-      publishedAt: new Date(epochFromId(a.id)).toISOString(),
+      publishedAt: new Date(publishedAtMs).toISOString(),
+      publishedAtMs,
     });
   }
 
   for (const v of vibesRes.data ?? []) {
+    const publishedAtMs = v.created_at ? Date.parse(v.created_at) : epochFromId(v.id);
     items.push({
       id: v.id,
       type: 'vibe',
@@ -1434,15 +1443,19 @@ export async function getFeedItems(opts: {
       summary: lang === 'da' ? v.description_da : v.description_en,
       url: `https://vibetrends.dk/vibes/${v.id}`,
       tags: v.tools ?? [],
-      publishedAt: v.created_at ?? new Date(epochFromId(v.id)).toISOString(),
+      publishedAt: v.created_at ?? new Date(publishedAtMs).toISOString(),
+      publishedAtMs,
     });
   }
 
   const filtered = Number.isNaN(sinceMs)
     ? items
-    : items.filter(i => Date.parse(i.publishedAt) > sinceMs);
+    : items.filter(i => i.publishedAtMs > sinceMs);
 
-  return filtered
-    .sort((x, y) => Date.parse(y.publishedAt) - Date.parse(x.publishedAt))
+  const sorted = filtered
+    .sort((x, y) => y.publishedAtMs - x.publishedAtMs)
     .slice(0, limit);
+
+  // Strip temporary epoch property before returning the pure FeedItem[] array
+  return sorted.map(({ publishedAtMs, ...rest }) => rest);
 }
