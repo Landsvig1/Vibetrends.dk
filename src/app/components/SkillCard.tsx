@@ -119,8 +119,12 @@ function SkillCardComponent({
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-4 border-t border-card-border">
-        <div>
+      {/* flex-wrap: the two action buttons are ~226px together, which does not
+          fit beside the author block in a ~290px card at 390px viewport — the
+          row overflowed and scrolled the page sideways. min-w-0 lets a long
+          author name shrink instead of pushing. */}
+      <div className="flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t border-card-border">
+        <div className="min-w-0">
           <span className="text-sm font-semibold text-foreground">{skill.vibeCoder}</span>
           <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
         </div>
