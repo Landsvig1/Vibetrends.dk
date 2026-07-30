@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 
 /**
@@ -374,6 +373,17 @@ const OPENAPI_DOCUMENT = {
   },
 } as const;
 
+// ⚡ Optimization: Pre-serialize the large, static OpenAPI document once at startup
+// to completely eliminate JSON serialization CPU cost on every incoming API request.
+const OPENAPI_DOCUMENT_STRING = JSON.stringify(OPENAPI_DOCUMENT);
+
 export async function GET() {
-  return NextResponse.json(OPENAPI_DOCUMENT);
+  // ⚡ Optimization: Return the pre-serialized string directly with a Cache-Control
+  // header, enabling downstream browsers/CDNs/proxies to cache this static spec.
+  return new Response(OPENAPI_DOCUMENT_STRING, {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+    },
+  });
 }

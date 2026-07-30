@@ -21,9 +21,25 @@ describe("GET /api/openapi.json", () => {
   it("returns 200 with an OpenAPI 3.1 document", async () => {
     const res = await GET();
     expect(res.headers.get("content-type")).toContain("application/json");
+    // ⚡ Optimization Assertion: Ensure Cache-Control header is set for browser/CDN caching
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600, stale-while-revalidate=86400");
+
     const body = await res.json();
     expect(body.openapi).toBe("3.1.0");
     expect(body.info.title).toBeTruthy();
+  });
+
+  it("returns pre-serialized string in under 5ms to eliminate JSON-serialization CPU overhead", async () => {
+    // Warm up
+    await GET();
+
+    const start = performance.now();
+    const res = await GET();
+    const duration = performance.now() - start;
+
+    expect(res.status).toBe(200);
+    // Ensure response retrieval is extremely fast and has negligible latency
+    expect(duration).toBeLessThan(5); // Generous buffer of 5ms for test runners
   });
 
   it("has a paths entry for every route this plan added or extended", async () => {
