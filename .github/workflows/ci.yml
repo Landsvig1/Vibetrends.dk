@@ -20,11 +20,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:unit
 
-  # E2E needs a built app + Supabase env. Kept non-blocking until the repo has
-  # the required secrets wired; promote to a required check after that.
+  # E2E needs a built app + Supabase env. This was `continue-on-error: true`
+  # pending the repo's secrets — those have been wired since 2026-07-01, and
+  # leaving it on outlived its purpose badly: the login test broke on 2026-07-27
+  # and every run for the next three days still reported success, so four
+  # merges landed against a suite that was red. A check that cannot fail is
+  # worse than no check, because it reads as coverage.
+  #
+  # Now allowed to fail the run. `main` has no branch protection, so this
+  # surfaces a red run rather than hard-blocking a merge — deliberate while the
+  # job still shares one production database for fixtures and can be cancelled
+  # outright by the concurrency group below.
   e2e:
     runs-on: ubuntu-latest
-    continue-on-error: true
     # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
     # (scripts/seed-e2e-fixtures.mjs) — a single global group (not per-ref)
     # guarantees at most one run ever executes seed/cleanup at a time, so two
