@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "test:e2e:seed": "node --env-file-if-exists=.env.local scripts/seed-e2e-fixtures.mjs",
-    "test:e2e": "node --env-file-if-exists=.env.local node_modules/.bin/playwright test"
+    "test:e2e": "node --env-file-if-exists=.env.local node_modules/.bin/playwright test",
+    "refresh:skill-docs": "node --env-file-if-exists=.env.local scripts/refresh-skill-docs.mjs"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",

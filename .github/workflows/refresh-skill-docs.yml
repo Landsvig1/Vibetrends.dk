@@ -1,0 +1,69 @@
+name: Refresh skill docs
+
+# Re-pulls each skill's SKILL.md / README.md from its source repo into Supabase
+# (see scripts/refresh-skill-docs.mjs). Without this the stored snapshot only
+# changes when someone runs the script by hand, so /skills/{id} pages slowly
+# drift away from what the upstream repos actually say.
+#
+# Weekly is deliberate: skill docs change on the order of weeks, a full refresh
+# is ~150 GitHub API calls, and nothing downstream needs fresher data. There is
+# no build or deploy step — the script writes to the database, and the pages
+# pick the new content up on their next revalidation.
+
+on:
+  schedule:
+    # Mondays 04:17 UTC. Off-the-hour to avoid GitHub's cron congestion, which
+    # delays jobs scheduled exactly on the hour.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Fetch and report without writing to the database"
+        type: boolean
+        default: false
+
+# One refresh at a time: two concurrent runs would issue conflicting UPDATEs
+# for the same rows and double the API spend for no benefit.
+concurrency:
+  group: refresh-skill-docs
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # The built-in Actions token, not a PAT. It reads *public* repository
+      # contents fine and is rate-limited at 1000 requests/hour per repository —
+      # a full refresh spends roughly 150, so there is plenty of headroom.
+      # Unauthenticated would be 60/hr and would fail partway through.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Must be the Supabase *pooler* connection string, same as the e2e job in
+      # ci.yml: the direct db.<ref>.supabase.co host is IPv6-only and
+      # GitHub-hosted runners have no IPv6 egress.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 24 for parity with ci.yml. Also needs to be >= 23.6 because the
+          # script imports src/lib/githubDocSource.ts directly, relying on
+          # Node's built-in TypeScript type stripping.
+          node-version: 24
+          cache: npm
+
+      # Fail with a clear message rather than letting the script report a
+      # confusing connection error when the secret was never configured.
+      - name: Check DATABASE_URL is configured
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set — add it in repo Settings > Secrets."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Refresh skill docs
+        run: node scripts/refresh-skill-docs.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
