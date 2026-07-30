@@ -486,7 +486,15 @@ export interface SkillDoc {
  */
 export async function getSkillDoc(id: string): Promise<SkillDoc | null> {
   'use cache'
-  cacheLife('max')
+  // NOT 'max' (revalidate: 30 days) like the rest of this file. The refresh
+  // script writes straight to Postgres from a GitHub Action — it runs outside
+  // the Next runtime and cannot call revalidateTag, and there is no revalidation
+  // route. So the only thing that expires this entry is the profile itself.
+  // Under 'max' the weekly cron would update the database while production kept
+  // serving the old doc for up to a month. 'days' (revalidate: 24h) makes new
+  // content visible within a day of the cron; the source files change on the
+  // order of weeks, so nothing shorter buys anything.
+  cacheLife('days')
   cacheTag(`skill-${id}`, `skill-doc-${id}`)
 
   const { data, error } = await supabasePublic

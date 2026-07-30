@@ -8,7 +8,10 @@ name: Refresh skill docs
 # Weekly is deliberate: skill docs change on the order of weeks, a full refresh
 # is ~150 GitHub API calls, and nothing downstream needs fresher data. There is
 # no build or deploy step — the script writes to the database, and the pages
-# pick the new content up on their next revalidation.
+# pick the new content up on their next revalidation. That window is bounded by
+# getSkillDoc's cacheLife('days') profile in src/lib/db.ts (24h), not by this
+# schedule: nothing here can call revalidateTag, so raising that profile back to
+# 'max' would silently make this job a no-op for up to 30 days.
 
 on:
   schedule:
