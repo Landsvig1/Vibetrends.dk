@@ -238,7 +238,7 @@ async function run() {
   const client = new pg.Client(clientConfig);
   await client.connect();
 
-  const stats = { total: 0, written: 0, noUrl: 0, unparseable: 0, notFound: 0, skipped: 0, failed: 0 };
+  const stats = { total: 0, written: 0, noUrl: 0, unparseable: 0, notFound: 0, keptStale: 0, skipped: 0, failed: 0 };
   const notFound = [];
 
   try {
@@ -251,8 +251,12 @@ async function run() {
     if (staleOnly) {
       where.push(`(doc_fetched_at is null or doc_fetched_at < now() - interval '7 days')`);
     }
+    // doc_markdown itself is up to 14 KB a row and is never read here — only
+    // whether one already exists, which decides notFound between "nothing to
+    // lose" and "keep the last known good copy".
     const sql =
-      `select id, title_en, github_url, doc_fetched_at from public.skills` +
+      `select id, title_en, github_url, doc_fetched_at,` +
+      ` (doc_markdown is not null) as has_doc from public.skills` +
       (where.length ? ` where ${where.join(' and ')}` : '') +
       ` order by id` +
       (limit ? ` limit ${Number(limit)}` : '');
@@ -289,10 +293,24 @@ async function run() {
       }
 
       if (!found) {
+        // Deliberately does NOT clear an existing doc. "Not found" covers more
+        // than "upstream deleted the file": a repo renamed, made private, or
+        // temporarily 404-ing all return the same null, and wiping on that would
+        // blank a good page until someone noticed and fixed the URL by hand. A
+        // stale doc beats an empty one, so the last known good copy stays put
+        // and doc_fetched_at is left to age — which is the failure record, and
+        // is what --stale-only retries on. Only a deliberately removed
+        // github_url (the branch above) clears the snapshot.
         stats.notFound++;
-        notFound.push(`${row.id} (${source.owner}/${source.repo}${source.subpath ? '/' + source.subpath : ''})`);
-        console.log(`- ${row.id}: no SKILL.md or README.md found`);
-        if (!dryRun) await clearDoc(client, row.id);
+        const where = `${source.owner}/${source.repo}${source.subpath ? '/' + source.subpath : ''}`;
+        if (row.has_doc) {
+          stats.keptStale++;
+          notFound.push(`${row.id} (${where}) — kept existing doc, last fetched ${row.doc_fetched_at?.toISOString?.() ?? row.doc_fetched_at ?? 'never'}`);
+          console.warn(`! ${row.id}: no SKILL.md or README.md found; keeping previously fetched doc`);
+        } else {
+          notFound.push(`${row.id} (${where})`);
+          console.log(`- ${row.id}: no SKILL.md or README.md found`);
+        }
         continue;
       }
 
@@ -337,6 +355,12 @@ async function run() {
   if (stats.failed > 0) process.exitCode = 1;
 }
 
+/**
+ * Wipe a stored snapshot. Only called when a skill's github_url has been
+ * removed — an explicit "this row has no source" edit, where leaving the old
+ * markdown behind would orphan text with nothing to attribute it to. A failed
+ * or 404-ing fetch must NOT come through here (see the notFound branch).
+ */
 async function clearDoc(client, id) {
   await client.query(
     `update public.skills
