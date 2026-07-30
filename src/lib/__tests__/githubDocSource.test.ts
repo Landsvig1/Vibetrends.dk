@@ -116,7 +116,9 @@ describe("parseGithubDocSource", () => {
 });
 
 describe("candidateDocPaths", () => {
-  it("searches the subdirectory before the repo root", () => {
+  it("searches only the subdirectory, never falling back to the repo root", () => {
+    // A repo-root fallback here would give a skill inside a monorepo the shared
+    // top-level README, which describes every sibling and not this skill.
     const source = parseGithubDocSource(
       "https://github.com/mikkelkrogsholm/dev-skills/tree/main/skill-creator"
     )!;
@@ -124,10 +126,15 @@ describe("candidateDocPaths", () => {
       "skill-creator/SKILL.md",
       "skill-creator/README.md",
       "skill-creator/readme.md",
-      "SKILL.md",
-      "README.md",
-      "readme.md",
     ]);
+  });
+
+  it("still offers the repo root for a URL whose trailing path was unparseable", () => {
+    // parseGithubDocSource degrades these to subpath: null on purpose, and that
+    // leniency must keep resolving the root README.
+    const source = parseGithubDocSource("https://github.com/pbakaus/impeccable/issues/12")!;
+    expect(source.subpath).toBeNull();
+    expect(candidateDocPaths(source)).toEqual(["SKILL.md", "README.md", "readme.md"]);
   });
 
   it("prefers SKILL.md over README.md at the repo root", () => {

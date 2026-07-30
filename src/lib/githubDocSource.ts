@@ -90,21 +90,24 @@ export function parseGithubDocSource(url: string | null | undefined): GithubDocS
 /**
  * Ordered list of paths to try for a skill's documentation. SKILL.md is the
  * Anthropic skill manifest and is by far the better page content when present;
- * README.md is the fallback. The skill's own subdirectory is searched before
- * the repo root so a monorepo of skills doesn't give every entry the same
- * top-level README.
+ * README.md is the fallback.
+ *
+ * When the URL names a subdirectory, ONLY that subdirectory is searched — there
+ * is deliberately no fall back to the repo root. A URL naming a folder is an
+ * assertion that the skill lives there, and 46 of 101 rows point into monorepos
+ * of skills where the root README describes every sibling at once. Falling back
+ * would hand this page a doc about 49 other skills, which is the near-duplicate
+ * problem this feature exists to remove; showing no doc is the honest outcome
+ * and the page renders fine without one.
+ *
+ * This does not weaken the lenient repo-root behaviour parseGithubRepoUrl's
+ * callers rely on: a URL whose trailing path can't be parsed comes back with
+ * subpath: null and still gets the root candidates.
  */
 export function candidateDocPaths(source: GithubDocSource): string[] {
   const names = ["SKILL.md", "README.md", "readme.md"];
-  const prefixes = source.subpath ? [source.subpath, ""] : [""];
-  const paths: string[] = [];
-  for (const prefix of prefixes) {
-    for (const name of names) {
-      const p = prefix ? `${prefix}/${name}` : name;
-      if (!paths.includes(p)) paths.push(p);
-    }
-  }
-  return paths;
+  const prefix = source.subpath;
+  return names.map((name) => (prefix ? `${prefix}/${name}` : name));
 }
 
 /**

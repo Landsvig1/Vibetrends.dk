@@ -192,14 +192,16 @@ async function repoSkillPaths(source) {
 /**
  * Resolve the best documentation file for a skill.
  *
- * Order:
- *   1. SKILL.md / README.md under the skill's own subdirectory, when the URL
- *      names one (`/tree/main/skill-creator`).
- *   2. SKILL.md at the repo root.
- *   3. For a repo-root URL: the SKILL.md whose directory matches this skill's
- *      slug. Many rows point at a monorepo of skills, where the root README is
- *      shared by every sibling and says nothing about this one specifically.
- *   4. README.md at the repo root.
+ * When the URL names a subdirectory (`/tree/main/skill-creator`), only that
+ * subdirectory is searched — see candidateDocPaths for why there is no repo-root
+ * fallback. Returns null if it holds no doc.
+ *
+ * For a repo-root URL, in order:
+ *   1. SKILL.md at the repo root.
+ *   2. The SKILL.md whose directory matches this skill's slug. Many rows point
+ *      at a monorepo of skills, where the root README is shared by every sibling
+ *      and says nothing about this one specifically.
+ *   3. README.md at the repo root.
  *
  * Returns null when none of those exist.
  */
