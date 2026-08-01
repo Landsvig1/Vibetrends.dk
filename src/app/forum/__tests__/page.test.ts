@@ -126,12 +126,7 @@ describe("getValidForumView", () => {
 // ForumExplorer on top of that base list).
 
 describe("ForumPageContent — passes real thread data to client island", () => {
-  it("calls getThreads with lang from the vibe_lang cookie and server sort for 'new' view", async () => {
-    cookiesMock.mockResolvedValue({
-      get: (name: string) =>
-        name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+  it("calls getThreads with hardcoded 'da' lang and server sort for 'new' view", async () => {
     const threads = [makeThread("t1", "Thread One", "Content one")];
     getThreadsMock.mockResolvedValue(threads);
 
@@ -141,7 +136,7 @@ describe("ForumPageContent — passes real thread data to client island", () => 
 
     expect(getThreadsMock).toHaveBeenCalledWith({
       category: undefined, // All → undefined
-      lang: "en",           // lang from mocked cookie
+      lang: "da",           // hardcoded Danish
       sort: "new",          // 'new' view maps directly to server sort 'new'
     });
   });

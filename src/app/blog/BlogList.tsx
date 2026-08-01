@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQueryState, parseAsString } from "nuqs";
 import { BookOpen, Clock, Search, Trash2, Layers, Cpu, Grid } from "lucide-react";
 import { BlogPost } from "@/lib/db";
-import { useLanguage } from "../components/LanguageProvider";
 import { useAuth } from "../components/AuthProvider";
 
 const getCategoryIcon = (category: string) => {
@@ -41,7 +40,6 @@ export default function BlogList() {
   const [selectedCategory, setSelectedCategory] = useQueryState("category", parseAsString.withDefault("All"));
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [loading, setLoading] = useState(true);
-  const { language, t } = useLanguage();
   const { user } = useAuth();
 
   // Admin-only delete — RLS has no owner-delete policy for blog_posts, so
@@ -50,7 +48,7 @@ export default function BlogList() {
   const handleDeletePost = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(t("blog.confirm_delete"))) return;
+    if (!confirm("Er du sikker på, at du vil slette dette indlæg?")) return;
 
     try {
       const res = await fetch(`/api/blog/${id}`, { method: "DELETE" });
@@ -60,7 +58,7 @@ export default function BlogList() {
     } catch (err) {
       console.error("Error deleting blog post:", err);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     fetch("/api/blog")
@@ -73,7 +71,7 @@ export default function BlogList() {
         console.error("Error fetching blog posts:", err);
         setLoading(false);
       });
-  }, [language]);
+  }, []);
 
   // ⚡ Optimization: Memoize the filtered blog posts list to prevent redundant
   // lowercasing of search query and posts text, sorting, and filtering on every single render/keystroke.
@@ -98,7 +96,7 @@ export default function BlogList() {
     return (
       <div className="text-center py-16">
         <BookOpen className="h-10 w-10 text-text-secondary animate-pulse mx-auto mb-4" />
-        <p className="text-text-secondary font-semibold">{t("blog.loading")}</p>
+        <p className="text-text-secondary font-semibold">Indlæser historier...</p>
       </div>
     );
   }
@@ -111,8 +109,8 @@ export default function BlogList() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
-            aria-label={t("blog.search")}
-            placeholder={t("blog.search")}
+            aria-label="Søg i artikler..."
+            placeholder="Søg i artikler..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
@@ -131,7 +129,7 @@ export default function BlogList() {
               }`}
             >
               {getCategoryFilterIcon(cat)}
-              <span>{cat === "All" ? (language === "da" ? "Alle" : "All") : cat}</span>
+              <span>{cat === "All" ? "Alle" : cat}</span>
             </button>
           ))}
         </div>
@@ -189,7 +187,7 @@ export default function BlogList() {
                 {user?.isAdmin && (
                   <button
                     onClick={(e) => handleDeletePost(post.id, e)}
-                    aria-label={t("blog.confirm_delete")}
+                    aria-label="Er du sikker på, at du vil slette dette indlæg?"
                     className="flex items-center justify-center p-1.5 rounded-lg bg-card-bg border border-card-border hover:bg-red-50 hover:border-red-200 text-text-secondary hover:text-red-600 transition cursor-pointer shrink-0 z-20"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -202,7 +200,7 @@ export default function BlogList() {
       ) : (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <BookOpen className="h-10 w-10 text-text-secondary mx-auto mb-4" />
-          <p className="text-text-secondary font-semibold">{t("blog.empty")}</p>
+          <p className="text-text-secondary font-semibold">Ingen artikler fundet.</p>
         </div>
       )}
     </div>

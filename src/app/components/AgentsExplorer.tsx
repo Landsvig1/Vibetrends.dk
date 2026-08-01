@@ -7,7 +7,6 @@ import { Search, Cpu, PlusCircle, X, Terminal, CheckCircle2, Flag, Flame } from 
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { canDelete } from "@/lib/permissions";
-import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "./EmptyState";
 import { AgentCard } from "./AgentCard";
@@ -90,8 +89,7 @@ export async function executeUpvote(
 interface AgentsExplorerProps {
   scope: "agents" | "mcp" | "cli";
   /** Server-fetched initial list — avoids a client-side fetch on first render
-   *  so crawlers and first paint see real content. The component only refetches
-   *  when the language changes post-mount. */
+   *  so crawlers and first paint see real content. */
   initialItems: Agent[];
 }
 
@@ -103,11 +101,6 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   const isMcp = scope === "mcp";
   const isCli = scope === "cli";
   const detailBase = isMcp ? "/mcp" : isCli ? "/cli" : "/agents";
-  const fetchUrl = isMcp
-    ? "/api/agents?category=MCP%20Server"
-    : isCli
-      ? "/api/cli"
-      : "/api/agents";
   const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "CLI";
 
   // Initialised from server-fetched data — no client-side fetch on first render.
@@ -125,13 +118,8 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
   const { user } = useAuth();
-  const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // In-flight language refetch loading affordance — keeps the current grid
-  // visible at reduced opacity rather than replacing it with a skeleton.
-  const [isRefetching, setIsRefetching] = useState(false);
 
   // Add form states
   const [addOpen, setAddOpen] = useState(false);
@@ -143,35 +131,9 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   const [addTags, setAddTags] = useState("");
   const [addSuccess, setAddSuccess] = useState(false);
 
-  // Skip the first mount fetch — the server already fetched with the initial
-  // lang and passed real data as initialItems. Only refetch when language
-  // actually changes post-mount.
-  const skipNextFetch = useRef(true);
-
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (skipNextFetch.current) {
-      skipNextFetch.current = false;
-      return;
-    }
-    // no-store: the route's public max-age header is for external API
-    // consumers; the interactive page must always read fresh counts, or a
-    // reload right after upvoting shows the pre-vote cached response.
-    setIsRefetching(true);
-    fetch(fetchUrl, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        setAgents(data);
-        setIsRefetching(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching registry:", err);
-        setIsRefetching(false);
-      });
-  }, [language, fetchUrl]);
 
   const handleCopyCommand = useCallback((id: string, command: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -255,7 +217,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   const handleDeleteAgent = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(t("agents.confirm_delete"))) return;
+    if (!confirm("Er du sikker på, at du vil afregistrere denne agent?")) return;
 
     try {
       const res = await fetch(`/api/agents/${id}`, { method: "DELETE" });
@@ -265,7 +227,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
     } catch (err) {
       console.error("Error deleting:", err);
     }
-  }, [t]);
+  }, []);
 
   const searchActive = search.trim() !== "";
 
@@ -290,8 +252,8 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   }, [agents, view, search, searchActive]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
-    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
-    { value: "all", label: language === "da" ? "Alle" : "All", icon: null },
+    { value: "danish", label: "Dansk", icon: Flag },
+    { value: "all", label: "Alle", icon: null },
     { value: "hot", label: "Hot", icon: Flame },
   ];
 
@@ -311,14 +273,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           </h1>
           <p className="text-text-secondary max-w-2xl">
             {isMcp
-              ? (language === "da"
-                  ? "MCP-kapabiliteter, ét trin fra din opsætning."
-                  : "MCP capabilities, one step from your setup.")
+              ? "MCP-kapabiliteter, ét trin fra din opsætning."
               : isCli
-                ? (language === "da"
-                    ? "CLI-værktøjer din agent kan kalde — ét trin fra din host."
-                    : "CLI tools your agent can invoke — one step from your host.")
-                : t("agents.desc")}
+                ? "CLI-værktøjer din agent kan kalde — ét trin fra din host."
+                : "Find færdigbyggede systemprompts, custom GPT configs og Model Context Protocol (MCP) servere. Hent dem og kobl dem direkte til dine AI-agenter."}
           </p>
         </div>
         <button
@@ -327,10 +285,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {isMcp
-            ? (language === "da" ? "Tilføj MCP-server" : "Add MCP server")
+            ? "Tilføj MCP-server"
             : isCli
-              ? (language === "da" ? "Tilføj CLI" : "Add CLI")
-              : t("agents.btn_register")}
+              ? "Tilføj CLI"
+              : "Registrer Agent/MCP"}
         </button>
       </div>
 
@@ -340,8 +298,8 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
-            aria-label={t("agents.search")}
-            placeholder={t("agents.search")}
+            aria-label="Søg i agenter, udgivere eller MCP..."
+            placeholder="Søg i agenter, udgivere eller MCP..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
@@ -369,13 +327,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
         </div>
       </div>
 
-      {/* Grid — opacity overlay during in-flight language refetch */}
       {filteredAgents.length > 0 ? (
         <motion.div
           layout
-          className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${
-            isRefetching ? "opacity-50 pointer-events-none" : ""
-          }`}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           <AnimatePresence mode="popLayout">
             {filteredAgents.map((agent, index) => {
@@ -397,12 +352,12 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                     testId={cardTestId(scope)}
                     isCopied={copiedId === agent.id}
                     canDelete={canDeleteThisAgent}
-                    confirmDeleteLabel={t("agents.confirm_delete")}
-                    sourceLabel={`${agent.name} — ${language === "da" ? "kilde" : "source"}`}
+                    confirmDeleteLabel="Er du sikker på, at du vil afregistrere denne agent?"
+                    sourceLabel={`${agent.name} — kilde`}
                     copyLabel="Kopiér installationskommando"
                     copiedLabel="Kopieret"
-                    byLabel={t("agents.by")}
-                    detailsLabel={t("agents.details")}
+                    byLabel="Af"
+                    detailsLabel="Se Detaljer"
                     onDelete={handleDeleteAgent}
                     onUpvote={handleUpvote}
                     onCopy={handleCopyCommand}
@@ -415,24 +370,20 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
       ) : (
         <EmptyState
           icon={Cpu}
-          title={t("agents.empty")}
-          description={
-            language === "da"
-              ? "Prøv at søge efter noget andet eller bidrag selv med et nyt værktøj."
-              : "Try searching for something else or contribute a new tool yourself."
-          }
+          title="Ingen agenter/MCP servere fundet."
+          description="Prøv at søge efter noget andet eller bidrag selv med et nyt værktøj."
           actionLabel={
             isMcp
-              ? (language === "da" ? "Tilføj MCP-server" : "Add MCP server")
+              ? "Tilføj MCP-server"
               : isCli
-                ? (language === "da" ? "Tilføj CLI" : "Add CLI")
-                : t("agents.btn_register")
+                ? "Tilføj CLI"
+                : "Registrer Agent/MCP"
           }
           onAction={() => setAddOpen(true)}
           suggestions={
             searchActive && initialItems.length > 0
               ? {
-                  title: language === "da" ? "Populære agenter" : "Popular agents",
+                  title: "Populære agenter",
                   items: initialItems.slice(0, 3).map((a) => ({
                     id: a.id,
                     title: a.name,
@@ -446,7 +397,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
       {/* Add Modal */}
       {addOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("agents.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="Tilføj dit AI-værktøj til registry" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
             <button
               onClick={() => setAddOpen(false)}
@@ -461,9 +412,9 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6 animate-bounce" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">{t("agents.modal.success_title")}</h3>
+                <h3 className="text-lg font-bold text-foreground">Agent registreret!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  {t("agents.modal.success_desc")}
+                  Dit agent- eller MCP-værktøj er nu registreret i oversigten.
                 </p>
               </div>
             ) : (
@@ -476,66 +427,66 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
                     <Cpu className="h-3.5 w-3.5 mr-1" />
-                    {t("agents.modal.badge")}
+                    Registrer Agent/MCP
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">{t("agents.modal.title")}</h3>
+                  <h3 className="text-lg font-bold text-foreground mt-1">Tilføj dit AI-værktøj til registry</h3>
                 </div>
 
                 {!user && (
                   <div className="p-3.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary text-xs leading-relaxed space-y-2">
                     <p>
-                      <strong>{t("auth.not_logged_in")}</strong> {t("auth.guest_warning")}
+                      <strong>Du er ikke logget ind.</strong> Hvis du fortsætter, vil din handling blive udført under et gæstenavn.
                     </p>
                     <button
                       type="button"
                       onClick={() => setLoginModalOpen(true)}
                       className="text-accent-primary hover:text-accent-primary font-bold underline transition-colors cursor-pointer"
                     >
-                      {t("auth.login_link")}
+                      Log ind med E-mail, Google eller GitHub
                     </button>
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("agents.modal.label_name")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Agent/Værktøjsnavn</label>
                   <input
                     type="text"
                     required
                     value={addName}
                     onChange={(e) => setAddName(e.target.value)}
-                    placeholder={t("agents.modal.placeholder_name")}
+                    placeholder="Fx 'NextJs15-File-Agent'"
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary font-mono">{t("agents.modal.label_tags")}</label>
+                    <label className="text-xs font-semibold text-text-secondary font-mono">Tags (komma-separeret)</label>
                     <input
                       type="text"
                       value={addTags}
                       onChange={(e) => setAddTags(e.target.value)}
-                      placeholder={t("agents.modal.placeholder_tags")}
+                      placeholder="Cursor, Agent, MCP"
                       className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("agents.modal.label_desc")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
                   <textarea
                     required
                     rows={3}
                     value={addDesc}
                     onChange={(e) => setAddDesc(e.target.value)}
-                    placeholder={t("agents.modal.placeholder_desc")}
+                    placeholder="Hvad gør denne agent?"
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary">
-                    {language === "da" ? "Kilde-URL (GitHub eller website, valgfri)" : "Source URL (GitHub or website, optional)"}
+                    Kilde-URL (GitHub eller website, valgfri)
                   </label>
                   <input
                     type="url"
@@ -547,7 +498,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("agents.modal.label_prompt")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">System Prompt</label>
                   <textarea
                     rows={4}
                     value={addPrompt}
@@ -562,7 +513,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
                 >
                   <Terminal className="h-4 w-4 mr-2" />
-                  {t("agents.modal.btn_submit")}
+                  Registrer Agent / MCP
                 </button>
               </form>
             )}

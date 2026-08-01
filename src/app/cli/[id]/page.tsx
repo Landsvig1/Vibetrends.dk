@@ -1,7 +1,5 @@
 import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
@@ -9,17 +7,15 @@ import AgentDetailView from "../../components/AgentDetailView";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   if (!agent || agent.category !== "CLI") return { title: "CLI ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(agent.name, " - CLIs".length)} - CLIs`,
     description: agent.description,
     path: `/cli/${id}`,
-    lang,
+    lang: 'da',
   });
 }
 
@@ -43,10 +39,8 @@ export default async function CliDetailPage({ params }: { params: Promise<{ id: 
 
 async function CliDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   // Only CLIs belong here; MCP servers live at /mcp/[id] and hosts are
   // never shown as catalog items.
   if (!agent || agent.category !== "CLI") {
@@ -79,7 +73,7 @@ async function CliDetailContent({ params }: { params: Promise<{ id: string }> })
           ),
         }}
       />
-      <AgentDetailView agent={agent} lang={lang} backHref="/cli" />
+      <AgentDetailView agent={agent} backHref="/cli" />
     </>
   );
 }

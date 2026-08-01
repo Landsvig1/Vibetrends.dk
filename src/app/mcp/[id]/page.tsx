@@ -1,7 +1,5 @@
 import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
@@ -9,17 +7,15 @@ import AgentDetailView from "../../components/AgentDetailView";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(agent.name, " - MCP Server Registry".length)} - MCP Server Registry`,
     description: agent.description,
     path: `/mcp/${id}`,
-    lang,
+    lang: 'da',
   });
 }
 
@@ -27,7 +23,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "a1" }
     }
   ]
@@ -53,10 +48,8 @@ export default async function McpDetailPage({ params }: { params: Promise<{ id: 
 
 async function McpDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   // Only MCP servers belong here; everything else is a regular agent at /agents/[id].
   if (!agent || agent.category !== "MCP Server") {
     notFound();
@@ -88,7 +81,7 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
           ),
         }}
       />
-      <AgentDetailView agent={agent} lang={lang} backHref="/mcp" />
+      <AgentDetailView agent={agent} backHref="/mcp" />
     </>
   );
 }

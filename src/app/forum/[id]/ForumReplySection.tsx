@@ -5,7 +5,6 @@ import { Send, MessageSquare } from "lucide-react";
 import { ForumThread } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
 import { canDelete } from "@/lib/permissions";
-import { useLanguage } from "@/app/components/LanguageProvider";
 import { ReplyCard } from "@/app/components/ReplyCard";
 import dynamic from "next/dynamic";
 
@@ -17,7 +16,6 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
   const [submitting, setSubmitting] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user } = useAuth();
-  const { language, t } = useLanguage();
 
   const handleUpvoteReply = useCallback(async (replyId: string) => {
     if (!user) {
@@ -43,7 +41,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
   }, [user, thread.id]);
 
   const handleDeleteReply = useCallback(async (replyId: string) => {
-    if (!confirm(t("forum.confirm_delete_reply"))) return;
+    if (!confirm("Er du sikker på, at du vil slette dette svar?")) return;
     if (!user) return;
 
     try {
@@ -60,7 +58,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
     } catch (err) {
       console.error("Error deleting reply:", err);
     }
-  }, [user, thread.id, t]);
+  }, [user, thread.id]);
 
   const handleAddReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,9 +78,6 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
 
       if (res.ok) {
         const updatedThread = await res.json();
-        // Since API returns da, but we want the current UI language, we parse the thread replies through translateThread or simply set the returned thread,
-        // since the API actually returns translated replies based on the cookie if the cookie exists. Because this POST request also sends the vibe_lang cookie automatically!
-        // That's the beauty of cookies.
         setThread(updatedThread);
         setReplyContent("");
       }
@@ -98,7 +93,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center">
           <MessageSquare className="h-4 w-4 mr-2" />
-          {t("forum.detail.replies_title")} ({thread.replies.length})
+          Svar ({thread.replies.length})
         </h3>
         
         {thread.replies.length > 0 ? (
@@ -109,7 +104,6 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
                 <ReplyCard
                   key={reply.id}
                   reply={reply}
-                  language={language}
                   canDelete={userCanDelete}
                   onUpvote={handleUpvoteReply}
                   onDelete={handleDeleteReply}
@@ -119,7 +113,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
           </div>
         ) : (
           <div className="text-center py-10 rounded-xl border border-card-border bg-background">
-            <p className="text-text-secondary text-sm italic">{t("forum.detail.no_replies")}</p>
+            <p className="text-text-secondary text-sm italic">Ingen svar endnu. Skriv det første svar nedenfor!</p>
           </div>
         )}
       </div>
@@ -137,7 +131,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
             rows={4}
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
-            placeholder={t("forum.detail.reply_placeholder")}
+            placeholder="Skriv dit svar her..."
             className="w-full px-5 py-4 rounded-xl bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none shadow-inner"
           />
         </div>
@@ -146,13 +140,13 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
           <div className="p-4 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary/80 text-xs leading-relaxed flex items-start gap-3">
              <div className="h-5 w-5 rounded-full bg-accent-light flex-shrink-0 flex items-center justify-center text-accent-primary font-bold">!</div>
              <div className="space-y-1">
-                <p><strong>{t("auth.not_logged_in")}</strong> {t("auth.guest_warning")}</p>
+                <p><strong>Du er ikke logget ind.</strong> Hvis du fortsætter, vil din handling blive udført under et gæstenavn.</p>
                 <button
                   type="button"
                   onClick={() => setLoginModalOpen(true)}
                   className="text-accent-primary hover:text-accent-primary font-bold underline transition-colors"
                 >
-                  {t("auth.login_link")}
+                  Log ind med E-mail, Google eller GitHub
                 </button>
              </div>
           </div>
@@ -163,7 +157,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
           disabled={submitting}
           className="flex items-center justify-center px-6 py-3 rounded-xl btn-primary text-foreground font-bold text-sm shadow-sm transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? (language === "da" ? "Sender…" : "Sending…") : t("forum.detail.btn_reply")}
+          {submitting ? "Sender…" : "Send Svar"}
           <Send className="h-4 w-4 ml-2" aria-hidden="true" />
         </button>
       </form>

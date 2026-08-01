@@ -2,24 +2,20 @@ import Link from "next/link";
 import { ArrowLeft, Clock } from "lucide-react";
 import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { translations, Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, articleJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const post = await getBlogPostById(id, lang);
+  const post = await getBlogPostById(id, 'da');
   if (!post) return { title: "Artikel ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(post.title, " - Vibe Trends Blog".length)} - Vibe Trends Blog`,
     description: post.excerpt,
     path: `/blog/${id}`,
-    lang,
+    lang: 'da',
     type: "article",
   });
 }
@@ -30,7 +26,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "b1" }
     }
   ]
@@ -51,12 +46,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
 
 async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  const tDict = translations[lang] || translations.da;
-  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  const post = await getBlogPostById(id, lang);
+  const post = await getBlogPostById(id, 'da');
 
   if (!post) {
     notFound();
@@ -95,7 +86,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {t("blog.detail.back")}
+        Tilbage til Blog
       </Link>
 
       <article className="max-w-3xl mx-auto rounded-xl glass-panel overflow-hidden border border-card-border shadow-2xl">
@@ -117,7 +108,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
 
             <div className="flex items-center gap-2 pt-2 text-xs text-text-secondary">
               <div className="flex items-center gap-1.5 font-medium text-foreground">
-                <div className="w-6 h-6 rounded-full bg-accent-light text-accent-primary font-bold text-[11px] flex items-center justify-center border border-accent-primary/10 select-none">
+                <div className="w-6 h-6 rounded-full bg-accent-light text-accent-primary font-bold text-[10px] flex items-center justify-center border border-accent-primary/10 select-none">
                   {post.author.charAt(0).toUpperCase()}
                 </div>
                 <span>{post.author}</span>
@@ -132,7 +123,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
               {post.excerpt}
             </p>
             
-            <div className="prose prose-invert prose-violet max-w-none">
+            <div className="max-w-none">
               {post.content.split('\n\n').map((para, i) => (
                 <p key={i} className="mb-4">{para}</p>
               ))}
