@@ -67,3 +67,8 @@ This journal contains critical performance learnings discovered while optimizing
 ## 2026-08-01 - Regex-free ID parsing and deferred Date formatting in Market Feed
 **Learning:** Eagerly parsing epoch timestamps via regex (`id.match()`) and converting thousands of database rows to ISO date strings (`new Date().toISOString()`) inside the mapping loop of `getFeedItems` creates a substantial CPU bottleneck. Since the feed is sliced to a small `limit` (e.g., 50) after sorting, eagerly formatting every single raw item is extremely wasteful.
 **Action:** Extract epoch milliseconds from IDs using fast index checks and substring slicing instead of regular expressions. Defer ISO date string formatting to run only on the final sorted and sliced subset, cutting CPU-bound date parsing overhead on `/api/feed` up to 4x.
+
+## REJECTED — 2026-08-01 — replacing data-driven UNITS table with duplicated if/else branches
+**PR:** #93 (0fee349)
+**Reason:** Rewrote `timeAgo`'s clean 4-entry `UNITS` config/loop into three near-duplicate if/else blocks to avoid "loop overhead" and "allocation overhead" — no benchmark or measurement backing the claim, and a 4-element array scan is not a measurable cost for a per-item formatter on a low-traffic site. Net effect: less readable, more surface, unproven payoff.
+**Do not propose again unless:** real profiling data shows `timeAgo` (or its call site) is an actual measured bottleneck at current or realistic traffic — not a bare "avoids a loop" narration.
