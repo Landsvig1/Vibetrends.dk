@@ -149,10 +149,28 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await page.getByPlaceholder('eksempel@vibe.dk').fill('testuser@vibetrends.dk');
     await page.getByRole('button', { name: 'Fortsæt med E-mail' }).click();
 
-    // `testuser_vibe` matches the username getAuthUser() derives server-side
-    // (email local-part, non-alphanumerics → '_', suffixed `_vibe`).
-    await expect(page.getByText('@testuser_vibe')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Log ud' })).toBeVisible();
+    // On desktop the logged-in state is the logout button alone. The @username
+    // span used to sit next to it, but #84 removed it from the desktop header to
+    // centre the nav geometrically — asserting on it here is what made this test
+    // fail on every run from 2026-07-27 onward.
+    await expect(page.locator('header').getByRole('button', { name: 'Log ud' })).toBeVisible();
+
+    // The username itself survives only in the mobile menu, so drop to a mobile
+    // viewport to check it. Worth keeping: `testuser_vibe` pins the username
+    // getAuthUser() derives server-side (email local-part, non-alphanumerics →
+    // '_', suffixed `_vibe`), which nothing else in the e2e suite covers.
+    // Targeted by aria-controls rather than its sr-only label, which is
+    // translated and would break again the next time the copy changes.
+    //
+    // The modal does not self-close on the test-login path (the real magic-link
+    // flow leaves it up showing "check your email"), and its backdrop swallows
+    // clicks, so dismiss it the way a user would before touching the header.
+    await page.getByRole('button', { name: 'Luk' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('button[aria-controls="mobile-menu"]').click();
+    await expect(page.locator('#mobile-menu').getByText('@testuser_vibe')).toBeVisible();
   });
 
   test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
