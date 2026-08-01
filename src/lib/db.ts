@@ -514,11 +514,10 @@ export async function getSkillDoc(id: string): Promise<SkillDoc | null> {
   };
 }
 
-export async function upvoteSkill(id: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function upvoteSkill(id: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
-  if (!user) {
+  if (!userId) {
     console.warn('Cannot upvote skill: User is not authenticated');
     return 0;
   }
@@ -623,11 +622,10 @@ async function adminBumpUpvotes(
   return typeof data === 'number' ? data : null;
 }
 
-export async function upvoteProject(id: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function upvoteProject(id: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
-  if (!user) {
+  if (!userId) {
     console.warn('Cannot upvote: User is not authenticated');
     return 0;
   }
@@ -1008,11 +1006,10 @@ export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
   return mapAgent(data, lang);
 }
 
-export async function upvoteAgent(id: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function upvoteAgent(id: string, actingAs?: ActingAs) {
+  const { supabase, userId } = await resolveActor(actingAs);
 
-  if (!user) {
+  if (!userId) {
     console.warn('Cannot upvote agent: User is not authenticated');
     return 0;
   }

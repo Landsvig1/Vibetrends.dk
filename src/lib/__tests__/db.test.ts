@@ -2018,6 +2018,66 @@ describe("U3 — upvoteReply with actingAs", () => {
   });
 });
 
+describe("U3 — upvoteSkill with actingAs", () => {
+  it("uses actingAs identity instead of server client, calls toggle_upvote RPC with bearer client for skill", async () => {
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    const { actingAs } = makeActingAsMock('bot-uid-upvote-skill');
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: 5, error: null };
+    };
+
+    const result = await db.upvoteSkill('s1', actingAs);
+
+    expect(state.serverCalls.length).toBe(0);
+    const toggleCall = rpcCalls.find(c => c.fn === 'toggle_upvote');
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: 'skill', target_id: 's1' });
+    expect(result).toBe(5);
+  });
+});
+
+describe("U3 — upvoteProject with actingAs", () => {
+  it("uses actingAs identity instead of server client, calls toggle_upvote RPC with bearer client for project", async () => {
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    const { actingAs } = makeActingAsMock('bot-uid-upvote-project');
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: 8, error: null };
+    };
+
+    const result = await db.upvoteProject('p1', actingAs);
+
+    expect(state.serverCalls.length).toBe(0);
+    const toggleCall = rpcCalls.find(c => c.fn === 'toggle_upvote');
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: 'vibe', target_id: 'p1' });
+    expect(result).toBe(8);
+  });
+});
+
+describe("U3 — upvoteAgent with actingAs", () => {
+  it("uses actingAs identity instead of server client, calls toggle_upvote RPC with bearer client for agent", async () => {
+    const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+    const { actingAs } = makeActingAsMock('bot-uid-upvote-agent');
+    state.rpcHandler = (fn, args) => {
+      rpcCalls.push({ fn, args });
+      if (fn === 'admin_bump_upvotes') return { data: null, error: null };
+      return { data: 12, error: null };
+    };
+
+    const result = await db.upvoteAgent('a1', actingAs);
+
+    expect(state.serverCalls.length).toBe(0);
+    const toggleCall = rpcCalls.find(c => c.fn === 'toggle_upvote');
+    expect(toggleCall).toBeDefined();
+    expect(toggleCall!.args).toEqual({ kind: 'agent', target_id: 'a1' });
+    expect(result).toBe(12);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // U4 — createBlogPost: direct unit coverage (previously only exercised via
 // the mocked POST /api/blog route test, never the db.ts function itself).
