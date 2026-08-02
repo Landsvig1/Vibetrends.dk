@@ -262,6 +262,16 @@ describe("skillSlugCandidates", () => {
     ]);
   });
 
+  it("offers an apostrophe-stripped slug alongside the separator form", () => {
+    const candidates = skillSlugCandidates("s_1783441213578", "Let's Talk");
+    expect(candidates).toContain("let-s-talk");
+    expect(candidates).toContain("lets-talk");
+  });
+
+  it("strips the typographic apostrophe too", () => {
+    expect(skillSlugCandidates("s_1783441213578", "Let’s Talk")).toContain("lets-talk");
+  });
+
   it("returns nothing usable when there is no signal", () => {
     expect(skillSlugCandidates("s_123", null)).toEqual([]);
   });
