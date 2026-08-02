@@ -41,7 +41,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
     const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
+    // /vibes is partial-prerendered — this data streams in after the static
+    // shell, and a cold CI runner's Supabase connection can occasionally push
+    // that past the 5s default. Widen rather than tighten (see the same
+    // rationale elsewhere in this file for cold-start latency).
+    await expect(firstProject).toBeVisible({ timeout: 15000 });
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
     const overlay = firstProject.getByRole('link', { name: projectTitle });
@@ -61,7 +65,8 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
     const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
+    // See the cold-start rationale in the test above.
+    await expect(firstProject).toBeVisible({ timeout: 15000 });
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
     // The card-wide overlay now opens the external demo site (see the test
