@@ -71,6 +71,27 @@ describe("GET /api/feed", () => {
     });
   });
 
+  it("treats empty since, type, and lang query parameters as absent", async () => {
+    vi.mocked(getFeedItems).mockResolvedValue([]);
+
+    const response = await GET(
+      makeRequest({
+        since: "",
+        type: "",
+        lang: "",
+      })
+    );
+    expect(response.status).toBe(200);
+
+    // Empties must fallback to undefined (or default 'da' for lang), preserving main behavior
+    expect(getFeedItems).toHaveBeenCalledWith({
+      since: undefined,
+      types: undefined,
+      lang: "da",
+      limit: undefined,
+    });
+  });
+
   it("rejects since parameter over 100 characters", async () => {
     const response = await GET(
       makeRequest({

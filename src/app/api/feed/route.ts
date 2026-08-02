@@ -24,7 +24,10 @@ export async function GET(request: Request) {
   // to prevent Denial of Service (DoS) and Regular Expression Denial of Service (ReDoS)
   // during expensive parsing/date parsing operations downstream.
 
-  const since = searchParams.get("since") ?? undefined;
+  // NOTE: Use `|| undefined` instead of `?? undefined` so that empty string values ("")
+  // are treated as "absent", preserving the original main branch behavior and avoiding
+  // unexpected 400 Bad Request responses for empty-but-present query params (e.g. `?since=`).
+  const since = searchParams.get("since") || undefined;
   if (since !== undefined) {
     if (since.length > 100) {
       return NextResponse.json(
@@ -40,7 +43,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const typeParam = searchParams.get("type") ?? undefined;
+  const typeParam = searchParams.get("type") || undefined;
   let types: FeedItemType[] | undefined;
   if (typeParam !== undefined) {
     if (typeParam.length > 100) {
@@ -60,7 +63,7 @@ export async function GET(request: Request) {
     types = requested as FeedItemType[];
   }
 
-  const langParam = searchParams.get("lang") ?? undefined;
+  const langParam = searchParams.get("lang") || undefined;
   if (langParam !== undefined) {
     if (langParam.length > 10) {
       return NextResponse.json(
