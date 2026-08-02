@@ -132,7 +132,7 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Skriv dit svar her..."
-            className="w-full px-5 py-4 rounded-xl bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none shadow-inner"
+            className="w-full px-5 py-4 rounded-xl bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none shadow-inner"
           />
         </div>
 

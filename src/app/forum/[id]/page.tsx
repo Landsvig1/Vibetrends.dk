@@ -104,7 +104,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
                   {thread.title}
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold text-sm">{thread.upvotes}</span>
               </div>

@@ -119,7 +119,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
           </div>
 
           <div className="text-text-secondary leading-relaxed text-lg space-y-6 pt-2">
-            <p className="text-xl text-foreground font-medium leading-relaxed italic border-l-4 border-accent-primary pl-6 py-1">
+            <p className="text-xl text-foreground font-medium leading-relaxed italic border-l-[3px] border-card-border pl-6 py-1">
               {post.excerpt}
             </p>
             

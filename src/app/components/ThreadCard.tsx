@@ -92,14 +92,14 @@ function ThreadCardComponent({
         </div>
 
         <div className="flex items-center space-x-4 pt-1 text-xs font-bold text-text-secondary">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30 hover:bg-card-border/50 transition-colors">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-accent-light hover:bg-accent-light transition-colors">
             <MessageSquare className="h-3.5 w-3.5" />
             <span>
               {thread.replies.length} {repliesLabel}
             </span>
           </div>
 
-          <div className="sm:hidden flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30">
+          <div className="sm:hidden flex items-center gap-1.5 px-2 py-1 rounded-md bg-accent-light">
             <TrendingUp className="h-3.5 w-3.5 text-accent-primary" />
             <span>{thread.upvotes}</span>
           </div>

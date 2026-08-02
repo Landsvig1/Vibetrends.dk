@@ -114,7 +114,7 @@ function AgentCardComponent({
                 onUpvote(agent.id, e);
               }}
               aria-label={`Upvote ${agent.name}`}
-              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+              className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
             >
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
@@ -137,7 +137,7 @@ function AgentCardComponent({
           <button
             onClick={(e) => onCopy(agent.id, agent.installCommand, e)}
             aria-label={isCopied ? copiedLabel : copyLabel}
-            className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition-colors z-20"
+            className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-colors z-20"
           >
             {isCopied ? (
               <CheckCircle

@@ -302,7 +302,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
             placeholder="Søg i agenter, udgivere eller MCP..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -316,7 +316,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                   view === tab.value && !searchActive
                     ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -402,7 +402,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
             <button
               onClick={() => setAddOpen(false)}
               aria-label="Luk"
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -455,7 +455,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                     value={addName}
                     onChange={(e) => setAddName(e.target.value)}
                     placeholder="Fx 'NextJs15-File-Agent'"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
@@ -467,7 +467,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                       value={addTags}
                       onChange={(e) => setAddTags(e.target.value)}
                       placeholder="Cursor, Agent, MCP"
-                      className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                      className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                     />
                   </div>
                 </div>
@@ -480,7 +480,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                     value={addDesc}
                     onChange={(e) => setAddDesc(e.target.value)}
                     placeholder="Hvad gør denne agent?"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
@@ -493,7 +493,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                     value={addSourceUrl}
                     onChange={(e) => setAddSourceUrl(e.target.value)}
                     placeholder="https://github.com/…"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
@@ -504,7 +504,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                     value={addPrompt}
                     onChange={(e) => setAddPrompt(e.target.value)}
                     placeholder="Raw text prompt…"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none font-mono"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none font-mono"
                   />
                 </div>
 

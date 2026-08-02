@@ -210,8 +210,8 @@ textarea:focus-visible,
   margin: 2rem 0 0.75rem;
 }
 
-.skill-doc h2 { font-size: 1.35rem; }
-.skill-doc h3 { font-size: 1.15rem; }
+.skill-doc h2 { font-size: 1.5rem; }
+.skill-doc h3 { font-size: 1.125rem; }
 .skill-doc h4,
 .skill-doc h5,
 .skill-doc h6 { font-size: 1rem; }
@@ -270,7 +270,7 @@ textarea:focus-visible,
   background: none;
   border: 0;
   padding: 0;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 

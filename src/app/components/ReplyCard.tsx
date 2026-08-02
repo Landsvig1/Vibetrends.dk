@@ -47,7 +47,7 @@ function ReplyCardComponent({
         <button
           onClick={() => onUpvote(reply.id)}
           aria-label="Stem op"
-          className="ml-auto flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary transition cursor-pointer"
+          className="ml-auto flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary transition cursor-pointer"
         >
           <Heart className="h-3 w-3 fill-current" aria-hidden="true" />
           <span className="font-bold font-mono">{reply.upvotes}</span>

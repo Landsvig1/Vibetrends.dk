@@ -62,17 +62,14 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" prefetch={false} transitionTypes={["nav-back"]} className="flex items-center space-x-2.5 group">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500 animate-pulse"></div>
-                <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-card-border text-accent-primary transition duration-300">
-                  <KoalaIcon className="h-5 w-5" />
-                </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-light border border-card-border text-accent-primary transition duration-300 group-hover:border-accent-primary">
+                <KoalaIcon className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-bold text-foreground transition duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
-                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Tools & Viden</span>
+                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Tools & Viden</span>
               </div>
             </Link>
           </div>
@@ -93,7 +90,7 @@ export default function Header() {
                       className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
                         isActive
                           ? "text-accent-primary bg-accent-light"
-                          : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                          : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                       }`}
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -115,7 +112,7 @@ export default function Header() {
                             className={`flex items-center space-x-2 px-4 py-2 text-sm transition-colors ${
                               isSubActive
                                 ? "text-accent-primary bg-accent-light font-semibold"
-                                : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                                : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                             }`}
                           >
                             <SubIcon className="h-4 w-4" />
@@ -137,7 +134,7 @@ export default function Header() {
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
                     isActive
                       ? "text-accent-primary bg-accent-light"
-                      : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                      : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -186,7 +183,7 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-menu"
-              className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-card-border hover:text-foreground"
+              className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-accent-light hover:text-foreground"
             >
               <span className="sr-only">Åbn menu</span>
               {mobileMenuOpen ? (
@@ -236,7 +233,7 @@ export default function Header() {
                           className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition ${
                             isSubActive
                               ? "bg-accent-light text-accent-primary font-semibold border-l-2 border-accent-primary"
-                              : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                              : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                           }`}
                         >
                           <SubIcon className="h-4 w-4" />
@@ -258,8 +255,8 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition ${
                   isActive
-                    ? "bg-accent-light text-accent-primary border-l-4 border-accent-primary"
-                    : "text-text-secondary hover:text-foreground hover:bg-card-border"
+                    ? "bg-accent-light text-accent-primary"
+                    : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -288,7 +285,7 @@ export default function Header() {
                   setLoginModalOpen(true);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full py-2.5 rounded-lg border border-card-border text-foreground text-sm font-semibold hover:bg-card-border cursor-pointer"
+                className="w-full py-2.5 rounded-lg border border-card-border text-foreground text-sm font-semibold hover:bg-accent-light cursor-pointer"
               >
                 Log ind
               </button>

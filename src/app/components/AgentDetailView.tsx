@@ -6,7 +6,15 @@ import ConnectBlock from "./ConnectBlock";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { deriveVibeInsights } from "@/lib/vibeInsights";
 
-const INSIGHT_DOT_COLORS = ["bg-violet-500", "bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-sky-500"];
+// Single-ink ramp: insights are distinguished by descending emphasis, not by hue
+// (see DESIGN.md, The Single Ink Rule).
+const INSIGHT_DOT_COLORS = [
+  "bg-accent-primary",
+  "bg-accent-primary/75",
+  "bg-accent-primary/55",
+  "bg-accent-primary/40",
+  "bg-accent-primary/25",
+];
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).
 // `backHref` controls where the back link returns (/agents or /mcp).
@@ -66,7 +74,7 @@ export default function AgentDetailView({
             <div className="flex justify-between items-start gap-4 relative z-10">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                   <div className="p-2.5 rounded-xl bg-violet-600/20 border border-accent-primary/20 text-accent-primary">
+                   <div className="p-2.5 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary">
                      {categoryIcons[agent.category as keyof typeof categoryIcons] || <Cpu className="h-5 w-5" />}
                    </div>
                    <span className="text-xs font-bold text-accent-primary uppercase tracking-widest">{agent.category}</span>
@@ -75,7 +83,7 @@ export default function AgentDetailView({
                   {agent.name}
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{agent.upvotes}</span>
               </div>
@@ -136,7 +144,6 @@ export default function AgentDetailView({
                </span>
             </div>
             <div className="relative group">
-               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-violet-500/5 rounded-2xl -m-0.5" />
                <div className="relative p-6 rounded-2xl bg-background border border-card-border font-mono text-sm text-text-secondary leading-relaxed whitespace-pre-wrap overflow-x-auto shadow-inner">
                   {agent.systemPrompt}
                </div>
