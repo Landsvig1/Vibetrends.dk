@@ -44,7 +44,10 @@ async function HomeContent() {
       {/* Hero Section */}
       <section className="relative text-center py-4 sm:py-8 overflow-hidden">
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
-          Gode AI-tools. <span className="text-accent-primary italic">Selv agenter</span> henter dem her.
+          {/* pe-[0.08em]: the italic's final glyph overhangs its advance box and
+              crowds the following roman word — tracking-tight leaves only ~5.5px
+              of space at 36px, so the words collide when the line wraps here. */}
+          Gode AI-tools. <span className="text-accent-primary italic pe-[0.08em]">Selv agenter</span> henter dem her.
         </h1>
 
         <p className="mt-4 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">
