@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Search, PlusCircle, ArrowRight } from "lucide-react";
-import { useLanguage } from "./LanguageProvider";
 
 interface EmptyStateProps {
   icon?: React.ElementType;
@@ -24,8 +23,6 @@ export default function EmptyState({
   onAction,
   suggestions,
 }: EmptyStateProps) {
-  const { t } = useLanguage();
-
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border border-dashed border-card-border bg-card-bg/30 text-center animate-in fade-in zoom-in duration-300">
       <div className="p-4 rounded-full bg-accent-light/30 text-accent-primary mb-6">

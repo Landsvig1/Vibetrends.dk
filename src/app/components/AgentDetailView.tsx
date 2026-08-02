@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Globe, ShieldCheck } from "lucide-react";
 import { Agent } from "@/lib/db";
-import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
 import ConnectBlock from "./ConnectBlock";
 import { jsonLdScript } from "@/lib/jsonLd";
@@ -21,16 +20,11 @@ const INSIGHT_DOT_COLORS = [
 // `backHref` controls where the back link returns (/agents or /mcp).
 export default function AgentDetailView({
   agent,
-  lang,
   backHref,
 }: {
   agent: Agent;
-  lang: Language;
   backHref: string;
 }) {
-  const tDict = translations[lang] || translations.da;
-  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
-
   const categoryIcons = {
     "CLI": <Terminal className="h-5 w-5" />,
     "MCP Server": <Cpu className="h-5 w-5" />,
@@ -40,7 +34,7 @@ export default function AgentDetailView({
   // MCP servers and CLIs are both backed by the agents table; map the row
   // category to its feed type so the connect recipe is host-appropriate.
   const feedType = agent.category === "MCP Server" ? "mcp-servers" : "cli";
-  const insights = deriveVibeInsights(agent, lang);
+  const insights = deriveVibeInsights(agent, "da");
 
   return (
     <div className="space-y-10">
@@ -66,7 +60,7 @@ export default function AgentDetailView({
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {t("agents.detail.back")}
+        Tilbage til Registry
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -110,13 +104,13 @@ export default function AgentDetailView({
             <div className="flex items-center space-x-4 pt-6 border-t border-card-border text-xs text-text-secondary relative z-10">
                <div className="flex items-center space-x-2">
                  <User className="h-4 w-4" />
-                 <span>{lang === "da" ? "Udgivet af" : "Published by"} <span className="text-text-secondary font-bold">@{agent.developer}</span></span>
+                 <span>Udgivet af <span className="text-text-secondary font-bold">@{agent.developer}</span></span>
                </div>
                <span className="text-text-secondary">&middot;</span>
                <div className="flex items-center space-x-2">
                  <ShieldCheck className="h-4 w-4 text-accent-primary" />
                  <span className="text-accent-primary/80">
-                   {lang === "da" ? "Verificeret Vibe Tool" : "Verified Vibe Tool"}
+                   Verificeret Vibe Tool
                  </span>
                </div>
                {agent.sourceUrl && (
@@ -130,7 +124,7 @@ export default function AgentDetailView({
                    >
                      <Globe className="h-4 w-4" />
                      <span className="font-bold underline-offset-2 hover:underline">
-                       {lang === "da" ? "Kilde" : "Source"}
+                       Kilde
                      </span>
                    </a>
                  </>
@@ -143,7 +137,7 @@ export default function AgentDetailView({
             <div className="flex items-center justify-between">
                <h3 className="text-lg font-bold text-foreground flex items-center">
                  <Terminal className="h-5 w-5 mr-2 text-accent-primary" />
-                 {t("agents.detail.prompt")}
+                 System Prompt
                </h3>
                <span className="text-[10px] text-text-secondary font-mono uppercase tracking-widest bg-background px-2 py-1 rounded border border-card-border">
                  Raw Output
@@ -164,7 +158,6 @@ export default function AgentDetailView({
            <ConnectBlock
              feedType={feedType}
              item={{ name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}
-             lang={lang}
            />
            <AgentActionSection agent={agent} backHref={backHref} />
 
@@ -184,7 +177,7 @@ export default function AgentDetailView({
                 </ul>
               ) : (
                 <p className="text-xs text-text-secondary italic">
-                  {lang === "da" ? "Ingen automatiske indsigter endnu." : "No automated insights yet."}
+                  Ingen automatiske indsigter endnu.
                 </p>
               )}
            </div>

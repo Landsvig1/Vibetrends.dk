@@ -64,9 +64,6 @@ import RouteTransitionProvider from "./components/RouteTransitionProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "./components/AuthProvider";
-import { cookies } from "next/headers";
-import { LanguageProvider } from "./components/LanguageProvider";
-import { Language } from "@/lib/translations";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -120,22 +117,17 @@ export default function RootLayout({
   );
 }
 
-async function RootLayoutInner({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
+function RootLayoutInner({ children }: { children: React.ReactNode }) {
   return (
-    <LanguageProvider initialLanguage={lang}>
-      <AuthProvider>
-        <NuqsAdapter>
-          <Header />
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-            <RouteTransitionProvider>{children}</RouteTransitionProvider>
-          </main>
-          <Footer />
-        </NuqsAdapter>
-      </AuthProvider>
-    </LanguageProvider>
+    <AuthProvider>
+      <NuqsAdapter>
+        <Header />
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+          <RouteTransitionProvider>{children}</RouteTransitionProvider>
+        </main>
+        <Footer />
+      </NuqsAdapter>
+    </AuthProvider>
   );
 }
 

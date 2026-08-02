@@ -1,7 +1,5 @@
 import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
@@ -9,10 +7,8 @@ import AgentDetailView from "../../components/AgentDetailView";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   // MCP servers live at /mcp/[id]; hosts are connection targets, not catalog
   // items, so they 404 on this demoted surface.
   if (!agent || agent.category === "MCP Server" || agent.category === "Host") return { title: "Agent ikke fundet" };
@@ -21,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title: `${truncateTitle(agent.name, " - AI Agent Registry".length)} - AI Agent Registry`,
     description: agent.description,
     path: `/agents/${id}`,
-    lang,
+    lang: 'da',
   });
 }
 
@@ -29,7 +25,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "a2" }
     }
   ]
@@ -55,10 +50,8 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
 
 async function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const agent = await getAgentById(id, lang);
+  const agent = await getAgentById(id, 'da');
   // MCP servers live at /mcp/[id]; hosts are connection targets and are never
   // shown as catalog items. Keep the routes strictly scoped.
   if (!agent || agent.category === "MCP Server" || agent.category === "Host") {
@@ -91,7 +84,7 @@ async function AgentDetailContent({ params }: { params: Promise<{ id: string }> 
           ),
         }}
       />
-      <AgentDetailView agent={agent} lang={lang} backHref="/agents" />
+      <AgentDetailView agent={agent} backHref="/agents" />
     </>
   );
 }

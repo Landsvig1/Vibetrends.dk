@@ -41,7 +41,11 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
     const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
+    // /vibes is partial-prerendered — this data streams in after the static
+    // shell, and a cold CI runner's Supabase connection can occasionally push
+    // that past the 5s default. Widen rather than tighten (see the same
+    // rationale elsewhere in this file for cold-start latency).
+    await expect(firstProject).toBeVisible({ timeout: 15000 });
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
     const overlay = firstProject.getByRole('link', { name: projectTitle });
@@ -61,7 +65,8 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
     const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
+    // See the cold-start rationale in the test above.
+    await expect(firstProject).toBeVisible({ timeout: 15000 });
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
 
     // The card-wide overlay now opens the external demo site (see the test
@@ -78,10 +83,9 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // "Developer Forum") — a bare /^Forum$/ can never match it.
     await expect(page.getByRole('heading', { name: 'Developer Forum' })).toBeVisible();
     
-    // Check categories. The suite defaults to da (no language cookie set),
-    // and the bilingual-labels feature resolves category keys to locale
-    // labels (src/lib/forumCategories.ts) — "General" renders as "Generelt"
-    // under da, not the raw English key.
+    // Check categories. forumCategoryLabel() resolves category keys to their
+    // Danish label (src/lib/forumCategories.ts) — "General" renders as
+    // "Generelt", not the raw English key.
     await expect(page.getByRole('button', { name: 'Generelt', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Prompts', exact: true })).toBeVisible();
     
@@ -173,48 +177,4 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('#mobile-menu').getByText('@testuser_vibe')).toBeVisible();
   });
 
-  test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
-    // Two 45s toPass retry budgets below can't fit inside Playwright's default
-    // 30s per-test timeout with room left for the rest of the test — extend
-    // this test specifically rather than raising the suite-wide default.
-    test.setTimeout(120000);
-    await page.goto('/');
-
-    // 1. By default, it should be in Danish. Check a Danish phrase or link.
-    await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible();
-
-    // 2 & 3. Click EN and verify it switches to English. Retry the whole
-    // interaction so a click landing before React hydration (which would be
-    // silently dropped) doesn't flake the test — real users can't click that fast.
-    // Inner timeouts widened from 8000ms/outer 30000ms: the language toggle's
-    // router.refresh() re-runs the homepage's DB queries against Supabase's
-    // pooler, which on a cold CI runner can genuinely take longer than 8s —
-    // this isn't masking a bug (the refresh mechanism itself is verified
-    // correct), just accommodating real cold-start query latency.
-    await expect(async () => {
-      await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 20000 });
-    }).toPass({ timeout: 45000 });
-
-    // 4. Verify cookie 'vibe_lang' is set to 'en'
-    const cookies = await context.cookies();
-    const langCookie = cookies.find(c => c.name === 'vibe_lang');
-    expect(langCookie).toBeDefined();
-    expect(langCookie?.value).toBe('en');
-
-    // 5. Reload page to test server-side persistence
-    await page.reload();
-    await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 10000 });
-
-    // 6. Click DA toggle back. Same retry rationale as step 2 — this click
-    // comes right after a reload, so hydration may not be finished yet.
-    await expect(async () => {
-      await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible({ timeout: 20000 });
-    }).toPass({ timeout: 45000 });
-  });
 });

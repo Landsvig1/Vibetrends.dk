@@ -6,18 +6,13 @@ import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { skillSchema } from "@/lib/schemas";
 export { skillSchema };
 
-import { cookies } from "next/headers";
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
   const category = searchParams.get("category") || undefined;
   const view = parseSkillView(searchParams.get("view"));
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
-
-  const skills = await getSkills(search, category, lang, view);
+  const skills = await getSkills(search, category, 'da', view);
   return NextResponse.json(skills, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

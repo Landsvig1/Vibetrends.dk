@@ -8,7 +8,6 @@ import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
 import { canDelete } from "@/lib/permissions";
-import { useLanguage } from "../components/LanguageProvider";
 import { ThreadCard } from "../components/ThreadCard";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
@@ -102,10 +101,9 @@ export default function ForumExplorer({
   );
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
   const { user } = useAuth();
-  const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  // In-flight category/sort/language refetch loading affordance — keeps the
+  // In-flight category/sort refetch loading affordance — keeps the
   // current list visible at reduced opacity rather than replacing it with a
   // full skeleton (KTD1 async-states: in-flight sort/category refetch).
   const [isRefetching, setIsRefetching] = useState(false);
@@ -118,8 +116,8 @@ export default function ForumExplorer({
   const [threadSuccess, setThreadSuccess] = useState(false);
 
   // Skip the first mount fetch — the server already fetched with the initial
-  // category/view/lang and passed real data as initialThreads. Only refetch
-  // when category, view, or language actually changes post-mount.
+  // category/view and passed real data as initialThreads. Only refetch
+  // when category or view actually changes post-mount.
   const skipNextFetch = useRef(true);
 
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
@@ -139,7 +137,7 @@ export default function ForumExplorer({
   // filter/sort layered on the 'top'-sorted base list (see viewThreads below).
   const serverSort = view === "new" ? "new" : "top";
 
-  // Refetch when category, view, or language changes post-mount. On first
+  // Refetch when category or view changes post-mount. On first
   // render we skip this effect (the server already fetched the right data).
   useEffect(() => {
     if (skipNextFetch.current) {
@@ -163,7 +161,7 @@ export default function ForumExplorer({
         console.error("Error fetching threads:", err);
         setIsRefetching(false);
       });
-  }, [selectedCategory, serverSort, language]);
+  }, [selectedCategory, serverSort]);
 
   const categories: ("All" | ForumThread["category"])[] = ["All", ...FORUM_CATEGORY_KEYS];
 
@@ -186,9 +184,9 @@ export default function ForumExplorer({
   }, [threads, view, search]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | typeof TrendingUp | typeof Clock }[] = [
-    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
+    { value: "danish", label: "Dansk", icon: Flag },
     { value: "top", label: "Top", icon: TrendingUp },
-    { value: "new", label: language === "da" ? "Nyeste" : "New", icon: Clock },
+    { value: "new", label: "Nyeste", icon: Clock },
   ];
 
   // Handle upvote via API — delegates to executeUpvote (exported above) which
@@ -259,7 +257,7 @@ export default function ForumExplorer({
 
   // Delete thread via API
   const handleDeleteThread = useCallback(async (threadId: string) => {
-    if (!confirm(t("forum.confirm_delete_thread"))) return;
+    if (!confirm("Er du sikker på, at du vil slette denne tråd?")) return;
     if (!user) return;
 
     try {
@@ -273,7 +271,7 @@ export default function ForumExplorer({
     } catch (err) {
       console.error("Error deleting thread:", err);
     }
-  }, [t, user]);
+  }, [user]);
 
   return (
     <div className="space-y-8">
@@ -284,7 +282,7 @@ export default function ForumExplorer({
             Developer <span className="text-accent-primary">Forum</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
-            {t("forum.desc")}
+            Spørg om AI. Få svar fra folk der bygger.
           </p>
         </div>
         <button
@@ -292,7 +290,7 @@ export default function ForumExplorer({
           className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
-          {t("forum.btn_create")}
+          Opret tråd
         </button>
       </div>
 
@@ -302,7 +300,7 @@ export default function ForumExplorer({
         <div className="lg:col-span-1 space-y-6">
           <div className="space-y-2">
             <h3 className="text-[10px] font-extrabold text-text-secondary uppercase tracking-[0.2em] mb-4">
-              {t("forum.categories")}
+              Kategorier
             </h3>
             <div className="flex flex-row lg:flex-col gap-1.5 overflow-x-auto w-full pb-2 scrollbar-none snap-x md:flex-wrap md:overflow-visible md:pb-0">
               {categories.map((cat) => (
@@ -315,7 +313,7 @@ export default function ForumExplorer({
                       : "bg-background border border-transparent text-text-secondary hover:bg-accent-light hover:text-foreground"
                   }`}
                 >
-                  {cat === "All" ? (language === "da" ? "Alle" : "All") : forumCategoryLabel(cat, language)}
+                  {cat === "All" ? "Alle" : forumCategoryLabel(cat)}
                 </button>
               ))}
             </div>
@@ -326,9 +324,7 @@ export default function ForumExplorer({
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-foreground">About Community</h4>
               <p className="text-xs text-text-secondary leading-relaxed">
-                {language === "da"
-                  ? "Velkommen til Danmarks AI-forum. Del din viden, stil spørgsmål og netværk med andre vibe coders."
-                  : "Welcome to Denmark's AI forum. Share knowledge, ask questions and network with other vibe coders."}
+                Velkommen til Danmarks AI-forum. Del din viden, stil spørgsmål og netværk med andre vibe coders.
               </p>
             </div>
             <div className="pt-4 border-t border-card-border">
@@ -348,8 +344,8 @@ export default function ForumExplorer({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
               <input
                 type="text"
-                aria-label={language === "da" ? "Søg i forum..." : "Search forum..."}
-                placeholder={language === "da" ? "Søg i forum..." : "Search forum..."}
+                aria-label="Søg i forum..."
+                placeholder="Søg i forum..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
@@ -377,7 +373,7 @@ export default function ForumExplorer({
             </div>
           </div>
 
-          {/* Thread list — opacity overlay during in-flight category/view/language refetch */}
+          {/* Thread list — opacity overlay during in-flight category/view refetch */}
           {filteredThreads.length > 0 ? (
             <motion.div
               layout
@@ -399,9 +395,8 @@ export default function ForumExplorer({
                   >
                     <ThreadCard
                       thread={thread}
-                      language={language}
                       canDelete={canDelete(user, thread.author, (a) => a.startsWith("vibecoder_"))}
-                      repliesLabel={t("forum.replies")}
+                      repliesLabel="svar"
                       onUpvote={handleUpvote}
                       onDelete={handleDeleteThread}
                     />
@@ -412,14 +407,14 @@ export default function ForumExplorer({
           ) : (
             <EmptyState
               icon={MessageSquare}
-              title={t("forum.empty")}
-              description={t("forum.empty_sub")}
-              actionLabel={t("forum.btn_create")}
+              title="Ingen tråde i denne kategori."
+              description="Vær den første til at oprette en diskussion!"
+              actionLabel="Opret tråd"
               onAction={() => setNewThreadOpen(true)}
               suggestions={
                 initialThreads.length > 0
                   ? {
-                      title: language === "da" ? "Top diskussioner" : "Top discussions",
+                      title: "Top diskussioner",
                       items: initialThreads.slice(0, 3).map((t) => ({
                         id: t.id,
                         title: t.title,
@@ -435,7 +430,7 @@ export default function ForumExplorer({
 
       {/* Start Thread Modal */}
       {newThreadOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("forum.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="Start en ny diskussion" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
             {/* Close */}
             <button
@@ -451,9 +446,9 @@ export default function ForumExplorer({
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">{t("forum.modal.success_title")}</h3>
+                <h3 className="text-lg font-bold text-foreground">Diskussion oprettet!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  {t("forum.modal.success_desc")}
+                  Din tråd er nu tilføjet til forummet.
                 </p>
               </div>
             ) : (
@@ -464,39 +459,39 @@ export default function ForumExplorer({
                 </div>
 
                 <div>
-                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">{t("forum.modal.badge")}</span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">{t("forum.modal.title")}</h3>
+                  <span className="text-xs font-bold text-accent-primary uppercase tracking-wider">Opret tråd</span>
+                  <h3 className="text-lg font-bold text-foreground mt-1">Start en ny diskussion</h3>
                 </div>
 
                 {!user && (
                   <div className="p-3.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary text-xs leading-relaxed space-y-2">
                     <p>
-                      <strong>{t("auth.not_logged_in")}</strong> {t("auth.guest_warning")}
+                      <strong>Du er ikke logget ind.</strong> Hvis du fortsætter, vil din handling blive udført under et gæstenavn.
                     </p>
                     <button
                       type="button"
                       onClick={() => setLoginModalOpen(true)}
                       className="text-accent-primary hover:text-accent-primary font-bold underline transition-colors cursor-pointer"
                     >
-                      {t("auth.login_link")}
+                      Log ind med E-mail, Google eller GitHub
                     </button>
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_title")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Emne Titel</label>
                   <input
                     type="text"
                     required
                     value={threadTitle}
                     onChange={(e) => setThreadTitle(e.target.value)}
-                    placeholder={t("forum.modal.placeholder_title")}
+                    placeholder="Fx 'Bedste .cursorrules opsætning til Tailwind v4'"
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_category")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Kategori</label>
                   <select
                     value={threadCategory}
                     onChange={(e) => setThreadCategory(e.target.value as ForumThread["category"])}
@@ -509,13 +504,13 @@ export default function ForumExplorer({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("forum.modal.label_content")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Indhold</label>
                   <textarea
                     required
                     rows={6}
                     value={threadContent}
                     onChange={(e) => setThreadContent(e.target.value)}
-                    placeholder={t("forum.modal.placeholder_content")}
+                    placeholder="Forklar dit spørgsmål eller del dine erfaringer..."
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
@@ -524,7 +519,7 @@ export default function ForumExplorer({
                   type="submit"
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition"
                 >
-                  {t("forum.modal.btn_submit")}
+                  Opret Diskussion
                 </button>
               </form>
             )}

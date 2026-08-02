@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getSkills, SkillView } from "@/lib/db";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import SkillsLoading from "./loading";
@@ -60,9 +58,6 @@ export async function SkillsPageContent({
 }: {
   searchParams: Promise<{ view?: string; q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const view = getValidView(resolvedParams?.view);
   const search = resolvedParams?.q || undefined;
@@ -75,10 +70,10 @@ export async function SkillsPageContent({
   const [allSkills, initialViewSkills] = await Promise.all([
     // Drives client-side search and per-topic counts for the topic cards.
     // No view arg → all skills ordered by upvotes (filtered by search if set).
-    getSkills(search, undefined, lang),
+    getSkills(search, undefined, 'da'),
     // Only fetched when the initial view is a board view, not the topic-cards
     // "all" view (which uses the full catalog for counts).
-    skillView ? getSkills(search, undefined, lang, skillView) : Promise.resolve([]),
+    skillView ? getSkills(search, undefined, 'da', skillView) : Promise.resolve([]),
   ]);
 
   // Build JSON-LD server-side from the full catalog so crawlers see it in the
