@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import { useLanguage } from "./LanguageProvider";
