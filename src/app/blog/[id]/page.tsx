@@ -117,7 +117,7 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
 
             <div className="flex items-center gap-2 pt-2 text-xs text-text-secondary">
               <div className="flex items-center gap-1.5 font-medium text-foreground">
-                <div className="w-6 h-6 rounded-full bg-accent-light text-accent-primary font-bold text-[11px] flex items-center justify-center border border-accent-primary/10 select-none">
+                <div className="w-6 h-6 rounded-full bg-accent-light text-accent-primary font-bold text-[10px] flex items-center justify-center border border-accent-primary/10 select-none">
                   {post.author.charAt(0).toUpperCase()}
                 </div>
                 <span>{post.author}</span>
@@ -128,11 +128,11 @@ async function BlogPostContent({ params }: { params: Promise<{ id: string }> }) 
           </div>
 
           <div className="text-text-secondary leading-relaxed text-lg space-y-6 pt-2">
-            <p className="text-xl text-foreground font-medium leading-relaxed italic border-l-4 border-accent-primary pl-6 py-1">
+            <p className="text-xl text-foreground font-medium leading-relaxed italic border-l-[3px] border-card-border pl-6 py-1">
               {post.excerpt}
             </p>
             
-            <div className="prose prose-invert prose-violet max-w-none">
+            <div className="max-w-none">
               {post.content.split('\n\n').map((para, i) => (
                 <p key={i} className="mb-4">{para}</p>
               ))}

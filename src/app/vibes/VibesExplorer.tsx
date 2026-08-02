@@ -346,7 +346,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             placeholder={t("showcase.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -360,7 +360,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                   view === tab.value && !searchActive
                     ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -424,7 +424,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             <button
               onClick={() => setSubmitOpen(false)}
               aria-label="Luk"
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -465,7 +465,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     onChange={(e) => setSubGithub(e.target.value)}
                     onBlur={handleGithubBlur}
                     placeholder="https://github.com/dit-navn/dit-projekt"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
@@ -477,7 +477,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     value={subTitle}
                     onChange={(e) => setSubTitle(e.target.value)}
                     placeholder="Fx 'Simply.com DNS Dashboard'"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
@@ -489,7 +489,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     value={subDesc}
                     onChange={(e) => setSubDesc(e.target.value)}
                     placeholder={t("showcase.modal.placeholder_desc")}
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
@@ -500,7 +500,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     value={subDemo}
                     onChange={(e) => setSubDemo(e.target.value)}
                     placeholder="https://mit-projekt.vercel.app"
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 

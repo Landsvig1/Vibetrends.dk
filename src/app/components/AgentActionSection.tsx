@@ -69,7 +69,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
         <div className="grid grid-cols-1 gap-3">
            <button
              onClick={handleUpvote}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-primary font-bold hover:bg-rose-500/20 transition active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary font-bold hover:bg-accent-primary/10 transition active:scale-[0.98] cursor-pointer"
            >
              <Heart className="h-4 w-4 fill-current" />
              {language === "da" ? "Upvote Agent" : "Upvote Agent"}
@@ -77,7 +77,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
            
            <button
              onClick={() => handleCopyCommand(agent.systemPrompt, "prompt")}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-violet-600/10 border border-accent-primary/20 text-accent-primary font-bold hover:bg-violet-600/20 transition active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary font-bold hover:bg-accent-primary/10 transition active:scale-[0.98] cursor-pointer"
            >
              <Terminal className="h-4 w-4" />
              {copiedId === "prompt" ? t("agents.detail.prompt_copied") : t("agents.detail.copy_prompt")}

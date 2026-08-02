@@ -164,7 +164,7 @@ async function TopicContent({
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === tab.value
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
               }`}
             >
               {Icon && <Icon className="h-3.5 w-3.5" />}

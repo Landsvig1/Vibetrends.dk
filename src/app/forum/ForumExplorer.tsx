@@ -312,7 +312,7 @@ export default function ForumExplorer({
                   className={`w-auto lg:w-full lg:text-left text-center px-3.5 py-2.5 rounded-lg text-xs font-bold transition cursor-pointer snap-center shrink-0 ${
                     selectedCategory === cat
                       ? "bg-accent-light text-accent-primary border border-accent-primary/20"
-                      : "bg-background border border-transparent text-text-secondary hover:bg-card-border hover:text-foreground"
+                      : "bg-background border border-transparent text-text-secondary hover:bg-accent-light hover:text-foreground"
                   }`}
                 >
                   {cat === "All" ? (language === "da" ? "Alle" : "All") : forumCategoryLabel(cat, language)}
@@ -352,7 +352,7 @@ export default function ForumExplorer({
                 placeholder={language === "da" ? "Søg i forum..." : "Search forum..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
               />
             </div>
 
@@ -366,7 +366,7 @@ export default function ForumExplorer({
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                       view === tab.value && !searchActive
                         ? "bg-accent-primary text-white font-extrabold shadow-md"
-                        : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                        : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -441,7 +441,7 @@ export default function ForumExplorer({
             <button
               onClick={() => setNewThreadOpen(false)}
               aria-label="Luk"
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -491,7 +491,7 @@ export default function ForumExplorer({
                     value={threadTitle}
                     onChange={(e) => setThreadTitle(e.target.value)}
                     placeholder={t("forum.modal.placeholder_title")}
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
                   />
                 </div>
 
@@ -516,7 +516,7 @@ export default function ForumExplorer({
                     value={threadContent}
                     onChange={(e) => setThreadContent(e.target.value)}
                     placeholder={t("forum.modal.placeholder_content")}
-                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 

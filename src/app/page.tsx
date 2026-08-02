@@ -177,7 +177,7 @@ async function HomeContent() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <div className="bg-background border border-card-border rounded-lg p-2 font-mono text-[11px] text-text-secondary select-all overflow-x-auto whitespace-nowrap">
+                  <div className="bg-background border border-card-border rounded-lg p-2 font-mono text-[10px] text-text-secondary select-all overflow-x-auto whitespace-nowrap">
                     {spotlightMcp.installCommand}
                   </div>
                   <div className="flex items-center justify-between text-xs text-text-secondary">

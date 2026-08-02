@@ -48,7 +48,7 @@ export default function ShareButton({ title, url }: ShareButtonProps) {
     <button
       onClick={handleShare}
       aria-label={copied ? "Link kopieret!" : "Del projekt"}
-      className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors relative"
+      className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-accent-light transition-colors relative"
     >
       <Share2 className="h-5 w-5" />
       {copied && (

@@ -13,7 +13,7 @@ const getCategoryIcon = (category: string) => {
     case "Guides":
       return <BookOpen className="h-4.5 w-4.5 text-accent-primary" />;
     case "Workflow":
-      return <Layers className="h-4.5 w-4.5 text-violet-600" />;
+      return <Layers className="h-4.5 w-4.5 text-accent-primary" />;
     case "Agents":
       return <Cpu className="h-4.5 w-4.5 text-emerald-600" />;
     default:
@@ -115,7 +115,7 @@ export default function BlogList() {
             placeholder={t("blog.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
         </div>
 
@@ -127,7 +127,7 @@ export default function BlogList() {
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer snap-center shrink-0 ${
                 selectedCategory === cat
                   ? "bg-accent-primary text-white font-bold border border-accent-primary shadow-sm"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border/50 hover:text-foreground"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
               }`}
             >
               {getCategoryFilterIcon(cat)}

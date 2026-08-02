@@ -141,7 +141,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               sizes="(min-width: 1024px) 66vw, 100vw"
               className="object-cover opacity-90"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 to-transparent"></div>
             <div className="absolute bottom-6 left-6">
               <h1 className="text-white font-bold text-xl">{project.title}</h1>
             </div>
@@ -152,7 +152,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               <h2 className="text-2xl font-bold text-foreground">
                 {lang === "da" ? "Om projektet" : "About the project"}
               </h2>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{project.upvotes}</span>
               </div>
@@ -196,7 +196,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="GitHub"
-                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors"
+                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-accent-light transition-colors"
                       >
                         <GithubIcon className="h-5 w-5" />
                       </a>

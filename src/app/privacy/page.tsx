@@ -30,7 +30,7 @@ export default async function PrivacyPage() {
           <p className="text-text-secondary text-sm">Last updated: June 16, 2026</p>
         </div>
 
-        <div className="prose prose-invert text-text-secondary space-y-6 text-sm leading-relaxed">
+        <div className="text-text-secondary space-y-6 text-sm leading-relaxed">
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-foreground">1. Data Controller</h2>
             <p>
@@ -90,7 +90,7 @@ export default async function PrivacyPage() {
         <p className="text-text-secondary text-sm">Sidst opdateret: 16. juni 2026</p>
       </div>
 
-      <div className="prose prose-invert text-text-secondary space-y-6 text-sm leading-relaxed">
+      <div className="text-text-secondary space-y-6 text-sm leading-relaxed">
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-foreground">1. Dataansvarlig</h2>
           <p>
