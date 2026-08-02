@@ -84,7 +84,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("AgentsPageContent — passes real agent data to client island", () => {
-  it("calls getAgents with no category (default catalog) and the lang from the vibe_lang cookie", async () => {
+  it("calls getAgents with no category (default catalog) and 'da' lang", async () => {
     const items = [makeAgent("a1", "my-agent", "An AI agent tool")];
     getAgentsMock.mockResolvedValue(items);
 
@@ -93,11 +93,11 @@ describe("AgentsPageContent — passes real agent data to client island", () => 
     expect(getAgentsMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
       undefined, // no category — default catalog (excludes MCP Server + Host)
-      "da"       // lang from mocked cookie
+      "da"       // hardcoded Danish
     );
   });
 
-  it("defaults lang to 'da' when the cookie is absent", async () => {
+  it("always calls getAgents with 'da' regardless of cookie state", async () => {
     cookiesMock.mockResolvedValue({
       get: () => undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,19 +107,6 @@ describe("AgentsPageContent — passes real agent data to client island", () => 
     await AgentsPageContent({ searchParams: Promise.resolve({}) });
 
     expect(getAgentsMock).toHaveBeenCalledWith(undefined, undefined, "da");
-  });
-
-  it("passes lang='en' when the vibe_lang cookie is 'en'", async () => {
-    cookiesMock.mockResolvedValue({
-      get: (name: string) =>
-        name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-    getAgentsMock.mockResolvedValue([]);
-
-    await AgentsPageContent({ searchParams: Promise.resolve({}) });
-
-    expect(getAgentsMock).toHaveBeenCalledWith(undefined, undefined, "en");
   });
 
   it("passes ?q= as search to getAgents when present", async () => {

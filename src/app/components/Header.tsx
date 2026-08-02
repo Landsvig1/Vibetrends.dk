@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
-import { useLanguage } from "./LanguageProvider";
 import dynamic from "next/dynamic";
 import KoalaIcon from "./KoalaIcon";
 
@@ -31,7 +30,6 @@ export default function Header() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { language, setLanguage, t } = useLanguage();
 
   const isItemActive = (item: NavItem) => {
     if (item.isDropdown) {
@@ -41,30 +39,25 @@ export default function Header() {
   };
 
   const navItems: NavItem[] = [
-    { name: t("nav.forum"), href: "/forum", icon: MessageSquare },
-    { name: t("nav.showcase"), href: "/vibes", icon: Layers },
+    { name: "Forum", href: "/forum", icon: MessageSquare },
+    { name: "Vibes", href: "/vibes", icon: Layers },
     {
-      name: t("nav.tools"),
+      name: "Tools",
       icon: Cpu,
       isDropdown: true,
       items: [
-        { name: t("nav.mcp"), href: "/mcp", icon: Cpu },
-        { name: t("nav.cli"), href: "/cli", icon: TerminalSquare },
-        { name: t("nav.skills"), href: "/skills", icon: Briefcase },
+        { name: "MCP", href: "/mcp", icon: Cpu },
+        { name: "CLI", href: "/cli", icon: TerminalSquare },
+        { name: "Skills", href: "/skills", icon: Briefcase },
       ],
     },
-    { name: t("nav.blog"), href: "/blog", icon: BookOpen },
+    { name: "Blog", href: "/blog", icon: BookOpen },
   ];
 
   return (
     <>
       <header style={{ viewTransitionName: "site-header" }} className="sticky top-0 z-50 w-full bg-card-bg/85 border-b border-card-border backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Every Link in this header has prefetch={false}: they're rendered on
-            every page, so their background prefetches compete with any
-            in-flight router.refresh() (e.g. the language toggle) — the
-            browser can abort the real refresh's request in favor of a
-            redundant prefetch, silently dropping the update. */}
         <div className="relative flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
@@ -79,7 +72,7 @@ export default function Header() {
                 <span className="text-lg font-bold text-foreground transition duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
-                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">{t("header.logo_subtitle")}</span>
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Tools & Viden</span>
               </div>
             </Link>
           </div>
@@ -154,34 +147,8 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Action button & Mini language toggle */}
+          {/* Action button */}
           <div className="hidden lg:flex items-center space-x-4">
-            {/* MINI LANGUAGE TOGGLE */}
-            <div role="group" aria-label="Sprog / Language" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-xs font-semibold">
-              <button
-                onClick={() => setLanguage("da")}
-                aria-pressed={language === "da"}
-                className={`px-2 py-0.5 rounded cursor-pointer transition ${
-                  language === "da"
-                    ? "bg-accent-primary text-white"
-                    : "text-text-secondary hover:text-foreground"
-                }`}
-              >
-                DA
-              </button>
-              <button
-                onClick={() => setLanguage("en")}
-                aria-pressed={language === "en"}
-                className={`px-2 py-0.5 rounded cursor-pointer transition ${
-                  language === "en"
-                    ? "bg-accent-primary text-white"
-                    : "text-text-secondary hover:text-foreground"
-                }`}
-              >
-                EN
-              </button>
-            </div>
-
             <Link
               href="/vibes"
               prefetch={false}
@@ -190,7 +157,7 @@ export default function Header() {
               style={{ padding: '8px 16px' }}
             >
               <Sparkles className="h-4 w-4" />
-              {t("btn.showcase_project")}
+              Vis dit projekt
             </Link>
 
             {user ? (
@@ -199,7 +166,7 @@ export default function Header() {
                 className="btn-secondary text-xs"
                 style={{ padding: '8px 16px' }}
               >
-                {t("btn.logout")}
+                Log ud
               </button>
             ) : (
               <button
@@ -207,7 +174,7 @@ export default function Header() {
                 className="btn-secondary text-xs"
                 style={{ padding: '8px 16px' }}
               >
-                {t("btn.login")}
+                Log ind
               </button>
             )}
           </div>
@@ -221,7 +188,7 @@ export default function Header() {
               aria-controls="mobile-menu"
               className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-card-border hover:text-foreground"
             >
-              <span className="sr-only">{t("header.sr_menu")}</span>
+              <span className="sr-only">Åbn menu</span>
               {mobileMenuOpen ? (
                 <X className="block h-6 w-6" aria-hidden="true" />
               ) : (
@@ -301,35 +268,6 @@ export default function Header() {
             );
           })}
 
-          {/* Mobile Language Toggle */}
-          <div className="pt-3 pb-2 border-t border-card-border flex items-center justify-between px-3">
-            <span id="mobile-lang-label" className="text-xs font-semibold text-text-secondary">Sprog / Language</span>
-            <div role="group" aria-labelledby="mobile-lang-label" className="flex items-center space-x-1 bg-background border border-card-border rounded-lg p-0.5 text-xs font-semibold">
-              <button
-                onClick={() => { setLanguage("da"); setMobileMenuOpen(false); }}
-                aria-pressed={language === "da"}
-                className={`px-3.5 py-2 rounded cursor-pointer transition ${
-                  language === "da"
-                    ? "bg-accent-primary text-white"
-                    : "text-text-secondary hover:text-foreground"
-                }`}
-              >
-                DA
-              </button>
-              <button
-                onClick={() => { setLanguage("en"); setMobileMenuOpen(false); }}
-                aria-pressed={language === "en"}
-                className={`px-3.5 py-2 rounded cursor-pointer transition ${
-                  language === "en"
-                    ? "bg-accent-primary text-white"
-                    : "text-text-secondary hover:text-foreground"
-                }`}
-              >
-                EN
-              </button>
-            </div>
-          </div>
-
           {user ? (
             <div className="pt-4 pb-2 border-t border-card-border flex items-center justify-between px-3">
               <span className="text-sm text-text-secondary">@{user.username}</span>
@@ -340,7 +278,7 @@ export default function Header() {
                 }}
                 className="px-3 py-1 text-xs rounded border border-card-border text-text-secondary hover:text-foreground"
               >
-                {t("btn.logout")}
+                Log ud
               </button>
             </div>
           ) : (
@@ -352,7 +290,7 @@ export default function Header() {
                 }}
                 className="w-full py-2.5 rounded-lg border border-card-border text-foreground text-sm font-semibold hover:bg-card-border cursor-pointer"
               >
-                {t("btn.login")}
+                Log ind
               </button>
             </div>
           )}

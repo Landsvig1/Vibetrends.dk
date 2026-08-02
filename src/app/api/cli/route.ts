@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCli } from "@/lib/db";
-import { cookies } from "next/headers";
 
 // JSON twin of the /cli page. CLIs are agents with category
 // 'CLI'. This is a dedicated, param-free route because the proxy's
@@ -11,10 +10,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
-
-  const clis = await getCli(search, lang);
+  const clis = await getCli(search, 'da');
   return NextResponse.json(clis, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

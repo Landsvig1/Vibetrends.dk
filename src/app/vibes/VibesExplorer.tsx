@@ -7,7 +7,6 @@ import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { canDelete } from "@/lib/permissions";
 import { useAuth } from "../components/AuthProvider";
-import { useLanguage } from "../components/LanguageProvider";
 import { ProjectCard } from "../components/ProjectCard";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
@@ -95,12 +94,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   const [view, setView] = useQueryState("view", parseAsString.withDefault("danish"));
   const [submitParam, setSubmitParam] = useQueryState("submit", parseAsString.withDefault(""));
   const { user } = useAuth();
-  const { language, t } = useLanguage();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-
-  // In-flight sort/language refetch loading affordance — keeps the current
-  // grid visible at reduced opacity rather than replacing it with a skeleton.
-  const [isRefetching, setIsRefetching] = useState(false);
 
   // Submit modal states
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -115,11 +109,6 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   useEffect(() => {
     subGithubRef.current = subGithub;
   }, [subGithub]);
-
-  // Skip the first mount fetch — the server already fetched with the initial
-  // sort/lang and passed real data as initialProjects. Only refetch when
-  // language or sort actually changes post-mount.
-  const skipNextFetch = useRef(true);
 
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
@@ -152,33 +141,6 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       setGithubFetching(false);
     }
   };
-
-  // Refetch when language changes post-mount. On first render we skip this
-  // effect (the server already fetched the right data). The Dansk/Alle/Hot
-  // tabs are purely client-side filter/sort operations on this base list (see
-  // viewProjects below) — same pattern as AgentsExplorer — so a tab switch
-  // never triggers a refetch, only the language does.
-  // no-store: the route's public max-age header is for external API
-  // consumers; the interactive page must always read fresh counts, or a
-  // reload right after upvoting shows the pre-vote cached response.
-  useEffect(() => {
-    if (skipNextFetch.current) {
-      skipNextFetch.current = false;
-      return;
-    }
-
-    setIsRefetching(true);
-    fetch("/api/vibes?sort=top", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        setProjects(data);
-        setIsRefetching(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching projects:", err);
-        setIsRefetching(false);
-      });
-  }, [language]);
 
   // Auto-open submit modal when ?submit=1 is present (e.g. from homepage CTA).
   // Deferred a microtask so the setState calls aren't synchronous within the
@@ -217,8 +179,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   }, [projects, view, search, searchActive]);
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
-    { value: "danish", label: language === "da" ? "Dansk" : "Danish", icon: Flag },
-    { value: "all", label: language === "da" ? "Alle" : "All", icon: null },
+    { value: "danish", label: "Dansk", icon: Flag },
+    { value: "all", label: "Alle", icon: null },
     { value: "hot", label: "Hot", icon: Flame },
   ];
 
@@ -300,7 +262,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   // Reference-stabilized using useCallback to prevent redundant child re-renders.
   const handleDeleteProject = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(t("showcase.detail.confirm_delete"))) return;
+    if (!confirm("Er du sikker på, at du vil slette dette projekt?")) return;
 
     try {
       const res = await fetch(`/api/vibes/${id}`, {
@@ -313,7 +275,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     } catch (err) {
       console.error("Error deleting project:", err);
     }
-  }, [t]);
+  }, []);
 
   return (
     <div className="space-y-10">
@@ -324,7 +286,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             Project <span className="text-accent-primary">Showcase</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
-            {t("showcase.desc")}
+            Se hvad andre bygger med AI. Bliv inspireret, og vis dit eget frem.
           </p>
         </div>
         <button
@@ -332,7 +294,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
-          {t("showcase.btn_submit")}
+          Indsend dit projekt
         </button>
       </div>
 
@@ -342,8 +304,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary" aria-hidden="true" />
           <input
             type="text"
-            aria-label={t("showcase.search")}
-            placeholder={t("showcase.search")}
+            aria-label="Søg i projekter, redskaber eller forfattere..."
+            placeholder="Søg i projekter, redskaber eller forfattere..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-500 focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
@@ -371,13 +333,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         </div>
       </div>
 
-      {/* Grid of Projects — opacity overlay during in-flight sort/language refetch */}
       {filteredProjects.length > 0 ? (
-        <div
-          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${
-            isRefetching ? "opacity-50 pointer-events-none" : ""
-          }`}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project, index) => {
             const canDeleteProject = canDelete(user, project.author, (a) => a === "Dig (Vibe Coder)" || a === "Anonym");
             return (
@@ -386,8 +343,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 project={project}
                 isPriority={index < 2}
                 canDelete={canDeleteProject}
-                confirmDeleteLabel={t("showcase.detail.confirm_delete")}
-                detailsLabel={t("showcase.details")}
+                confirmDeleteLabel="Er du sikker på, at du vil slette dette projekt?"
+                detailsLabel="Se Detaljer"
                 onDelete={handleDeleteProject}
                 onUpvote={handleUpvote}
               />
@@ -397,14 +354,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       ) : (
         <EmptyState
           icon={Code}
-          title={t("showcase.empty")}
-          description={t("showcase.empty_sub")}
-          actionLabel={t("showcase.btn_submit")}
+          title="Ingen projekter fundet."
+          description="Søg efter et andet emne eller tilføj dit eget projekt."
+          actionLabel="Indsend dit projekt"
           onAction={() => setSubmitOpen(true)}
           suggestions={
             searchActive && initialProjects.length > 0
               ? {
-                  title: language === "da" ? "Mest populære" : "Most popular",
+                  title: "Mest populære",
                   items: initialProjects.slice(0, 3).map((p) => ({
                     id: p.id,
                     title: p.title,
@@ -418,7 +375,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
       {/* Submission Modal */}
       {submitOpen && (
-        <div role="dialog" aria-modal="true" aria-label={t("showcase.modal.title")} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="Udgiv dit vibe-kodede produkt" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
             {/* Close */}
             <button
@@ -434,9 +391,9 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
                   <CheckCircle2 className="h-6 w-6 animate-bounce" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">{t("showcase.modal.success_title")}</h3>
+                <h3 className="text-lg font-bold text-foreground">Projektet er udgivet!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  {t("showcase.modal.success_desc")}
+                  Tillykke, dit projekt er nu tilføjet til det lokale showcase! Andre kan se og stemme på dit projekt med det samme.
                 </p>
               </div>
             ) : (
@@ -449,15 +406,15 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 <div>
                   <span className="text-xs font-bold text-accent-primary uppercase tracking-wider flex items-center">
                     <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    {t("showcase.modal.badge")}
+                    Vis dit projekt frem
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">{t("showcase.modal.title")}</h3>
+                  <h3 className="text-lg font-bold text-foreground mt-1">Udgiv dit vibe-kodede produkt</h3>
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-text-secondary">
-                    {t("showcase.modal.label_github")}
-                    {githubFetching && <span className="ml-2 text-text-secondary normal-case font-normal">{t("showcase.modal.github_fetching")}</span>}
+                    GitHub URL (valgfri: udfylder navn/beskrivelse automatisk)
+                    {githubFetching && <span className="ml-2 text-text-secondary normal-case font-normal">Henter repo-info...</span>}
                   </label>
                   <input
                     type="url"
@@ -470,7 +427,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_title")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Projekt Navn</label>
                   <input
                     type="text"
                     required
@@ -482,19 +439,19 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_desc")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
                   <textarea
                     required
                     rows={3}
                     value={subDesc}
                     onChange={(e) => setSubDesc(e.target.value)}
-                    placeholder={t("showcase.modal.placeholder_desc")}
+                    placeholder="Hvad kan projektet og hvorfor byggede du det?"
                     className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm resize-none"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">{t("showcase.modal.label_demo")}</label>
+                  <label className="text-xs font-semibold text-text-secondary">Demo Link</label>
                   <input
                     type="url"
                     value={subDemo}
@@ -509,7 +466,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {t("showcase.modal.btn_submit")}
+                  Udgiv til Showcase
                 </button>
               </form>
             )}

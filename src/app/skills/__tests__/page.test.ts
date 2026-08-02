@@ -93,10 +93,9 @@ function makeSkill(id: string, title: string, description: string) {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: English cookie
+  // Cookie mock retained for module isolation; page no longer reads it.
   cookiesMock.mockResolvedValue({
-    get: (name: string) =>
-      name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
+    get: () => undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
@@ -143,7 +142,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     });
 
     // First call: full catalog (no view)
-    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "en");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 
   it("defaults lang to 'da' when the cookie is absent", async () => {
@@ -167,7 +166,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     expect(getSkillsMock).toHaveBeenCalledWith(
       undefined,
       undefined,
-      "en",
+      "da",
       "danish"
     );
   });
@@ -180,7 +179,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     expect(getSkillsMock).toHaveBeenCalledWith(
       undefined,
       undefined,
-      "en",
+      "da",
       "hot"
     );
   });
@@ -195,7 +194,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     expect(getSkillsMock).toHaveBeenCalledWith(
       undefined,
       undefined,
-      "en",
+      "da",
       "trending"
     );
   });
@@ -207,7 +206,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
 
     // Only one call: the full catalog. No second view-specific call.
     expect(getSkillsMock).toHaveBeenCalledTimes(1);
-    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "en");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 
   it("falls back to 'danish' for an unrecognised view param value", async () => {
@@ -220,7 +219,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     expect(getSkillsMock).toHaveBeenCalledWith(
       undefined,
       undefined,
-      "en",
+      "da",
       "danish"
     );
   });
@@ -233,9 +232,9 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
     });
 
     // First call: full catalog with search
-    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "en");
+    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "da");
     // Second call: view board with search
-    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "en", "hot");
+    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "da", "hot");
   });
 
   it("passes undefined search when q is empty string", async () => {
@@ -245,7 +244,7 @@ describe("SkillsPageContent — fetches with lang from cookie and validated view
       searchParams: Promise.resolve({ q: "" }),
     });
 
-    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "en");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 });
 

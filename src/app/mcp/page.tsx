@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getAgents } from "@/lib/db";
 import AgentsExplorer from "../components/AgentsExplorer";
 import { entityMetadata } from "@/lib/seo";
@@ -55,15 +53,12 @@ export async function McpPageContent({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const search = resolvedParams?.q || undefined;
 
   // Cached read — getAgents() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). Scoped to 'MCP Server' category matching the AgentsExplorer scope.
-  const items = await getAgents(search, "MCP Server", lang);
+  const items = await getAgents(search, "MCP Server", 'da');
 
   return <AgentsExplorer scope="mcp" initialItems={items} />;
 }

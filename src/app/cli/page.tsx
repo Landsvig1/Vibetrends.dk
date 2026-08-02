@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getCli } from "@/lib/db";
 import CliLoading from "./loading";
 import AgentsExplorer from "../components/AgentsExplorer";
@@ -51,16 +49,13 @@ export async function CliPageContent({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const search = resolvedParams?.q || undefined;
 
   // Cached read — getCli() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). On cache-hit this is free; on cache-miss it queries Supabase and
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
-  const items = await getCli(search, lang);
+  const items = await getCli(search, 'da');
 
   return <AgentsExplorer scope="cli" initialItems={items} />;
 }

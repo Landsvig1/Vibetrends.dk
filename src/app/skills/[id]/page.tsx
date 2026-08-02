@@ -2,8 +2,6 @@ import Link from "next/link";
 import { ArrowLeft, Briefcase } from "lucide-react";
 import { getSkillById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { Suspense } from "react";
@@ -12,17 +10,15 @@ import SkillDocSection from "./SkillDocSection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const skill = await getSkillById(id, lang);
+  const skill = await getSkillById(id, 'da');
   if (!skill) return { title: "Skill ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(skill.title, " - Skills Library".length)} - Skills Library`,
     description: skill.description,
     path: `/skills/${id}`,
-    lang,
+    lang: 'da',
   });
 }
 
@@ -30,7 +26,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "s1" }
     }
   ]
@@ -51,10 +46,8 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ id
 
 async function SkillDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const skill = await getSkillById(id, lang);
+  const skill = await getSkillById(id, 'da');
   if (!skill) {
     notFound();
   }
@@ -92,7 +85,7 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {lang === "da" ? "Tilbage til Skills" : "Back to Skills"}
+        Tilbage til Skills
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -136,7 +129,7 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {/* Renders nothing when the skill has no stored SKILL.md/README.md. */}
-          <SkillDocSection id={id} lang={lang} />
+          <SkillDocSection id={id} />
         </div>
 
         <div className="min-w-0 space-y-6">
@@ -144,17 +137,17 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
             <ConnectBlock
               feedType="skills"
               item={{ name: skill.title, githubUrl: skill.githubUrl, source: skill.source }}
-              lang={lang}
+              lang="da"
             />
           </div>
           <div className="p-6 rounded-2xl glass-card border border-card-border space-y-4">
             <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center">
               <Briefcase className="h-4 w-4 mr-2 text-accent-primary" />
-              {lang === "da" ? "Detaljer" : "Details"}
+              Detaljer
             </h4>
             <div className="space-y-3 text-xs">
               <div className="flex justify-between">
-                <span className="text-text-secondary">{lang === "da" ? "Kategori" : "Category"}</span>
+                <span className="text-text-secondary">Kategori</span>
                 <span className="text-foreground font-mono">{skill.categoryLabel}</span>
               </div>
             </div>
@@ -165,7 +158,7 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg btn-primary text-sm mt-2"
               >
-                {lang === "da" ? "Se på GitHub" : "View on GitHub"}
+                Se på GitHub
               </a>
             )}
           </div>

@@ -7,7 +7,6 @@ import { timeAgo } from "@/lib/timeAgo";
 
 interface ReplyCardProps {
   reply: ForumReply;
-  language: "da" | "en";
   canDelete: boolean;
   onUpvote: (id: string) => void;
   onDelete: (id: string) => void;
@@ -15,7 +14,6 @@ interface ReplyCardProps {
 
 function ReplyCardComponent({
   reply,
-  language,
   canDelete,
   onUpvote,
   onDelete,
@@ -26,8 +24,8 @@ function ReplyCardComponent({
         <button
           onClick={() => onDelete(reply.id)}
           className="absolute top-4 right-4 flex items-center justify-center p-2 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary transition opacity-0 group-hover/reply:opacity-100 focus-visible:opacity-100 cursor-pointer"
-          aria-label={language === "da" ? "Slet svar" : "Delete reply"}
-          title={language === "da" ? "Slet svar" : "Delete reply"}
+          aria-label="Slet svar"
+          title="Slet svar"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -45,10 +43,10 @@ function ReplyCardComponent({
           <span className="font-bold text-text-secondary">@{reply.author}</span>
         </div>
         <span>&middot;</span>
-        <span>{timeAgo(reply.createdAt, language)}</span>
+        <span>{timeAgo(reply.createdAt)}</span>
         <button
           onClick={() => onUpvote(reply.id)}
-          aria-label={language === "da" ? "Stem op" : "Upvote reply"}
+          aria-label="Stem op"
           className="ml-auto flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary transition cursor-pointer"
         >
           <Heart className="h-3 w-3 fill-current" aria-hidden="true" />
