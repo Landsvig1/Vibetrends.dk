@@ -3,11 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the db file before importing the route handler
 const getFeedItemsMock = vi.fn();
 vi.mock("@/lib/db", () => ({
-  getFeedItems: (...args: any[]) => getFeedItemsMock(...args),
+  getFeedItems: (...args: unknown[]) => getFeedItemsMock(...args),
 }));
 
 import { GET } from "../route";
-import { NextResponse } from "next/server";
 
 describe("GET /api/feed API Route", () => {
   beforeEach(() => {
