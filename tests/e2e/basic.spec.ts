@@ -36,7 +36,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // info icon (aria-label = "Se Detaljer") that navigates to the
     // internal /vibes/[id] detail page. This test asserts the overlay; the
     // info icon is covered by the detail-navigation test below.
-    await page.goto('/vibes');
+    await page.goto('/vibes', { waitUntil: 'networkidle' });
 
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
@@ -61,7 +61,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
   });
 
   test('project card info icon opens the /vibes/[id] detail page', async ({ page }) => {
-    await page.goto('/vibes');
+    await page.goto('/vibes', { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
     const firstProject = page.getByTestId('project-card').first();
