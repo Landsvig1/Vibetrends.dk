@@ -39,7 +39,7 @@ describe("softwareAppJsonLd", () => {
       name: "Agent X",
       description: "Does things",
       developer: "Acme",
-      url: "https://vibetrends.dk/agents/a1",
+      url: "https://vibetrends.dk/cli/a1",
     });
     expect(s["@type"]).toBe("SoftwareApplication");
     expect(s.name).toBe("Agent X");

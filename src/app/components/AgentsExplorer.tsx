@@ -15,13 +15,11 @@ const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
 /**
  * Card test-id is derived from the page scope, not the individual agent's
- * category — the /agents scope shows a mixed feed (CLI + Host agents, MCP
- * excluded) and every card there must stay "agent-card" regardless of which
- * category an individual agent has. Only /mcp and /cli show a homogeneous
- * feed where every card shares one testid. Extracted for unit testability.
+ * category. Both remaining scopes show a homogeneous feed, so every card on a
+ * page shares one testid. Extracted for unit testability.
  */
-export function cardTestId(scope: AgentsExplorerProps["scope"]): "mcp-card" | "cli-card" | "agent-card" {
-  return scope === "mcp" ? "mcp-card" : scope === "cli" ? "cli-card" : "agent-card";
+export function cardTestId(scope: AgentsExplorerProps["scope"]): "mcp-card" | "cli-card" {
+  return scope === "mcp" ? "mcp-card" : "cli-card";
 }
 
 /**
@@ -87,20 +85,19 @@ export async function executeUpvote(
 }
 
 interface AgentsExplorerProps {
-  scope: "agents" | "mcp" | "cli";
+  scope: "mcp" | "cli";
   /** Server-fetched initial list — avoids a client-side fetch on first render
    *  so crawlers and first paint see real content. */
   initialItems: Agent[];
 }
 
-// Shared explorer for the feed surfaces backed by the `agents` table: the
-// MCP-server feed (category 'MCP Server'), the CLI feed (category
-// 'CLI'), and the demoted Agents view. The `scope` prop controls the API
-// filter, detail-link base, and copy. Host rows are excluded by the data layer.
+// Shared explorer for the two feed surfaces backed by the `agents` table: the
+// MCP-server feed (category 'MCP Server') and the CLI feed (category 'CLI').
+// The `scope` prop controls the API filter, detail-link base, and copy. Host
+// rows are excluded by the data layer.
 export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerProps) {
   const isMcp = scope === "mcp";
-  const isCli = scope === "cli";
-  const detailBase = isMcp ? "/mcp" : isCli ? "/cli" : "/agents";
+  const detailBase = isMcp ? "/mcp" : "/cli";
   const submitCategory: Agent["category"] = isMcp ? "MCP Server" : "CLI";
 
   // Initialised from server-fetched data — no client-side fetch on first render.
@@ -265,18 +262,14 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             {isMcp ? (
               <>MCP <span className="text-accent-primary">Capabilities</span></>
-            ) : isCli ? (
-              <>Command-line <span className="text-accent-primary">CLIs</span></>
             ) : (
-              <>Agent <span className="text-accent-primary">Registry</span></>
+              <>Command-line <span className="text-accent-primary">CLIs</span></>
             )}
           </h1>
           <p className="text-text-secondary max-w-2xl">
             {isMcp
               ? "MCP-kapabiliteter, ét trin fra din opsætning."
-              : isCli
-                ? "CLI-værktøjer din agent kan kalde — ét trin fra din host."
-                : "Find færdigbyggede systemprompts, custom GPT configs og Model Context Protocol (MCP) servere. Hent dem og kobl dem direkte til dine AI-agenter."}
+              : "CLI-værktøjer din agent kan kalde — ét trin fra din host."}
           </p>
         </div>
         <button
@@ -284,11 +277,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
-          {isMcp
-            ? "Tilføj MCP-server"
-            : isCli
-              ? "Tilføj CLI"
-              : "Registrer Agent/MCP"}
+          {isMcp ? "Tilføj MCP-server" : "Tilføj CLI"}
         </button>
       </div>
 
@@ -373,11 +362,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           title="Ingen agenter/MCP servere fundet."
           description="Prøv at søge efter noget andet eller bidrag selv med et nyt værktøj."
           actionLabel={
-            isMcp
-              ? "Tilføj MCP-server"
-              : isCli
-                ? "Tilføj CLI"
-                : "Registrer Agent/MCP"
+            isMcp ? "Tilføj MCP-server" : "Tilføj CLI"
           }
           onAction={() => setAddOpen(true)}
           suggestions={

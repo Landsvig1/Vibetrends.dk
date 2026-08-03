@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import { TopicIcon } from "@/app/components/TopicIcon";
 import { SkillCard } from "@/app/components/SkillCard";
@@ -30,7 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!topic) return { title: "Emne ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(topic.labelDa, " skills - Skills Library".length)} skills - Skills Library`,
+    title: topic.labelDa,
+    suffix: " skills - Skills Library",
     description: topic.descDa,
     path: `/skills/topic/${slug}`,
     lang: "da",

@@ -1,6 +1,6 @@
 import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
@@ -12,7 +12,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!agent || agent.category !== "CLI") return { title: "CLI ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(agent.name, " - CLIs".length)} - CLIs`,
+    title: agent.name,
+    suffix: " - CLIs",
     description: agent.description,
     path: `/cli/${id}`,
     lang: 'da',

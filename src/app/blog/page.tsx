@@ -2,13 +2,21 @@ import { Suspense } from "react";
 import BlogList from "./BlogList";
 import { BookOpen } from "lucide-react";
 import { entityMetadata } from "@/lib/seo";
+import { getBlogPosts } from "@/lib/db";
 
 export async function generateMetadata() {
+  // An empty hub is a thin page — don't ask to have it indexed. `follow` stays
+  // on so the nav links out of it still carry crawl signal. Reverses itself:
+  // the first published post makes this indexable again, and puts /blog back
+  // in the sitemap (src/app/sitemap.ts applies the same check).
+  const posts = await getBlogPosts();
+
   return entityMetadata({
-    title: "Blog - vibetrends.dk",
+    title: "Blog",
     description: "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow.",
     path: "/blog",
     lang: "da",
+    ...(posts.length === 0 ? { robots: { index: false, follow: true } } : {}),
   });
 }
 

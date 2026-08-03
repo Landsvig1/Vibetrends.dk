@@ -358,7 +358,7 @@ async function HomeContent() {
                 {featuredAgent.installCommand}
               </div>
               <Link
-                href="/agents"
+                href="/cli"
                 className="btn-secondary text-xs"
               >
                 Gå til Agent Registry

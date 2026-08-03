@@ -17,16 +17,15 @@ function parseLastMod(value: string | null | undefined): string | undefined {
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
 
-function entry(
-  path: string,
-  lastModified: string | undefined,
-  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"],
-  priority: number
-): MetadataRoute.Sitemap[number] {
+/**
+ * No changefreq and no priority: Google has said for years that it ignores
+ * both, and they were pure noise here — every hub claimed "daily" and the
+ * priorities encoded an editorial ranking no crawler reads. lastmod is the one
+ * field that still carries signal, and only when it's real (see parseLastMod).
+ */
+function entry(path: string, lastModified?: string): MetadataRoute.Sitemap[number] {
   return {
     url: `${baseUrl}${path}`,
-    changeFrequency,
-    priority,
     ...(lastModified ? { lastModified } : {}),
   };
 }
@@ -35,24 +34,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   "use cache";
   cacheLife("hours");
 
-  // No source of truth for these (hub pages aggregate content that changes
-  // independently of the hub itself) — omit lastmod rather than guess.
-  const staticEntries: MetadataRoute.Sitemap = [
-    "",
-    "/about",
-    "/skills",
-    "/vibes",
-    "/forum",
-    "/blog",
-    "/cli",
-    "/mcp",
-    "/agent-guide",
-    "/privacy",
-    "/terms",
-  ].map((route) => entry(route, undefined, "daily", route === "" ? 1.0 : 0.8));
-
   // Pull community-submitted content so detail pages are crawlable. The Agents
-  // section is demoted, so feed-worthy rows are crawled under their feed type:
+  // section is retired, so every `agents` row is crawled under its feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
   const [skills, projects, clisRaw, mcpServersRaw, posts, threadsRaw] = await Promise.all([
@@ -74,15 +57,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const mcpServers = mcpServersRaw.filter((a) => !isFixture(a.id));
   const threads = threadsRaw.filter((t) => !isFixture(t.id));
 
-  // Showcase and blog detail pages carry user-generated content that is more
-  // likely to attract external links — bump their priority to signal freshness.
+  // No source of truth for hub lastmod (they aggregate content that changes
+  // independently of the hub itself) — omit it rather than guess.
+  //
+  // /forum and /blog are held back while they have no rows: submitting a
+  // contentless hub for indexing is what earns a thin-content impression. Both
+  // pages also emit robots noindex under the same condition (forum/layout.tsx,
+  // blog/page.tsx), and both reverse automatically on the first post or thread.
+  const staticEntries: MetadataRoute.Sitemap = [
+    "",
+    "/about",
+    "/skills",
+    "/vibes",
+    ...(threads.length > 0 ? ["/forum"] : []),
+    ...(posts.length > 0 ? ["/blog"] : []),
+    "/cli",
+    "/mcp",
+    "/agent-guide",
+    "/privacy",
+    "/terms",
+  ].map((route) => entry(route));
+
   // `vibes.created_at` is a real timestamptz. `blog_posts.published_at` is
   // free-text supplied by the submitter (schemas.ts caps it at 50 chars with
   // no format check) — parse it and drop lastmod for rows that don't parse
   // rather than assume every value is a valid date.
-  const highValueDetails: MetadataRoute.Sitemap = [
-    ...projects.map((p) => entry(`/vibes/${p.id}`, parseLastMod(p.createdAt), "weekly", 0.7)),
-    ...posts.map((b) => entry(`/blog/${b.id}`, parseLastMod(b.publishedAt), "weekly", 0.7)),
+  const datedDetails: MetadataRoute.Sitemap = [
+    ...projects.map((p) => entry(`/vibes/${p.id}`, parseLastMod(p.createdAt))),
+    ...posts.map((b) => entry(`/blog/${b.id}`, parseLastMod(b.publishedAt))),
   ];
 
   // No real per-row date for these: skill topic pages are static aggregations;
@@ -92,16 +94,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // — see scripts/refresh-skill-docs.mjs), so it would lie the same way
   // `today` did; `agents` (clis/mcpServers) has no date column at all.
   const noDateDetails: MetadataRoute.Sitemap = [
-    ...SKILL_CATEGORY_SLUGS.map((slug) => entry(`/skills/topic/${slug}`, undefined, "weekly", 0.6)),
-    ...skills.map((s) => entry(`/skills/${s.id}`, undefined, "weekly", 0.6)),
-    ...clis.map((a) => entry(`/cli/${a.id}`, undefined, "weekly", 0.6)),
-    ...mcpServers.map((a) => entry(`/mcp/${a.id}`, undefined, "weekly", 0.6)),
+    ...SKILL_CATEGORY_SLUGS.map((slug) => entry(`/skills/topic/${slug}`)),
+    ...skills.map((s) => entry(`/skills/${s.id}`)),
+    ...clis.map((a) => entry(`/cli/${a.id}`)),
+    ...mcpServers.map((a) => entry(`/mcp/${a.id}`)),
   ];
 
   // `forum_threads.created_at` is a real timestamptz.
   const threadDetails: MetadataRoute.Sitemap = threads.map((t) =>
-    entry(`/forum/${t.id}`, parseLastMod(t.createdAt), "weekly", 0.6)
+    entry(`/forum/${t.id}`, parseLastMod(t.createdAt))
   );
 
-  return [...staticEntries, ...highValueDetails, ...noDateDetails, ...threadDetails];
+  return [...staticEntries, ...datedDetails, ...noDateDetails, ...threadDetails];
 }

@@ -3,7 +3,7 @@ import { ArrowLeft, Briefcase } from "lucide-react";
 import { getSkillById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
 import SkillDocSection from "./SkillDocSection";
@@ -15,7 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!skill) return { title: "Skill ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(skill.title, " - Skills Library".length)} - Skills Library`,
+    title: skill.title,
+    suffix: " - Skills Library",
     description: skill.description,
     path: `/skills/${id}`,
     lang: 'da',

@@ -4,7 +4,7 @@ import { ArrowLeft, Heart, ExternalLink, Code, Sparkles } from "lucide-react";
 import { getProjectById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import ShareButton from "@/app/components/ShareButton";
 
 // Custom Github Icon matching Lucide style
@@ -31,7 +31,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!project) return { title: "Projekt ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(project.title, " - Vibe Coding Showcase".length)} - Vibe Coding Showcase`,
+    title: project.title,
+    suffix: " - Vibe Coding Showcase",
     description: project.description,
     path: `/vibes/${id}`,
     lang: 'da',

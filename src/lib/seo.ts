@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 
 interface EntityMetaInput {
-  /** Full <title> text (the layout template appends " | vibetrends.dk"). */
+  /**
+   * The entity name or page name, without any section suffix and without the
+   * brand — this function composes the full <title> from it.
+   */
   title: string;
+  /**
+   * Section suffix appended after the entity name, e.g. " - Skills Library".
+   * Only the entity name is shortened when the composed title runs long, so
+   * the suffix always survives. Omit on hub pages.
+   */
+  suffix?: string;
   description: string;
   /** Root-relative canonical path, e.g. "/skills/s1". Resolved against metadataBase. */
   path: string;
@@ -10,6 +19,8 @@ interface EntityMetaInput {
   type?: "article" | "website";
   /** Optional OG image path; falls back to the site default from the root layout. */
   image?: string;
+  /** Escape hatch for per-page indexing control, e.g. an empty hub. */
+  robots?: Metadata["robots"];
 }
 
 const DESCRIPTION_MAX = 160;
@@ -66,18 +77,23 @@ export function clampDescription(description: string): string {
 }
 
 const TITLE_MAX = 60;
-/** Chars reserved for the root layout's title template (" | vibetrends.dk" = 16 chars). */
-const TITLE_TEMPLATE_SUFFIX_BUDGET = " | vibetrends.dk".length;
+/** Brand appended to every title by entityMetadata. */
+const BRAND_SUFFIX = " | vibetrends.dk";
 
 /**
- * Truncate the entity-name portion of a title so the full rendered <title>
- * (entity name + this page's own suffix + the root layout's " | vibetrends.dk"
- * template) stays within TITLE_MAX. `suffixLength` is the length of whatever
- * this call site appends to the entity name before the root template applies
- * (e.g. " - Skills Library"); pass 0 when there is no page-level suffix.
+ * Truncate the entity-name portion of a title so that the name plus
+ * `suffixLength` chars of trailing text stays within TITLE_MAX.
+ *
+ * The brand budget is deliberately NOT baked in here. It used to be, as a
+ * hardcoded 16, which was invisible to call sites and wrong for the pages that
+ * never rendered the brand at all: a layout exporting a plain-string `title`
+ * replaces the root layout's title template object for its children, so detail
+ * pages under /skills, /vibes and /forum silently dropped " | vibetrends.dk"
+ * while still paying 16 chars for it. entityMetadata now owns the brand and
+ * passes its length in explicitly, so the reservation matches what renders.
  */
 export function truncateTitle(title: string, suffixLength = 0): string {
-  const budget = TITLE_MAX - suffixLength - TITLE_TEMPLATE_SUFFIX_BUDGET;
+  const budget = TITLE_MAX - suffixLength;
   if (budget <= 0 || title.length <= budget) return title;
   return truncateAtWordBoundary(title, budget);
 }
@@ -87,24 +103,34 @@ export function truncateTitle(title: string, suffixLength = 0): string {
  * Twitter card. Language stays cookie-based for now (one URL per entity), so the
  * canonical is the language-agnostic path; only og:locale reflects the request
  * language. URL-based locale routing is a deferred follow-up.
+ *
+ * The title is emitted as `title.absolute` with the brand already appended, so
+ * the rendered <title> no longer depends on whether an intermediate layout
+ * happens to have clobbered the root title template. The root template stays in
+ * place for any page that doesn't go through this helper.
  */
 export function entityMetadata({
   title,
+  suffix = "",
   description,
   path,
   lang = "da",
   type = "website",
   image,
+  robots,
 }: EntityMetaInput): Metadata {
   const locale = lang === "en" ? "en_US" : "da_DK";
   const clampedDescription = clampDescription(description);
+  const name = truncateTitle(title, suffix.length + BRAND_SUFFIX.length);
+  const fullTitle = `${name}${suffix}${BRAND_SUFFIX}`;
 
   return {
-    title,
+    title: { absolute: fullTitle },
     description: clampedDescription,
     alternates: { canonical: path },
+    ...(robots ? { robots } : {}),
     openGraph: {
-      title,
+      title: fullTitle,
       description: clampedDescription,
       url: path,
       type,
@@ -113,7 +139,7 @@ export function entityMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: fullTitle,
       description: clampedDescription,
       ...(image ? { images: [image] } : {}),
     },

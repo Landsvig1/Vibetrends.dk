@@ -54,11 +54,6 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/agents" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    Agent & MCP Registry
-                  </Link>
-                </li>
-                <li>
                   <Link href="/about" className="text-sm text-text-secondary hover:text-foreground transition-colors">
                     Om vibetrends.dk
                   </Link>

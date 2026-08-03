@@ -26,7 +26,6 @@ Public sections:
 - **Showcase** (`/showcase`) — projects built with AI, with the prompts behind them.
 - **CLI** (`/cli`) — command-line tools an agent can invoke (the "Tool CLI" feed).
 - **MCP servers** (`/mcp`) — directory of Model Context Protocol servers.
-- **Agents** (`/agents`) — agent configurations/setups (demoted from primary nav).
 - **Forum** (`/forum`) — threaded discussions with categories, upvotes and replies.
 - **Blog** (`/blog`) — articles and updates.
 
