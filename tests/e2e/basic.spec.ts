@@ -75,12 +75,37 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible();
     
     // Check Navigation — Header.tsx groups Skills/MCP/CLI under a "Tools"
-    // dropdown (opens on hover); Forum, Vibes, and Blog are direct top-level
-    // links. Directly-visible items are checked without interaction; the
-    // dropdown's sub-items only render in the DOM as visible after hover.
-    const directNavItems = ['Forum', 'Vibes', 'Blog'];
-    for (const item of directNavItems) {
-      await expect(page.locator('nav').getByText(item, { exact: true })).toBeVisible();
+    // dropdown (opens on hover); Vibes is a direct top-level link. Directly-
+    // visible items are checked without interaction; the dropdown's sub-items
+    // only render in the DOM as visible after hover.
+    await expect(page.locator('nav').getByText('Vibes', { exact: true })).toBeVisible();
+
+    // Forum and Blog are only advertised once their hub holds real content
+    // (hiddenNavHrefs, src/lib/hubContent.ts). Fixture rows are deliberately
+    // discounted, so the seeded e2e thread does NOT bring /forum back into the
+    // nav. Rather than hardcode "hidden" — which would turn the first real
+    // thread or published post into a false failure — assert the invariant the
+    // shared predicate exists to guarantee: a hub is either noindexed AND
+    // unlinked, or indexable AND linked. Never one without the other.
+    //
+    // The hub's own robots meta is the right signal to compare against because
+    // it is computed from the same call the nav uses. Do NOT substitute
+    // /api/forum or /api/blog here: those routes call getBlogPosts('da') /
+    // getThreads({...}) with explicit arguments, which are different "use
+    // cache" keys than the no-arg calls behind the nav and the robots meta, so
+    // they can legitimately hold different data (confirmed 2026-08-04: a
+    // deleted post lingered in the ('da') entry while the no-arg entry was
+    // correctly empty).
+    for (const [label, hubPath] of [['Forum', '/forum'], ['Blog', '/blog']] as const) {
+      const hubHtml = await (await page.request.get(hubPath)).text();
+      const hubIsEmpty = /<meta name="robots" content="noindex/.test(hubHtml);
+      const navLink = page.locator('nav').getByText(label, { exact: true });
+
+      if (hubIsEmpty) {
+        await expect(navLink).toHaveCount(0);
+      } else {
+        await expect(navLink).toBeVisible();
+      }
     }
 
     const toolsTrigger = page.locator('nav').getByRole('button', { name: 'Tools' });
