@@ -2,13 +2,24 @@ import { Suspense } from "react";
 import BlogList from "./BlogList";
 import { BookOpen } from "lucide-react";
 import { entityMetadata } from "@/lib/seo";
+import { getBlogPosts, isE2eFixtureId } from "@/lib/db";
 
 export async function generateMetadata() {
+  // An empty hub is a thin page — don't ask to have it indexed. `follow` stays
+  // on so the nav links out of it still carry crawl signal. Reverses itself:
+  // the first published post makes this indexable again, and puts /blog back
+  // in the sitemap.
+  //
+  // The e2e seed doesn't touch blog_posts today, but filter anyway so this
+  // can't start disagreeing with the sitemap if that ever changes.
+  const posts = (await getBlogPosts()).filter((b) => !isE2eFixtureId(b.id));
+
   return entityMetadata({
-    title: "Blog - vibetrends.dk",
+    title: "Blog",
     description: "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow.",
     path: "/blog",
     lang: "da",
+    ...(posts.length === 0 ? { robots: { index: false, follow: true } } : {}),
   });
 }
 

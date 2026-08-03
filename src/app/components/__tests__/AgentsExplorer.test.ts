@@ -13,9 +13,9 @@ import type { Agent } from "@/lib/db";
  * arithmetic now call the real function with mock callbacks and fetch so a
  * real regression would be caught.
  *
- * AgentsExplorer serves three routes (/cli, /mcp, /agents) — the same filter
- * and mutation logic applies across all three. Tests are written
- * scope-agnostically where possible.
+ * AgentsExplorer serves two routes (/cli, /mcp) — the same filter and
+ * mutation logic applies across both. Tests are written scope-agnostically
+ * where possible.
  */
 
 function makeAgent(
@@ -270,10 +270,8 @@ describe("executeUpvote — optimistic upvote with rollback (real implementation
 
 // ---------------------------------------------------------------------------
 // cardTestId — derived from page scope, not the individual agent's category.
-// The /agents scope shows a mixed feed (CLI agents included, MCP excluded),
-// so every card there must stay "agent-card" regardless of that agent's own
-// category — a per-agent-category derivation would wrongly give CLI-category
-// agents shown on /agents a "cli-card" testid.
+// Both scopes are homogeneous feeds, so every card on a page shares one testid
+// regardless of the row's own category.
 // ---------------------------------------------------------------------------
 
 describe("cardTestId — scope-derived, not category-derived", () => {
@@ -283,10 +281,6 @@ describe("cardTestId — scope-derived, not category-derived", () => {
 
   it("cli scope always yields cli-card", () => {
     expect(cardTestId("cli")).toBe("cli-card");
-  });
-
-  it("agents scope yields agent-card, even though the mixed feed includes CLI-category agents", () => {
-    expect(cardTestId("agents")).toBe("agent-card");
   });
 });
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock } from "lucide-react";
 import { getBlogPostById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, articleJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +12,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!post) return { title: "Artikel ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(post.title, " - Vibe Trends Blog".length)} - Vibe Trends Blog`,
+    title: post.title,
+    suffix: " - Vibe Trends Blog",
     description: post.excerpt,
     path: `/blog/${id}`,
     lang: 'da',

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Heart } from "lucide-react";
 import { getThreadById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, forumThreadJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { forumCategoryLabel } from "@/lib/forumCategories";
 import ForumReplySection from "./ForumReplySection";
@@ -14,7 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!thread) return { title: "Tråd ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(thread.title, " - Vibe Trends Forum".length)} - Vibe Trends Forum`,
+    title: thread.title,
+    suffix: " - Vibe Trends Forum",
     description: thread.content.substring(0, 160),
     path: `/forum/${id}`,
     lang: 'da',

@@ -41,6 +41,61 @@ describe("entityMetadata", () => {
     expect((short.openGraph as { description?: string }).description).toBe("Short.");
     expect((short.twitter as { description?: string }).description).toBe("Short.");
   });
+
+  // The root layout's title template is not reliable: an intermediate layout
+  // exporting a plain-string title (vibes, skills, forum) replaces the template
+  // object for its children, which is why those detail pages silently rendered
+  // without the brand. Emitting title.absolute makes the output independent of
+  // where the page sits in the layout tree.
+  it("emits an absolute title carrying the brand, so no layout template is involved", () => {
+    const m = entityMetadata({ title: "Rejseplanen", suffix: " - Skills Library", description: "D", path: "/skills/s1" });
+    expect(m.title).toEqual({ absolute: "Rejseplanen - Skills Library | vibetrends.dk" });
+  });
+
+  it("appends the brand on hub pages that pass no suffix", () => {
+    const m = entityMetadata({ title: "Blog", description: "D", path: "/blog" });
+    expect(m.title).toEqual({ absolute: "Blog | vibetrends.dk" });
+  });
+
+  // The brand is a <title> concern only; a social card names the site through
+  // og:site_name instead, so repeating it in og:title renders it twice.
+  it("omits the brand from openGraph and twitter titles, keeping it in <title>", () => {
+    const m = entityMetadata({ title: "agr", suffix: " - CLIs", description: "D", path: "/cli/a1" });
+    expect(m.title).toEqual({ absolute: "agr - CLIs | vibetrends.dk" });
+    expect((m.openGraph as { title?: string }).title).toBe("agr - CLIs");
+    expect((m.twitter as { title?: string }).title).toBe("agr - CLIs");
+  });
+
+  it("still budgets for the brand when shortening, even though og drops it", () => {
+    const suffix = " - Vibe Coding Showcase";
+    const m = entityMetadata({ title: "A Very Long Project Name That Will Not Fit At All", suffix, description: "D", path: "/vibes/p1" });
+    const documentTitle = (m.title as { absolute: string }).absolute;
+    const socialTitle = (m.openGraph as { title?: string }).title!;
+    expect(documentTitle.length).toBeLessThanOrEqual(60);
+    expect(documentTitle).toBe(`${socialTitle} | vibetrends.dk`);
+  });
+
+  it("shortens only the entity name when the composed title runs long, never the suffix or brand", () => {
+    const suffix = " - Vibe Coding Showcase";
+    const m = entityMetadata({ title: "A Very Long Project Name That Will Not Fit In Sixty Characters", suffix, description: "D", path: "/vibes/p1" });
+    const title = (m.title as { absolute: string }).absolute;
+    expect(title.length).toBeLessThanOrEqual(60);
+    expect(title.endsWith(`${suffix} | vibetrends.dk`)).toBe(true);
+  });
+
+  // Next replaces the whole openGraph object when a page supplies one, so the
+  // root layout's siteName never reached any page using this helper. Dropping
+  // the brand from og:title is only safe because this puts it back.
+  it("sets og:site_name rather than relying on the root layout to supply it", () => {
+    const m = entityMetadata({ title: "agr", suffix: " - CLIs", description: "D", path: "/cli/a1" });
+    expect((m.openGraph as { siteName?: string }).siteName).toBe("vibetrends.dk");
+  });
+
+  it("omits robots by default and passes an explicit value through", () => {
+    expect(entityMetadata({ title: "T", description: "D", path: "/x" }).robots).toBeUndefined();
+    const noindex = entityMetadata({ title: "T", description: "D", path: "/blog", robots: { index: false, follow: true } });
+    expect(noindex.robots).toEqual({ index: false, follow: true });
+  });
 });
 
 describe("clampDescription", () => {
@@ -113,15 +168,23 @@ describe("truncateTitle", () => {
     expect(truncateTitle("Short Title", 10)).toBe("Short Title");
   });
 
+  it("reserves exactly the suffix length it is given, with no hidden brand budget", () => {
+    // The old implementation silently subtracted 16 more chars for a brand
+    // suffix it did not append. A 44-char name with a 16-char reservation must
+    // now survive intact — under the old budget it would have been cut to 28.
+    const name = "x".repeat(44);
+    expect(truncateTitle(name, 16)).toBe(name);
+  });
+
   it("truncates at a word boundary when the title plus suffix would exceed 60 chars", () => {
     const long = "GDPR Data Processing Agreement Generator"; // 41 chars
-    const suffix = " - Skills Library"; // 18 chars; total with root template (16) would be 75
+    const suffix = " - Skills Library"; // 17 chars
     const result = truncateTitle(long, suffix.length);
-    expect((result + suffix).length).toBeLessThanOrEqual(44); // 60 - 16 (root template)
+    expect((result + suffix).length).toBeLessThanOrEqual(60);
     expect(result.endsWith(" ")).toBe(false);
   });
 
   it("no-ops when suffixLength alone exhausts the budget, rather than throwing or emptying the title", () => {
-    expect(truncateTitle("A Title", 50)).toBe("A Title");
+    expect(truncateTitle("A Title", 70)).toBe("A Title");
   });
 });

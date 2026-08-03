@@ -11,6 +11,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const state = vi.hoisted(() => ({
   cacheLifeCalls: [] as string[],
+  // Overridable per test: /blog and /forum are only listed once they have rows.
+  posts: [] as { id: string; publishedAt: string }[],
+  threads: [] as { id: string; createdAt: string }[],
 }));
 
 vi.mock("next/cache", () => ({
@@ -35,8 +38,11 @@ vi.mock("@/lib/db", () => ({
   getProjects: vi.fn(async () => mockProjects),
   getAgents: vi.fn(async () => mockMcpServers),
   getCli: vi.fn(async () => mockClis),
-  getBlogPosts: vi.fn(async () => mockPosts),
-  getThreads: vi.fn(async () => mockThreads),
+  getBlogPosts: vi.fn(async () => state.posts),
+  getThreads: vi.fn(async () => state.threads),
+  // Real implementation, not a stub: the sitemap and the hub layouts must agree
+  // on which rows count, and a mocked-away filter would hide a disagreement.
+  isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
 }));
 
 // SKILL_CATEGORY_SLUGS is used to generate /skills/topic/<slug> entries.
@@ -50,6 +56,8 @@ const baseUrl = "https://vibetrends.dk";
 
 beforeEach(() => {
   state.cacheLifeCalls = [];
+  state.posts = [...mockPosts];
+  state.threads = [...mockThreads];
 });
 
 describe("sitemap()", () => {
@@ -68,6 +76,34 @@ describe("sitemap()", () => {
     expect(urls).toContain(`${baseUrl}/blog`);
     expect(urls).toContain(`${baseUrl}/cli`);
     expect(urls).toContain(`${baseUrl}/mcp`);
+  });
+
+  // Submitting a hub with nothing behind it is what earns a thin-content
+  // impression. The hubs also emit robots noindex under the same condition
+  // (forum/layout.tsx, blog/page.tsx) — these two must not drift apart.
+  it("omits the /blog hub while there are no posts, and restores it once there is one", async () => {
+    state.posts = [];
+    expect((await sitemap()).map((e) => e.url)).not.toContain(`${baseUrl}/blog`);
+
+    state.posts = [...mockPosts];
+    expect((await sitemap()).map((e) => e.url)).toContain(`${baseUrl}/blog`);
+  });
+
+  it("omits the /forum hub while there are no threads, and restores it once there is one", async () => {
+    state.threads = [];
+    expect((await sitemap()).map((e) => e.url)).not.toContain(`${baseUrl}/forum`);
+
+    state.threads = [...mockThreads];
+    expect((await sitemap()).map((e) => e.url)).toContain(`${baseUrl}/forum`);
+  });
+
+  it("keeps the other hubs when /blog and /forum are held back", async () => {
+    state.posts = [];
+    state.threads = [];
+    const urls = (await sitemap()).map((e) => e.url);
+    for (const hub of ["", "/about", "/skills", "/vibes", "/cli", "/mcp", "/agent-guide", "/privacy", "/terms"]) {
+      expect(urls).toContain(`${baseUrl}${hub}`);
+    }
   });
 
   it("includes skill detail pages", async () => {
@@ -117,12 +153,15 @@ describe("sitemap()", () => {
     expect(urls).not.toContain(`${baseUrl}/forum/e2e-fixture-ignored`);
   });
 
-  it("every entry has a url, changeFrequency, and priority", async () => {
+  // Google ignores both fields; emitting them was noise, and the priorities
+  // encoded an editorial ranking no crawler reads.
+  it("every entry has a url and neither changeFrequency nor priority", async () => {
     const entries = await sitemap();
+    expect(entries.length).toBeGreaterThan(0);
     for (const entry of entries) {
       expect(entry).toHaveProperty("url");
-      expect(entry).toHaveProperty("changeFrequency");
-      expect(entry).toHaveProperty("priority");
+      expect(entry).not.toHaveProperty("changeFrequency");
+      expect(entry).not.toHaveProperty("priority");
     }
   });
 

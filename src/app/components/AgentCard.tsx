@@ -17,7 +17,7 @@ import { Agent } from "@/lib/db";
 interface AgentCardProps {
   agent: Agent;
   detailBase: string;
-  testId: "mcp-card" | "cli-card" | "agent-card";
+  testId: "mcp-card" | "cli-card";
   isCopied: boolean;
   canDelete: boolean;
   confirmDeleteLabel: string;

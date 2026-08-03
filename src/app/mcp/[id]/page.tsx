@@ -1,6 +1,6 @@
 import { getAgentById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { entityMetadata, truncateTitle } from "@/lib/seo";
+import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
@@ -12,7 +12,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
 
   return entityMetadata({
-    title: `${truncateTitle(agent.name, " - MCP Server Registry".length)} - MCP Server Registry`,
+    title: agent.name,
+    suffix: " - MCP Server Registry",
     description: agent.description,
     path: `/mcp/${id}`,
     lang: 'da',
@@ -50,7 +51,7 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
   const { id } = await params;
 
   const agent = await getAgentById(id, 'da');
-  // Only MCP servers belong here; everything else is a regular agent at /agents/[id].
+  // Only MCP servers belong here; CLI rows live at /cli/[id].
   if (!agent || agent.category !== "MCP Server") {
     notFound();
   }

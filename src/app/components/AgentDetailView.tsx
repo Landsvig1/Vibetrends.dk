@@ -17,7 +17,7 @@ const INSIGHT_DOT_COLORS = [
 ];
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).
-// `backHref` controls where the back link returns (/agents or /mcp).
+// `backHref` controls where the back link returns (/cli or /mcp).
 export default function AgentDetailView({
   agent,
   backHref,

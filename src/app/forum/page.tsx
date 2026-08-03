@@ -7,7 +7,7 @@ import ForumExplorer from "./ForumExplorer";
 /**
  * Validates the `view` URL param to the three tabs ForumExplorer renders
  * (Dansk/Top/Nyeste). Default is "danish" — same default-to-Dansk pattern as
- * /skills, /cli, /mcp, and /agents. Exported for unit testing.
+ * /skills, /cli, and /mcp. Exported for unit testing.
  */
 export function getValidForumView(view: string | undefined): "danish" | "top" | "new" {
   if (view === "top" || view === "new") return view;
@@ -76,7 +76,7 @@ export async function ForumPageContent({
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously the forum hub had NO JSON-LD at all — the
-  // layout.tsx only supplies static metadata, and the page was pure client-side.
+  // layout.tsx only supplies page metadata, and the page was pure client-side.
   // Using ItemList wrapping DiscussionForumPosting entries matches the
   // schema.org pattern for a forum listing page.
   const jsonLd = {

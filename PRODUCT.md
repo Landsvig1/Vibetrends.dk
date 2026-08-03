@@ -68,9 +68,10 @@ browses is queryable by the agent that will consume it.
 
 **Public sections:** Skills (`/skills`, with topic hubs at
 `/skills/topic/[slug]` and Hot/Trending boards), Vibes (`/vibes` — the project
-showcase), CLI (`/cli`), MCP servers (`/mcp`), Agents (`/agents`, deliberately
-demoted from primary nav), Forum (`/forum`, threaded with categories, upvotes,
-replies), Blog (`/blog`), plus About, Agent Guide, Privacy and Terms.
+showcase), CLI (`/cli`), MCP servers (`/mcp`), Forum (`/forum`, threaded with
+categories, upvotes, replies), Blog (`/blog`), plus About, Agent Guide, Privacy
+and Terms. The old Agents section was retired — it duplicated `/cli` — and
+`/agents` now 308s to `/cli`, `/agents/:id` to `/cli/:id` or `/mcp/:id`.
 
 **Terminology — use these exact names:**
 

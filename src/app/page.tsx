@@ -348,7 +348,7 @@ async function HomeContent() {
             <div className="space-y-3">
               <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded bg-background text-text-secondary border border-card-border text-xs font-bold">
                 <Cpu className="h-3.5 w-3.5 mr-1" />
-                Populær Agent / MCP
+                Populært CLI-værktøj
               </div>
               <h2 className="text-2xl font-bold">{featuredAgent.name}</h2>
               <p className="text-sm text-text-secondary max-w-xl">{featuredAgent.description}</p>
@@ -358,10 +358,10 @@ async function HomeContent() {
                 {featuredAgent.installCommand}
               </div>
               <Link
-                href="/agents"
+                href="/cli"
                 className="btn-secondary text-xs"
               >
-                Gå til Agent Registry
+                Se alle CLI-værktøjer
               </Link>
             </div>
           </div>

@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 
 const LoginModal = dynamic(() => import("@/app/components/LoginModal"), { ssr: false });
 
-export default function AgentActionSection({ agent: initialAgent, backHref = "/agents" }: { agent: Agent; backHref?: string }) {
+export default function AgentActionSection({ agent: initialAgent, backHref = "/cli" }: { agent: Agent; backHref?: string }) {
   const [agent, setAgent] = useState<Agent>(initialAgent);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
