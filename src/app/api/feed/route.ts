@@ -20,7 +20,38 @@ const VALID_TYPES: FeedItemType[] = ["skill", "mcp", "cli", "vibe"];
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  const since = searchParams.get("since") ?? undefined;
+  // Retrieve raw parameter strings for strict length validation to mitigate DoS/resource exhaustion
+  const rawSince = searchParams.get("since");
+  const rawType = searchParams.get("type");
+  const rawLang = searchParams.get("lang");
+  const rawLimit = searchParams.get("limit");
+
+  if (rawSince && rawSince.length > 100) {
+    return NextResponse.json(
+      { error: "Parameter 'since' exceeds length limit of 100 characters" },
+      { status: 400 }
+    );
+  }
+  if (rawType && rawType.length > 100) {
+    return NextResponse.json(
+      { error: "Parameter 'type' exceeds length limit of 100 characters" },
+      { status: 400 }
+    );
+  }
+  if (rawLang && rawLang.length > 10) {
+    return NextResponse.json(
+      { error: "Parameter 'lang' exceeds length limit of 10 characters" },
+      { status: 400 }
+    );
+  }
+  if (rawLimit && rawLimit.length > 10) {
+    return NextResponse.json(
+      { error: "Parameter 'limit' exceeds length limit of 10 characters" },
+      { status: 400 }
+    );
+  }
+
+  const since = rawSince && rawSince !== "" ? rawSince : undefined;
   if (since && Number.isNaN(Date.parse(since))) {
     return NextResponse.json(
       { error: "Invalid 'since' — expected an ISO 8601 timestamp, e.g. 2026-07-09T00:00:00Z" },
@@ -28,10 +59,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const typeParam = searchParams.get("type");
   let types: FeedItemType[] | undefined;
-  if (typeParam) {
-    const requested = typeParam.split(",").map(t => t.trim().toLowerCase());
+  if (rawType && rawType !== "") {
+    const requested = rawType.split(",").map(t => t.trim().toLowerCase());
     const invalid = requested.filter(t => !VALID_TYPES.includes(t as FeedItemType));
     if (invalid.length > 0) {
       return NextResponse.json(
@@ -42,9 +72,19 @@ export async function GET(request: Request) {
     types = requested as FeedItemType[];
   }
 
-  const lang = searchParams.get("lang") === "en" ? "en" as const : "da" as const;
-  const limitParam = Number(searchParams.get("limit"));
-  const limit = Number.isFinite(limitParam) ? limitParam : undefined;
+  const lang = rawLang === "en" ? "en" as const : "da" as const;
+
+  let limit: number | undefined = undefined;
+  if (rawLimit !== null && rawLimit !== "") {
+    const limitParam = Number(rawLimit);
+    if (!Number.isFinite(limitParam)) {
+      return NextResponse.json(
+        { error: "Invalid 'limit' parameter — must be a number" },
+        { status: 400 }
+      );
+    }
+    limit = limitParam;
+  }
 
   const items = await getFeedItems({ since, types, lang, limit });
 
