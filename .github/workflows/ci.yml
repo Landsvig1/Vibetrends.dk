@@ -27,10 +27,18 @@ jobs:
   # merges landed against a suite that was red. A check that cannot fail is
   # worse than no check, because it reads as coverage.
   #
-  # Now allowed to fail the run. `main` has no branch protection, so this
-  # surfaces a red run rather than hard-blocking a merge — deliberate while the
-  # job still shares one production database for fixtures and can be cancelled
-  # outright by the concurrency group below.
+  # Now allowed to fail the run, and `main` branch protection requires BOTH
+  # `quality` and `e2e` (verified 2026-08-03: required_status_checks.contexts
+  # = ["quality", "e2e"]). A red e2e run therefore hard-blocks the merge; the
+  # only way past it is an admin override, which is what PR #94 needed. An
+  # earlier version of this comment claimed main had no branch protection and
+  # that this job was non-blocking. That was wrong, and it cost a debugging
+  # cycle. If you make e2e non-blocking, change the protection rule too, not
+  # just this comment.
+  #
+  # Consequence worth knowing: the concurrency group below can cancel a queued
+  # e2e run outright, which leaves the required check unreported and the PR
+  # unmergeable until it is re-run. Acceptable at today's PR volume.
   e2e:
     runs-on: ubuntu-latest
     # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
@@ -40,8 +48,9 @@ jobs:
     # rows. Note: GitHub Actions only queues one *pending* run per group — a
     # third overlapping trigger cancels the still-queued second one outright
     # rather than queuing indefinitely, so under heavy overlap some pushes
-    # may see e2e skipped entirely for that commit. Acceptable at today's low
-    # PR volume (this job is non-blocking either way); revisit if that changes.
+    # may see e2e skipped entirely for that commit. Since e2e IS a required
+    # check (see above), a cancelled run must be re-run before the PR can
+    # merge. Acceptable at today's low PR volume; revisit if that changes.
     concurrency:
       group: e2e-shared-fixture-db
       cancel-in-progress: false
