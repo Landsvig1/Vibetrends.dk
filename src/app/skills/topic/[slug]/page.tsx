@@ -1,26 +1,23 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
-import { translations, Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import { TopicIcon } from "@/app/components/TopicIcon";
 import { SkillCard } from "@/app/components/SkillCard";
 
-// No generateStaticParams: the page reads the vibe_lang cookie and searchParams,
-// both request-time APIs that opt the route into dynamic rendering — matching
-// every other cookie-based detail route here (skills/[id], blog/[id], ...).
+// No generateStaticParams: the page reads searchParams,
+// a request-time API that opts the route into dynamic rendering — matching
+// every other detail route here (skills/[id], blog/[id], ...).
 // Topic URLs are still crawlable via the sitemap.
 
 export const unstable_instant = {
   prefetch: "runtime",
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { slug: "backend-data" },
       searchParams: { view: null },
     },
@@ -32,16 +29,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const topic = getSkillCategory(slug);
   if (!topic) return { title: "Emne ikke fundet" };
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  const label = lang === "en" ? topic.labelEn : topic.labelDa;
-  const desc = lang === "en" ? topic.descEn : topic.descDa;
-
   return entityMetadata({
-    title: `${truncateTitle(label, " skills - Skills Library".length)} skills - Skills Library`,
-    description: desc,
+    title: `${truncateTitle(topic.labelDa, " skills - Skills Library".length)} skills - Skills Library`,
+    description: topic.descDa,
     path: `/skills/topic/${slug}`,
-    lang,
+    lang: "da",
   });
 }
 
@@ -84,14 +76,10 @@ async function TopicContent({
   const sp = await searchParams;
   const view = parseSkillView(sp.view);
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  const isDa = lang === "da";
-
-  const label = isDa ? topic.labelDa : topic.labelEn;
-  const desc = isDa ? topic.descDa : topic.descEn;
-  const githubLabel = translations[lang]["skills.github"];
-  const connectLabel = translations[lang]["skills.connect"];
+  const label = topic.labelDa;
+  const desc = topic.descDa;
+  const githubLabel = "Se på GitHub";
+  const connectLabel = "Forbind";
 
   // `base` is the full topic catalog (view-independent) — it drives the hero
   // count, the JSON-LD, and the default grid. When a view is active we fetch the
@@ -99,9 +87,9 @@ async function TopicContent({
   // card. This avoids the previous duplicate identical query when view === 'hot'.
   type SkillList = Awaited<ReturnType<typeof getSkills>>;
   const [base, viewList, hotList] = await Promise.all([
-    getSkills(undefined, slug, lang),
-    view ? getSkills(undefined, slug, lang, view) : Promise.resolve<SkillList>([]),
-    view ? Promise.resolve<SkillList>([]) : getSkills(undefined, slug, lang, "hot"),
+    getSkills(undefined, slug, 'da'),
+    view ? getSkills(undefined, slug, 'da', view) : Promise.resolve<SkillList>([]),
+    view ? Promise.resolve<SkillList>([]) : getSkills(undefined, slug, 'da', "hot"),
   ]);
 
   const total = base.length;
@@ -113,9 +101,9 @@ async function TopicContent({
   const jsonLd = skillsListJsonLd(base, `${label} skills`, desc);
 
   const tabs: { value: "all" | "danish" | "trending"; label: string; icon: typeof Flag | null; href: string }[] = [
-    { value: "all", label: isDa ? "Alle" : "All", icon: null, href: `/skills/topic/${slug}` },
-    { value: "danish", label: isDa ? "Dansk" : "Danish", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
-    { value: "trending", label: isDa ? "Trender" : "Trending", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
+    { value: "all", label: "Alle", icon: null, href: `/skills/topic/${slug}` },
+    { value: "danish", label: "Dansk", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
+    { value: "trending", label: "Trender", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
   ];
   const activeTab = view ?? "all";
 
@@ -131,7 +119,7 @@ async function TopicContent({
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {isDa ? "Alle emner" : "All topics"}
+        Alle emner
       </Link>
 
       {/* Hero */}
@@ -164,7 +152,7 @@ async function TopicContent({
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === tab.value
                   ? "bg-accent-primary text-white font-extrabold shadow-md"
-                  : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                  : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
               }`}
             >
               {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -179,7 +167,7 @@ async function TopicContent({
         <div className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center">
             <Flame className="h-4 w-4 mr-2 text-accent-primary" />
-            {isDa ? "Mest populære" : "Most popular"}
+            Mest populære
           </h2>
           <SkillCard skill={featured} githubLabel={githubLabel} connectLabel={connectLabel} />
         </div>
@@ -197,21 +185,21 @@ async function TopicContent({
       {!hasAny && (
         <div className="text-center py-16 rounded-xl border border-card-border bg-background">
           <p className="text-text-secondary font-semibold">
-            {isDa ? "Ingen skills i dette emne endnu." : "No skills in this topic yet."}
+            Ingen skills i dette emne endnu.
           </p>
           <Link href="/skills" className="inline-flex items-center text-sm font-semibold text-accent-primary mt-3">
-            {isDa ? "Udforsk andre emner" : "Explore other topics"}
+            Udforsk andre emner
             <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Link>
         </div>
       )}
 
       <p className="text-xs text-text-secondary">
-        {isDa ? "Udvalgt indhold seedet fra " : "Seed content from "}
+        Udvalgt indhold seedet fra{" "}
         <a href="https://www.skills.sh/topic" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline">
           skills.sh
         </a>
-        {isDa ? " — bygges videre af fællesskabet." : " — grown by the community."}
+        {" "}— bygges videre af fællesskabet.
       </p>
     </div>
   );

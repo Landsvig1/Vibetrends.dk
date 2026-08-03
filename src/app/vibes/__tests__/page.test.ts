@@ -75,10 +75,9 @@ function makeProject(id: string, title: string, description: string) {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: English cookie
+  // Cookie mock retained for module isolation; page no longer reads it.
   cookiesMock.mockResolvedValue({
-    get: (name: string) =>
-      name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
+    get: () => undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
@@ -104,7 +103,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
 
     expect(getProjectsMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
-      "en",      // lang from mocked cookie
+      "da",      // hardcoded Danish
       "top"      // always the base catalog order — tabs are client-side
     );
   });
@@ -131,7 +130,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
 
     expect(getProjectsMock).toHaveBeenCalledWith(
       "react", // search term from ?q= param
-      "en",
+      "da",
       "top"
     );
   });
@@ -143,7 +142,7 @@ describe("VibesPageContent — passes real project data to client island", () =>
       searchParams: Promise.resolve({ q: "" }),
     });
 
-    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "en", "top");
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "da", "top");
   });
 });
 

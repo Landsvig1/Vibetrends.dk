@@ -44,7 +44,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
         <button
           onClick={onClose}
           aria-label="Luk"
-          className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -80,7 +80,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="eksempel@vibe.dk"
                   disabled={loading}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-slate-600 focus:outline-none focus:border-accent-primary/20 text-sm disabled:opacity-50"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm disabled:opacity-50"
                 />
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => handleOAuth("google")}
               disabled={loading}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-accent-light text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -133,7 +133,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={() => handleOAuth("github")}
               disabled={loading}
-              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-card-border text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 py-2 rounded-lg bg-background border border-card-border hover:bg-accent-light text-foreground text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 24 24"

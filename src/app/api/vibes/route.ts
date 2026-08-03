@@ -6,18 +6,13 @@ import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { projectSchema } from "@/lib/schemas";
 export { projectSchema };
 
-import { cookies } from "next/headers";
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || undefined;
   const sortParam = searchParams.get("sort");
   const sort = sortParam === "top" || sortParam === "az" ? sortParam : "new";
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
-
-  const projects = await getProjects(search, lang, sort);
+  const projects = await getProjects(search, 'da', sort);
   return NextResponse.json(projects, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

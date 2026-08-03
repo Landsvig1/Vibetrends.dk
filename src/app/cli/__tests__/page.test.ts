@@ -66,10 +66,9 @@ function makeAgent(id: string, name: string, description: string) {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: English cookie
+  // Cookie mock retained for module isolation; page no longer reads it.
   cookiesMock.mockResolvedValue({
-    get: (name: string) =>
-      name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
+    get: () => undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
@@ -81,7 +80,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("CliPageContent — passes real CLI data to client island", () => {
-  it("calls getCli with the lang from the vibe_lang cookie", async () => {
+  it("calls getCli with hardcoded 'da' lang", async () => {
     const items = [makeAgent("a1", "vibe-cli", "A CLI tool for vibes")];
     getCliMock.mockResolvedValue(items);
 
@@ -89,20 +88,8 @@ describe("CliPageContent — passes real CLI data to client island", () => {
 
     expect(getCliMock).toHaveBeenCalledWith(
       undefined, // no search term from server component
-      "en"       // lang from mocked cookie
+      "da"       // hardcoded Danish
     );
-  });
-
-  it("defaults lang to 'da' when the cookie is absent", async () => {
-    cookiesMock.mockResolvedValue({
-      get: () => undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-    getCliMock.mockResolvedValue([]);
-
-    await CliPageContent({ searchParams: Promise.resolve({}) });
-
-    expect(getCliMock).toHaveBeenCalledWith(undefined, "da");
   });
 
   it("passes ?q= as search to getCli when present", async () => {
@@ -113,7 +100,7 @@ describe("CliPageContent — passes real CLI data to client island", () => {
 
     expect(getCliMock).toHaveBeenCalledWith(
       "vibe", // search term from ?q= param
-      "en"
+      "da"
     );
   });
 
@@ -122,7 +109,7 @@ describe("CliPageContent — passes real CLI data to client island", () => {
 
     await CliPageContent({ searchParams: Promise.resolve({ q: "" }) });
 
-    expect(getCliMock).toHaveBeenCalledWith(undefined, "en");
+    expect(getCliMock).toHaveBeenCalledWith(undefined, "da");
   });
 });
 

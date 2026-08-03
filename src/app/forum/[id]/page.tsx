@@ -2,8 +2,6 @@ import Link from "next/link";
 import { ArrowLeft, Heart } from "lucide-react";
 import { getThreadById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { translations, Language } from "@/lib/translations";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import { jsonLdScript, forumThreadJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { forumCategoryLabel } from "@/lib/forumCategories";
@@ -11,17 +9,15 @@ import ForumReplySection from "./ForumReplySection";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const thread = await getThreadById(id, lang);
+  const thread = await getThreadById(id, 'da');
   if (!thread) return { title: "Tråd ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(thread.title, " - Vibe Trends Forum".length)} - Vibe Trends Forum`,
     description: thread.content.substring(0, 160),
     path: `/forum/${id}`,
-    lang,
+    lang: 'da',
     type: "article",
   });
 }
@@ -32,7 +28,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "t1" }
     }
   ]
@@ -55,12 +50,8 @@ export default async function ForumThreadPage({ params }: { params: Promise<{ id
 
 async function ForumThreadContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  const tDict = translations[lang] || translations.da;
-  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  const thread = await getThreadById(id, lang);
+  const thread = await getThreadById(id, 'da');
 
   if (!thread) {
     notFound();
@@ -99,7 +90,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {t("forum.detail.back")}
+        Tilbage til Forum
       </Link>
 
       <div className="max-w-3xl space-y-6">
@@ -107,13 +98,13 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-3">
                 <span className="text-xs font-bold text-accent-primary px-3 py-1 rounded-full bg-accent-light border border-accent-primary/20 uppercase tracking-tight">
-                  {forumCategoryLabel(thread.category, lang)}
+                  {forumCategoryLabel(thread.category, 'da')}
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground leading-tight">
                   {thread.title}
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold text-sm">{thread.upvotes}</span>
               </div>
@@ -131,7 +122,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
                 <span className="font-bold text-foreground">@{thread.author}</span>
               </div>
               <span className="text-text-secondary">&middot;</span>
-              <span>{new Date(thread.createdAt).toLocaleString(lang === "da" ? 'da-DK' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</span>
+              <span>{new Date(thread.createdAt).toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' })}</span>
             </div>
           </div>
 

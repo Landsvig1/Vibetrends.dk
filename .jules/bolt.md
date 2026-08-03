@@ -72,3 +72,8 @@ This journal contains critical performance learnings discovered while optimizing
 **PR:** #93 (0fee349)
 **Reason:** Rewrote `timeAgo`'s clean 4-entry `UNITS` config/loop into three near-duplicate if/else blocks to avoid "loop overhead" and "allocation overhead" — no benchmark or measurement backing the claim, and a 4-element array scan is not a measurable cost for a per-item formatter on a low-traffic site. Net effect: less readable, more surface, unproven payoff.
 **Do not propose again unless:** real profiling data shows `timeAgo` (or its call site) is an actual measured bottleneck at current or realistic traffic — not a bare "avoids a loop" narration.
+
+## REJECTED — 2026-08-02 — Same-day duplicate PR on /api/feed validation hardening (#96)
+**PR:** #96 (5429520, bolt/feed-hardening-and-cleanups)
+**Reason:** Opened same-day and same-file as Sentinel's #95 (0664cdf), which was already open when this PR was created — both harden the same since/type/lang/limit query-param validation on `/api/feed`. Closed as duplicate in favor of #95: #95 is scoped purely to the feed route + its tests, while #96 bundled in unrelated `EmptyState.tsx`/`Header.tsx` unused-import cleanup, and #95's per-field 400 error messages are more specific than #96's single generic "Query parameter exceeds maximum length limit" for all four params.
+**Do not propose again unless:** check open PRs for one already touching the same file before opening a new one (see AGENTS.md's PR quality bar — this exact same-day-duplicate pattern already cost #30/#31 and Koalafilm #33/#34 a full review cycle).

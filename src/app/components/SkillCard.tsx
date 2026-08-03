@@ -84,7 +84,7 @@ function SkillCardComponent({
                 onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
                 aria-label={`Upvote ${skill.title}`}
                 data-testid="skill-upvote"
-                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-rose-500/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
               >
                 <motion.div
                   animate={{ scale: [1, 1.2, 1] }}

@@ -10,7 +10,6 @@ import { timeAgo } from "@/lib/timeAgo";
 
 interface ThreadCardProps {
   thread: ForumThread;
-  language: "da" | "en";
   canDelete: boolean;
   repliesLabel: string;
   onUpvote: (id: string) => void;
@@ -19,7 +18,6 @@ interface ThreadCardProps {
 
 function ThreadCardComponent({
   thread,
-  language,
   canDelete,
   repliesLabel,
   onUpvote,
@@ -55,7 +53,7 @@ function ThreadCardComponent({
       <div className="flex-1 p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary uppercase tracking-wider">
           <span className="text-accent-primary px-1.5 py-0.5 rounded bg-accent-light/50 border border-accent-primary/10">
-            {forumCategoryLabel(thread.category, language)}
+            {forumCategoryLabel(thread.category)}
           </span>
           <span>&middot;</span>
           <span className="flex items-center gap-1">
@@ -65,7 +63,7 @@ function ThreadCardComponent({
           <span>&middot;</span>
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {timeAgo(thread.createdAt, language)}
+            {timeAgo(thread.createdAt)}
           </span>
 
           {canDelete && (
@@ -94,14 +92,14 @@ function ThreadCardComponent({
         </div>
 
         <div className="flex items-center space-x-4 pt-1 text-xs font-bold text-text-secondary">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30 hover:bg-card-border/50 transition-colors">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-accent-light hover:bg-accent-light transition-colors">
             <MessageSquare className="h-3.5 w-3.5" />
             <span>
               {thread.replies.length} {repliesLabel}
             </span>
           </div>
 
-          <div className="sm:hidden flex items-center gap-1.5 px-2 py-1 rounded-md bg-card-border/30">
+          <div className="sm:hidden flex items-center gap-1.5 px-2 py-1 rounded-md bg-accent-light">
             <TrendingUp className="h-3.5 w-3.5 text-accent-primary" />
             <span>{thread.upvotes}</span>
           </div>

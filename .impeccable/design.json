@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-02T20:18:09Z",
+  "title": "Design System: vibetrends.dk",
+  "extensions": {
+    "colorMeta": {
+      "forest": {
+        "role": "primary",
+        "displayName": "Forest Ink",
+        "canonical": "#264021",
+        "tonalRamp": [
+          "oklch(15% 0.045 140)",
+          "oklch(26% 0.05 140)",
+          "oklch(37% 0.05 140)",
+          "oklch(49% 0.05 140)",
+          "oklch(60% 0.045 140)",
+          "oklch(72% 0.04 140)",
+          "oklch(84% 0.03 140)",
+          "oklch(95% 0.015 140)"
+        ]
+      },
+      "forest-wash": {
+        "role": "primary",
+        "displayName": "Forest Wash",
+        "canonical": "#F0F4EF",
+        "tonalRamp": [
+          "oklch(15% 0.012 140)",
+          "oklch(26% 0.012 140)",
+          "oklch(37% 0.012 140)",
+          "oklch(49% 0.012 140)",
+          "oklch(60% 0.012 140)",
+          "oklch(72% 0.012 140)",
+          "oklch(84% 0.012 140)",
+          "oklch(95% 0.012 140)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#FAF9F6",
+        "tonalRamp": [
+          "oklch(15% 0.006 95)",
+          "oklch(26% 0.006 95)",
+          "oklch(37% 0.006 95)",
+          "oklch(49% 0.006 95)",
+          "oklch(60% 0.006 95)",
+          "oklch(72% 0.006 95)",
+          "oklch(84% 0.006 95)",
+          "oklch(95% 0.006 95)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#E6E3DC",
+        "tonalRamp": [
+          "oklch(15% 0.009 90)",
+          "oklch(26% 0.009 90)",
+          "oklch(37% 0.009 90)",
+          "oklch(49% 0.009 90)",
+          "oklch(60% 0.009 90)",
+          "oklch(72% 0.009 90)",
+          "oklch(84% 0.009 90)",
+          "oklch(95% 0.009 90)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1E1E1E",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#4F4F4C",
+        "tonalRamp": [
+          "oklch(15% 0.004 100)",
+          "oklch(26% 0.004 100)",
+          "oklch(37% 0.004 100)",
+          "oklch(49% 0.004 100)",
+          "oklch(60% 0.004 100)",
+          "oklch(72% 0.004 100)",
+          "oklch(84% 0.004 100)",
+          "oklch(95% 0.004 100)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page-opening headlines only, centered, capped at ~56ch. The accent phrase inside is Forest Ink italic."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings and detail-page titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles. Shifts to Forest Ink on card hover."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and descriptions in Soft Ink. Prose caps at ~65-75ch; card descriptions clamp to 2-3 lines."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Chips, badges, nav items, form labels, buttons. Never uppercase at this size."
+      },
+      "overline": {
+        "displayName": "Overline",
+        "purpose": "The only uppercase-tracked step and the floor of the ramp - nothing is set smaller than 10px. Wordmark tagline and micro-labels on tags and metadata."
+      },
+      "data": {
+        "displayName": "Data (mono)",
+        "purpose": "Machine text: vote counts, install commands, tags, IDs, the .dk in the wordmark."
+      },
+      "quote": {
+        "displayName": "Quote (serif italic)",
+        "purpose": "Quoted human writing only - currently forum thread previews. Nothing else."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-settle",
+        "value": "0 20px 40px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01)",
+        "purpose": "The only card shadow. Wide, soft, near-invisible - keeps cards from looking pasted on and does nothing more."
+      },
+      {
+        "name": "overlay",
+        "value": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+        "purpose": "Dropdown menus and modal panels only. The one place a surface is allowed to read as floating."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Card hover: border-color, transform, and box-shadow over 300ms."
+      },
+      {
+        "name": "duration-fast",
+        "value": "200ms",
+        "purpose": "Button and nav-item state changes (opacity, background, color)."
+      },
+      {
+        "name": "duration-card",
+        "value": "300ms",
+        "purpose": "Card hover lift and border swap."
+      },
+      {
+        "name": "view-transition-slide",
+        "value": "400ms ease-in-out",
+        "purpose": "Directional route transition: 60px horizontal slide, forward-right / back-left, with a 150/210ms crossfade. Header and footer are anchored out of it."
+      },
+      {
+        "name": "reduced-motion-guard",
+        "value": "@media (prefers-reduced-motion: reduce)",
+        "purpose": "Globally collapses all animation and transition durations to 0.01ms and removes the card hover lift. Every new motion must stay behind this."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "container",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single call to action. Fully pill-shaped, Forest Ink fill, white text.",
+      "html": "<button class=\"ds-btn-primary\">Vis dit projekt</button>",
+      "css": ".ds-btn-primary { background: var(--accent-primary, #264021); color: #fff; border: 1px solid var(--accent-primary, #264021); border-radius: 99px; padding: 10px 20px; font-family: system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s, background-color 0.2s, color 0.2s; } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent-primary, #264021); outline-offset: 4px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Paired alternative action. Paper fill, hairline border, fills with Forest Wash on hover.",
+      "html": "<button class=\"ds-btn-secondary\">Log ind</button>",
+      "css": ".ds-btn-secondary { background: var(--background, #FAF9F6); color: var(--foreground, #1E1E1E); border: 1px solid var(--card-border, #E6E3DC); border-radius: 99px; padding: 10px 20px; font-family: system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s; } .ds-btn-secondary:hover { background: var(--accent-light, #F0F4EF); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent-primary, #264021); outline-offset: 4px; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The system's workhorse. Flat white on paper, hairline border, lifts 2px and takes a Forest Ink border on hover.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-chip\">Front-End</span><h3 class=\"ds-card-title\">Jobindex Search</h3><p class=\"ds-card-body\">Kuraterede AI-skills, udvalgt til Danmark. Mennesker er velkomne. Agenter også.</p><div class=\"ds-card-meta\"><span class=\"ds-card-count\">42</span></div></div>",
+      "css": ".ds-card { background: var(--card-bg, #fff); border: 1px solid var(--card-border, #E6E3DC); border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.01); padding: 24px; max-width: 340px; font-family: system-ui, sans-serif; transition: border-color 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1); } .ds-card:hover, .ds-card:focus-within { border-color: var(--accent-primary, #264021); transform: translateY(-2px); } .ds-card-chip { display: inline-block; background: var(--accent-light, #F0F4EF); color: var(--accent-primary, #264021); border: 1px solid rgba(38,64,33,0.2); border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; } .ds-card-title { color: var(--foreground, #1E1E1E); font-size: 1.125rem; font-weight: 700; line-height: 1.25; margin: 8px 0 0; transition: color 0.2s; } .ds-card:hover .ds-card-title { color: var(--accent-primary, #264021); } .ds-card-body { color: var(--text-secondary, #4F4F4C); font-size: 0.875rem; line-height: 1.6; margin: 16px 0 0; } .ds-card-meta { margin-top: 24px; } .ds-card-count { display: inline-flex; align-items: center; gap: 6px; background: var(--background, #FAF9F6); border: 1px solid var(--card-border, #E6E3DC); border-radius: 8px; padding: 6px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary, #4F4F4C); }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Paper-filled field on white surfaces. Border shifts toward Forest Ink on focus, with a faint ring on search fields.",
+      "html": "<div class=\"ds-field\"><svg class=\"ds-field-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-input-search\" type=\"text\" placeholder=\"Søg efter skills…\" /></div>",
+      "css": ".ds-field { position: relative; max-width: 320px; } .ds-field-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-secondary, #4F4F4C); pointer-events: none; } .ds-input-search { width: 100%; padding: 10px 16px 10px 36px; border-radius: 8px; background: var(--background, #FAF9F6); border: 1px solid var(--card-border, #E6E3DC); color: var(--foreground, #1E1E1E); font-family: system-ui, sans-serif; font-size: 0.875rem; transition: border-color 0.2s, box-shadow 0.2s; } .ds-input-search::placeholder { color: var(--text-secondary, #4F4F4C); } .ds-input-search:focus { outline: none; border-color: rgba(38,64,33,0.2); box-shadow: 0 0 0 1px rgba(38,64,33,0.3); } .ds-input-search:focus-visible { outline: 2px solid var(--accent-primary, #264021); outline-offset: 4px; }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Icon + label nav entry. Active state is Forest Ink on Forest Wash; matching is prefix-based so detail pages keep their section lit.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z\"/><path d=\"m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65\"/><path d=\"m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65\"/></svg><span>Vibes</span></a><a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg><span>Forum</span></a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 4px; font-family: system-ui, sans-serif; } .ds-nav-item { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary, #4F4F4C); text-decoration: none; transition: color 0.2s, background-color 0.2s; } .ds-nav-item svg { width: 16px; height: 16px; } .ds-nav-item:hover { color: var(--foreground, #1E1E1E); background: var(--card-border, #E6E3DC); } .ds-nav-item-active { color: var(--accent-primary, #264021); background: var(--accent-light, #F0F4EF); } .ds-nav-item:focus-visible { outline: 2px solid var(--accent-primary, #264021); outline-offset: 4px; }"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "Tinted chip marking taxonomy. Forest Wash fill, Forest Ink text, near-square 4px corners so it reads as a label, not a button.",
+      "html": "<span class=\"ds-chip-category\">Agent workflows</span>",
+      "css": ".ds-chip-category { display: inline-block; background: var(--accent-light, #F0F4EF); color: var(--accent-primary, #264021); border: 1px solid rgba(38,64,33,0.2); border-radius: 4px; padding: 2px 8px; font-family: system-ui, sans-serif; font-size: 0.75rem; }"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "chip-tag",
+      "description": "Outlined monospace chip marking free-form metadata. Tinted means taxonomy, outlined means metadata.",
+      "html": "<span class=\"ds-chip-tag\">nextjs</span> <span class=\"ds-chip-tag\">mcp</span>",
+      "css": ".ds-chip-tag { display: inline-block; background: var(--background, #FAF9F6); color: var(--text-secondary, #4F4F4C); border: 1px solid var(--card-border, #E6E3DC); border-radius: 6px; padding: 2px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.625rem; }"
+    },
+    {
+      "name": "Pill Badge",
+      "kind": "chip",
+      "refersTo": "pill-badge",
+      "description": "Section eyebrow that sits above a heading. Paper fill, hairline border, leading icon.",
+      "html": "<span class=\"ds-pill-badge\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/></svg><span>Om vibetrends.dk</span></span>",
+      "css": ".ds-pill-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--card-border, #E6E3DC); background: var(--background, #FAF9F6); font-family: system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #4F4F4C); } .ds-pill-badge svg { width: 14px; height: 14px; color: var(--accent-primary, #264021); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Full-width unfilled slot: 16px radius with a dashed hairline border and a washed circular icon. The dashed border is what marks it as empty.",
+      "html": "<div class=\"ds-empty\"><div class=\"ds-empty-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg></div><h3 class=\"ds-empty-title\">Ingen resultater</h3><p class=\"ds-empty-body\">Prøv en anden søgning, eller tilføj den første skill selv.</p></div>",
+      "css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 16px; border-radius: 16px; border: 1px dashed var(--card-border, #E6E3DC); background: rgba(255,255,255,0.3); text-align: center; font-family: system-ui, sans-serif; } .ds-empty-icon { padding: 16px; border-radius: 999px; background: rgba(240,244,239,0.3); color: var(--accent-primary, #264021); margin-bottom: 24px; } .ds-empty-icon svg { width: 40px; height: 40px; display: block; } .ds-empty-title { font-size: 1.25rem; font-weight: 700; color: var(--foreground, #1E1E1E); margin: 0 0 8px; } .ds-empty-body { color: var(--text-secondary, #4F4F4C); max-width: 24rem; margin: 0; }"
+    },
+    {
+      "name": "Install Command Block",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "Machine text surface: paper-inset, monospace, select-all, scrolls horizontally rather than wrapping. The canonical way to present anything an agent runs.",
+      "html": "<div class=\"ds-install\">npx -y @vibetrends/skill-install jobindex-search</div>",
+      "css": ".ds-install { background: var(--background, #FAF9F6); border: 1px solid var(--card-border, #E6E3DC); border-radius: 8px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.6875rem; color: var(--text-secondary, #4F4F4C); user-select: all; overflow-x: auto; white-space: nowrap; max-width: 340px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Notebook",
+    "overview": "vibetrends.dk looks like something a person kept, not something a machine generated. The ground is warm paper, the accent is forest ink, and the pages are laid out the way a careful practitioner keeps records: hairline rules, generous air, entries in a consistent hand. It is a catalog of AI tooling that pointedly refuses to look like AI tooling - no dark mode, no neon, no glow, no gradient mesh, no synthwave violet. The restraint is the argument: this material was chosen by someone, and the surface should read that way. The system arrived there deliberately: an earlier violet/cyan/rose identity was stripped out of the components in favour of the single forest accent; if a saturated hue reappears in this codebase, it is a regression, not a survival.\n\nThe density is comfortable rather than tight. Cards are white rectangles on paper, separated by a single hairline (#E6E3DC) and a lot of whitespace. Depth is almost entirely absent - one nearly invisible ambient shadow is the whole vocabulary. What moves is what you can interact with: cards lift 2px and take a forest border on hover, and route changes slide horizontally in the direction you're travelling. Motion is the interaction signal; shadow is not.\n\nTypography does the emotional work through weight, not through decoration. Plus Jakarta Sans carries everything - extrabold and tight at display sizes, plain and airy in body - while a monospace face marks anything machine-ish (vote counts, install commands, tags) and Instrument Serif appears in one place only, as an italic voice for quoted human text. That split is the system's whole thesis in miniature: sans for the work, mono for the machine, serif for the human.",
+    "keyCharacteristics": [
+      "Warm paper ground (#FAF9F6), never white, never dark",
+      "Single deep-forest accent (#264021) used sparingly and with intent",
+      "Flat by default; hairline borders carry all structure",
+      "Pill-shaped buttons, gently rounded cards (12px), sharp small chips (4px)",
+      "Light-mode only, by declaration (colorScheme: \"light\")",
+      "Danish-only interface; strings are written natively, not translated",
+      "Motion signals interactivity and direction, never decoration"
+    ],
+    "rules": [
+      {
+        "name": "The Single Ink Rule",
+        "body": "Forest Ink is the only chromatic color in the system. If a new state, badge, or category needs to be distinguished, distinguish it with weight, size, border, or Forest Wash - not with a new hue. Semantic status colors (destructive red, success green) are permitted only where the meaning is genuinely semantic, and never as decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Neutral Rule",
+        "body": "Every neutral carries warmth. Raw Tailwind greys (slate-*, gray-*, zinc-*) are cold and visibly clash with the paper. Use the tokens.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Floor Rule",
+        "body": "No dark mode. The surface is a lit page; the system declares colorScheme: \"light\" and has no dark variants. Don't add dark: variants to new components - a half-implemented dark mode is worse than none.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Voices Rule",
+        "body": "Sans for the work, mono for the machine, serif for the human. Every font choice must answer to one of those three; there is no fourth voice. Reaching for the serif to make something feel \"premium\" breaks the system.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Not-Family Rule",
+        "body": "Build hierarchy by moving between 400 / 600 / 700 / 800 in Plus Jakarta Sans. Don't introduce a new family, and don't use size alone where weight would do it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Air Rule",
+        "body": "Whitespace is the primary structuring device, ahead of borders and far ahead of color. When a layout feels cluttered, remove elements or add space before adding a divider.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "New surfaces get a hairline border, not a shadow. If something needs to stand out, change its background to Card White or Forest Wash before you reach for elevation.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Border-Becomes-Accent Rule",
+        "body": "The universal hover signal is the hairline turning Forest Ink plus a 2px rise - not a shadow bloom, not a background change. Apply it consistently so hoverability is learnable.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Pill-Means-Press Rule",
+        "body": "Full-round (99px) is reserved for actionable things. A non-interactive container must never be pill-shaped, or the shape vocabulary stops meaning anything.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use the CSS custom properties (--background, --foreground, --text-secondary, --card-bg, --card-border, --accent-primary, --accent-light) or their Tailwind aliases. They are the single source of truth in src/app/globals.css.",
+      "Do reach for .glass-card for any new card. Despite the vestigial name it is the flat card primitive, and it carries the hover, focus-within, and reduced-motion behavior for free.",
+      "Do signal hover with the border-to-Forest-Ink swap plus a 2px rise.",
+      "Do keep the global focus-visible outline (2px Forest Ink, 4px offset) on every interactive element.",
+      "Do guard new motion behind prefers-reduced-motion: reduce.",
+      "Do use monospace for machine text - commands, counts, tags, IDs - and reserve Instrument Serif italic for quoted human writing.",
+      "Do write user-visible strings in Danish. The da/en toggle was removed in PR #94; there is no translation layer to route copy through.",
+      "Do let whitespace carry structure before adding a divider."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue. Forest Ink is the only chromatic color (see The Single Ink Rule).",
+      "Don't use raw Tailwind palette classes for neutrals - slate-*, gray-*, zinc-* are cold and clash with the warm paper. The codebase is clean of them; keep it that way.",
+      "Don't add dark mode or dark: variants. The system is declared light-only.",
+      "Don't reintroduce violet, cyan, or rose. They were the previous identity and have been removed from every component; upvote affordances hover to Forest Ink, and multi-item accents step down through accent-primary opacity rather than through hue.",
+      "Don't reach for shadows to create hierarchy. Use hairline borders and the paper/white tonal step.",
+      "Don't make a non-interactive container pill-shaped.",
+      "Don't put an accent tab down the side of a container. A thick colored edge border on a card, list item, callout, or nav item is the most recognizable tell of generated UI; active states use a Forest Wash fill. The only border above 1px in the system is the 3px blockquote rule inside .skill-doc, which is a typographic quote marker in rendered prose.",
+      "Don't use hover:bg-card-border - a border token is not a hover surface. Hover fills are Forest Wash (hover:bg-accent-light).",
+      "Don't set a literal font size off the ramp. Every step from Overline (10px) up to Display is in the frontmatter; 9px and 11px one-offs have been removed.",
+      "Don't set font-serif to make something feel premium. It has exactly one job.",
+      "Don't style prose from third-party markdown ad hoc - .skill-doc in globals.css already owns rendered SKILL.md / README.md output."
+    ]
+  }
+}

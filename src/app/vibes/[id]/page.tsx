@@ -3,8 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, Heart, ExternalLink, Code, Sparkles } from "lucide-react";
 import { getProjectById } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { translations, Language } from "@/lib/translations";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata, truncateTitle } from "@/lib/seo";
 import ShareButton from "@/app/components/ShareButton";
@@ -28,17 +26,15 @@ const GithubIcon = ({ className }: { className?: string }) => (
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
 
-  const project = await getProjectById(id, lang);
+  const project = await getProjectById(id, 'da');
   if (!project) return { title: "Projekt ikke fundet" };
 
   return entityMetadata({
     title: `${truncateTitle(project.title, " - Vibe Coding Showcase".length)} - Vibe Coding Showcase`,
     description: project.description,
     path: `/vibes/${id}`,
-    lang,
+    lang: 'da',
     type: "article",
   });
 }
@@ -49,7 +45,6 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      cookies: [{ name: "vibe_lang", value: "da" }],
       params: { id: "p1" }
     }
   ]
@@ -75,13 +70,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
 async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-  const tDict = translations[lang] || translations.da;
-  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
 
-  const project = await getProjectById(id, lang);
+  const project = await getProjectById(id, 'da');
 
   if (!project) {
     notFound();
@@ -126,7 +116,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {t("showcase.detail.back")}
+        Tilbage til Showcase
       </Link>
 
       <div className={`grid grid-cols-1 gap-10 ${project.prompts.length > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
@@ -141,7 +131,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               sizes="(min-width: 1024px) 66vw, 100vw"
               className="object-cover opacity-90"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 to-transparent"></div>
             <div className="absolute bottom-6 left-6">
               <h1 className="text-white font-bold text-xl">{project.title}</h1>
             </div>
@@ -150,9 +140,9 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground">
-                {lang === "da" ? "Om projektet" : "About the project"}
+                Om projektet
               </h2>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{project.upvotes}</span>
               </div>
@@ -167,7 +157,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
               <div className="p-6 rounded-xl glass-card space-y-3">
                 <h3 className="text-sm font-bold text-accent-primary uppercase tracking-wider flex items-center">
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {t("showcase.detail.tools")}
+                  Teknologier &amp; Værktøjer
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {project.tools.map(tool => (
@@ -188,7 +178,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition shadow-sm"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      {t("showcase.detail.visit")}
+                      Besøg Live Demo
                     </a>
                     {project.githubUrl && (
                       <a
@@ -196,7 +186,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="GitHub"
-                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-card-border transition-colors"
+                        className="p-3 rounded-lg bg-background border border-card-border text-foreground hover:bg-accent-light transition-colors"
                       >
                         <GithubIcon className="h-5 w-5" />
                       </a>
@@ -218,7 +208,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
             <div className="flex items-center space-x-2">
               <Code className="h-5 w-5 text-accent-primary" />
               <h3 className="text-lg font-bold text-foreground">
-                {t("showcase.detail.prompts")}
+                Core Prompts Anvendt
               </h3>
             </div>
 
@@ -237,10 +227,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
 
             <div className="pt-6 border-t border-card-border">
               <p className="text-xs text-text-secondary leading-relaxed italic">
-                {lang === "da"
-                  ? "Disse prompts er delt af skaberen. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter."
-                  : "These prompts were shared by the creator. Copy them to recreate similar features in your own projects."
-                }
+                Disse prompts er delt af skaberen. Kopier dem for at genskabe lignende funktionalitet i dine egne projekter.
               </p>
             </div>
           </div>
