@@ -37,6 +37,9 @@ export default async function globalTeardown() {
     if (manifest.agents?.length) {
       await client.query('delete from public.agents where id = any($1)', [manifest.agents]);
     }
+    if (manifest.vibes?.length) {
+      await client.query('delete from public.vibes where id = any($1)', [manifest.vibes]);
+    }
     console.log('e2e fixture teardown complete.');
     // Only remove the manifest once both deletes above have actually
     // succeeded — if a query threw, the manifest (and its still-untracked
