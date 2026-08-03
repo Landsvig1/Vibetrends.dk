@@ -54,6 +54,8 @@ next-env.d.ts
 # The design system itself — DESIGN.md, PRODUCT.md, .impeccable/design.json —
 # is committed.
 .claude/settings.local.json
+.claude/launch.json
+.claude/worktrees/
 .impeccable/hook.cache.json
 .impeccable/hook.pending.json
 .impeccable/config.local.json
