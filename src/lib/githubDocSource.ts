@@ -137,12 +137,16 @@ export function skillSlugCandidates(id: string, title?: string | null): string[]
   const parts = idSlug.split("-");
   if (parts.length > 1) push(parts.slice(1).join("-"));
 
-  push(
-    (title ?? "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-  );
+  const lowerTitle = (title ?? "").toLowerCase();
+  const slugify = (v: string) => v.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  push(slugify(lowerTitle));
+  // Same title with apostrophes removed rather than turned into a separator:
+  // "Let's Talk" slugifies to `let-s-talk`, but a repo names that folder
+  // `lets-talk`. Offered as an extra candidate rather than a replacement so
+  // nothing that matches on the first form can regress. Covers the typographic
+  // apostrophe too — titles get pasted in from READMEs.
+  push(slugify(lowerTitle.replace(/['’]/g, "")));
 
   return out.filter(Boolean);
 }
