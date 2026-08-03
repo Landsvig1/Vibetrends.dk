@@ -20,17 +20,38 @@ const VALID_TYPES: FeedItemType[] = ["skill", "mcp", "cli", "vibe"];
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  const since = searchParams.get("since") ?? undefined;
-  if (since && Number.isNaN(Date.parse(since))) {
-    return NextResponse.json(
-      { error: "Invalid 'since' — expected an ISO 8601 timestamp, e.g. 2026-07-09T00:00:00Z" },
-      { status: 400 }
-    );
+  // SECURITY: Enforce strict length limits on public, unauthenticated search parameters
+  // to prevent Denial of Service (DoS) and Regular Expression Denial of Service (ReDoS)
+  // during expensive parsing/date parsing operations downstream.
+
+  // NOTE: Use `|| undefined` instead of `?? undefined` so that empty string values ("")
+  // are treated as "absent", preserving the original main branch behavior and avoiding
+  // unexpected 400 Bad Request responses for empty-but-present query params (e.g. `?since=`).
+  const since = searchParams.get("since") || undefined;
+  if (since !== undefined) {
+    if (since.length > 100) {
+      return NextResponse.json(
+        { error: "Invalid 'since' parameter length (max 100 characters)" },
+        { status: 400 }
+      );
+    }
+    if (Number.isNaN(Date.parse(since))) {
+      return NextResponse.json(
+        { error: "Invalid 'since' — expected an ISO 8601 timestamp, e.g. 2026-07-09T00:00:00Z" },
+        { status: 400 }
+      );
+    }
   }
 
-  const typeParam = searchParams.get("type");
+  const typeParam = searchParams.get("type") || undefined;
   let types: FeedItemType[] | undefined;
-  if (typeParam) {
+  if (typeParam !== undefined) {
+    if (typeParam.length > 100) {
+      return NextResponse.json(
+        { error: "Invalid 'type' parameter length (max 100 characters)" },
+        { status: 400 }
+      );
+    }
     const requested = typeParam.split(",").map(t => t.trim().toLowerCase());
     const invalid = requested.filter(t => !VALID_TYPES.includes(t as FeedItemType));
     if (invalid.length > 0) {
@@ -42,9 +63,39 @@ export async function GET(request: Request) {
     types = requested as FeedItemType[];
   }
 
-  const lang = searchParams.get("lang") === "en" ? "en" as const : "da" as const;
-  const limitParam = Number(searchParams.get("limit"));
-  const limit = Number.isFinite(limitParam) ? limitParam : undefined;
+  const langParam = searchParams.get("lang") || undefined;
+  if (langParam !== undefined) {
+    if (langParam.length > 10) {
+      return NextResponse.json(
+        { error: "Invalid 'lang' parameter length (max 10 characters)" },
+        { status: 400 }
+      );
+    }
+  }
+  const lang = langParam === "en" ? ("en" as const) : ("da" as const);
+
+  // SECURITY: Mitigate bug where missing/empty limit query parameters coerce to 0 via `Number(null)`
+  // which then clamps to 1 inside the data layer. Instead, default to undefined to allow the
+  // data layer to resolve it to the standard limit (50).
+  const limitParam = searchParams.get("limit");
+  let limit: number | undefined = undefined;
+
+  if (limitParam !== null && limitParam !== "") {
+    if (limitParam.length > 10) {
+      return NextResponse.json(
+        { error: "Invalid 'limit' parameter length (max 10 characters)" },
+        { status: 400 }
+      );
+    }
+    const parsedLimit = Number(limitParam);
+    if (!Number.isFinite(parsedLimit)) {
+      return NextResponse.json(
+        { error: "Invalid 'limit' format — expected a finite number" },
+        { status: 400 }
+      );
+    }
+    limit = parsedLimit;
+  }
 
   const items = await getFeedItems({ since, types, lang, limit });
 
