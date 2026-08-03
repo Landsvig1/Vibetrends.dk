@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 import { cacheLife } from "next/cache";
-import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads } from "@/lib/db";
+import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, isE2eFixtureId } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 
 const baseUrl = "https://vibetrends.dk";
@@ -52,10 +52,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // sourced lists (clis, mcpServers), not just the one the current fixture
   // happens to seed, so a future fixture category change can't silently
   // start leaking into the sitemap.
-  const isFixture = (id: string) => id.startsWith("e2e-fixture-");
-  const clis = clisRaw.filter((a) => !isFixture(a.id));
-  const mcpServers = mcpServersRaw.filter((a) => !isFixture(a.id));
-  const threads = threadsRaw.filter((t) => !isFixture(t.id));
+  const clis = clisRaw.filter((a) => !isE2eFixtureId(a.id));
+  const mcpServers = mcpServersRaw.filter((a) => !isE2eFixtureId(a.id));
+  const threads = threadsRaw.filter((t) => !isE2eFixtureId(t.id));
 
   // No source of truth for hub lastmod (they aggregate content that changes
   // independently of the hub itself) — omit it rather than guess.

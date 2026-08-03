@@ -40,6 +40,9 @@ vi.mock("@/lib/db", () => ({
   getCli: vi.fn(async () => mockClis),
   getBlogPosts: vi.fn(async () => state.posts),
   getThreads: vi.fn(async () => state.threads),
+  // Real implementation, not a stub: the sitemap and the hub layouts must agree
+  // on which rows count, and a mocked-away filter would hide a disagreement.
+  isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
 }));
 
 // SKILL_CATEGORY_SLUGS is used to generate /skills/topic/<slug> entries.

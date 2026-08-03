@@ -77,8 +77,9 @@ export function clampDescription(description: string): string {
 }
 
 const TITLE_MAX = 60;
-/** Brand appended to every title by entityMetadata. */
-const BRAND_SUFFIX = " | vibetrends.dk";
+const SITE_NAME = "vibetrends.dk";
+/** Brand appended to every document title by entityMetadata. */
+const BRAND_SUFFIX = ` | ${SITE_NAME}`;
 
 /**
  * Truncate the entity-name portion of a title so that the name plus
@@ -122,15 +123,25 @@ export function entityMetadata({
   const locale = lang === "en" ? "en_US" : "da_DK";
   const clampedDescription = clampDescription(description);
   const name = truncateTitle(title, suffix.length + BRAND_SUFFIX.length);
-  const fullTitle = `${name}${suffix}${BRAND_SUFFIX}`;
+  // The brand belongs in <title>, where it is the only thing naming the site in
+  // a SERP or a tab. A social card names the site through og:site_name instead,
+  // so repeating it in og:title would render the brand twice on one card.
+  const socialTitle = `${name}${suffix}`;
+  const documentTitle = `${socialTitle}${BRAND_SUFFIX}`;
 
   return {
-    title: { absolute: fullTitle },
+    title: { absolute: documentTitle },
     description: clampedDescription,
     alternates: { canonical: path },
     ...(robots ? { robots } : {}),
     openGraph: {
-      title: fullTitle,
+      title: socialTitle,
+      // Set here rather than inherited: Next replaces the whole `openGraph`
+      // object when a page supplies one, so the root layout's siteName was
+      // being dropped on every page that goes through this helper — only the
+      // homepage still carried it. og:title dropping the brand is only correct
+      // if the card names the site some other way, so these two go together.
+      siteName: SITE_NAME,
       description: clampedDescription,
       url: path,
       type,
@@ -139,7 +150,7 @@ export function entityMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: fullTitle,
+      title: socialTitle,
       description: clampedDescription,
       ...(image ? { images: [image] } : {}),
     },

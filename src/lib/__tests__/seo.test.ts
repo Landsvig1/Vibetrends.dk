@@ -57,11 +57,22 @@ describe("entityMetadata", () => {
     expect(m.title).toEqual({ absolute: "Blog | vibetrends.dk" });
   });
 
-  it("uses the same composed title for openGraph and twitter", () => {
+  // The brand is a <title> concern only; a social card names the site through
+  // og:site_name instead, so repeating it in og:title renders it twice.
+  it("omits the brand from openGraph and twitter titles, keeping it in <title>", () => {
     const m = entityMetadata({ title: "agr", suffix: " - CLIs", description: "D", path: "/cli/a1" });
-    const expected = "agr - CLIs | vibetrends.dk";
-    expect((m.openGraph as { title?: string }).title).toBe(expected);
-    expect((m.twitter as { title?: string }).title).toBe(expected);
+    expect(m.title).toEqual({ absolute: "agr - CLIs | vibetrends.dk" });
+    expect((m.openGraph as { title?: string }).title).toBe("agr - CLIs");
+    expect((m.twitter as { title?: string }).title).toBe("agr - CLIs");
+  });
+
+  it("still budgets for the brand when shortening, even though og drops it", () => {
+    const suffix = " - Vibe Coding Showcase";
+    const m = entityMetadata({ title: "A Very Long Project Name That Will Not Fit At All", suffix, description: "D", path: "/vibes/p1" });
+    const documentTitle = (m.title as { absolute: string }).absolute;
+    const socialTitle = (m.openGraph as { title?: string }).title!;
+    expect(documentTitle.length).toBeLessThanOrEqual(60);
+    expect(documentTitle).toBe(`${socialTitle} | vibetrends.dk`);
   });
 
   it("shortens only the entity name when the composed title runs long, never the suffix or brand", () => {
@@ -70,6 +81,14 @@ describe("entityMetadata", () => {
     const title = (m.title as { absolute: string }).absolute;
     expect(title.length).toBeLessThanOrEqual(60);
     expect(title.endsWith(`${suffix} | vibetrends.dk`)).toBe(true);
+  });
+
+  // Next replaces the whole openGraph object when a page supplies one, so the
+  // root layout's siteName never reached any page using this helper. Dropping
+  // the brand from og:title is only safe because this puts it back.
+  it("sets og:site_name rather than relying on the root layout to supply it", () => {
+    const m = entityMetadata({ title: "agr", suffix: " - CLIs", description: "D", path: "/cli/a1" });
+    expect((m.openGraph as { siteName?: string }).siteName).toBe("vibetrends.dk");
   });
 
   it("omits robots by default and passes an explicit value through", () => {

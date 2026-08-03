@@ -13,9 +13,9 @@ import type { Agent } from "@/lib/db";
  * arithmetic now call the real function with mock callbacks and fetch so a
  * real regression would be caught.
  *
- * AgentsExplorer serves three routes (/cli, /mcp, /agents) — the same filter
- * and mutation logic applies across all three. Tests are written
- * scope-agnostically where possible.
+ * AgentsExplorer serves two routes (/cli, /mcp) — the same filter and
+ * mutation logic applies across both. Tests are written scope-agnostically
+ * where possible.
  */
 
 function makeAgent(

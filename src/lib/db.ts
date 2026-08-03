@@ -125,6 +125,18 @@ export interface BlogPost {
   category: "Guides" | "Agents" | "Workflow";
 }
 
+/**
+ * scripts/seed-e2e-fixtures.mjs writes fixture rows into the *live* tables
+ * (forum_threads, agents, vibes) for the duration of a CI run. Anything that
+ * decides what the outside world sees — sitemap membership, robots indexability
+ * — has to discount them, or a build landing inside a seed window publishes a
+ * hub on the strength of a row that is about to be deleted.
+ *
+ * Shared rather than re-derived per call site: sitemap.ts and the hub layouts
+ * must agree on emptiness, and they silently disagreed when only one filtered.
+ */
+export const isE2eFixtureId = (id: string) => id.startsWith("e2e-fixture-");
+
 export interface Agent {
   id: string;
   name: string;

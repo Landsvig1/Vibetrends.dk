@@ -51,7 +51,7 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
   const { id } = await params;
 
   const agent = await getAgentById(id, 'da');
-  // Only MCP servers belong here; everything else is a regular agent at /agents/[id].
+  // Only MCP servers belong here; CLI rows live at /cli/[id].
   if (!agent || agent.category !== "MCP Server") {
     notFound();
   }

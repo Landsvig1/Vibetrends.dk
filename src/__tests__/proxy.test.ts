@@ -213,65 +213,161 @@ describe("proxy — redirect rules are unaffected", () => {
 // ---------------------------------------------------------------------------
 
 describe("proxy — /agents/:id maps to the row's surviving canonical", () => {
+  // Each test uses a distinct id: legacyAgentTarget memoises resolved answers
+  // in a module-level map, so reusing an id would serve a prior test's result.
+
   it("sends a CLI row to /cli/:id with a real 308", async () => {
     stubAgentLookup([{ category: "CLI" }]);
-    const response = await proxy(req("https://vibetrends.dk/agents/a_123"));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_cli_1"));
     expect(response.status).toBe(308);
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/a_123");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/a_cli_1");
   });
 
   it("sends an MCP Server row to /mcp/:id", async () => {
     stubAgentLookup([{ category: "MCP Server" }]);
-    const response = await proxy(req("https://vibetrends.dk/agents/a_456"));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_mcp_1"));
     expect(response.status).toBe(308);
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/mcp/a_456");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/mcp/a_mcp_1");
   });
 
   // No /agents/[id] route exists behind these, so falling through means Next's
   // own router answers with a real 404 rather than a soft one.
-  it("falls through for a row that no longer exists", async () => {
+  it("falls through to a 404 for a row that no longer exists", async () => {
     stubAgentLookup([]);
-    const response = await proxy(req("https://vibetrends.dk/agents/gone"));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_gone_1"));
     expect(response.headers.get("location")).toBeNull();
+    expect(response.status).not.toBe(503);
   });
 
   it("falls through for a Host row — hosts have no detail page to land on", async () => {
     stubAgentLookup([{ category: "Host" }]);
-    const response = await proxy(req("https://vibetrends.dk/agents/a_789"));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_host_1"));
     expect(response.headers.get("location")).toBeNull();
+    expect(response.status).not.toBe(503);
   });
+});
 
-  it("falls through rather than erroring when the lookup fails", async () => {
+// ---------------------------------------------------------------------------
+// Lookup failure must not masquerade as "row is gone".
+//
+// A 404 tells a crawler the URL is permanently gone, so answering a transient
+// Supabase failure with one deindexes a legacy URL that has a valid target —
+// the exact opposite of what this redirect exists to do. An earlier revision
+// collapsed both cases into `null` and did precisely that.
+// ---------------------------------------------------------------------------
+
+describe("proxy — /agents/:id distinguishes 'absent' from 'lookup failed'", () => {
+  it("answers 503 with Retry-After when the lookup errors", async () => {
     stubAgentLookup(null);
-    const response = await proxy(req("https://vibetrends.dk/agents/a_123"));
-    expect(response.headers.get("location")).toBeNull();
+    const response = await proxy(req("https://vibetrends.dk/agents/a_err_1"));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("120");
   });
 
-  it("falls through without calling out when Supabase env vars are unset", async () => {
+  it("answers 503 when the lookup throws rather than returning a status", async () => {
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNRESET"); }));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_err_2"));
+    expect(response.status).toBe(503);
+  });
+
+  it("answers 503 — not 404 — when Supabase env vars are unset", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await proxy(req("https://vibetrends.dk/agents/a_123"));
+    const response = await proxy(req("https://vibetrends.dk/agents/a_err_3"));
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).toBe(503);
   });
 
-  it("url-encodes the id into the lookup so a crafted id cannot inject filters", async () => {
+  it("does not cache a failure — a later success for the same id still redirects", async () => {
+    stubAgentLookup(null);
+    expect((await proxy(req("https://vibetrends.dk/agents/a_flap_1"))).status).toBe(503);
+
+    stubAgentLookup([{ category: "CLI" }]);
+    const recovered = await proxy(req("https://vibetrends.dk/agents/a_flap_1"));
+    expect(recovered.status).toBe(308);
+    expect(new URL(recovered.headers.get("location")!).pathname).toBe("/cli/a_flap_1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lookup caching — `agents` ids are immutable, so a resolved answer stays true.
+// Caching misses is the part that matters: it stops someone enumerating the
+// retired namespace from turning each cheap 404 into a Supabase round-trip.
+// ---------------------------------------------------------------------------
+
+describe("proxy — /agents/:id caches resolved lookups", () => {
+  it("does not re-query for a repeated hit", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([{ category: "CLI" }]), { status: 200 }));
     stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await proxy(req("https://vibetrends.dk/agents/a_cache_hit"));
+    await proxy(req("https://vibetrends.dk/agents/a_cache_hit"));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-query for a repeated miss — the enumeration guard", async () => {
+    const fetchMock = vi.fn(async () => new Response("[]", { status: 200 }));
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await proxy(req("https://vibetrends.dk/agents/a_cache_miss"));
+    await proxy(req("https://vibetrends.dk/agents/a_cache_miss"));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Id encoding. `pathname` arrives already percent-encoded, so the id has to be
+// decoded before being re-encoded into the PostgREST filter — encoding it
+// twice escapes the escapes and turns a legal spelling of a real id into a miss.
+// ---------------------------------------------------------------------------
+
+describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
+  it("resolves a percent-encoded spelling of a real id", async () => {
+    const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(
+      async () => new Response(JSON.stringify([{ category: "CLI" }]), { status: 200 })
+    );
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // "a%5F123" is a legal encoding of "a_123". Double-encoding would query for
+    // the literal string "a%5F123", miss, and 404 a URL that has a target.
+    const response = await proxy(req("https://vibetrends.dk/agents/a%5F123"));
+
+    const requested = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(requested.searchParams.get("id")).toBe("eq.a_123");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/a_123");
+  });
+
+  it("keeps a crafted id inside the id filter instead of starting a new parameter", async () => {
     const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(
       async () => new Response("[]", { status: 200 })
     );
+    stubSupabaseEnv();
     vi.stubGlobal("fetch", fetchMock);
-    await proxy(req("https://vibetrends.dk/agents/a_1%26select=*"));
+    await proxy(req("https://vibetrends.dk/agents/a_2%26select=*"));
 
-    // The whole id stays inside the id=eq. filter — the crafted "&" is escaped
-    // rather than starting a second PostgREST parameter, so the only query
-    // params the server sees are the three we built.
     const requested = new URL(String(fetchMock.mock.calls[0][0]));
     expect([...requested.searchParams.keys()]).toEqual(["id", "select", "limit"]);
+    expect(requested.searchParams.get("id")).toBe("eq.a_2&select=*");
     expect(requested.searchParams.get("select")).toBe("category");
-    expect(requested.searchParams.get("id")).toContain("select=*");
+  });
+
+  it("treats malformed percent-encoding as a miss rather than throwing", async () => {
+    const fetchMock = vi.fn();
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxy(req("https://vibetrends.dk/agents/a_bad%ZZ"));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).not.toBe(503);
+    expect(response.headers.get("location")).toBeNull();
   });
 });
