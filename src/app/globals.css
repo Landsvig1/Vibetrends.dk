@@ -243,7 +243,7 @@ textarea:focus-visible,
 .skill-doc strong { color: var(--foreground); font-weight: 700; }
 
 .skill-doc blockquote {
-  border-left: 3px solid var(--card-border);
+  border-left: 1px solid var(--card-border);
   padding-left: 1rem;
   font-style: italic;
 }
