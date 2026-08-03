@@ -49,3 +49,11 @@ docs/marketing/gtm-90-days.md
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# impeccable: machine-local hook wiring and detector caches.
+# The design system itself — DESIGN.md, PRODUCT.md, .impeccable/design.json —
+# is committed.
+.claude/settings.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/config.local.json

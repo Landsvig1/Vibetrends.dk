@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useLanguage } from "./LanguageProvider";
 import KoalaIcon from "./KoalaIcon";
 
 export default function Footer() {
-  const { t } = useLanguage();
-
   return (
     <footer style={{ viewTransitionName: "site-footer" }} className="mt-auto border-t border-card-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -22,63 +19,63 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm text-text-secondary max-w-xs">
-              {t("footer.desc")}
+              AI-tools og viden, udvalgt til Danmark. For mennesker og agenter.
             </p>
           </div>
 
           {/* Links sections */}
           <div className="mt-8 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div>
-              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.platform")}</h3>
+              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Platform</h3>
               <ul className="mt-4 space-y-2">
                 <li>
                   <Link href="/skills" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.skills")}
+                    Skills Bibliotek
                   </Link>
                 </li>
                 <li>
                   <Link href="/vibes" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.showcase")}
+                    Project Showcase
                   </Link>
                 </li>
                 <li>
                   <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.forum")}
+                    Forum
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t("footer.resources")}</h3>
+              <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Ressourcer</h3>
               <ul className="mt-4 space-y-2">
                 <li>
                   <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.blog")}
+                    Blog & Guides
                   </Link>
                 </li>
                 <li>
                   <Link href="/agents" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.agents")}
+                    Agent & MCP Registry
                   </Link>
                 </li>
                 <li>
                   <Link href="/about" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.about")}
+                    Om vibetrends.dk
                   </Link>
                 </li>
                 <li>
                   <Link href="/agent-guide" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.agent_guide")}
+                    Agent Guide
                   </Link>
                 </li>
                 <li>
                   <Link href="/privacy" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.privacy")}
+                    Privatlivspolitik
                   </Link>
                 </li>
                 <li>
                   <Link href="/terms" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    {t("footer.terms")}
+                    Brugervilkår
                   </Link>
                 </li>
               </ul>

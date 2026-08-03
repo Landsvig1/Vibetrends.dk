@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getThreads } from "@/lib/db";
 import { jsonLdScript } from "@/lib/jsonLd";
 import ForumLoading from "./loading";
@@ -59,9 +57,6 @@ export async function ForumPageContent({
 }: {
   searchParams: Promise<{ category?: string; view?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const view = getValidForumView(resolvedParams?.view);
   const serverSort = view === "new" ? "new" : "top";
@@ -77,7 +72,7 @@ export async function ForumPageContent({
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
   // The batched reply fetch (thread_replies .in('thread_id', threadIds)) runs
   // inside getThreads — reply counts are populated server-side.
-  const threads = await getThreads({ category, lang, sort: serverSort });
+  const threads = await getThreads({ category, lang: 'da', sort: serverSort });
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously the forum hub had NO JSON-LD at all — the

@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getProjects } from "@/lib/db";
 import { jsonLdScript } from "@/lib/jsonLd";
 import ShowcaseLoading from "./loading";
@@ -47,9 +45,6 @@ export async function VibesPageContent({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const search = resolvedParams?.q || undefined;
 
@@ -58,7 +53,7 @@ export async function VibesPageContent({
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
   // When ?q= is present (human search box or ?format=json agent call), pass it
   // through so the server-rendered result and JSON-LD reflect the filtered list.
-  const projects = await getProjects(search, lang, "top");
+  const projects = await getProjects(search, 'da', "top");
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously this was built from filteredProjects client

@@ -1,7 +1,7 @@
 // Seeds deterministic fixture rows for the e2e suite (a forum thread, a CLI
-// entry) so tests/e2e/basic.spec.ts doesn't depend on whatever happens to
-// exist in production. Run before `playwright test`; tests/e2e/global-teardown.mjs
-// removes exactly the rows this run creates.
+// entry, a showcase project) so tests/e2e/basic.spec.ts doesn't depend on
+// whatever happens to exist in production. Run before `playwright test`;
+// tests/e2e/global-teardown.mjs removes exactly the rows this run creates.
 //
 // Ids embed a per-run epoch (mirrors createProject/createSkill's p_/s_
 // convention in src/lib/db.ts) so concurrent CI runs never collide on a
@@ -29,11 +29,11 @@ const STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 const FIXTURES_MANIFEST = path.join(process.cwd(), '.e2e-fixtures.json');
 
 function epochFromFixtureId(id) {
-  const match = id.match(/^e2e-fixture-(?:thread|cli)-(\d+)$/);
+  const match = id.match(/^e2e-fixture-(?:thread|cli|vibe)-(\d+)$/);
   return match ? Number(match[1]) : null;
 }
 
-// `table` is always one of the two hardcoded literals passed below — never
+// `table` is always one of the three hardcoded literals passed below, never
 // caller/environment-controlled — so interpolating it into the query is safe
 // here, but do not extend this function to accept a caller-supplied table
 // name without adding an allowlist check first.
@@ -63,13 +63,18 @@ async function run() {
   try {
     await cleanupStale(client, 'forum_threads');
     await cleanupStale(client, 'agents');
+    await cleanupStale(client, 'vibes');
 
     const now = Date.now();
     const threadId = `e2e-fixture-thread-${now}`;
     const cliId = `e2e-fixture-cli-${now}`;
+    const vibeId = `e2e-fixture-vibe-${now}`;
+    // Per-run unique so a test can match it exactly even if a stale fixture
+    // from a crashed earlier run is still present.
+    const vibeTitle = `E2E Fixture Projekt ${now}`;
 
-    // Both inserts in one transaction: if the second insert fails, the first
-    // is rolled back too, so a partial-success case never leaves a row
+    // All inserts in one transaction: if a later insert fails, the earlier
+    // ones are rolled back too, so a partial-success case never leaves a row
     // committed that the (never-written) manifest wouldn't know to clean up.
     try {
       await client.query('BEGIN');
@@ -112,6 +117,32 @@ async function run() {
         ]
       );
 
+      // is_danish: true, because /vibes defaults to the Dansk tab and an
+      // English-only fixture would be filtered out of the list the test reads.
+      //
+      // image_url is a local /public asset, not a remote URL: next.config.ts
+      // builds images.remotePatterns from getAllowedImageHostnames(), so a
+      // remote host that isn't on that list throws at render time. A local
+      // path can never drift out of sync with that allowlist.
+      await client.query(
+        `insert into public.vibes
+           (id, title_da, title_en, author, description_da, description_en,
+            tools, prompts, upvotes, demo_url, image_url, is_danish)
+         values ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)`,
+        [
+          vibeId,
+          vibeTitle,
+          'e2e-fixture-bot',
+          'Projekt-fixture brugt af e2e-testsuiten. Fjernes automatisk efter kørslen.',
+          'Project fixture used by the e2e test suite. Removed automatically after the run.',
+          ['Playwright'],
+          [],
+          1,
+          'https://vibetrends.dk/',
+          '/images/autonewsletter.jpg',
+        ]
+      );
+
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -120,10 +151,21 @@ async function run() {
 
     fs.writeFileSync(
       FIXTURES_MANIFEST,
-      JSON.stringify({ forum_threads: [threadId], agents: [cliId] }, null, 2)
+      JSON.stringify(
+        {
+          forum_threads: [threadId],
+          agents: [cliId],
+          vibes: [vibeId],
+          // Titles the specs assert against, so tests/e2e/basic.spec.ts never
+          // has to reconstruct the naming scheme used above.
+          titles: { vibes: vibeTitle },
+        },
+        null,
+        2
+      )
     );
 
-    console.log(`Seeded fixtures: ${threadId}, ${cliId}`);
+    console.log(`Seeded fixtures: ${threadId}, ${cliId}, ${vibeId}`);
   } finally {
     await client.end();
   }

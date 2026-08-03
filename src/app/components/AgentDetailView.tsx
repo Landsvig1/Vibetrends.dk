@@ -1,28 +1,30 @@
 import Link from "next/link";
 import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Globe, ShieldCheck } from "lucide-react";
 import { Agent } from "@/lib/db";
-import { translations, Language } from "@/lib/translations";
 import AgentActionSection from "./AgentActionSection";
 import ConnectBlock from "./ConnectBlock";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { deriveVibeInsights } from "@/lib/vibeInsights";
 
-const INSIGHT_DOT_COLORS = ["bg-violet-500", "bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-sky-500"];
+// Single-ink ramp: insights are distinguished by descending emphasis, not by hue
+// (see DESIGN.md, The Single Ink Rule).
+const INSIGHT_DOT_COLORS = [
+  "bg-accent-primary",
+  "bg-accent-primary/75",
+  "bg-accent-primary/55",
+  "bg-accent-primary/40",
+  "bg-accent-primary/25",
+];
 
 // Shared detail view for an Agent or an MCP server (same `agents` table shape).
 // `backHref` controls where the back link returns (/agents or /mcp).
 export default function AgentDetailView({
   agent,
-  lang,
   backHref,
 }: {
   agent: Agent;
-  lang: Language;
   backHref: string;
 }) {
-  const tDict = translations[lang] || translations.da;
-  const t = (key: keyof typeof translations.da) => tDict[key] || translations.da[key];
-
   const categoryIcons = {
     "CLI": <Terminal className="h-5 w-5" />,
     "MCP Server": <Cpu className="h-5 w-5" />,
@@ -32,7 +34,7 @@ export default function AgentDetailView({
   // MCP servers and CLIs are both backed by the agents table; map the row
   // category to its feed type so the connect recipe is host-appropriate.
   const feedType = agent.category === "MCP Server" ? "mcp-servers" : "cli";
-  const insights = deriveVibeInsights(agent, lang);
+  const insights = deriveVibeInsights(agent, "da");
 
   return (
     <div className="space-y-10">
@@ -58,7 +60,7 @@ export default function AgentDetailView({
         className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        {t("agents.detail.back")}
+        Tilbage til Registry
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -72,7 +74,7 @@ export default function AgentDetailView({
             <div className="flex justify-between items-start gap-4 relative z-10">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                   <div className="p-2.5 rounded-xl bg-violet-600/20 border border-accent-primary/20 text-accent-primary">
+                   <div className="p-2.5 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary">
                      {categoryIcons[agent.category as keyof typeof categoryIcons] || <Cpu className="h-5 w-5" />}
                    </div>
                    <span className="text-xs font-bold text-accent-primary uppercase tracking-widest">{agent.category}</span>
@@ -81,7 +83,7 @@ export default function AgentDetailView({
                   {agent.name}
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-accent-primary">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-accent-light border border-accent-primary/20 text-accent-primary">
                 <Heart className="h-4 w-4 fill-current" />
                 <span className="font-mono font-bold">{agent.upvotes}</span>
               </div>
@@ -102,13 +104,13 @@ export default function AgentDetailView({
             <div className="flex items-center space-x-4 pt-6 border-t border-card-border text-xs text-text-secondary relative z-10">
                <div className="flex items-center space-x-2">
                  <User className="h-4 w-4" />
-                 <span>{lang === "da" ? "Udgivet af" : "Published by"} <span className="text-text-secondary font-bold">@{agent.developer}</span></span>
+                 <span>Udgivet af <span className="text-text-secondary font-bold">@{agent.developer}</span></span>
                </div>
                <span className="text-text-secondary">&middot;</span>
                <div className="flex items-center space-x-2">
                  <ShieldCheck className="h-4 w-4 text-accent-primary" />
                  <span className="text-accent-primary/80">
-                   {lang === "da" ? "Verificeret Vibe Tool" : "Verified Vibe Tool"}
+                   Verificeret Vibe Tool
                  </span>
                </div>
                {agent.sourceUrl && (
@@ -122,7 +124,7 @@ export default function AgentDetailView({
                    >
                      <Globe className="h-4 w-4" />
                      <span className="font-bold underline-offset-2 hover:underline">
-                       {lang === "da" ? "Kilde" : "Source"}
+                       Kilde
                      </span>
                    </a>
                  </>
@@ -135,14 +137,13 @@ export default function AgentDetailView({
             <div className="flex items-center justify-between">
                <h3 className="text-lg font-bold text-foreground flex items-center">
                  <Terminal className="h-5 w-5 mr-2 text-accent-primary" />
-                 {t("agents.detail.prompt")}
+                 System Prompt
                </h3>
                <span className="text-[10px] text-text-secondary font-mono uppercase tracking-widest bg-background px-2 py-1 rounded border border-card-border">
                  Raw Output
                </span>
             </div>
             <div className="relative group">
-               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-violet-500/5 rounded-2xl -m-0.5" />
                <div className="relative p-6 rounded-2xl bg-background border border-card-border font-mono text-sm text-text-secondary leading-relaxed whitespace-pre-wrap overflow-x-auto shadow-inner">
                   {agent.systemPrompt}
                </div>
@@ -157,7 +158,6 @@ export default function AgentDetailView({
            <ConnectBlock
              feedType={feedType}
              item={{ name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}
-             lang={lang}
            />
            <AgentActionSection agent={agent} backHref={backHref} />
 
@@ -177,7 +177,7 @@ export default function AgentDetailView({
                 </ul>
               ) : (
                 <p className="text-xs text-text-secondary italic">
-                  {lang === "da" ? "Ingen automatiske indsigter endnu." : "No automated insights yet."}
+                  Ingen automatiske indsigter endnu.
                 </p>
               )}
            </div>

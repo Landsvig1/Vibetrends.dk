@@ -5,7 +5,6 @@ import { Heart, Trash2, Terminal } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { useAuth } from "@/app/components/AuthProvider";
 import { canDelete } from "@/lib/permissions";
-import { useLanguage } from "@/app/components/LanguageProvider";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
@@ -16,7 +15,6 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user } = useAuth();
-  const { language, t } = useLanguage();
   const router = useRouter();
 
   const handleCopyCommand = (command: string, type: "prompt") => {
@@ -48,7 +46,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
   };
 
   const handleDeleteAgent = async () => {
-    if (!confirm(t("agents.confirm_delete"))) return;
+    if (!confirm("Er du sikker på, at du vil afregistrere denne agent?")) return;
 
     try {
       const res = await fetch(`/api/agents/${agent.id}`, {
@@ -69,18 +67,18 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
         <div className="grid grid-cols-1 gap-3">
            <button
              onClick={handleUpvote}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-accent-primary font-bold hover:bg-rose-500/20 transition active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary font-bold hover:bg-accent-primary/10 transition active:scale-[0.98] cursor-pointer"
            >
              <Heart className="h-4 w-4 fill-current" />
-             {language === "da" ? "Upvote Agent" : "Upvote Agent"}
+             Upvote Agent
            </button>
            
            <button
              onClick={() => handleCopyCommand(agent.systemPrompt, "prompt")}
-             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-violet-600/10 border border-accent-primary/20 text-accent-primary font-bold hover:bg-violet-600/20 transition active:scale-[0.98] cursor-pointer"
+             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary font-bold hover:bg-accent-primary/10 transition active:scale-[0.98] cursor-pointer"
            >
              <Terminal className="h-4 w-4" />
-             {copiedId === "prompt" ? t("agents.detail.prompt_copied") : t("agents.detail.copy_prompt")}
+             {copiedId === "prompt" ? "Kopieret!" : "Kopier Prompt"}
            </button>
         </div>
 
@@ -91,7 +89,7 @@ export default function AgentActionSection({ agent: initialAgent, backHref = "/a
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent-light border border-accent-primary/20 text-accent-primary/70 hover:text-accent-primary hover:bg-accent-light transition text-xs font-bold cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {language === "da" ? "Afregistrer Agent" : "Unregister Agent"}
+              Afregistrer Agent
             </button>
           </div>
         )}

@@ -1,4 +1,68 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+
+// Every list-card locator in this file goes through `cards()`, which scopes the
+// query to <main>. That scoping is load-bearing, not cosmetic.
+//
+// These pages stream through nested Suspense boundaries (layout.tsx wraps the
+// whole tree, and e.g. vibes/page.tsx wraps its data fetch). React streams each
+// boundary's HTML into a staging container appended to <body>, of the form
+// `<div hidden id="S:2">...</div>`, then reveals it with an inline `$RS`/`$RC`
+// script that moves the nodes into their real slot. When the boundaries resolve
+// in certain orders, one of those staging containers is left behind in <body>,
+// still `hidden`, still holding a full duplicate copy of the page content.
+//
+// The visible page is fine (users never see this), but an unscoped
+// `page.getByTestId('project-card').first()` binds to the orphaned copy,
+// because it sits earlier in DOM order than the real <main>. It is `hidden`
+// permanently, so `toBeVisible()` can never pass and no timeout helps. This is
+// exactly what made the /vibes detail test fail 4/4 in CI while passing 10/10
+// locally (issue #98): flush boundaries differ between a local direct Postgres
+// connection and CI's slower Supabase pooler, so the orphan only survives in
+// CI. Scoping to <main> excludes the staging container entirely.
+const cards = (page: import('@playwright/test').Page, testId: string) =>
+  page.locator('main').getByTestId(testId);
+
+// Titles of the rows scripts/seed-e2e-fixtures.mjs seeded for this run. Tests
+// assert against these instead of whatever happens to top the live production
+// list, so a new real project or an admin edit can't change what is asserted.
+// Falls back to null when the manifest is absent (someone running `playwright
+// test` without the seed step), in which case tests degrade to the old
+// first-card behaviour rather than failing outright.
+function fixtureProjectTitle(): string | null {
+  const manifestPath = path.join(process.cwd(), '.e2e-fixtures.json');
+  if (!fs.existsSync(manifestPath)) return null;
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  return manifest.titles?.vibes ?? null;
+}
+
+// Opens /vibes narrowed to the seeded fixture project, and returns its card.
+//
+// The ?q= is not decoration, it is what makes the fixture reachable at all.
+// getProjects() is a `"use cache"` function with cacheLife('max') keyed by
+// (search, lang, sort), and it is only ever invalidated by revalidateTag()
+// inside createProject(). scripts/seed-e2e-fixtures.mjs inserts over raw SQL,
+// which runs nowhere near that tag, so a warm cache serves a project list that
+// predates the fixture and the row is simply absent from plain /vibes.
+// (Verified locally 2026-08-03: plain /vibes rendered 0 fixture cards against a
+// warm cache, /vibes?q=<title> rendered 1.) The per-run title is unique, so the
+// query is always a cache miss and always hits Postgres. CI happens to build
+// with a cold cache today, which is the only reason the existing forum/CLI
+// fixtures work there without this trick. Do not rely on that staying true.
+//
+// Falls back to plain /vibes and the first card when no manifest exists, so
+// `playwright test` still works without the seed step.
+async function openProjectCard(page: import('@playwright/test').Page) {
+  const title = fixtureProjectTitle();
+  await page.goto(title ? `/vibes?q=${encodeURIComponent(title)}` : '/vibes');
+  await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
+
+  const all = cards(page, 'project-card');
+  return title
+    ? all.filter({ has: page.getByRole('heading', { name: title, exact: true }) })
+    : all.first();
+}
 
 test.describe('VibeTrends.dk Core Flows', () => {
   test('should load the homepage and show featured content', async ({ page }) => {
@@ -36,37 +100,39 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // info icon (aria-label = "Se Detaljer") that navigates to the
     // internal /vibes/[id] detail page. This test asserts the overlay; the
     // info icon is covered by the detail-navigation test below.
-    await page.goto('/vibes');
+    const targetProject = await openProjectCard(page);
+    // /vibes is partial-prerendered — this data streams in after the static
+    // shell, and a cold CI runner's Supabase connection can occasionally push
+    // that past the 5s default. Widen rather than tighten (see the same
+    // rationale elsewhere in this file for cold-start latency).
+    await expect(targetProject).toBeVisible({ timeout: 15000 });
+    const projectTitle = (await targetProject.locator('h3').innerText()).trim();
 
-    await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
-
-    const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
-    const projectTitle = (await firstProject.locator('h3').innerText()).trim();
-
-    const overlay = firstProject.getByRole('link', { name: projectTitle });
+    const overlay = targetProject.getByRole('link', { name: projectTitle });
     await expect(overlay).toBeVisible();
     await expect(overlay).toHaveAttribute('target', '_blank');
 
     // Cross-check the rendered href against the API's demoUrl for this
-    // project, rather than only asserting the href is non-empty.
-    const projects = await (await page.request.get('/api/vibes')).json();
+    // project, rather than only asserting the href is non-empty. Narrowed by
+    // ?search= for the same cache-miss reason openProjectCard() uses ?q=; note
+    // the route's param is `search`, not `q`.
+    const projects = await (
+      await page.request.get(`/api/vibes?search=${encodeURIComponent(projectTitle)}`)
+    ).json();
     const project = projects.find((p: { title: string }) => p.title === projectTitle);
     expect(project?.demoUrl).toBeTruthy();
     await expect(overlay).toHaveAttribute('href', project.demoUrl);
   });
 
   test('project card info icon opens the /vibes/[id] detail page', async ({ page }) => {
-    await page.goto('/vibes');
-    await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
-
-    const firstProject = page.getByTestId('project-card').first();
-    await expect(firstProject).toBeVisible();
-    const projectTitle = (await firstProject.locator('h3').innerText()).trim();
+    const targetProject = await openProjectCard(page);
+    // See the cold-start rationale in the test above.
+    await expect(targetProject).toBeVisible({ timeout: 15000 });
+    const projectTitle = (await targetProject.locator('h3').innerText()).trim();
 
     // The card-wide overlay now opens the external demo site (see the test
     // above), so detail navigation goes through the dedicated info icon link.
-    await firstProject.getByRole('link', { name: 'Se Detaljer' }).click();
+    await targetProject.getByRole('link', { name: 'Se Detaljer' }).click();
     await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
     await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
   });
@@ -78,15 +144,14 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // "Developer Forum") — a bare /^Forum$/ can never match it.
     await expect(page.getByRole('heading', { name: 'Developer Forum' })).toBeVisible();
     
-    // Check categories. The suite defaults to da (no language cookie set),
-    // and the bilingual-labels feature resolves category keys to locale
-    // labels (src/lib/forumCategories.ts) — "General" renders as "Generelt"
-    // under da, not the raw English key.
+    // Check categories. forumCategoryLabel() resolves category keys to their
+    // Danish label (src/lib/forumCategories.ts) — "General" renders as
+    // "Generelt", not the raw English key.
     await expect(page.getByRole('button', { name: 'Generelt', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Prompts', exact: true })).toBeVisible();
     
     // Click a thread card
-    const firstThread = page.getByTestId('thread-card').first();
+    const firstThread = cards(page, 'thread-card').first();
     await expect(firstThread).toBeVisible();
     
     const threadTitle = await firstThread.locator('h3').innerText();
@@ -104,7 +169,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.getByRole('heading', { name: /CLIs/i })).toBeVisible();
 
     // Check a detail page
-    const firstCli = page.getByTestId('cli-card').first();
+    const firstCli = cards(page, 'cli-card').first();
     await expect(firstCli).toBeVisible();
     await firstCli.click({ position: { x: 50, y: 50 } });
 
@@ -173,48 +238,4 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('#mobile-menu').getByText('@testuser_vibe')).toBeVisible();
   });
 
-  test('should toggle language between Danish and English and persist via cookie', async ({ page, context }) => {
-    // Two 45s toPass retry budgets below can't fit inside Playwright's default
-    // 30s per-test timeout with room left for the rest of the test — extend
-    // this test specifically rather than raising the suite-wide default.
-    test.setTimeout(120000);
-    await page.goto('/');
-
-    // 1. By default, it should be in Danish. Check a Danish phrase or link.
-    await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible();
-    await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible();
-
-    // 2 & 3. Click EN and verify it switches to English. Retry the whole
-    // interaction so a click landing before React hydration (which would be
-    // silently dropped) doesn't flake the test — real users can't click that fast.
-    // Inner timeouts widened from 8000ms/outer 30000ms: the language toggle's
-    // router.refresh() re-runs the homepage's DB queries against Supabase's
-    // pooler, which on a cold CI runner can genuinely take longer than 8s —
-    // this isn't masking a bug (the refresh mechanism itself is verified
-    // correct), just accommodating real cold-start query latency.
-    await expect(async () => {
-      await page.locator('header').getByRole('button', { name: 'EN', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 20000 });
-    }).toPass({ timeout: 45000 });
-
-    // 4. Verify cookie 'vibe_lang' is set to 'en'
-    const cookies = await context.cookies();
-    const langCookie = cookies.find(c => c.name === 'vibe_lang');
-    expect(langCookie).toBeDefined();
-    expect(langCookie?.value).toBe('en');
-
-    // 5. Reload page to test server-side persistence
-    await page.reload();
-    await expect(page.locator('header').getByRole('button', { name: 'Log in' })).toBeVisible();
-    await expect(page.getByText('Good AI tools. Even agents come here for them.')).toBeVisible({ timeout: 10000 });
-
-    // 6. Click DA toggle back. Same retry rationale as step 2 — this click
-    // comes right after a reload, so hydration may not be finished yet.
-    await expect(async () => {
-      await page.locator('header').getByRole('button', { name: 'DA', exact: true }).click();
-      await expect(page.locator('header').getByRole('button', { name: 'Log ind' })).toBeVisible({ timeout: 20000 });
-      await expect(page.getByText('Gode AI-tools. Selv agenter henter dem her.')).toBeVisible({ timeout: 20000 });
-    }).toPass({ timeout: 45000 });
-  });
 });

@@ -1,7 +1,6 @@
 import { FileText, ExternalLink } from "lucide-react";
 import { getSkillDoc } from "@/lib/db";
 import { renderSkillDocHtml } from "@/lib/skillDocMarkdown";
-import { Language } from "@/lib/translations";
 
 /**
  * Renders the skill's own SKILL.md / README.md, pulled from its source repo by
@@ -15,21 +14,19 @@ import { Language } from "@/lib/translations";
  * github_url, its repo may have neither file, or it may never have been
  * refreshed. All three are normal.
  */
-export default async function SkillDocSection({ id, lang }: { id: string; lang: Language }) {
+export default async function SkillDocSection({ id }: { id: string }) {
   const doc = await getSkillDoc(id);
   if (!doc) return null;
 
   const html = renderSkillDocHtml(doc.markdown, doc.sourceUrl);
   if (!html.trim()) return null;
 
-  const da = lang === "da";
-
   return (
     <section className="p-8 rounded-2xl glass-panel border border-card-border space-y-5 shadow-2xl">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-card-border">
         <h2 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center">
           <FileText className="h-4 w-4 mr-2 text-accent-primary" />
-          {da ? "Dokumentation" : "Documentation"}
+          Dokumentation
         </h2>
         <a
           href={doc.sourceUrl}
@@ -43,9 +40,7 @@ export default async function SkillDocSection({ id, lang }: { id: string; lang: 
       </div>
 
       <p className="text-xs text-text-secondary">
-        {da
-          ? "Nedenstående er skillens egen dokumentation, hentet fra kildekoderepoet. Ophavsret tilhører forfatteren."
-          : "Below is the skill's own documentation, fetched from its source repository. Copyright remains with its author."}
+        Nedenstående er skillens egen dokumentation, hentet fra kildekoderepoet. Ophavsret tilhører forfatteren.
       </p>
 
       {/* Sanitized in renderSkillDocHtml: an allowlist of tags, no <img>, no
@@ -55,14 +50,14 @@ export default async function SkillDocSection({ id, lang }: { id: string; lang: 
 
       {doc.truncated && (
         <p className="text-xs text-text-secondary pt-4 border-t border-card-border">
-          {da ? "Dokumentationen er forkortet. " : "This documentation is abridged. "}
+          Dokumentationen er forkortet.{" "}
           <a
             href={doc.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-accent-primary underline underline-offset-2"
           >
-            {da ? "Læs den fulde version på GitHub" : "Read the full version on GitHub"}
+            Læs den fulde version på GitHub
           </a>
           .
         </p>

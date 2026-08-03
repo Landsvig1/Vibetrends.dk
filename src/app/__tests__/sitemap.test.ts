@@ -21,11 +21,14 @@ vi.mock("next/cache", () => ({
 
 // Minimal shape matching what the sitemap function accesses from each row.
 const mockSkills = [{ id: "skill-1" }, { id: "skill-2" }];
-const mockProjects = [{ id: "proj-1" }];
+const mockProjects = [{ id: "proj-1", createdAt: "2026-05-01T00:00:00Z" }];
 const mockClis = [{ id: "cli-1" }, { id: "e2e-fixture-ignored" }];
 const mockMcpServers = [{ id: "mcp-1" }, { id: "e2e-fixture-ignored" }];
-const mockPosts = [{ id: "post-1" }];
-const mockThreads = [{ id: "thread-1" }, { id: "e2e-fixture-ignored" }];
+const mockPosts = [{ id: "post-1", publishedAt: "2026-06-15" }];
+const mockThreads = [
+  { id: "thread-1", createdAt: "2026-07-01T00:00:00Z" },
+  { id: "e2e-fixture-ignored", createdAt: "2026-07-01T00:00:00Z" },
+];
 
 vi.mock("@/lib/db", () => ({
   getSkills: vi.fn(async () => mockSkills),
@@ -114,13 +117,44 @@ describe("sitemap()", () => {
     expect(urls).not.toContain(`${baseUrl}/forum/e2e-fixture-ignored`);
   });
 
-  it("every entry has a url, lastModified, changeFrequency, and priority", async () => {
+  it("every entry has a url, changeFrequency, and priority", async () => {
     const entries = await sitemap();
     for (const entry of entries) {
       expect(entry).toHaveProperty("url");
-      expect(entry).toHaveProperty("lastModified");
       expect(entry).toHaveProperty("changeFrequency");
       expect(entry).toHaveProperty("priority");
     }
+  });
+
+  it("uses the real per-row date for vibes, blog posts, and forum threads", async () => {
+    const entries = await sitemap();
+    const byUrl = (path: string) => entries.find((e) => e.url === `${baseUrl}${path}`);
+
+    expect(byUrl("/vibes/proj-1")?.lastModified).toBe(new Date("2026-05-01T00:00:00Z").toISOString());
+    expect(byUrl("/blog/post-1")?.lastModified).toBe(new Date("2026-06-15").toISOString());
+    expect(byUrl("/forum/thread-1")?.lastModified).toBe(new Date("2026-07-01T00:00:00Z").toISOString());
+  });
+
+  it("omits lastModified where there is no real source of truth", async () => {
+    const entries = await sitemap();
+    const byUrl = (path: string) => entries.find((e) => e.url === `${baseUrl}${path}`);
+
+    expect(byUrl("")).not.toHaveProperty("lastModified");
+    expect(byUrl("/skills")).not.toHaveProperty("lastModified");
+    expect(byUrl("/skills/skill-1")).not.toHaveProperty("lastModified");
+    expect(byUrl("/skills/topic/agent-methodology")).not.toHaveProperty("lastModified");
+    expect(byUrl("/cli/cli-1")).not.toHaveProperty("lastModified");
+    expect(byUrl("/mcp/mcp-1")).not.toHaveProperty("lastModified");
+  });
+
+  it("does not stamp every entry with the same lastModified — the bug this fixes", async () => {
+    const entries = await sitemap();
+    const dates = entries
+      .map((e) => e.lastModified)
+      .filter((d): d is string | Date => d !== undefined)
+      .map((d) => new Date(d).toISOString());
+
+    expect(dates.length).toBeGreaterThan(0);
+    expect(new Set(dates).size).toBeGreaterThan(1);
   });
 });

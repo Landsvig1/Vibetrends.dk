@@ -19,7 +19,6 @@ import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { TopicIcon } from "../components/TopicIcon";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
-import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
 
@@ -122,17 +121,14 @@ export default function SkillsExplorer({
     parseAsString.withDefault("danish")
   );
   const { user } = useAuth();
-  const { language, t } = useLanguage();
 
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  // In-flight view/language refetch loading affordance — keeps the current
+  // In-flight view refetch loading affordance — keeps the current
   // grid visible at reduced opacity rather than replacing it with a skeleton.
-  const [isRefetchingAll, setIsRefetchingAll] = useState(false);
-  const [isRefetchingView, setIsRefetchingView] = useState(false);
-  const isRefetching = isRefetchingAll || isRefetchingView;
+  const [isRefetching, setIsRefetching] = useState(false);
 
   // Form states
   const [subTitle, setSubTitle] = useState("");
@@ -141,39 +137,16 @@ export default function SkillsExplorer({
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
-  // Skip the first mount fetches — the server already fetched with the initial
-  // lang/view and passed real data as initialAllSkills / initialViewSkills.
-  // Only refetch when language or view actually changes post-mount.
-  const skipAllSkillsFetch = useRef(true);
+  // Skip the first mount fetch — the server already fetched with the initial
+  // view and passed real data as initialViewSkills. Only refetch when view
+  // actually changes post-mount.
   const skipViewSkillsFetch = useRef(true);
 
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
 
-  // Refetch full catalog when language changes post-mount.
-  useEffect(() => {
-    if (skipAllSkillsFetch.current) {
-      skipAllSkillsFetch.current = false;
-      return;
-    }
-    // no-store: the route's public max-age header is for external API
-    // consumers; the interactive page must always read fresh counts, or a
-    // reload right after upvoting shows the pre-vote cached response.
-    setIsRefetchingAll(true);
-    fetch("/api/skills", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        setAllSkills(data);
-        setIsRefetchingAll(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching skills:", err);
-        setIsRefetchingAll(false);
-      });
-  }, [language]);
-
-  // Refetch view-specific board when view or language changes post-mount.
+  // Refetch view-specific board when view changes post-mount.
   useEffect(() => {
     const isFirstMount = skipViewSkillsFetch.current;
     skipViewSkillsFetch.current = false;
@@ -182,18 +155,18 @@ export default function SkillsExplorer({
       return;
     }
 
-    setIsRefetchingView(true);
+    setIsRefetching(true);
     fetch(`/api/skills?view=${view}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setViewSkills(data);
-        setIsRefetchingView(false);
+        setIsRefetching(false);
       })
       .catch((err) => {
         console.error("Error fetching skills:", err);
-        setIsRefetchingView(false);
+        setIsRefetching(false);
       });
-  }, [view, language]);
+  }, [view]);
 
   // Per-topic counts from the full catalog (not the filtered board).
   // Bolt Optimization ⚡: Wrap counts in useMemo to prevent redundant recalculation
@@ -216,7 +189,7 @@ export default function SkillsExplorer({
   // Search overrides the view. Otherwise danish/hot/trending render their
   // board and "all" shows the topic cards.
   // ⚡ Optimization: Memoize the gridSkills computation to prevent redundant search matching
-  // and array copying during active search typing or view/language changes.
+  // and array copying during active search typing or view changes.
   const gridSkills = useMemo(() => {
     return searchActive
       ? filterSkills(allSkills, search)
@@ -234,13 +207,13 @@ export default function SkillsExplorer({
   }[] = [
     {
       value: "danish",
-      label: language === "da" ? "Dansk" : "Danish",
+      label: "Dansk",
       icon: Flag,
     },
-    { value: "all", label: language === "da" ? "Emner" : "Topics", icon: null },
+    { value: "all", label: "Emner", icon: null },
     {
       value: "trending",
-      label: language === "da" ? "Trender" : "Trending",
+      label: "Trender",
       icon: TrendingUp,
     },
   ];
@@ -280,7 +253,7 @@ export default function SkillsExplorer({
   // only ever succeeds for public.is_admin() callers.
   const handleDeleteSkill = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(t("skills.confirm_delete"))) return;
+    if (!confirm("Er du sikker på, at du vil slette denne skill?")) return;
 
     try {
       const res = await fetch(`/api/skills/${id}`, { method: "DELETE" });
@@ -291,7 +264,7 @@ export default function SkillsExplorer({
     } catch (err) {
       console.error("Error deleting skill:", err);
     }
-  }, [t]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,18 +309,18 @@ export default function SkillsExplorer({
         <div className="space-y-4 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             Skills{" "}
-            <span className="text-accent-primary">
-              {language === "da" ? "Bibliotek" : "Library"}
-            </span>
+            <span className="text-accent-primary">Bibliotek</span>
           </h1>
-          <p className="text-text-secondary max-w-2xl">{t("skills.desc")}</p>
+          <p className="text-text-secondary max-w-2xl">
+            AI-skills der virker. Verdens bedste, plus dem kun Danmark har. Gratis, open source og klar til din agent.
+          </p>
         </div>
         <button
           onClick={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
           className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
         >
           <PlusCircle className="h-5 w-5" />
-          {t("skills.btn_share")}
+          Del en Skill
         </button>
       </div>
 
@@ -360,8 +333,8 @@ export default function SkillsExplorer({
           />
           <input
             type="text"
-            aria-label={t("skills.search")}
-            placeholder={t("skills.search")}
+            aria-label="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
+            placeholder="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
@@ -378,7 +351,7 @@ export default function SkillsExplorer({
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                   view === tab.value && !searchActive
                     ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -414,14 +387,14 @@ export default function SkillsExplorer({
               </div>
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-foreground group-hover:text-accent-primary transition-colors">
-                  {language === "da" ? topic.labelDa : topic.labelEn}
+                  {topic.labelDa}
                 </h3>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  {language === "da" ? topic.descDa : topic.descEn}
+                  {topic.descDa}
                 </p>
               </div>
               <span className="inline-flex items-center text-xs font-semibold text-accent-primary mt-auto">
-                {language === "da" ? "Udforsk" : "Explore"}
+                Udforsk
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </span>
             </Link>
@@ -450,8 +423,8 @@ export default function SkillsExplorer({
                 >
                   <SkillCard
                     skill={skill}
-                    githubLabel={t("skills.github")}
-                    connectLabel={t("skills.connect")}
+                    githubLabel="Se på GitHub"
+                    connectLabel="Forbind"
                     onUpvote={handleUpvote}
                     onDelete={user?.isAdmin ? handleDeleteSkill : undefined}
                   />
@@ -462,14 +435,14 @@ export default function SkillsExplorer({
         ) : (
           <EmptyState
             icon={Briefcase}
-            title={t("skills.empty")}
-            description={t("skills.empty_sub")}
-            actionLabel={t("skills.btn_share")}
+            title="Ingen skills matcher din søgning."
+            description="Prøv at søge efter noget andet eller nulstil filtre."
+            actionLabel="Del en Skill"
             onAction={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
             suggestions={
               searchActive && initialAllSkills.length > 0
                 ? {
-                    title: language === "da" ? "Trender lige nu" : "Trending now",
+                    title: "Trender lige nu",
                     items: initialAllSkills.slice(0, 3).map((s) => ({
                       id: s.id,
                       title: s.title,
@@ -486,7 +459,7 @@ export default function SkillsExplorer({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={t("skills.modal.title")}
+          aria-label="Del en Skill"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         >
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
@@ -494,7 +467,7 @@ export default function SkillsExplorer({
             <button
               onClick={() => setSubmitOpen(false)}
               aria-label="Luk"
-              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-card-border rounded-lg transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -505,10 +478,10 @@ export default function SkillsExplorer({
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">
-                  {t("skills.modal.success_title")}
+                  Skill Delt!
                 </h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">
-                  {t("skills.modal.success_desc")}
+                  Mange tak! Din skill er nu tilgængelig i biblioteket.
                 </p>
               </div>
             ) : (
@@ -526,23 +499,23 @@ export default function SkillsExplorer({
 
                 <div>
                   <h3 className="text-lg font-bold text-foreground">
-                    {t("skills.modal.title")}
+                    Del en Skill
                   </h3>
                   <p className="text-sm text-text-secondary mt-1">
-                    {t("skills.modal.desc")}
+                    Del dine bedste scripts, workflows eller prompts.
                   </p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-text-secondary">
-                      {t("skills.modal.label_title")}
+                      Titel
                     </label>
                     <input
                       required
                       value={subTitle}
                       onChange={(e) => setSubTitle(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_title")}
+                      placeholder="fx Next.js 15 Cursor Rules"
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
                     />
                   </div>
@@ -550,7 +523,7 @@ export default function SkillsExplorer({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-text-secondary">
-                        {t("skills.modal.label_category")}
+                        Kategori
                       </label>
                       <select
                         value={subCat}
@@ -559,14 +532,14 @@ export default function SkillsExplorer({
                       >
                         {SKILL_CATEGORIES.map((topic) => (
                           <option key={topic.slug} value={topic.slug}>
-                            {language === "da" ? topic.labelDa : topic.labelEn}
+                            {topic.labelDa}
                           </option>
                         ))}
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-text-secondary">
-                        {t("skills.modal.label_github")}
+                        GitHub / Repo Link (valgfrit)
                       </label>
                       <input
                         type="url"
@@ -581,25 +554,25 @@ export default function SkillsExplorer({
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-text-secondary">
-                      {t("skills.modal.label_desc")}
+                      Beskrivelse
                     </label>
                     <textarea
                       rows={3}
                       value={subDesc}
                       onChange={(e) => setSubDesc(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_desc")}
+                      placeholder="Hvad gør denne skill, og hvordan bruger man den?"
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm resize-none"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-text-secondary">
-                      {t("skills.modal.label_tags")}
+                      Tags (kommasepareret)
                     </label>
                     <input
                       value={subTags}
                       onChange={(e) => setSubTags(e.target.value)}
-                      placeholder={t("skills.modal.placeholder_tags")}
+                      placeholder="fx Cursor, Supabase, Workflow"
                       className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/30 text-sm"
                     />
                   </div>
@@ -610,7 +583,7 @@ export default function SkillsExplorer({
                     type="submit"
                     className="flex items-center justify-center px-6 py-2.5 rounded-lg btn-primary text-sm"
                   >
-                    {t("skills.modal.btn_submit")}
+                    Udgiv Skill
                   </button>
                 </div>
               </form>

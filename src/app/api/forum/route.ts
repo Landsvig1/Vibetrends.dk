@@ -3,7 +3,6 @@ import { validateHoneypot } from "@/lib/honeypot";
 import { getThreads, createThread } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
 
@@ -19,10 +18,7 @@ export async function GET(request: Request) {
   const category = searchParams.get("category") || undefined;
   const sort = searchParams.get("sort") === "new" ? "new" : "top";
 
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as 'da' | 'en') || 'da';
-
-  const threads = await getThreads({ search, category, lang, sort });
+  const threads = await getThreads({ search, category, lang: 'da', sort });
   return NextResponse.json(threads, {
     // no-store: `public, max-age` was cached by Vercel's shared edge — a
     // request from ANY client within the window got a stale pre-vote

@@ -49,7 +49,7 @@ function ProjectCardComponent({
           priority={isPriority}
           className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/20 to-transparent"></div>
 
         {/* Delete button for author */}
         {canDelete && (
@@ -65,7 +65,7 @@ function ProjectCardComponent({
         <button
           onClick={(e) => onUpvote(project.id, e)}
           aria-label={`Upvote ${project.title}`}
-          className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-rose-500/20 hover:border-rose-500/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+          className="absolute top-4 right-4 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-primary/10 hover:border-accent-primary/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
         >
           <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
           <span className="text-xs font-bold font-mono">{project.upvotes}</span>
@@ -76,7 +76,7 @@ function ProjectCardComponent({
           onClick={(e) => e.stopPropagation()}
           aria-label={detailsLabel}
           title={detailsLabel}
-          className="absolute top-[3.25rem] right-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-card-border text-text-secondary hover:text-foreground backdrop-blur-md transition cursor-pointer z-20"
+          className="absolute top-[3.25rem] right-4 flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light text-text-secondary hover:text-foreground backdrop-blur-md transition cursor-pointer z-20"
         >
           <Info className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>

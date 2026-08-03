@@ -63,10 +63,9 @@ function makeMcpAgent(id: string, name: string, description: string) {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: English cookie
+  // Cookie mock retained for module isolation; page no longer reads it.
   cookiesMock.mockResolvedValue({
-    get: (name: string) =>
-      name === "vibe_lang" ? { name: "vibe_lang", value: "en" } : undefined,
+    get: () => undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
@@ -78,7 +77,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("McpPageContent — passes real MCP server data to client island", () => {
-  it("calls getAgents with category='MCP Server' and the lang from the vibe_lang cookie", async () => {
+  it("calls getAgents with category='MCP Server' and hardcoded 'da' lang", async () => {
     const items = [makeMcpAgent("m1", "claude-mcp", "MCP server for Claude")];
     getAgentsMock.mockResolvedValue(items);
 
@@ -87,20 +86,8 @@ describe("McpPageContent — passes real MCP server data to client island", () =
     expect(getAgentsMock).toHaveBeenCalledWith(
       undefined,    // no search term from server component
       "MCP Server", // category scoped to MCP
-      "en"          // lang from mocked cookie
+      "da"          // hardcoded Danish
     );
-  });
-
-  it("defaults lang to 'da' when the cookie is absent", async () => {
-    cookiesMock.mockResolvedValue({
-      get: () => undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-    getAgentsMock.mockResolvedValue([]);
-
-    await McpPageContent({ searchParams: Promise.resolve({}) });
-
-    expect(getAgentsMock).toHaveBeenCalledWith(undefined, "MCP Server", "da");
   });
 
   it("passes ?q= as search to getAgents when present", async () => {
@@ -112,7 +99,7 @@ describe("McpPageContent — passes real MCP server data to client island", () =
     expect(getAgentsMock).toHaveBeenCalledWith(
       "claude",     // search term from ?q= param
       "MCP Server",
-      "en"
+      "da"
     );
   });
 
@@ -121,7 +108,7 @@ describe("McpPageContent — passes real MCP server data to client island", () =
 
     await McpPageContent({ searchParams: Promise.resolve({ q: "" }) });
 
-    expect(getAgentsMock).toHaveBeenCalledWith(undefined, "MCP Server", "en");
+    expect(getAgentsMock).toHaveBeenCalledWith(undefined, "MCP Server", "da");
   });
 });
 

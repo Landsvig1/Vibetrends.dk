@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cookies } from "next/headers";
-import { Language } from "@/lib/translations";
 import { getAgents } from "@/lib/db";
 import AgentsLoading from "./loading";
 import AgentsExplorer from "../components/AgentsExplorer";
@@ -58,15 +56,12 @@ export async function AgentsPageContent({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const lang = (cookieStore.get("vibe_lang")?.value as Language) || "da";
-
   const resolvedParams = await searchParams;
   const search = resolvedParams?.q || undefined;
 
   // Cached read — getAgents() is wrapped with "use cache" + cacheTag in db.ts
   // (U1/U2). No category arg → default catalog (excludes MCP Server + Host).
-  const items = await getAgents(search, undefined, lang);
+  const items = await getAgents(search, undefined, 'da');
 
   return <AgentsExplorer scope="agents" initialItems={items} />;
 }

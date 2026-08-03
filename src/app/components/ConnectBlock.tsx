@@ -55,7 +55,7 @@ export default function ConnectBlock({
             className={`px-3 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
               host === h.slug
                 ? "bg-accent-primary text-white font-extrabold shadow-md"
-                : "bg-background border border-card-border text-text-secondary hover:bg-card-border hover:text-foreground"
+                : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
             }`}
           >
             {h.name}
@@ -73,7 +73,7 @@ export default function ConnectBlock({
             type="button"
             onClick={() => copy(recipe.command!, "command")}
             aria-label={lang === "da" ? "Kopiér kommando" : "Copy command"}
-            className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition active:scale-95 cursor-pointer"
+            className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer"
           >
             {copied === "command" ? (
               <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
@@ -91,7 +91,7 @@ export default function ConnectBlock({
             type="button"
             onClick={() => copy(recipe.configSnippet!, "config")}
             aria-label={lang === "da" ? "Kopiér konfiguration" : "Copy config"}
-            className="absolute top-3 right-3 p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-card-border transition active:scale-95 cursor-pointer"
+            className="absolute top-3 right-3 p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer"
           >
             {copied === "config" ? (
               <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
