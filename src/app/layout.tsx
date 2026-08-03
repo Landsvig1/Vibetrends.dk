@@ -66,6 +66,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "./components/AuthProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { hiddenNavHrefs } from "@/lib/hubContent";
 
 export default function RootLayout({
   children,
@@ -117,11 +118,16 @@ export default function RootLayout({
   );
 }
 
-function RootLayoutInner({ children }: { children: React.ReactNode }) {
+async function RootLayoutInner({ children }: { children: React.ReactNode }) {
+  // Both reads underneath are 'use cache' with a long cacheLife and are already
+  // pulled on most pages, so this doesn't add a per-request round trip. It sits
+  // inside the Suspense boundary above, so it streams rather than blocking.
+  const hiddenHrefs = await hiddenNavHrefs();
+
   return (
     <AuthProvider>
       <NuqsAdapter>
-        <Header />
+        <Header hiddenHrefs={hiddenHrefs} />
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <RouteTransitionProvider>{children}</RouteTransitionProvider>
         </main>

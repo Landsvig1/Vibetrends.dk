@@ -2,6 +2,7 @@ import { MetadataRoute } from "next";
 import { cacheLife } from "next/cache";
 import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, isE2eFixtureId } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
+import { hasRealContent } from "@/lib/hubContent";
 
 const baseUrl = "https://vibetrends.dk";
 
@@ -60,16 +61,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // independently of the hub itself) — omit it rather than guess.
   //
   // /forum and /blog are held back while they have no rows: submitting a
-  // contentless hub for indexing is what earns a thin-content impression. Both
-  // pages also emit robots noindex under the same condition (forum/layout.tsx,
-  // blog/page.tsx), and both reverse automatically on the first post or thread.
+  // contentless hub for indexing is what earns a thin-content impression. The
+  // same hasRealContent predicate also drives their robots noindex
+  // (forum/layout.tsx, blog/page.tsx) and hides them from the header nav
+  // (lib/hubContent.ts), so all three reverse together on the first thread or
+  // published post.
   const staticEntries: MetadataRoute.Sitemap = [
     "",
     "/about",
     "/skills",
     "/vibes",
-    ...(threads.length > 0 ? ["/forum"] : []),
-    ...(posts.length > 0 ? ["/blog"] : []),
+    ...(hasRealContent(threads) ? ["/forum"] : []),
+    ...(hasRealContent(posts) ? ["/blog"] : []),
     "/cli",
     "/mcp",
     "/agent-guide",

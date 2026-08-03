@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import BlogList from "./BlogList";
 import { BookOpen } from "lucide-react";
 import { entityMetadata } from "@/lib/seo";
-import { getBlogPosts, isE2eFixtureId } from "@/lib/db";
+import { getBlogPosts } from "@/lib/db";
+import { hasRealContent } from "@/lib/hubContent";
 
 export async function generateMetadata() {
   // An empty hub is a thin page — don't ask to have it indexed. `follow` stays
@@ -10,16 +11,18 @@ export async function generateMetadata() {
   // the first published post makes this indexable again, and puts /blog back
   // in the sitemap.
   //
-  // The e2e seed doesn't touch blog_posts today, but filter anyway so this
-  // can't start disagreeing with the sitemap if that ever changes.
-  const posts = (await getBlogPosts()).filter((b) => !isE2eFixtureId(b.id));
+  // Emptiness is decided by hasRealContent (src/lib/hubContent.ts) so this, the
+  // sitemap, and the header nav can't drift apart on what counts as a row. The
+  // e2e seed doesn't touch blog_posts today; the shared predicate discounts
+  // fixture rows anyway so that can't start disagreeing if it ever does.
+  const hasPosts = hasRealContent(await getBlogPosts());
 
   return entityMetadata({
     title: "Blog",
     description: "Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow.",
     path: "/blog",
     lang: "da",
-    ...(posts.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    ...(hasPosts ? {} : { robots: { index: false, follow: true } }),
   });
 }
 
