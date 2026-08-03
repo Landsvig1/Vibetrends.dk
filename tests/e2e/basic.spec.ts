@@ -40,7 +40,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
-    const firstProject = page.getByTestId('project-card').first();
+    const firstProject = page.getByTestId('project-card').filter({ visible: true }).first();
     // /vibes is partial-prerendered — this data streams in after the static
     // shell, and a cold CI runner's Supabase connection can occasionally push
     // that past the 5s default. Widen rather than tighten (see the same
@@ -64,7 +64,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await page.goto('/vibes', { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
 
-    const firstProject = page.getByTestId('project-card').first();
+    const firstProject = page.getByTestId('project-card').filter({ visible: true }).first();
     // See the cold-start rationale in the test above.
     await expect(firstProject).toBeVisible({ timeout: 15000 });
     const projectTitle = (await firstProject.locator('h3').innerText()).trim();
