@@ -146,6 +146,24 @@ describe("sitemap()", () => {
     expect(urls).toContain(`${baseUrl}/blog/post-1`);
   });
 
+  // The e2e seed doesn't touch blog_posts today. Asserted anyway because the
+  // /blog hub gate discounts fixture rows: if that ever changes and the detail
+  // entries aren't filtered too, the sitemap would omit /blog while still
+  // listing its fixture detail URLs.
+  it("excludes e2e fixture blog posts from detail pages", async () => {
+    state.posts = [...mockPosts, { id: "e2e-fixture-post", publishedAt: "2026-06-15" }];
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+    expect(urls).toContain(`${baseUrl}/blog/post-1`);
+    expect(urls).not.toContain(`${baseUrl}/blog/e2e-fixture-post`);
+  });
+
+  it("omits /blog when its only posts are e2e fixtures", async () => {
+    state.posts = [{ id: "e2e-fixture-post", publishedAt: "2026-06-15" }];
+    const entries = await sitemap();
+    expect(entries.map((e) => e.url)).not.toContain(`${baseUrl}/blog`);
+  });
+
   it("includes forum thread detail pages and excludes e2e fixtures", async () => {
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);

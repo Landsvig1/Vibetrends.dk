@@ -119,9 +119,17 @@ export default function RootLayout({
 }
 
 async function RootLayoutInner({ children }: { children: React.ReactNode }) {
-  // Both reads underneath are 'use cache' with a long cacheLife and are already
-  // pulled on most pages, so this doesn't add a per-request round trip. It sits
-  // inside the Suspense boundary above, so it streams rather than blocking.
+  // Both reads are 'use cache' with cacheLife('max'), and every route still
+  // builds Static or PPR, so in practice this resolves at build time and costs
+  // nothing per request.
+  //
+  // Two things it is NOT: (a) free because the data is already loaded — the nav
+  // uses the no-arg getThreads()/getBlogPosts(), which are different cache keys
+  // from the arg'd calls the hubs and API routes make (see the note in
+  // tests/e2e/basic.spec.ts), so only /forum, /blog, and the sitemap share
+  // these entries; (b) purely streaming — this await gates `children` too, so
+  // any route that does render dynamically holds the whole body behind the
+  // skeleton above until both reads resolve, not just the chrome.
   const hiddenHrefs = await hiddenNavHrefs();
 
   return (

@@ -22,9 +22,17 @@ export function hasRealContent(rows: readonly { id: string }[]): boolean {
  * and /api/blog, the MCP endpoint and /agent-guide document them, and the
  * footer still links both. Only the header stops advertising them.
  *
- * Reverses itself. The first real thread or published post brings the link
- * back on the same trigger that puts the hub back in the sitemap and drops its
- * noindex, so there is no manual step to remember later.
+ * Reverses itself for writes that go through createThread/createBlogPost:
+ * those are the only callers of revalidateTag('threads-list') and
+ * revalidateTag('blog-posts'), so a thread or post created through the site or
+ * the API brings the link back on the same trigger that puts the hub back in
+ * the sitemap and drops its noindex.
+ *
+ * A row inserted out of band — a node script against DATABASE_URL, a migration,
+ * the Supabase dashboard — touches no tag, and both reads below are
+ * cacheLife('max'). The hub then stays hidden and noindexed until something
+ * revalidates. getSkillDoc (db.ts) documents the same trap. If you seed content
+ * by hand, revalidate or redeploy afterwards.
  */
 export async function hiddenNavHrefs(): Promise<string[]> {
   const [threads, posts] = await Promise.all([getThreads(), getBlogPosts()]);

@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // section is retired, so every `agents` row is crawled under its feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
-  const [skills, projects, clisRaw, mcpServersRaw, posts, threadsRaw] = await Promise.all([
+  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw] = await Promise.all([
     getSkills(),
     getProjects(),
     getCli(),
@@ -49,13 +49,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — they're
-  // short-lived and must never be crawled/indexed. Filtering both `agents`-
-  // sourced lists (clis, mcpServers), not just the one the current fixture
-  // happens to seed, so a future fixture category change can't silently
-  // start leaking into the sitemap.
+  // short-lived and must never be crawled/indexed. Every list is filtered, not
+  // just the ones the current fixture happens to seed, so a future fixture
+  // category change can't silently start leaking into the sitemap. Blog is
+  // filtered for a second reason: the hub gate below discounts fixture posts,
+  // so without this the sitemap could omit /blog while still listing
+  // /blog/e2e-fixture-… detail URLs.
   const clis = clisRaw.filter((a) => !isE2eFixtureId(a.id));
   const mcpServers = mcpServersRaw.filter((a) => !isE2eFixtureId(a.id));
   const threads = threadsRaw.filter((t) => !isE2eFixtureId(t.id));
+  const posts = postsRaw.filter((b) => !isE2eFixtureId(b.id));
 
   // No source of truth for hub lastmod (they aggregate content that changes
   // independently of the hub itself) — omit it rather than guess.
