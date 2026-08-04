@@ -2,6 +2,7 @@ import { MetadataRoute } from "next";
 import { cacheLife } from "next/cache";
 import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, isE2eFixtureId } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
+import { hasBlogContent, hasForumContent } from "@/lib/hubContent";
 
 const baseUrl = "https://vibetrends.dk";
 
@@ -38,38 +39,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // section is retired, so every `agents` row is crawled under its feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
-  const [skills, projects, clisRaw, mcpServersRaw, posts, threadsRaw] = await Promise.all([
-    getSkills(),
-    getProjects(),
-    getCli(),
-    getAgents(undefined, "MCP Server"),
-    getBlogPosts(),
-    getThreads(),
-  ]);
+  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw, forumHasContent, blogHasContent] =
+    await Promise.all([
+      getSkills(),
+      getProjects(),
+      getCli(),
+      getAgents(undefined, "MCP Server"),
+      getBlogPosts(),
+      getThreads(),
+      // Not derived from threadsRaw/postsRaw above: those reads collapse a
+      // query failure into [], which would drop a populated hub out of the
+      // sitemap. These two fail open instead (lib/hubContent.ts).
+      hasForumContent(),
+      hasBlogContent(),
+    ]);
 
   // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — they're
-  // short-lived and must never be crawled/indexed. Filtering both `agents`-
-  // sourced lists (clis, mcpServers), not just the one the current fixture
-  // happens to seed, so a future fixture category change can't silently
-  // start leaking into the sitemap.
+  // short-lived and must never be crawled/indexed. Every list is filtered, not
+  // just the ones the current fixture happens to seed, so a future fixture
+  // category change can't silently start leaking into the sitemap. Blog is
+  // filtered for a second reason: the hub gate below discounts fixture posts,
+  // so without this the sitemap could omit /blog while still listing
+  // /blog/e2e-fixture-… detail URLs.
   const clis = clisRaw.filter((a) => !isE2eFixtureId(a.id));
   const mcpServers = mcpServersRaw.filter((a) => !isE2eFixtureId(a.id));
   const threads = threadsRaw.filter((t) => !isE2eFixtureId(t.id));
+  const posts = postsRaw.filter((b) => !isE2eFixtureId(b.id));
 
   // No source of truth for hub lastmod (they aggregate content that changes
   // independently of the hub itself) — omit it rather than guess.
   //
   // /forum and /blog are held back while they have no rows: submitting a
-  // contentless hub for indexing is what earns a thin-content impression. Both
-  // pages also emit robots noindex under the same condition (forum/layout.tsx,
-  // blog/page.tsx), and both reverse automatically on the first post or thread.
+  // contentless hub for indexing is what earns a thin-content impression. The
+  // same two predicates drive their robots noindex (forum/layout.tsx,
+  // blog/page.tsx) and hide them from the header nav (lib/hubContent.ts), so
+  // all three reverse together on the first thread or published post.
   const staticEntries: MetadataRoute.Sitemap = [
     "",
     "/about",
     "/skills",
     "/vibes",
-    ...(threads.length > 0 ? ["/forum"] : []),
-    ...(posts.length > 0 ? ["/blog"] : []),
+    ...(forumHasContent ? ["/forum"] : []),
+    ...(blogHasContent ? ["/blog"] : []),
     "/cli",
     "/mcp",
     "/agent-guide",

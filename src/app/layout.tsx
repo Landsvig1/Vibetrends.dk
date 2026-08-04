@@ -66,6 +66,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "./components/AuthProvider";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { hiddenNavHrefs } from "@/lib/hubContent";
 
 export default function RootLayout({
   children,
@@ -117,11 +118,29 @@ export default function RootLayout({
   );
 }
 
-function RootLayoutInner({ children }: { children: React.ReactNode }) {
+async function RootLayoutInner({ children }: { children: React.ReactNode }) {
+  // This await gates `children` and the footer, not just the header. That is a
+  // deliberate second choice, not an oversight.
+  //
+  // Giving the header its own <Suspense> was tried and reverted: whatever the
+  // fallback renders lands in the prerendered shell, so a fallback <Header />
+  // put href="/forum" and href="/blog" straight into index.html (verified —
+  // two occurrences each instead of one), which is exactly the markup this
+  // feature exists to remove. A fallback that hides them instead just moves the
+  // flash to the reveal.
+  //
+  // Gating is affordable because the counts are 'use cache' with
+  // cacheLife('max') and are invalidated only by thread/post creation and
+  // deletion (HUB_EMPTINESS_TAG in lib/db.ts) — not by upvotes or replies. On a
+  // Static or PPR route this resolves at build time, so the gate costs nothing
+  // per request; a miss is limited to the first request after someone creates
+  // or deletes a thread or post.
+  const hiddenHrefs = await hiddenNavHrefs();
+
   return (
     <AuthProvider>
       <NuqsAdapter>
-        <Header />
+        <Header hiddenHrefs={hiddenHrefs} />
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <RouteTransitionProvider>{children}</RouteTransitionProvider>
         </main>

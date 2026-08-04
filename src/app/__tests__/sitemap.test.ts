@@ -14,6 +14,8 @@ const state = vi.hoisted(() => ({
   // Overridable per test: /blog and /forum are only listed once they have rows.
   posts: [] as { id: string; publishedAt: string }[],
   threads: [] as { id: string; createdAt: string }[],
+  // Set to make the hub count reads reject, simulating a Supabase failure.
+  countsFail: false,
 }));
 
 vi.mock("next/cache", () => ({
@@ -43,6 +45,18 @@ vi.mock("@/lib/db", () => ({
   // Real implementation, not a stub: the sitemap and the hub layouts must agree
   // on which rows count, and a mocked-away filter would hide a disagreement.
   isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
+  // The hub gate reads counts, not rows (lib/hubContent.ts). Derived from the
+  // same fixtures the row lists use, so a test can't set up a state where the
+  // count and the detail URLs disagree. Counting here mirrors the SQL filter in
+  // countRealRows, which is what excludes fixtures in production.
+  countRealThreads: vi.fn(async () => {
+    if (state.countsFail) throw new Error("supabase unavailable");
+    return state.threads.filter((t) => !t.id.startsWith("e2e-fixture-")).length;
+  }),
+  countRealBlogPosts: vi.fn(async () => {
+    if (state.countsFail) throw new Error("supabase unavailable");
+    return state.posts.filter((p) => !p.id.startsWith("e2e-fixture-")).length;
+  }),
 }));
 
 // SKILL_CATEGORY_SLUGS is used to generate /skills/topic/<slug> entries.
@@ -58,6 +72,7 @@ beforeEach(() => {
   state.cacheLifeCalls = [];
   state.posts = [...mockPosts];
   state.threads = [...mockThreads];
+  state.countsFail = false;
 });
 
 describe("sitemap()", () => {
@@ -95,6 +110,21 @@ describe("sitemap()", () => {
 
     state.threads = [...mockThreads];
     expect((await sitemap()).map((e) => e.url)).toContain(`${baseUrl}/forum`);
+  });
+
+  // The sitemap half of the fail-open contract (lib/hubContent.ts). A failed
+  // count read must not drop a hub: dropping a populated /forum from the
+  // sitemap on a transient Supabase blip is the expensive mistake, since
+  // recovery waits on a re-crawl. Keeping an empty one listed for a while is
+  // the cheap one.
+  it("keeps /forum and /blog listed when the hub count reads fail", async () => {
+    state.posts = [];
+    state.threads = [];
+    state.countsFail = true;
+
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls).toContain(`${baseUrl}/forum`);
+    expect(urls).toContain(`${baseUrl}/blog`);
   });
 
   it("keeps the other hubs when /blog and /forum are held back", async () => {
@@ -144,6 +174,24 @@ describe("sitemap()", () => {
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);
     expect(urls).toContain(`${baseUrl}/blog/post-1`);
+  });
+
+  // The e2e seed doesn't touch blog_posts today. Asserted anyway because the
+  // /blog hub gate discounts fixture rows: if that ever changes and the detail
+  // entries aren't filtered too, the sitemap would omit /blog while still
+  // listing its fixture detail URLs.
+  it("excludes e2e fixture blog posts from detail pages", async () => {
+    state.posts = [...mockPosts, { id: "e2e-fixture-post", publishedAt: "2026-06-15" }];
+    const entries = await sitemap();
+    const urls = entries.map((e) => e.url);
+    expect(urls).toContain(`${baseUrl}/blog/post-1`);
+    expect(urls).not.toContain(`${baseUrl}/blog/e2e-fixture-post`);
+  });
+
+  it("omits /blog when its only posts are e2e fixtures", async () => {
+    state.posts = [{ id: "e2e-fixture-post", publishedAt: "2026-06-15" }];
+    const entries = await sitemap();
+    expect(entries.map((e) => e.url)).not.toContain(`${baseUrl}/blog`);
   });
 
   it("includes forum thread detail pages and excludes e2e fixtures", async () => {

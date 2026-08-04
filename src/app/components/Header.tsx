@@ -25,7 +25,12 @@ interface NavItem {
   items?: NavSubItem[];
 }
 
-export default function Header() {
+/**
+ * `hiddenHrefs` comes from hiddenNavHrefs() in lib/hubContent.ts: hubs with no
+ * content yet aren't advertised here. The routes stay live and linked from the
+ * footer and /agent-guide — see that module for why.
+ */
+export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const pathname = usePathname();
@@ -52,7 +57,7 @@ export default function Header() {
       ],
     },
     { name: "Blog", href: "/blog", icon: BookOpen },
-  ];
+  ].filter((item) => !item.href || !hiddenHrefs.includes(item.href));
 
   return (
     <>

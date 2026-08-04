@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { entityMetadata } from "@/lib/seo";
-import { getThreads, isE2eFixtureId } from "@/lib/db";
+import { hasForumContent } from "@/lib/hubContent";
 
 export async function generateMetadata(): Promise<Metadata> {
   // An empty hub is a thin page — don't ask to have it indexed. `follow` stays
@@ -9,18 +9,18 @@ export async function generateMetadata(): Promise<Metadata> {
   // sitemap. The flag is inherited by /forum/[id], which is harmless — zero
   // threads means zero detail routes.
   //
-  // Fixture rows are discounted for the same reason sitemap.ts discounts them:
-  // the two must agree on emptiness. They didn't when only the sitemap
-  // filtered, so a build inside a CI seed window rendered /forum indexable
-  // while the sitemap still omitted it.
-  const threads = (await getThreads()).filter((t) => !isE2eFixtureId(t.id));
+  // Emptiness is decided by hasForumContent (src/lib/hubContent.ts) so this,
+  // the sitemap, and the header nav can't drift apart on what counts as a row.
+  // It fails open, so a Supabase blip during a build can't deindex a populated
+  // forum — see that module for why that direction is the cheap one.
+  const hasThreads = await hasForumContent();
 
   return entityMetadata({
     title: "Forum",
     description: "Spørg om AI. Få svar fra folk der bygger.",
     path: "/forum",
     image: "/images/og-default.jpg",
-    ...(threads.length === 0 ? { robots: { index: false, follow: true } } : {}),
+    ...(hasThreads ? {} : { robots: { index: false, follow: true } }),
   });
 }
 

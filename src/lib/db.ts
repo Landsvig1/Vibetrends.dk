@@ -137,6 +137,78 @@ export interface BlogPost {
  */
 export const isE2eFixtureId = (id: string) => id.startsWith("e2e-fixture-");
 
+/** SQL-side form of isE2eFixtureId, for count queries that never load rows. */
+const E2E_FIXTURE_ID_PATTERN = "e2e-fixture-%";
+
+/**
+ * Number of real (non-fixture) rows in a hub table.
+ *
+ * Exists because every other reader here swallows query errors into `[]`, which
+ * is indistinguishable from "the table is empty". That is fine for a list —
+ * rendering zero cards during an outage is a cosmetic failure that fixes itself
+ * on the next read. It is NOT fine for the decisions built on emptiness:
+ * robots noindex, sitemap membership, and whether the nav links a hub at all.
+ * Those run at build time, get memoized by `'use cache'` + cacheLife('max'),
+ * and a single failed read during a deploy would otherwise bake "this hub is
+ * empty" into every page until something happens to revalidate the tag.
+ *
+ * So this throws instead. A rejected promise is not written to the cache, so
+ * the failure stays transient, and callers get to decide how to degrade —
+ * see hasForumContent/hasBlogContent in lib/hubContent.ts, which fail open.
+ *
+ * `head: true` means PostgREST returns the count without any row payload.
+ */
+async function countRealRows(table: "forum_threads" | "blog_posts"): Promise<number> {
+  const { count, error } = await supabasePublic
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .not("id", "like", E2E_FIXTURE_ID_PATTERN);
+
+  if (error) {
+    throw new Error(`Failed to count rows in ${table}: ${error.message}`);
+  }
+
+  // A null count with no error shouldn't happen, but treating it as 0 would be
+  // the exact silent-empty failure this function exists to prevent.
+  if (count === null) {
+    throw new Error(`Count for ${table} came back null`);
+  }
+
+  return count;
+}
+
+/**
+ * Deliberately NOT 'threads-list' / 'blog-posts'.
+ *
+ * Reusing those would have been free plumbing, but they are revalidated by
+ * upvoteThread, upvoteReply, addReply and deleteReply as well as by create and
+ * delete. Since these counts are read from the root layout, every upvote on a
+ * single thread would drop the nav's cache entry for the entire site and make
+ * the next request anywhere re-run two count queries.
+ *
+ * Only create and delete can change whether a hub is empty, so only those
+ * revalidate this tag. Upvotes and replies leave it alone.
+ */
+const HUB_EMPTINESS_TAG = 'hub-emptiness';
+
+/** @throws if the read fails — see countRealRows. */
+export async function countRealThreads(): Promise<number> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(HUB_EMPTINESS_TAG)
+
+  return countRealRows("forum_threads");
+}
+
+/** @throws if the read fails — see countRealRows. */
+export async function countRealBlogPosts(): Promise<number> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(HUB_EMPTINESS_TAG)
+
+  return countRealRows("blog_posts");
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -908,6 +980,8 @@ export async function createThread(title: string, author: string, category: Foru
 
   // Invalidate the threads list so the new thread appears on the next read.
   revalidateTag('threads-list')
+  // First thread un-empties the hub: nav link, sitemap entry, robots index.
+  revalidateTag(HUB_EMPTINESS_TAG)
 
   return mapThread(data, [], 'da');
 }
@@ -1167,6 +1241,8 @@ export async function deleteThread(id: string) {
   if (succeeded) {
     revalidateTag('threads-list')
     revalidateTag(`thread-${id}`)
+    // Deleting the last thread re-empties the hub.
+    revalidateTag(HUB_EMPTINESS_TAG)
   }
   return succeeded;
 }
@@ -1255,6 +1331,8 @@ export async function createBlogPost(
 
   // Invalidate the blog posts list so the new post appears on the next read.
   revalidateTag('blog-posts')
+  // First post un-empties the hub: nav link, sitemap entry, robots index.
+  revalidateTag(HUB_EMPTINESS_TAG)
 
   return mapBlogPost(data, 'da');
 }
@@ -1302,6 +1380,8 @@ export async function deleteBlogPost(id: string) {
   if (succeeded) {
     revalidateTag('blog-posts')
     revalidateTag(`blog-post-${id}`)
+    // Deleting the last post re-empties the hub.
+    revalidateTag(HUB_EMPTINESS_TAG)
   }
   return succeeded;
 }
