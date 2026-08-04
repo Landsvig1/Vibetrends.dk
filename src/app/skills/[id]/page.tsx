@@ -35,7 +35,7 @@ function parseGithubRepo(url?: string): { ownerRepo: string; url: string } | nul
         const ownerRepo = `${parts[0]}/${parts[1]}`;
         return {
           ownerRepo,
-          url: `https://github.com/${ownerRepo}`,
+          url,
         };
       }
     }
