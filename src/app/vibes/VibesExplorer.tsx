@@ -178,10 +178,15 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     return filterProjects(viewProjects, search);
   }, [projects, view, search, searchActive]);
 
-  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
+  const viewTabs: {
+    value: string;
+    label: string;
+    icon: typeof Flag | typeof Flame | null;
+    disabled?: boolean;
+  }[] = [
     { value: "danish", label: "Dansk", icon: Flag },
-    { value: "all", label: "Alle", icon: null },
-    { value: "hot", label: "Hot", icon: Flame },
+    { value: "all", label: "Alle", icon: null, disabled: true },
+    { value: "hot", label: "Hot", icon: Flame, disabled: true },
   ];
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
@@ -238,9 +243,6 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       if (res.ok) {
         const newProj = await res.json();
         setProjects((prev) => [newProj, ...prev]);
-        // New submissions aren't Danish-flagged, so the default Dansk tab
-        // would hide them — jump to Alle so the submitter sees their entry.
-        setView("all");
         setSubSuccess(true);
 
         setTimeout(() => {
@@ -315,14 +317,23 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         <div className="flex gap-2 justify-center md:justify-end">
           {viewTabs.map((tab) => {
             const Icon = tab.icon;
+            const isDisabled = tab.disabled;
             return (
               <button
                 key={tab.value}
-                onClick={() => setView(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  view === tab.value && !searchActive
-                    ? "bg-accent-primary text-white font-extrabold shadow-md"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
+                disabled={isDisabled}
+                aria-disabled={isDisabled}
+                onClick={() => {
+                  if (!isDisabled) {
+                    setView(tab.value);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${
+                  isDisabled
+                    ? "bg-background border border-card-border/40 text-text-secondary/40 cursor-not-allowed select-none opacity-50"
+                    : view === tab.value && !searchActive
+                      ? "bg-accent-primary text-white font-extrabold shadow-md cursor-pointer"
+                      : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground cursor-pointer"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
