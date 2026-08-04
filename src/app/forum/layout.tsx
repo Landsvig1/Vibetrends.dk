@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { entityMetadata } from "@/lib/seo";
-import { getThreads } from "@/lib/db";
-import { hasRealContent } from "@/lib/hubContent";
+import { hasForumContent } from "@/lib/hubContent";
 
 export async function generateMetadata(): Promise<Metadata> {
   // An empty hub is a thin page — don't ask to have it indexed. `follow` stays
@@ -10,9 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
   // sitemap. The flag is inherited by /forum/[id], which is harmless — zero
   // threads means zero detail routes.
   //
-  // Emptiness is decided by hasRealContent (src/lib/hubContent.ts) so this, the
-  // sitemap, and the header nav can't drift apart on what counts as a row.
-  const hasThreads = hasRealContent(await getThreads());
+  // Emptiness is decided by hasForumContent (src/lib/hubContent.ts) so this,
+  // the sitemap, and the header nav can't drift apart on what counts as a row.
+  // It fails open, so a Supabase blip during a build can't deindex a populated
+  // forum — see that module for why that direction is the cheap one.
+  const hasThreads = await hasForumContent();
 
   return entityMetadata({
     title: "Forum",

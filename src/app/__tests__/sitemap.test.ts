@@ -43,6 +43,16 @@ vi.mock("@/lib/db", () => ({
   // Real implementation, not a stub: the sitemap and the hub layouts must agree
   // on which rows count, and a mocked-away filter would hide a disagreement.
   isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
+  // The hub gate reads counts, not rows (lib/hubContent.ts). Derived from the
+  // same fixtures the row lists use, so a test can't set up a state where the
+  // count and the detail URLs disagree. Counting here mirrors the SQL filter in
+  // countRealRows, which is what excludes fixtures in production.
+  countRealThreads: vi.fn(async () =>
+    state.threads.filter((t) => !t.id.startsWith("e2e-fixture-")).length
+  ),
+  countRealBlogPosts: vi.fn(async () =>
+    state.posts.filter((p) => !p.id.startsWith("e2e-fixture-")).length
+  ),
 }));
 
 // SKILL_CATEGORY_SLUGS is used to generate /skills/topic/<slug> entries.

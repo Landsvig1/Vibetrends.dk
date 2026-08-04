@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 import { cacheLife } from "next/cache";
 import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, isE2eFixtureId } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
-import { hasRealContent } from "@/lib/hubContent";
+import { hasBlogContent, hasForumContent } from "@/lib/hubContent";
 
 const baseUrl = "https://vibetrends.dk";
 
@@ -39,14 +39,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // section is retired, so every `agents` row is crawled under its feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
-  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw] = await Promise.all([
-    getSkills(),
-    getProjects(),
-    getCli(),
-    getAgents(undefined, "MCP Server"),
-    getBlogPosts(),
-    getThreads(),
-  ]);
+  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw, forumHasContent, blogHasContent] =
+    await Promise.all([
+      getSkills(),
+      getProjects(),
+      getCli(),
+      getAgents(undefined, "MCP Server"),
+      getBlogPosts(),
+      getThreads(),
+      // Not derived from threadsRaw/postsRaw above: those reads collapse a
+      // query failure into [], which would drop a populated hub out of the
+      // sitemap. These two fail open instead (lib/hubContent.ts).
+      hasForumContent(),
+      hasBlogContent(),
+    ]);
 
   // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — they're
   // short-lived and must never be crawled/indexed. Every list is filtered, not
@@ -65,17 +71,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   //
   // /forum and /blog are held back while they have no rows: submitting a
   // contentless hub for indexing is what earns a thin-content impression. The
-  // same hasRealContent predicate also drives their robots noindex
-  // (forum/layout.tsx, blog/page.tsx) and hides them from the header nav
-  // (lib/hubContent.ts), so all three reverse together on the first thread or
-  // published post.
+  // same two predicates drive their robots noindex (forum/layout.tsx,
+  // blog/page.tsx) and hide them from the header nav (lib/hubContent.ts), so
+  // all three reverse together on the first thread or published post.
   const staticEntries: MetadataRoute.Sitemap = [
     "",
     "/about",
     "/skills",
     "/vibes",
-    ...(hasRealContent(threads) ? ["/forum"] : []),
-    ...(hasRealContent(posts) ? ["/blog"] : []),
+    ...(forumHasContent ? ["/forum"] : []),
+    ...(blogHasContent ? ["/blog"] : []),
     "/cli",
     "/mcp",
     "/agent-guide",

@@ -1,46 +1,55 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 /**
- * Tests for src/lib/hubContent.ts — the single predicate behind three things
- * that must agree: the sitemap's hub entries, the hubs' robots noindex, and
- * whether the header nav advertises them.
+ * Tests for src/lib/hubContent.ts — the single answer behind three things that
+ * must agree: the sitemap's hub entries, the hubs' robots noindex, and whether
+ * the header nav advertises them.
+ *
+ * The failure case is the interesting one. countRealThreads/countRealBlogPosts
+ * throw when the read fails (rather than reporting 0, which is what every other
+ * reader in db.ts collapses an error into) so that this module can decide how
+ * to degrade. It must degrade toward "has content": the alternative deindexes a
+ * live hub on a transient Supabase blip and leaves it that way.
  */
 
 const state = vi.hoisted(() => ({
-  threads: [] as { id: string }[],
-  posts: [] as { id: string }[],
+  threads: 0 as number | Error,
+  posts: 0 as number | Error,
 }));
+
+const resolve = (value: number | Error) =>
+  value instanceof Error ? Promise.reject(value) : Promise.resolve(value);
 
 vi.mock("@/lib/db", () => ({
-  getThreads: vi.fn(async () => state.threads),
-  getBlogPosts: vi.fn(async () => state.posts),
-  // Real implementation, not a stub: a mocked-away fixture filter would hide
-  // exactly the disagreement these tests exist to catch.
-  isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
+  countRealThreads: vi.fn(() => resolve(state.threads)),
+  countRealBlogPosts: vi.fn(() => resolve(state.posts)),
 }));
 
-import { hasRealContent, hiddenNavHrefs } from "@/lib/hubContent";
+import { hasBlogContent, hasForumContent, hiddenNavHrefs } from "@/lib/hubContent";
 
 beforeEach(() => {
-  state.threads = [];
-  state.posts = [];
+  state.threads = 0;
+  state.posts = 0;
 });
 
-describe("hasRealContent()", () => {
-  it("is false for an empty hub", () => {
-    expect(hasRealContent([])).toBe(false);
+describe("hasForumContent() / hasBlogContent()", () => {
+  it("are false for an empty hub", async () => {
+    expect(await hasForumContent()).toBe(false);
+    expect(await hasBlogContent()).toBe(false);
   });
 
-  it("is true once a real row exists", () => {
-    expect(hasRealContent([{ id: "thread-1" }])).toBe(true);
+  it("are true once a real row exists", async () => {
+    state.threads = 1;
+    state.posts = 3;
+    expect(await hasForumContent()).toBe(true);
+    expect(await hasBlogContent()).toBe(true);
   });
 
-  it("discounts e2e fixture rows", () => {
-    expect(hasRealContent([{ id: "e2e-fixture-1" }])).toBe(false);
-  });
-
-  it("is true when a real row sits alongside fixture rows", () => {
-    expect(hasRealContent([{ id: "e2e-fixture-1" }, { id: "thread-1" }])).toBe(true);
+  it("fail open when the count read throws", async () => {
+    state.threads = new Error("connection reset");
+    state.posts = new Error("connection reset");
+    expect(await hasForumContent()).toBe(true);
+    expect(await hasBlogContent()).toBe(true);
   });
 });
 
@@ -50,24 +59,30 @@ describe("hiddenNavHrefs()", () => {
   });
 
   it("reveals /forum on the first real thread", async () => {
-    state.threads = [{ id: "thread-1" }];
+    state.threads = 1;
     expect(await hiddenNavHrefs()).toEqual(["/blog"]);
   });
 
   it("reveals /blog on the first published post", async () => {
-    state.posts = [{ id: "post-1" }];
+    state.posts = 1;
     expect(await hiddenNavHrefs()).toEqual(["/forum"]);
   });
 
   it("hides nothing once both hubs have content", async () => {
-    state.threads = [{ id: "thread-1" }];
-    state.posts = [{ id: "post-1" }];
+    state.threads = 2;
+    state.posts = 2;
     expect(await hiddenNavHrefs()).toEqual([]);
   });
 
-  it("keeps a hub hidden when its only rows are e2e fixtures", async () => {
-    state.threads = [{ id: "e2e-fixture-thread" }];
-    state.posts = [{ id: "e2e-fixture-post" }];
-    expect(await hiddenNavHrefs()).toEqual(["/forum", "/blog"]);
+  it("hides nothing when the reads fail, rather than unlinking a live hub", async () => {
+    state.threads = new Error("supabase unavailable");
+    state.posts = new Error("supabase unavailable");
+    expect(await hiddenNavHrefs()).toEqual([]);
+  });
+
+  it("degrades independently per hub", async () => {
+    state.threads = new Error("supabase unavailable");
+    state.posts = 0;
+    expect(await hiddenNavHrefs()).toEqual(["/blog"]);
   });
 });

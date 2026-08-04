@@ -137,6 +137,66 @@ export interface BlogPost {
  */
 export const isE2eFixtureId = (id: string) => id.startsWith("e2e-fixture-");
 
+/** SQL-side form of isE2eFixtureId, for count queries that never load rows. */
+const E2E_FIXTURE_ID_PATTERN = "e2e-fixture-%";
+
+/**
+ * Number of real (non-fixture) rows in a hub table.
+ *
+ * Exists because every other reader here swallows query errors into `[]`, which
+ * is indistinguishable from "the table is empty". That is fine for a list —
+ * rendering zero cards during an outage is a cosmetic failure that fixes itself
+ * on the next read. It is NOT fine for the decisions built on emptiness:
+ * robots noindex, sitemap membership, and whether the nav links a hub at all.
+ * Those run at build time, get memoized by `'use cache'` + cacheLife('max'),
+ * and a single failed read during a deploy would otherwise bake "this hub is
+ * empty" into every page until something happens to revalidate the tag.
+ *
+ * So this throws instead. A rejected promise is not written to the cache, so
+ * the failure stays transient, and callers get to decide how to degrade —
+ * see hasForumContent/hasBlogContent in lib/hubContent.ts, which fail open.
+ *
+ * `head: true` means PostgREST returns the count without any row payload.
+ */
+async function countRealRows(table: "forum_threads" | "blog_posts"): Promise<number> {
+  const { count, error } = await supabasePublic
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .not("id", "like", E2E_FIXTURE_ID_PATTERN);
+
+  if (error) {
+    throw new Error(`Failed to count rows in ${table}: ${error.message}`);
+  }
+
+  // A null count with no error shouldn't happen, but treating it as 0 would be
+  // the exact silent-empty failure this function exists to prevent.
+  if (count === null) {
+    throw new Error(`Count for ${table} came back null`);
+  }
+
+  return count;
+}
+
+/** @throws if the read fails — see countRealRows. */
+export async function countRealThreads(): Promise<number> {
+  'use cache'
+  cacheLife('max')
+  // Same tag createThread already revalidates, so a new thread refreshes this
+  // count on the write path with no extra plumbing.
+  cacheTag('threads-list')
+
+  return countRealRows("forum_threads");
+}
+
+/** @throws if the read fails — see countRealRows. */
+export async function countRealBlogPosts(): Promise<number> {
+  'use cache'
+  cacheLife('max')
+  cacheTag('blog-posts')
+
+  return countRealRows("blog_posts");
+}
+
 export interface Agent {
   id: string;
   name: string;
