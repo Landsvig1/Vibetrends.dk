@@ -13,6 +13,11 @@ export const skillSchema = z.object({
   category: z.enum(SKILL_CATEGORY_SLUGS),
   // Only title + link are essential. Description is optional (empty allowed).
   description: z.string().max(1000).optional().or(z.literal("")),
+  // Danish translation of `description`. Optional — omit it (or send "") and
+  // the row stores null, which the read path renders as the English original.
+  // Never send the English string here: that is exactly the state
+  // 20260804000000_description_da_nullable.sql cleared.
+  descriptionDa: z.string().max(1000).optional().or(z.literal("")),
   // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
   tags: z.array(z.string().max(50)).max(10).optional(),
   githubUrl: z.string().url().max(200),
@@ -25,6 +30,9 @@ export const skillSchema = z.object({
 export const projectSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().min(10).max(500),
+  // Danish translation of `description` — see skillSchema.descriptionDa.
+  // No min length: unlike `description` this may legitimately be absent.
+  descriptionDa: z.string().max(500).optional().or(z.literal("")),
   // Max 10 tools, and each individual tool string is limited to 50 characters.
   tools: z.array(z.string().max(50)).max(10).optional(),
   // Max 20 prompts, and each individual prompt string is limited to 2000 characters to prevent DoS.

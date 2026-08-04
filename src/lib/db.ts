@@ -1073,7 +1073,7 @@ export async function upvoteAgent(id: string, actingAs?: ActingAs) {
   return rpcData as number;
 }
 
-export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, actingAs?: ActingAs) {
+export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'p_' + Date.now();
@@ -1082,7 +1082,9 @@ export async function createProject(title: string, author: string, description: 
     title_da: title,
     title_en: title,
     author,
-    description_da: description,
+    // `||` not `??`: an empty string means "no translation supplied" and must
+    // normalize to null, or the English-fallback state is unreachable via the API.
+    description_da: descriptionDa || null,
     description_en: description,
     tools,
     prompts,
@@ -1104,7 +1106,7 @@ export async function createProject(title: string, author: string, description: 
   return mapProject(data, 'da');
 }
 
-export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, actingAs?: ActingAs) {
+export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 's_' + Date.now();
@@ -1117,7 +1119,8 @@ export async function createSkill(title: string, vibeCoder: string, description:
     vibe_coder_title_en: 'Community Contributor',
     rating: 5.0,
     reviews_count: 0,
-    description_da: description,
+    // See createProject: `||` normalizes "" to null.
+    description_da: descriptionDa || null,
     description_en: description,
     category,
     tags,
@@ -1183,7 +1186,7 @@ export async function deleteReply(threadId: string, replyId: string) {
   return succeeded;
 }
 
-export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, actingAs?: ActingAs) {
+export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'a_' + Date.now();
@@ -1192,7 +1195,8 @@ export async function createAgent(name: string, developer: string, category: Age
     name,
     developer,
     category,
-    description_da: description,
+    // See createProject: `||` normalizes "" to null.
+    description_da: descriptionDa || null,
     description_en: description,
     install_command: installCommand,
     system_prompt_da: systemPrompt,

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, category, description, tags, githubUrl, source } = result.data;
+    const { title, category, description, tags, githubUrl, source, descriptionDa } = result.data;
 
     const newSkill = await createSkill(
       title,
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       tags || [],
       githubUrl,
       source || undefined,
+      descriptionDa || undefined,
       actingAs
     );
 

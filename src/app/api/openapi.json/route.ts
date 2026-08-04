@@ -10,6 +10,14 @@ import { BLOG_CATEGORIES } from "@/lib/blogCategories";
  *
  * Keep in sync manually when adding/changing a route under src/app/api/.
  */
+/**
+ * Shared across the three submit bodies that accept a Danish description. The
+ * site renders Danish first, so an agent that can translate should — but an
+ * omitted value is a supported state, not a gap to paper over with the English.
+ */
+const DESCRIPTION_DA_DOC =
+  "Danish translation of `description`. Optional: omit it (or send an empty string) and the entry falls back to the English original when rendered. Do NOT send the English text here — send nothing.";
+
 const OPENAPI_DOCUMENT = {
   openapi: "3.1.0",
   info: {
@@ -155,6 +163,7 @@ const OPENAPI_DOCUMENT = {
                 properties: {
                   title: { type: "string", maxLength: 100 },
                   description: { type: "string", minLength: 10, maxLength: 500 },
+                  descriptionDa: { type: "string", maxLength: 500, description: DESCRIPTION_DA_DOC },
                   tools: { type: "array", items: { type: "string" }, maxItems: 10 },
                   prompts: { type: "array", items: { type: "string" } },
                   demoUrl: { type: "string", format: "uri" },
@@ -190,6 +199,7 @@ const OPENAPI_DOCUMENT = {
                   title: { type: "string", maxLength: 100 },
                   category: { type: "string" },
                   description: { type: "string", maxLength: 1000 },
+                  descriptionDa: { type: "string", maxLength: 1000, description: DESCRIPTION_DA_DOC },
                   tags: { type: "array", items: { type: "string" }, maxItems: 10 },
                   githubUrl: { type: "string", format: "uri" },
                   source: { type: "string", format: "uri" },
@@ -223,6 +233,7 @@ const OPENAPI_DOCUMENT = {
                   name: { type: "string", maxLength: 100 },
                   category: { type: "string", enum: ["CLI", "MCP Server"] },
                   description: { type: "string", minLength: 10, maxLength: 500 },
+                  descriptionDa: { type: "string", maxLength: 500, description: DESCRIPTION_DA_DOC },
                   installCommand: { type: "string", maxLength: 300 },
                   systemPrompt: { type: "string" },
                   tags: { type: "array", items: { type: "string" }, maxItems: 10 },

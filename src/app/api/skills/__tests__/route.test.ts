@@ -57,6 +57,26 @@ describe("skillSchema — optional description", () => {
   });
 });
 
+describe("skillSchema — optional Danish description", () => {
+  it("accepts a submission with no descriptionDa (the common case)", () => {
+    expect(skillSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("accepts a Danish description alongside the English one", () => {
+    const parsed = skillSchema.safeParse({ ...base, description: "En", descriptionDa: "Dansk" });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.descriptionDa).toBe("Dansk");
+  });
+
+  it("accepts an empty-string descriptionDa (normalized to null at the write path)", () => {
+    expect(skillSchema.safeParse({ ...base, descriptionDa: "" }).success).toBe(true);
+  });
+
+  it("rejects an over-long descriptionDa", () => {
+    expect(skillSchema.safeParse({ ...base, descriptionDa: "x".repeat(1001) }).success).toBe(false);
+  });
+});
+
 describe("skillSchema — category enum", () => {
   it("accepts every current skill category slug", () => {
     for (const category of [

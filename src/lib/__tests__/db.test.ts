@@ -1752,6 +1752,50 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     assertNoProfileArg();
   });
 
+  it("createSkill writes description_da = null when no Danish is supplied", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: null, description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    const payload = insert!.payload as Record<string, unknown>;
+    expect(payload.description_en).toBe("Desc");
+    // The whole point of the nullable column: an omitted translation must not
+    // silently re-duplicate the English string.
+    expect(payload.description_da).toBeNull();
+  });
+
+  it("createSkill persists a supplied Danish description", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: "Dansk", description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", [], undefined, undefined, "Dansk beskrivelse");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    const payload = insert!.payload as Record<string, unknown>;
+    expect(payload.description_da).toBe("Dansk beskrivelse");
+    expect(payload.description_en).toBe("Desc");
+  });
+
+  it("createSkill normalizes an empty-string Danish description to null", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: null, description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", [], undefined, undefined, "");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
+  it("createProject writes description_da = null when no Danish is supplied", async () => {
+    state.serverHandler = () => ({ data: { id: "p_new", title_da: "T", title_en: "T", author: "a", description_da: null, description_en: "Desc", tools: [], prompts: [], upvotes: 1, demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01T00:00:00Z" }, error: null });
+    await db.createProject("Title", "Author", "Desc", [], [], "https://demo.com");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
+  it("createAgent writes description_da = null when no Danish is supplied", async () => {
+    state.serverHandler = () => ({ data: { id: "a_new", name: "Agent", developer: "dev", category: "CLI", description_da: null, description_en: "Desc", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [] }, error: null });
+    await db.createAgent("Agent", "dev", "CLI", "Desc", "npx agent", "system prompt", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
   it("createAgent calls revalidateTag('agents-list') on successful insert", async () => {
     const row = { id: "a_new", name: "Agent", developer: "dev", category: "CLI", description_da: "d", description_en: "d", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [] };
     state.serverHandler = () => ({ data: row, error: null });

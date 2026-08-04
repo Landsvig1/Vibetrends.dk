@@ -312,7 +312,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       if (!parsed.success) {
         return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
-      const { title, category, description, tags, githubUrl, source } = parsed.data;
+      const { title, category, description, tags, githubUrl, source, descriptionDa } = parsed.data;
       const submitterUsername = username ?? "agent";
       const skill = await createSkill(
         title,
@@ -322,6 +322,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         tags || [],
         githubUrl,
         source || undefined,
+        descriptionDa || undefined,
         actingAs
       );
       return textContent(skill);
@@ -331,7 +332,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       if (!parsed.success) {
         return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
       }
-      const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl } = parsed.data;
+      const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl, descriptionDa } = parsed.data;
       const submitterUsername = username ?? "agent";
       const project = await createProject(
         title,
@@ -342,6 +343,7 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         demoUrl || "",
         githubUrl,
         imageUrl || undefined,
+        descriptionDa || undefined,
         actingAs
       );
       return textContent(project);
