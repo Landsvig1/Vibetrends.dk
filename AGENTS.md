@@ -92,3 +92,12 @@ Specifically:
   Koalafilm's #33/#34) each cost a full review cycle to close as
   duplicates. If an open PR already covers the file, extend or wait —
   don't open a parallel PR.
+- **Never copy the English description into `description_da`.** On `skills`,
+  `vibes`, and `agents` that column is nullable and null means "not translated
+  yet" — read paths fall back to `description_en` through
+  `withEnglishFallback` in `src/lib/db.ts`. Writing the English text into the
+  Danish column makes a real translation indistinguishable from a copy and
+  permanently disables the fallback, which is the exact state migration
+  `20260804000000_description_da_nullable.sql` had to clean up across 118 rows.
+  The submit schemas take an optional `descriptionDa`; omit it rather than
+  filling it with English.
