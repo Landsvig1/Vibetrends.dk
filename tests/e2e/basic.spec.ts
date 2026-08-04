@@ -89,13 +89,13 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // unlinked, or indexable AND linked. Never one without the other.
     //
     // The hub's own robots meta is the right signal to compare against because
-    // it is computed from the same call the nav uses. Do NOT substitute
-    // /api/forum or /api/blog here: those routes call getBlogPosts('da') /
-    // getThreads({...}) with explicit arguments, which are different "use
-    // cache" keys than the no-arg calls behind the nav and the robots meta, so
-    // they can legitimately hold different data (confirmed 2026-08-04: a
-    // deleted post lingered in the ('da') entry while the no-arg entry was
-    // correctly empty).
+    // it comes from the same hasForumContent/hasBlogContent call the nav uses.
+    // Do NOT substitute /api/forum or /api/blog here: those routes read rows
+    // (getThreads/getBlogPosts) rather than the counts, under entirely
+    // different "use cache" keys, so they can legitimately hold different data.
+    // Confirmed 2026-08-04: a deleted post lingered in the getBlogPosts('da')
+    // entry while the no-arg entry was correctly empty, which made an earlier
+    // version of this assertion fail against a hub that was behaving correctly.
     for (const [label, hubPath] of [['Forum', '/forum'], ['Blog', '/blog']] as const) {
       const hubHtml = await (await page.request.get(hubPath)).text();
       const hubIsEmpty = /<meta name="robots" content="noindex/.test(hubHtml);

@@ -15,6 +15,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const state = vi.hoisted(() => ({
   threads: 0 as number | Error,
   posts: 0 as number | Error,
+  // Stands in for a Next prerender bail-out: unstable_rethrow re-throws those
+  // instead of letting the catch swallow them.
+  rethrows: false,
 }));
 
 const resolve = (value: number | Error) =>
@@ -25,11 +28,19 @@ vi.mock("@/lib/db", () => ({
   countRealBlogPosts: vi.fn(() => resolve(state.posts)),
 }));
 
+const unstable_rethrow = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ unstable_rethrow }));
+
 import { hasBlogContent, hasForumContent, hiddenNavHrefs } from "@/lib/hubContent";
 
 beforeEach(() => {
   state.threads = 0;
   state.posts = 0;
+  state.rethrows = false;
+  unstable_rethrow.mockReset();
+  unstable_rethrow.mockImplementation((err: unknown) => {
+    if (state.rethrows) throw err;
+  });
 });
 
 describe("hasForumContent() / hasBlogContent()", () => {
@@ -50,6 +61,29 @@ describe("hasForumContent() / hasBlogContent()", () => {
     state.posts = new Error("connection reset");
     expect(await hasForumContent()).toBe(true);
     expect(await hasBlogContent()).toBe(true);
+  });
+
+  // cacheComponents is on, and Next signals a prerender bail-out by throwing.
+  // Swallowing that would bake "this hub has content" into the build instead of
+  // letting Next handle it, so every catch has to run the error past
+  // unstable_rethrow before deciding to degrade.
+  it("route every caught error through unstable_rethrow", async () => {
+    state.threads = new Error("connection reset");
+    await hasForumContent();
+    expect(unstable_rethrow).toHaveBeenCalledWith(state.threads);
+
+    state.posts = new Error("connection reset");
+    await hasBlogContent();
+    expect(unstable_rethrow).toHaveBeenCalledWith(state.posts);
+  });
+
+  it("propagate a bail-out instead of failing open", async () => {
+    state.rethrows = true;
+    state.threads = new Error("prerender bail-out");
+    state.posts = new Error("prerender bail-out");
+
+    await expect(hasForumContent()).rejects.toThrow("prerender bail-out");
+    await expect(hasBlogContent()).rejects.toThrow("prerender bail-out");
   });
 });
 

@@ -177,13 +177,25 @@ async function countRealRows(table: "forum_threads" | "blog_posts"): Promise<num
   return count;
 }
 
+/**
+ * Deliberately NOT 'threads-list' / 'blog-posts'.
+ *
+ * Reusing those would have been free plumbing, but they are revalidated by
+ * upvoteThread, upvoteReply, addReply and deleteReply as well as by create and
+ * delete. Since these counts are read from the root layout, every upvote on a
+ * single thread would drop the nav's cache entry for the entire site and make
+ * the next request anywhere re-run two count queries.
+ *
+ * Only create and delete can change whether a hub is empty, so only those
+ * revalidate this tag. Upvotes and replies leave it alone.
+ */
+const HUB_EMPTINESS_TAG = 'hub-emptiness';
+
 /** @throws if the read fails — see countRealRows. */
 export async function countRealThreads(): Promise<number> {
   'use cache'
   cacheLife('max')
-  // Same tag createThread already revalidates, so a new thread refreshes this
-  // count on the write path with no extra plumbing.
-  cacheTag('threads-list')
+  cacheTag(HUB_EMPTINESS_TAG)
 
   return countRealRows("forum_threads");
 }
@@ -192,7 +204,7 @@ export async function countRealThreads(): Promise<number> {
 export async function countRealBlogPosts(): Promise<number> {
   'use cache'
   cacheLife('max')
-  cacheTag('blog-posts')
+  cacheTag(HUB_EMPTINESS_TAG)
 
   return countRealRows("blog_posts");
 }
@@ -952,6 +964,8 @@ export async function createThread(title: string, author: string, category: Foru
 
   // Invalidate the threads list so the new thread appears on the next read.
   revalidateTag('threads-list')
+  // First thread un-empties the hub: nav link, sitemap entry, robots index.
+  revalidateTag(HUB_EMPTINESS_TAG)
 
   return mapThread(data, [], 'da');
 }
@@ -1208,6 +1222,8 @@ export async function deleteThread(id: string) {
   if (succeeded) {
     revalidateTag('threads-list')
     revalidateTag(`thread-${id}`)
+    // Deleting the last thread re-empties the hub.
+    revalidateTag(HUB_EMPTINESS_TAG)
   }
   return succeeded;
 }
@@ -1295,6 +1311,8 @@ export async function createBlogPost(
 
   // Invalidate the blog posts list so the new post appears on the next read.
   revalidateTag('blog-posts')
+  // First post un-empties the hub: nav link, sitemap entry, robots index.
+  revalidateTag(HUB_EMPTINESS_TAG)
 
   return mapBlogPost(data, 'da');
 }
@@ -1342,6 +1360,8 @@ export async function deleteBlogPost(id: string) {
   if (succeeded) {
     revalidateTag('blog-posts')
     revalidateTag(`blog-post-${id}`)
+    // Deleting the last post re-empties the hub.
+    revalidateTag(HUB_EMPTINESS_TAG)
   }
   return succeeded;
 }

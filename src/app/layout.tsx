@@ -118,24 +118,26 @@ export default function RootLayout({
   );
 }
 
-async function RootLayoutInner({ children }: { children: React.ReactNode }) {
-  // Both reads are 'use cache' with cacheLife('max'), and every route still
-  // builds Static or PPR, so in practice this resolves at build time and costs
-  // nothing per request.
-  //
-  // Two things it is NOT: (a) free because the data is already loaded — the nav
-  // uses the no-arg getThreads()/getBlogPosts(), which are different cache keys
-  // from the arg'd calls the hubs and API routes make (see the note in
-  // tests/e2e/basic.spec.ts), so only /forum, /blog, and the sitemap share
-  // these entries; (b) purely streaming — this await gates `children` too, so
-  // any route that does render dynamically holds the whole body behind the
-  // skeleton above until both reads resolve, not just the chrome.
-  const hiddenHrefs = await hiddenNavHrefs();
-
+function RootLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <NuqsAdapter>
-        <Header hiddenHrefs={hiddenHrefs} />
+        {/*
+          The nav's hub counts are their own async read, so they get their own
+          boundary. Awaiting them out here would gate `children` and the footer
+          as well, and the fallback above is a bare <main> skeleton with no
+          chrome — so a single slow count read would blank the whole page frame
+          rather than just the nav.
+
+          The fallback renders the header with nothing hidden. That matches how
+          hiddenNavHrefs degrades when it can't read the counts (fail open, see
+          lib/hubContent.ts): if we're going to show something before the answer
+          arrives, it should be the same something we'd show if the answer never
+          arrived.
+        */}
+        <Suspense fallback={<Header />}>
+          <HeaderWithHubNav />
+        </Suspense>
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <RouteTransitionProvider>{children}</RouteTransitionProvider>
         </main>
@@ -143,5 +145,12 @@ async function RootLayoutInner({ children }: { children: React.ReactNode }) {
       </NuqsAdapter>
     </AuthProvider>
   );
+}
+
+// Both counts are 'use cache' with cacheLife('max') and are only invalidated by
+// thread/post creation and deletion (HUB_EMPTINESS_TAG in lib/db.ts), so on a
+// Static or PPR route this resolves at build time and costs nothing per request.
+async function HeaderWithHubNav() {
+  return <Header hiddenHrefs={await hiddenNavHrefs()} />;
 }
 
