@@ -29,7 +29,7 @@ export default function ConnectBlock({
     setTimeout(() => setCopied(null), 2000);
   };
 
-  // Direct, distilled INSTALLATION block for skills across AI agents (/distill + /clarify + /polish)
+  // Pure, simple INSTALLATION block for skills: no terminal icon, no agent badges, just easy install (/distill)
   if (feedType === "skills") {
     const cloneUrl = item.githubUrl && /^https:\/\/github\.com\//i.test(item.githubUrl) ? item.githubUrl : undefined;
     const installCmd = item.installCommand?.trim() || (cloneUrl ? `git clone ${cloneUrl}` : item.source ? `git clone ${item.source}` : null);
@@ -39,17 +39,9 @@ export default function ConnectBlock({
         data-testid="connect-block"
         className="p-6 rounded-2xl glass-panel border border-card-border space-y-4 shadow-xl relative"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-            <h4 className="text-xs font-bold text-foreground uppercase tracking-widest font-mono">
-              {lang === "da" ? "Installation" : "Installation"}
-            </h4>
-          </div>
-          <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-accent-light text-accent-primary border border-accent-primary/20">
-            {lang === "da" ? "Alle AI-agenter" : "All AI Agents"}
-          </span>
-        </div>
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-widest font-mono">
+          {lang === "da" ? "Installation" : "Installation"}
+        </h4>
 
         {installCmd ? (
           <div className="relative group">
@@ -79,56 +71,11 @@ export default function ConnectBlock({
             )}
           </div>
         ) : (
-          <p className="text-xs text-text-secondary">
+          <p className="text-xs text-text-secondary leading-relaxed">
             {lang === "da"
-              ? "Ingen direkte installationskommando. Følg kildekoden for instruktioner."
-              : "No direct install command. Follow source code for instructions."}
+              ? "Ingen direkte installationskommando. Åbn kildekoden for instruktioner."
+              : "No direct install command. Open source code for instructions."}
           </p>
-        )}
-
-        <p className="text-xs text-text-secondary leading-relaxed">
-          {lang === "da"
-            ? "Placér instruktionerne i dit projekts agent-kontekst (f.eks. .claude/skills/, .cursor/rules eller system prompt)."
-            : "Place instructions in your project's agent context (e.g. .claude/skills/, .cursor/rules or system prompt)."}
-        </p>
-
-        {!showAdvanced ? (
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(true)}
-            aria-expanded={false}
-            className="text-[11px] text-text-secondary hover:text-accent-primary font-mono transition-colors pt-2.5 border-t border-card-border/60 w-full text-left cursor-pointer flex items-center justify-between group"
-          >
-            <span>{lang === "da" ? "Vis værktøjs-specifikke trin" : "Show tool-specific steps"}</span>
-            <span className="group-hover:translate-x-0.5 transition-transform text-accent-primary font-bold">→</span>
-          </button>
-        ) : (
-          <div className="pt-3 border-t border-card-border space-y-3 animate-in fade-in duration-200">
-            <div className="flex flex-wrap gap-1.5">
-              {HOSTS.map((h) => (
-                <button
-                  key={h.slug}
-                  type="button"
-                  data-testid={`connect-host-${h.slug}`}
-                  onClick={() => setHost(h.slug)}
-                  aria-pressed={host === h.slug}
-                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                    host === h.slug
-                      ? "bg-accent-primary text-white shadow-sm"
-                      : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
-                  }`}
-                >
-                  {h.name}
-                </button>
-              ))}
-            </div>
-
-            <ol className="list-decimal list-inside space-y-1 text-xs text-text-secondary break-words">
-              {recipe.steps.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ol>
-          </div>
         )}
       </div>
     );
