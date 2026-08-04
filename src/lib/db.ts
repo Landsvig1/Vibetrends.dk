@@ -170,7 +170,8 @@ interface SkillRow {
   rating: number | string;
   reviews_count: number;
   upvotes?: number;
-  description_da: string;
+  /** Null until translated — read it through withEnglishFallback, never raw. */
+  description_da: string | null;
   description_en: string;
   tags: string[] | null;
   github_url: string | null;
@@ -188,7 +189,8 @@ interface ShowcaseRow {
   title_da: string;
   title_en: string;
   author: string;
-  description_da: string;
+  /** Null until translated — read it through withEnglishFallback, never raw. */
+  description_da: string | null;
   description_en: string;
   tools: string[] | null;
   prompts: string[] | null;
@@ -251,7 +253,8 @@ interface AgentRow {
   // Widened to string so a legacy pre-migration category never trips the
   // mapper before the recategorization migration has run in every environment.
   category: string;
-  description_da: string;
+  /** Null until translated — read it through withEnglishFallback, never raw. */
+  description_da: string | null;
   description_en: string;
   install_command: string;
   system_prompt_da: string;
@@ -261,6 +264,19 @@ interface AgentRow {
   is_danish?: boolean;
   denmark_specific?: boolean;
   source_url?: string | null;
+}
+
+/**
+ * Danish text with an English fallback.
+ *
+ * `description_da` is null when nothing has been translated yet — see
+ * supabase/migrations/20260804000000_description_da_nullable.sql, which cleared
+ * the rows where the "Danish" was a verbatim copy of the English. A Danish
+ * reader gets the English original rather than an empty card, and the English
+ * path is never affected by the fallback.
+ */
+function withEnglishFallback(da: string | null | undefined, en: string, lang: 'da' | 'en'): string {
+  return lang === 'en' ? en : da ?? en;
 }
 
 // Map database entities to frontend camelCase objects
@@ -278,7 +294,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     rating: Number(s.rating),
     reviewsCount: s.reviews_count,
     upvotes: s.upvotes ?? 0,
-    description: lang === 'en' ? s.description_en : s.description_da,
+    description: withEnglishFallback(s.description_da, s.description_en, lang),
     tags: s.tags || [],
     githubUrl: s.github_url || undefined,
     source: s.source || undefined,
@@ -290,7 +306,7 @@ function mapProject(p: ShowcaseRow, lang: 'da' | 'en'): ShowcaseProject {
     id: p.id,
     title: lang === 'en' ? p.title_en : p.title_da,
     author: p.author,
-    description: lang === 'en' ? p.description_en : p.description_da,
+    description: withEnglishFallback(p.description_da, p.description_en, lang),
     tools: p.tools || [],
     prompts: p.prompts || [],
     upvotes: p.upvotes || 0,
@@ -356,7 +372,7 @@ function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
     name: a.name,
     developer: a.developer,
     category: toAgentCategory(a.category),
-    description: lang === 'en' ? a.description_en : a.description_da,
+    description: withEnglishFallback(a.description_da, a.description_en, lang),
     installCommand: a.install_command,
     systemPrompt: lang === 'en' ? a.system_prompt_en : a.system_prompt_da,
     upvotes: a.upvotes || 0,
@@ -454,7 +470,7 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
       .filter(s =>
         s.title_da.toLowerCase().includes(q) ||
         s.title_en.toLowerCase().includes(q) ||
-        s.description_da.toLowerCase().includes(q) ||
+        (s.description_da ?? '').toLowerCase().includes(q) ||
         s.description_en.toLowerCase().includes(q) ||
         (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
       )
@@ -601,7 +617,7 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
       .filter(p =>
         p.title_da.toLowerCase().includes(q) ||
         p.title_en.toLowerCase().includes(q) ||
-        p.description_da.toLowerCase().includes(q) ||
+        (p.description_da ?? '').toLowerCase().includes(q) ||
         p.description_en.toLowerCase().includes(q) ||
         (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
       )
@@ -984,7 +1000,7 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
     return data
       .filter(a =>
         a.name.toLowerCase().includes(q) ||
-        a.description_da.toLowerCase().includes(q) ||
+        (a.description_da ?? '').toLowerCase().includes(q) ||
         a.description_en.toLowerCase().includes(q) ||
         (a.tags || []).some((t: string) => t.toLowerCase().includes(q))
       )
@@ -1487,7 +1503,7 @@ export async function getFeedItems(opts: {
       id: s.id,
       type: 'skill',
       title: lang === 'da' ? s.title_da : s.title_en,
-      summary: lang === 'da' ? s.description_da : s.description_en,
+      summary: withEnglishFallback(s.description_da, s.description_en, lang),
       url: `https://vibetrends.dk/skills/${s.id}`,
       tags: s.tags ?? [],
       publishedAtMs,
@@ -1502,7 +1518,7 @@ export async function getFeedItems(opts: {
       id: a.id,
       type,
       title: a.name,
-      summary: lang === 'da' ? a.description_da : a.description_en,
+      summary: withEnglishFallback(a.description_da, a.description_en, lang),
       url: `https://vibetrends.dk/${type}/${a.id}`,
       tags: a.tags ?? [],
       publishedAtMs,
@@ -1515,7 +1531,7 @@ export async function getFeedItems(opts: {
       id: v.id,
       type: 'vibe',
       title: lang === 'da' ? v.title_da : v.title_en,
-      summary: lang === 'da' ? v.description_da : v.description_en,
+      summary: withEnglishFallback(v.description_da, v.description_en, lang),
       url: `https://vibetrends.dk/vibes/${v.id}`,
       tags: v.tools ?? [],
       publishedAtMs,
