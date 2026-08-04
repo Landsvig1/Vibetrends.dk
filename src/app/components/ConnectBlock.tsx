@@ -29,7 +29,7 @@ export default function ConnectBlock({
     setTimeout(() => setCopied(null), 2000);
   };
 
-  // Direct, distilled INSTALLATION block for skills across AI agents (/distill + /clarify)
+  // Direct, distilled INSTALLATION block for skills across AI agents (/distill + /clarify + /polish)
   if (feedType === "skills") {
     const cloneUrl = item.githubUrl && /^https:\/\/github\.com\//i.test(item.githubUrl) ? item.githubUrl : undefined;
     const installCmd = item.installCommand?.trim() || (cloneUrl ? `git clone ${cloneUrl}` : item.source ? `git clone ${item.source}` : null);
@@ -37,7 +37,7 @@ export default function ConnectBlock({
     return (
       <div
         data-testid="connect-block"
-        className="p-6 rounded-2xl glass-panel border border-card-border space-y-4 shadow-xl"
+        className="p-6 rounded-2xl glass-panel border border-card-border space-y-4 shadow-xl relative"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -52,26 +52,37 @@ export default function ConnectBlock({
         </div>
 
         {installCmd ? (
-          <div className="flex items-center justify-between rounded-xl bg-background border border-card-border p-3.5 font-mono text-xs text-accent-primary shadow-inner">
-            <span className="break-all pr-3 font-bold">{installCmd}</span>
-            <button
-              type="button"
-              onClick={() => copy(installCmd, "install")}
-              aria-label={lang === "da" ? "Kopiér installationskommando" : "Copy install command"}
-              className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer shrink-0"
-            >
-              {copied === "install" ? (
-                <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
-              ) : (
-                <Copy className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
+          <div className="relative group">
+            <div className="flex items-center justify-between rounded-xl bg-background border border-card-border p-3.5 font-mono text-xs text-accent-primary shadow-inner">
+              <span className="break-all pr-3 font-bold selection:bg-accent-light">{installCmd}</span>
+              <button
+                type="button"
+                onClick={() => copy(installCmd, "install")}
+                aria-label={copied === "install" ? (lang === "da" ? "Kommando kopieret" : "Command copied") : (lang === "da" ? "Kopiér installationskommando" : "Copy install command")}
+                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-all active:scale-90 cursor-pointer shrink-0"
+              >
+                {copied === "install" ? (
+                  <CheckCircle className="h-4 w-4 text-accent-primary animate-in zoom-in-50 duration-200" aria-hidden="true" />
+                ) : (
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            {copied === "install" && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="absolute -top-3 right-3 text-[10px] font-mono font-bold bg-accent-primary text-white px-2 py-0.5 rounded-full shadow-md animate-in fade-in slide-in-from-bottom-1 duration-150"
+              >
+                {lang === "da" ? "Kopieret!" : "Copied!"}
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-xs text-text-secondary">
             {lang === "da"
-              ? "Ingen direkte installationskommando. Følg kilden for instruktioner."
-              : "No direct install command. Follow source for instructions."}
+              ? "Ingen direkte installationskommando. Følg kildekoden for instruktioner."
+              : "No direct install command. Follow source code for instructions."}
           </p>
         )}
 
@@ -85,12 +96,14 @@ export default function ConnectBlock({
           <button
             type="button"
             onClick={() => setShowAdvanced(true)}
-            className="text-[11px] text-text-secondary hover:text-accent-primary font-mono transition-colors pt-2 border-t border-card-border/60 w-full text-left cursor-pointer"
+            aria-expanded={false}
+            className="text-[11px] text-text-secondary hover:text-accent-primary font-mono transition-colors pt-2.5 border-t border-card-border/60 w-full text-left cursor-pointer flex items-center justify-between group"
           >
-            {lang === "da" ? "→ Vis specifikke værktøjs-trin (Claude, Cursor, Gemini)" : "→ Show tool-specific steps (Claude, Cursor, Gemini)"}
+            <span>{lang === "da" ? "Vis værktøjs-specifikke trin" : "Show tool-specific steps"}</span>
+            <span className="group-hover:translate-x-0.5 transition-transform text-accent-primary font-bold">→</span>
           </button>
         ) : (
-          <div className="pt-3 border-t border-card-border space-y-3">
+          <div className="pt-3 border-t border-card-border space-y-3 animate-in fade-in duration-200">
             <div className="flex flex-wrap gap-1.5">
               {HOSTS.map((h) => (
                 <button
@@ -101,7 +114,7 @@ export default function ConnectBlock({
                   aria-pressed={host === h.slug}
                   className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
                     host === h.slug
-                      ? "bg-accent-primary text-white"
+                      ? "bg-accent-primary text-white shadow-sm"
                       : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                   }`}
                 >
