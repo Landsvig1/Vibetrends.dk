@@ -45,7 +45,7 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ id
   );
 }
 
-async function SkillDetailContent({ params }: { params: Promise<{ id: string }> }) {
+export async function SkillDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const skill = await getSkillById(id, 'da');
@@ -76,18 +76,31 @@ async function SkillDetailContent({ params }: { params: Promise<{ id: string }> 
           __html: jsonLdScript(
             breadcrumbJsonLd([
               { name: "Skills", url: "https://vibetrends.dk/skills" },
+              { name: skill.categoryLabel, url: `https://vibetrends.dk/skills/topic/${skill.category}` },
               { name: skill.title, url: `https://vibetrends.dk/skills/${id}` },
             ])
           ),
         }}
       />
-      <Link
-        href="/skills"
-        className="flex items-center text-text-secondary hover:text-foreground text-sm font-semibold transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Tilbage til Skills
-      </Link>
+
+      {/* Navigation Breadcrumbs (/layout + /typeset) */}
+      <nav aria-label="Brødkrummer" className="flex items-center flex-wrap text-xs text-text-secondary gap-2 font-mono">
+        <Link href="/skills" className="flex items-center hover:text-foreground transition-colors font-semibold">
+          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+          Skills
+        </Link>
+        <span>/</span>
+        <Link
+          href={`/skills/topic/${skill.category}`}
+          className="hover:text-accent-primary transition-colors text-accent-primary font-medium"
+        >
+          {skill.categoryLabel}
+        </Link>
+        <span>/</span>
+        <span className="text-foreground font-semibold truncate max-w-[240px] sm:max-w-none">
+          {skill.title}
+        </span>
+      </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* min-w-0: a grid item defaults to min-width:auto, so a wide <pre> in
