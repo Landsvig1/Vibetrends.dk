@@ -267,7 +267,8 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
       "backend-data",
       [],
       "https://github.com/x/y",
-      undefined,
+      undefined, // source
+      undefined, // descriptionDa — omitted, so the row stores null
       MOCK_IDENTITY.botAuth
     );
     expect(JSON.parse(body.result.content[0].text)).toEqual({ id: "s2", title: "New Skill" });

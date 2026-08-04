@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl } = result.data;
+    const { title, description, tools, prompts, demoUrl, githubUrl, imageUrl, descriptionDa } = result.data;
 
     const project = await createProject(
       title,
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       demoUrl || "",
       githubUrl,
       imageUrl || undefined,
+      descriptionDa || undefined,
       actingAs
     );
 

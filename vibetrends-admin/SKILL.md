@@ -33,6 +33,29 @@ Tables (bilingual content columns use `_da` / `_en` suffixes):
 
 Schema and policies live in `supabase/migrations/`. Apply changes with a new timestamped migration (`supabase db push` / Supabase MCP `apply_migration`) — never hand-edit the live DB without a migration.
 
+#### `description_da` is nullable — null means "not translated yet"
+
+The `_da` / `_en` pairing above has one exception worth knowing. On `skills`,
+`vibes`, and `agents`, `description_da` is **nullable**, and null is a real
+state meaning no Danish translation exists. Read paths coalesce it to
+`description_en` via `withEnglishFallback` in `src/lib/db.ts`, so a Danish
+visitor sees the English original rather than an empty card.
+
+- **Never write the English string into `description_da`.** That is exactly
+  what migration `20260804000000_description_da_nullable.sql` cleared: every
+  write path used to copy one description into both columns, which made "has a
+  Danish translation" and "has an English copy" indistinguishable and left the
+  fallback unable to ever fire.
+- Submitting via the API or MCP tools, pass the optional **`descriptionDa`**
+  field when you can produce a real translation. Omit it (or send `""`) and the
+  row correctly stores null.
+- Backfill existing untranslated rows with
+  `npm run backfill:danish -- --export work.json`, translate, get a Danish
+  speaker to approve the file, then `--apply work.json`. The apply pass refuses
+  passthroughs, mispaired translations, and partial files.
+- Doc bodies (`skills.doc_markdown`, the fetched `SKILL.md`) stay English and
+  are not translated.
+
 ### Workflow: Updating Data
 
 - **In app code**: use the async helpers in `src/lib/db.ts` (e.g. `createSkill`, `createThread`, `deleteThread`). Mutations go through the authenticated server client so RLS applies.

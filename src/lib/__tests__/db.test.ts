@@ -220,6 +220,62 @@ describe("mappers (language + null coalescing)", () => {
     expect(skill.categoryLabel).toBe("Legacy");
   });
 
+  it("falls back to description_en when description_da is null and lang is 'da'", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, description_da: null }], error: null });
+    const [skill] = await db.getSkills();
+    expect(skill.description).toBe("Description");
+  });
+
+  it("prefers description_da when it is present", async () => {
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    const [skill] = await db.getSkills();
+    expect(skill.description).toBe("Beskrivelse");
+  });
+
+  it("does not let the Danish fallback leak into the English path", async () => {
+    state.publicHandler = () => ({ data: [{ ...skillRow, description_da: null }], error: null });
+    const [skill] = await db.getSkills(undefined, undefined, "en");
+    expect(skill.description).toBe("Description");
+  });
+
+  it("falls back for projects and agents too", async () => {
+    state.publicHandler = () => ({
+      data: [{
+        id: "p1", title_da: "P", title_en: "P", author: "a",
+        description_da: null, description_en: "English project copy",
+        tools: null, prompts: null, upvotes: 1,
+        demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01T00:00:00Z",
+      }],
+      error: null,
+    });
+    const [project] = await db.getProjects();
+    expect(project.description).toBe("English project copy");
+
+    state.publicHandler = () => ({
+      data: [{
+        id: "a1", name: "Tool", developer: "dev", category: "CLI",
+        description_da: null, description_en: "English agent copy",
+        install_command: "npx tool", system_prompt_da: "", system_prompt_en: "",
+        upvotes: 1, tags: null,
+      }],
+      error: null,
+    });
+    const [agent] = await db.getCli();
+    expect(agent.description).toBe("English agent copy");
+  });
+
+  it("search matches an untranslated row on its English description without throwing", async () => {
+    state.publicHandler = () => ({
+      data: [
+        { ...skillRow, id: "a", description_da: null, description_en: "Serverless Postgres" },
+        { ...skillRow, id: "b", description_da: null, description_en: "Unrelated" },
+      ],
+      error: null,
+    });
+    const results = await db.getSkills("postgres");
+    expect(results.map((s) => s.id)).toEqual(["a"]);
+  });
+
   it("maps source attribution when present", async () => {
     state.publicHandler = () => ({ data: [{ ...skillRow, source: "https://github.com/x/y" }], error: null });
     const [skill] = await db.getSkills();
@@ -1696,6 +1752,50 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     assertNoProfileArg();
   });
 
+  it("createSkill writes description_da = null when no Danish is supplied", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: null, description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    const payload = insert!.payload as Record<string, unknown>;
+    expect(payload.description_en).toBe("Desc");
+    // The whole point of the nullable column: an omitted translation must not
+    // silently re-duplicate the English string.
+    expect(payload.description_da).toBeNull();
+  });
+
+  it("createSkill persists a supplied Danish description", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: "Dansk", description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", [], undefined, undefined, "Dansk beskrivelse");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    const payload = insert!.payload as Record<string, unknown>;
+    expect(payload.description_da).toBe("Dansk beskrivelse");
+    expect(payload.description_en).toBe("Desc");
+  });
+
+  it("createSkill normalizes an empty-string Danish description to null", async () => {
+    const row = { id: "s_new", title_da: "T", title_en: "T", category: "agent-methodology", vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor", rating: "5.0", reviews_count: 0, description_da: null, description_en: "Desc", tags: [], github_url: null };
+    state.serverHandler = () => ({ data: row, error: null });
+    await db.createSkill("Title", "Alice", "Desc", "agent-methodology", [], undefined, undefined, "");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
+  it("createProject writes description_da = null when no Danish is supplied", async () => {
+    state.serverHandler = () => ({ data: { id: "p_new", title_da: "T", title_en: "T", author: "a", description_da: null, description_en: "Desc", tools: [], prompts: [], upvotes: 1, demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01T00:00:00Z" }, error: null });
+    await db.createProject("Title", "Author", "Desc", [], [], "https://demo.com");
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
+  it("createAgent writes description_da = null when no Danish is supplied", async () => {
+    state.serverHandler = () => ({ data: { id: "a_new", name: "Agent", developer: "dev", category: "CLI", description_da: null, description_en: "Desc", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [] }, error: null });
+    await db.createAgent("Agent", "dev", "CLI", "Desc", "npx agent", "system prompt", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).description_da).toBeNull();
+  });
+
   it("createAgent calls revalidateTag('agents-list') on successful insert", async () => {
     const row = { id: "a_new", name: "Agent", developer: "dev", category: "CLI", description_da: "d", description_en: "d", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [] };
     state.serverHandler = () => ({ data: row, error: null });
@@ -1846,6 +1946,34 @@ describe("U3 — createThread with actingAs", () => {
     await db.createThread('Title', 'author', 'General', 'Some content for thread.');
     const insert = state.serverCalls.find(c => c.table === 'forum_threads' && c.method === 'insert');
     expect(insert).toBeDefined();
+  });
+});
+
+describe("getFeedItems description fallback", () => {
+  it("emits the English summary for untranslated rows instead of null", async () => {
+    state.publicHandler = (ops) => {
+      if (ops.table === "skills") {
+        return { data: [{ id: "s_1782976394478", title_da: "S DA", title_en: "S EN", description_da: null, description_en: "English skill copy", tags: [] }], error: null };
+      }
+      if (ops.table === "agents") {
+        return { data: [{ id: "a_1783085673265", name: "A", category: "CLI", description_da: null, description_en: "English agent copy", tags: [] }], error: null };
+      }
+      if (ops.table === "vibes") {
+        return { data: [{ id: "p_1782890295301", title_da: "V DA", title_en: "V EN", description_da: null, description_en: "English vibe copy", tools: [], created_at: "2026-07-10T00:00:00.000Z" }], error: null };
+      }
+      return { data: [], error: null };
+    };
+
+    const items = await db.getFeedItems({ lang: "da" });
+    const summaries = items.map((i) => i.summary);
+
+    expect(summaries).toContain("English skill copy");
+    expect(summaries).toContain("English agent copy");
+    expect(summaries).toContain("English vibe copy");
+    for (const summary of summaries) {
+      expect(summary).toBeTypeOf("string");
+      expect(summary).not.toBe("null");
+    }
   });
 });
 

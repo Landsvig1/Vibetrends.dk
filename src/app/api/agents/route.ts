@@ -12,6 +12,9 @@ export const agentSchema = z.object({
   // catalog items (R2).
   category: z.enum(["CLI", "MCP Server"]),
   description: z.string().min(10).max(500),
+  // Danish translation of `description` — see skillSchema.descriptionDa in
+  // src/lib/schemas.ts. Omitted means null, which renders as the English.
+  descriptionDa: z.string().max(500).optional().or(z.literal("")),
   // installCommand is rendered as a copyable "run this in your terminal"
   // command by ConnectBlock, so reject shell metacharacters that would let a
   // submitted row smuggle a command-chaining / substitution payload into a
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, category, description, installCommand, systemPrompt, tags, sourceUrl } = result.data;
+    const { name, category, description, installCommand, systemPrompt, tags, sourceUrl, descriptionDa } = result.data;
 
     const agent = await createAgent(
       name,
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
       systemPrompt || "",
       tags || [],
       sourceUrl || undefined,
+      descriptionDa || undefined,
       actingAs
     );
 
