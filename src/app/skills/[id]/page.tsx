@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, User, Sparkles, Briefcase } from "lucide-react";
+import { ArrowLeft, ExternalLink, User, Sparkles } from "lucide-react";
 import { getSkillById } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
+import ShareButton from "@/app/components/ShareButton";
 import SkillDocSection from "./SkillDocSection";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -146,34 +147,50 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
             page sideways instead of scrolling inside its own block. */}
         <div className="lg:col-span-2 min-w-0 space-y-8">
           <div className="p-8 rounded-2xl glass-panel border border-card-border space-y-6 shadow-2xl">
-            <div className="flex justify-between items-start gap-4">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
-                    {skill.categoryLabel}
-                  </span>
-                  {repo && (
-                    <a
-                      href={repo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-background border border-card-border text-xs text-text-secondary font-mono hover:text-foreground hover:border-text-secondary transition-colors"
-                    >
-                      <GithubIcon className="h-3.5 w-3.5" />
-                      <span>{repo.ownerRepo}</span>
-                      <ExternalLink className="h-3 w-3 opacity-60" />
-                    </a>
-                  )}
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground leading-tight">
-                  {skill.title}
-                </h1>
+            {/* Header Badges & Action Buttons (/layout) */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20 font-semibold">
+                  {skill.categoryLabel}
+                </span>
+                {repo && (
+                  <a
+                    href={repo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-background border border-card-border text-xs text-text-secondary font-mono hover:text-foreground hover:border-text-secondary transition-colors"
+                  >
+                    <GithubIcon className="h-3.5 w-3.5" />
+                    <span>{repo.ownerRepo}</span>
+                    <ExternalLink className="h-3 w-3 opacity-60" />
+                  </a>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <ShareButton title={skill.title} url={`https://vibetrends.dk/skills/${id}`} />
+                {repo && (
+                  <a
+                    href={repo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs rounded-full btn-primary font-semibold"
+                  >
+                    <GithubIcon className="h-4 w-4" />
+                    Se Repository
+                  </a>
+                )}
               </div>
             </div>
 
-            <p className="text-text-secondary text-lg leading-relaxed">
-              {skill.description}
-            </p>
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground leading-tight">
+                {skill.title}
+              </h1>
+              <p className="text-text-secondary text-lg leading-relaxed">
+                {skill.description}
+              </p>
+            </div>
 
             <div className="flex flex-wrap gap-2">
               {skill.tags.map((tag) => (
@@ -239,6 +256,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
           <SkillDocSection id={id} />
         </div>
 
+        {/* Sidebar Column (/distill: removed redundant details box) */}
         <div className="min-w-0 space-y-6">
           <div id="connect" className="scroll-mt-24">
             <ConnectBlock
@@ -246,28 +264,6 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
               item={{ name: skill.title, githubUrl: skill.githubUrl, source: skill.source }}
               lang="da"
             />
-          </div>
-          <div className="p-6 rounded-2xl glass-card border border-card-border space-y-4">
-            <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center">
-              <Briefcase className="h-4 w-4 mr-2 text-accent-primary" />
-              Detaljer
-            </h4>
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Kategori</span>
-                <span className="text-foreground font-mono">{skill.categoryLabel}</span>
-              </div>
-            </div>
-            {skill.githubUrl && (
-              <a
-                href={skill.githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg btn-primary text-sm mt-2"
-              >
-                Se på GitHub
-              </a>
-            )}
           </div>
         </div>
       </div>
