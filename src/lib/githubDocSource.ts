@@ -6,11 +6,14 @@
 //   https://github.com/pbakaus/impeccable                                 -> repo root
 //   https://github.com/mikkelkrogsholm/dev-skills/tree/main/skill-creator -> subdirectory
 //
-// This module is pure and has NO imports on purpose: scripts/refresh-skill-docs.mjs
+// This module has no RELATIVE imports on purpose: scripts/refresh-skill-docs.mjs
 // loads it directly through Node's built-in TypeScript type stripping, and Node's
-// ESM resolver would not follow an extensionless relative import from it.
+// ESM resolver would not follow an extensionless relative import from it. A bare
+// `node:` builtin (see contentHash below) resolves fine and is the one exception.
 // src/lib/github.ts's parseGithubRepoUrl delegates here, so owner/repo validation
 // still lives in exactly one place.
+
+import { createHash } from "node:crypto";
 
 export interface GithubDocSource {
   owner: string;
@@ -239,4 +242,64 @@ export function truncateMarkdown(input: string, maxChars: number = DOC_MAX_CHARS
   }
 
   return { markdown: cut.trimEnd(), truncated: true };
+}
+
+/**
+ * Fingerprint of a skill's *rendered* doc content.
+ *
+ * Callers must hash the string they are about to store — post-stripFrontmatter,
+ * post-truncateMarkdown — not the raw upstream file. An upstream edit confined to
+ * YAML frontmatter, or one beyond DOC_MAX_CHARS that the truncation cuts away,
+ * changes the raw bytes without changing a single character of the page. Stamping
+ * a content-change date for those reintroduces exactly the meaningless-lastmod
+ * noise skills.content_updated_at exists to remove.
+ *
+ * Caveat worth knowing before changing DOC_MAX_CHARS or stripFrontmatter: either
+ * flips every row's hash at once, and the next refresher run would stamp all ~100
+ * skills with the same content_updated_at — the shared-date signal Google already
+ * learned to ignore on this site. Treat such a change as needing a deliberate
+ * re-seed decision.
+ */
+export function contentHash(markdown: string): string {
+  return createHash("sha256").update(markdown, "utf8").digest("hex");
+}
+
+/** Which of the three doc-write branches a refresh falls into. Names match the
+ * counters in scripts/refresh-skill-docs.mjs one-to-one. */
+export type DocWriteBranch = "contentUnchanged" | "hashInitialized" | "contentChanged";
+
+export interface DocWritePlan {
+  branch: DocWriteBranch;
+  /** Write doc_markdown and doc_content_hash. False means the stored copy already matches. */
+  writeContent: boolean;
+  /** Advance content_updated_at to the run time. */
+  stampContentUpdatedAt: boolean;
+}
+
+/**
+ * Decide what a refresh should write, given the freshly rendered content's hash
+ * and the hash currently stored on the row.
+ *
+ * Note what is NOT decided here: doc_path, doc_source_url, doc_truncated and
+ * doc_fetched_at are written on every branch, including the unchanged one.
+ * fetchDoc resolves the doc path by a search order that can genuinely change
+ * (repo-root README.md → a matched SKILL.md subdirectory) without changing a
+ * character of rendered output, so gating the metadata would leave
+ * doc_source_url pointing at a file that no longer exists.
+ *
+ * The null-stored-hash case is deliberately its own branch rather than being
+ * folded into "changed". Every row starts there exactly once — at the migration,
+ * and for each newly submitted skill — and there is no evidence the content
+ * changed at that moment, only that nobody had hashed it before. Stamping
+ * content_updated_at there would overwrite the seeded creation date with the run
+ * date across the whole table at once, which is the shared-date bug again.
+ */
+export function planDocWrite(newHash: string, storedHash: string | null | undefined): DocWritePlan {
+  if (storedHash === newHash) {
+    return { branch: "contentUnchanged", writeContent: false, stampContentUpdatedAt: false };
+  }
+  if (!storedHash) {
+    return { branch: "hashInitialized", writeContent: true, stampContentUpdatedAt: false };
+  }
+  return { branch: "contentChanged", writeContent: true, stampContentUpdatedAt: true };
 }

@@ -15,8 +15,14 @@
 //   --dry-run     fetch and report, write nothing
 //   --stale-only  skip rows refreshed within the last 7 days (default: all rows)
 //
+// doc_fetched_at is stamped on every successful fetch, so it records when this
+// script last ran — not when the content changed. content_updated_at is the
+// change date, and only moves when the sha256 of the RENDERED markdown differs
+// from the one stored on the row; the sitemap reads it as lastmod.
+//
 // Requires the columns added by
-// supabase/migrations/20260728000000_skills_doc_snapshot.sql.
+// supabase/migrations/20260728000000_skills_doc_snapshot.sql and
+// supabase/migrations/20260804040000_skills_content_updated_at.sql.
 
 import pg from 'pg';
 import { Octokit } from '@octokit/rest';
@@ -28,6 +34,8 @@ import {
   skillSlugCandidates,
   pickDocPathFromTree,
   stripFrontmatter,
+  contentHash,
+  planDocWrite,
   DOC_MAX_CHARS,
 } from '../src/lib/githubDocSource.ts';
 
@@ -240,7 +248,14 @@ async function run() {
   const client = new pg.Client(clientConfig);
   await client.connect();
 
-  const stats = { total: 0, written: 0, noUrl: 0, unparseable: 0, notFound: 0, keptStale: 0, skipped: 0, failed: 0 };
+  // contentChanged / contentUnchanged / hashInitialized map one-to-one onto the
+  // three branches of planDocWrite. Collapsing the null-hash branch into
+  // contentChanged would make "did the second run stamp anything?" unanswerable,
+  // which is the whole verification for this gate.
+  const stats = {
+    total: 0, written: 0, contentChanged: 0, contentUnchanged: 0, hashInitialized: 0,
+    noUrl: 0, unparseable: 0, notFound: 0, keptStale: 0, skipped: 0, failed: 0,
+  };
   const notFound = [];
 
   try {
@@ -257,7 +272,7 @@ async function run() {
     // whether one already exists, which decides notFound between "nothing to
     // lose" and "keep the last known good copy".
     const sql =
-      `select id, title_en, github_url, doc_fetched_at,` +
+      `select id, title_en, github_url, doc_fetched_at, doc_content_hash,` +
       ` (doc_markdown is not null) as has_doc from public.skills` +
       (where.length ? ` where ${where.join(' and ')}` : '') +
       ` order by id` +
@@ -320,23 +335,39 @@ async function run() {
       // prose, not on YAML we are about to throw away.
       const { markdown, truncated } = truncateMarkdown(stripFrontmatter(found.markdown), DOC_MAX_CHARS);
       const url = docSourceUrl(source, found.path);
+
+      // Hash what gets rendered, not the file we fetched: a frontmatter-only
+      // edit upstream, or one past the truncation cap, changes the bytes without
+      // changing the page.
+      const hash = contentHash(markdown);
+      const plan = planDocWrite(hash, row.doc_content_hash);
       stats.written++;
+      stats[plan.branch]++;
       console.log(
-        `✓ ${row.id}: ${found.path} (${found.markdown.length} chars${truncated ? ` -> ${markdown.length}, truncated` : ''})`
+        `✓ ${row.id}: ${found.path} (${found.markdown.length} chars${truncated ? ` -> ${markdown.length}, truncated` : ''}) [${plan.branch}]`
       );
 
       if (dryRun) continue;
       await client.query('BEGIN');
       try {
+        // doc_path / doc_source_url / doc_truncated / doc_fetched_at are written
+        // on EVERY branch, including contentUnchanged: fetchDoc resolves the doc
+        // path by a search order that can change (repo-root README.md -> a
+        // matched SKILL.md subdirectory) with byte-identical rendered output, and
+        // gating them would leave doc_source_url pointing at a file that is no
+        // longer there. Only the content, its hash, and the change date are
+        // gated.
         await client.query(
           `update public.skills
-              set doc_markdown = $2,
-                  doc_path = $3,
-                  doc_source_url = $4,
-                  doc_truncated = $5,
-                  doc_fetched_at = now()
+              set doc_path = $2,
+                  doc_source_url = $3,
+                  doc_truncated = $4,
+                  doc_fetched_at = now(),
+                  doc_markdown = case when $5::boolean then $6::text else doc_markdown end,
+                  doc_content_hash = case when $5::boolean then $7::text else doc_content_hash end,
+                  content_updated_at = case when $8::boolean then now() else content_updated_at end
             where id = $1`,
-          [row.id, markdown, found.path, url, truncated]
+          [row.id, found.path, url, truncated, plan.writeContent, markdown, hash, plan.stampContentUpdatedAt]
         );
         await client.query('COMMIT');
       } catch (err) {
@@ -364,10 +395,14 @@ async function run() {
  * or 404-ing fetch must NOT come through here (see the notFound branch).
  */
 async function clearDoc(client, id) {
+  // content_updated_at goes too: leaving it behind would point a sitemap lastmod
+  // at content that no longer exists on the page. The row's next real doc starts
+  // the timestamp over from a hashInitialized write.
   await client.query(
     `update public.skills
         set doc_markdown = null, doc_path = null, doc_source_url = null,
-            doc_truncated = false, doc_fetched_at = null
+            doc_truncated = false, doc_fetched_at = null,
+            doc_content_hash = null, content_updated_at = null
       where id = $1 and doc_markdown is not null`,
     [id]
   );

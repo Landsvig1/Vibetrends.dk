@@ -92,20 +92,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // free-text supplied by the submitter (schemas.ts caps it at 50 chars with
   // no format check) — parse it and drop lastmod for rows that don't parse
   // rather than assume every value is a valid date.
+  //
+  // `skills.content_updated_at` is a real per-row change date: seeded from each
+  // row's creation instant and advanced only when the sha256 of the rendered doc
+  // markdown actually differs (scripts/refresh-skill-docs.mjs). Deliberately NOT
+  // `doc_fetched_at`, which records when the refresher ran — it moves on every
+  // run even when the markdown is byte-identical, so it would lie the same way
+  // the shared build date did. Legacy `seed_*` rows carry no creation epoch and
+  // come through null; parseLastMod drops them.
   const datedDetails: MetadataRoute.Sitemap = [
     ...projects.map((p) => entry(`/vibes/${p.slug}`, parseLastMod(p.createdAt))),
     ...posts.map((b) => entry(`/blog/${b.id}`, parseLastMod(b.publishedAt))),
+    ...skills.map((s) => entry(`/skills/${s.slug}`, parseLastMod(s.contentUpdatedAt))),
   ];
 
-  // No real per-row date for these: skill topic pages are static aggregations;
-  // `skills.doc_fetched_at` records when refresh-skill-docs.mjs last ran, not
-  // when the rendered content changed (the script unconditionally stamps
-  // `now()` on every run, even when the re-fetched markdown is byte-identical
-  // — see scripts/refresh-skill-docs.mjs), so it would lie the same way
-  // `today` did; `agents` (clis/mcpServers) has no date column at all.
+  // Still no real per-row date for these: skill topic pages are static
+  // aggregations over content that changes independently of them, and `agents`
+  // (clis/mcpServers) has no date column at all. Neither gained a change-date
+  // source alongside skills.content_updated_at.
   const noDateDetails: MetadataRoute.Sitemap = [
     ...SKILL_CATEGORY_SLUGS.map((slug) => entry(`/skills/topic/${slug}`)),
-    ...skills.map((s) => entry(`/skills/${s.slug}`)),
     ...clis.map((a) => entry(`/cli/${a.slug}`)),
     ...mcpServers.map((a) => entry(`/mcp/${a.slug}`)),
   ];
