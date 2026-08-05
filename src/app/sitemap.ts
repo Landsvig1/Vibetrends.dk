@@ -93,7 +93,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // no format check) — parse it and drop lastmod for rows that don't parse
   // rather than assume every value is a valid date.
   const datedDetails: MetadataRoute.Sitemap = [
-    ...projects.map((p) => entry(`/vibes/${p.id}`, parseLastMod(p.createdAt))),
+    ...projects.map((p) => entry(`/vibes/${p.slug}`, parseLastMod(p.createdAt))),
     ...posts.map((b) => entry(`/blog/${b.id}`, parseLastMod(b.publishedAt))),
   ];
 
@@ -105,9 +105,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // `today` did; `agents` (clis/mcpServers) has no date column at all.
   const noDateDetails: MetadataRoute.Sitemap = [
     ...SKILL_CATEGORY_SLUGS.map((slug) => entry(`/skills/topic/${slug}`)),
-    ...skills.map((s) => entry(`/skills/${s.id}`)),
-    ...clis.map((a) => entry(`/cli/${a.id}`)),
-    ...mcpServers.map((a) => entry(`/mcp/${a.id}`)),
+    ...skills.map((s) => entry(`/skills/${s.slug}`)),
+    ...clis.map((a) => entry(`/cli/${a.slug}`)),
+    ...mcpServers.map((a) => entry(`/mcp/${a.slug}`)),
   ];
 
   // `forum_threads.created_at` is a real timestamptz.

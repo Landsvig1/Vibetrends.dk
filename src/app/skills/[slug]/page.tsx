@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, User, Sparkles } from "lucide-react";
-import { getSkillById } from "@/lib/db";
+import { getSkillBySlug } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
@@ -45,17 +45,17 @@ function parseGithubRepo(url?: string): { ownerRepo: string; url: string } | nul
   return null;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const skill = await getSkillById(id, 'da');
+  const skill = await getSkillBySlug(slug, 'da');
   if (!skill) return { title: "Skill ikke fundet" };
 
   return entityMetadata({
     title: skill.title,
     suffix: " - Skills Library",
     description: skill.description,
-    path: `/skills/${id}`,
+    path: `/skills/${slug}`,
     lang: 'da',
   });
 }
@@ -64,12 +64,13 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      params: { id: "s1" }
+      // A real slug, so the runtime prefetch sample renders an actual page.
+      params: { slug: "skill-creator" }
     }
   ]
 };
 
-export default async function SkillDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SkillDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -82,10 +83,15 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ id
   );
 }
 
-export async function SkillDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function SkillDetailContent({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const skill = await getSkillById(id, 'da');
+  // Slug-only by design: src/proxy.ts turns a legacy /skills/{id} into a real
+  // 308 before any page code runs. An id reaching this component means the
+  // proxy matcher missed, which is a bug there rather than a case to handle
+  // here — and a redirect thrown from a server component under
+  // cacheComponents streams into an already-sent 200 (see src/proxy.ts).
+  const skill = await getSkillBySlug(slug, 'da');
   if (!skill) {
     notFound();
   }
@@ -116,7 +122,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
             breadcrumbJsonLd([
               { name: "Skills", url: "https://vibetrends.dk/skills" },
               { name: skill.categoryLabel, url: `https://vibetrends.dk/skills/topic/${skill.category}` },
-              { name: skill.title, url: `https://vibetrends.dk/skills/${id}` },
+              { name: skill.title, url: `https://vibetrends.dk/skills/${slug}` },
             ])
           ),
         }}
@@ -168,7 +174,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="flex items-center gap-2">
-                <ShareButton title={skill.title} url={`https://vibetrends.dk/skills/${id}`} />
+                <ShareButton title={skill.title} url={`https://vibetrends.dk/skills/${slug}`} />
                 {repo && (
                   <a
                     href={repo.url}
@@ -253,7 +259,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Renders nothing when the skill has no stored SKILL.md/README.md. */}
-          <SkillDocSection id={id} />
+          <SkillDocSection id={skill.id} />
         </div>
 
         {/* Sidebar Column (/distill: removed redundant details box) */}

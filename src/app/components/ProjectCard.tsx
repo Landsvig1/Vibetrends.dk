@@ -72,7 +72,7 @@ function ProjectCardComponent({
         </button>
 
         <Link
-          href={`/vibes/${project.id}`}
+          href={`/vibes/${project.slug}`}
           onClick={(e) => e.stopPropagation()}
           aria-label={detailsLabel}
           title={detailsLabel}

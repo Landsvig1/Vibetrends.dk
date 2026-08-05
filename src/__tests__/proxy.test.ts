@@ -30,10 +30,10 @@ function req(url: string): NextRequest {
 }
 
 /**
- * Stub the PostgREST call legacyAgentTarget() makes. Returns the rows the
- * lookup should see; pass `null` to simulate an unreachable/erroring Supabase.
+ * Stub the PostgREST call catalogTarget() makes. Returns the rows the lookup
+ * should see; pass `null` to simulate an unreachable/erroring Supabase.
  */
-function stubAgentLookup(rows: { category: string }[] | null) {
+function stubAgentLookup(rows: { category?: string; slug?: string | null }[] | null) {
   stubSupabaseEnv();
   vi.stubGlobal(
     "fetch",
@@ -45,7 +45,7 @@ function stubAgentLookup(rows: { category: string }[] | null) {
   );
 }
 
-/** legacyAgentTarget() no-ops without these, so the lookup tests must set them. */
+/** catalogTarget() no-ops without these, so the lookup tests must set them. */
 function stubSupabaseEnv() {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
@@ -216,18 +216,20 @@ describe("proxy — /agents/:id maps to the row's surviving canonical", () => {
   // Each test uses a distinct id: legacyAgentTarget memoises resolved answers
   // in a module-level map, so reusing an id would serve a prior test's result.
 
-  it("sends a CLI row to /cli/:id with a real 308", async () => {
-    stubAgentLookup([{ category: "CLI" }]);
+  // Straight to the slug, in one hop. Targeting /cli/:id instead would bounce
+  // off the id resolver and cost every retired link a second redirect.
+  it("sends a CLI row to /cli/{slug} with a real 308", async () => {
+    stubAgentLookup([{ category: "CLI", slug: "claude-code" }]);
     const response = await proxy(req("https://vibetrends.dk/agents/a_cli_1"));
     expect(response.status).toBe(308);
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/a_cli_1");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/claude-code");
   });
 
-  it("sends an MCP Server row to /mcp/:id", async () => {
-    stubAgentLookup([{ category: "MCP Server" }]);
+  it("sends an MCP Server row to /mcp/{slug}", async () => {
+    stubAgentLookup([{ category: "MCP Server", slug: "supabase-mcp" }]);
     const response = await proxy(req("https://vibetrends.dk/agents/a_mcp_1"));
     expect(response.status).toBe(308);
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/mcp/a_mcp_1");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/mcp/supabase-mcp");
   });
 
   // No /agents/[id] route exists behind these, so falling through means Next's
@@ -240,7 +242,7 @@ describe("proxy — /agents/:id maps to the row's surviving canonical", () => {
   });
 
   it("falls through for a Host row — hosts have no detail page to land on", async () => {
-    stubAgentLookup([{ category: "Host" }]);
+    stubAgentLookup([{ category: "Host", slug: "some-host" }]);
     const response = await proxy(req("https://vibetrends.dk/agents/a_host_1"));
     expect(response.headers.get("location")).toBeNull();
     expect(response.status).not.toBe(503);
@@ -286,10 +288,10 @@ describe("proxy — /agents/:id distinguishes 'absent' from 'lookup failed'", ()
     stubAgentLookup(null);
     expect((await proxy(req("https://vibetrends.dk/agents/a_flap_1"))).status).toBe(503);
 
-    stubAgentLookup([{ category: "CLI" }]);
+    stubAgentLookup([{ category: "CLI", slug: "flappy" }]);
     const recovered = await proxy(req("https://vibetrends.dk/agents/a_flap_1"));
     expect(recovered.status).toBe(308);
-    expect(new URL(recovered.headers.get("location")!).pathname).toBe("/cli/a_flap_1");
+    expect(new URL(recovered.headers.get("location")!).pathname).toBe("/cli/flappy");
   });
 });
 
@@ -301,7 +303,7 @@ describe("proxy — /agents/:id distinguishes 'absent' from 'lookup failed'", ()
 
 describe("proxy — /agents/:id caches resolved lookups", () => {
   it("does not re-query for a repeated hit", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify([{ category: "CLI" }]), { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([{ category: "CLI", slug: "cached-cli" }]), { status: 200 }));
     stubSupabaseEnv();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -332,7 +334,7 @@ describe("proxy — /agents/:id caches resolved lookups", () => {
 describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
   it("resolves a percent-encoded spelling of a real id", async () => {
     const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(
-      async () => new Response(JSON.stringify([{ category: "CLI" }]), { status: 200 })
+      async () => new Response(JSON.stringify([{ category: "CLI", slug: "encoded-cli" }]), { status: 200 })
     );
     stubSupabaseEnv();
     vi.stubGlobal("fetch", fetchMock);
@@ -343,7 +345,7 @@ describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
 
     const requested = new URL(String(fetchMock.mock.calls[0][0]));
     expect(requested.searchParams.get("id")).toBe("eq.a_123");
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/a_123");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/cli/encoded-cli");
   });
 
   it("keeps a crafted id inside the id filter instead of starting a new parameter", async () => {
@@ -357,7 +359,7 @@ describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
     const requested = new URL(String(fetchMock.mock.calls[0][0]));
     expect([...requested.searchParams.keys()]).toEqual(["id", "select", "limit"]);
     expect(requested.searchParams.get("id")).toBe("eq.a_2&select=*");
-    expect(requested.searchParams.get("select")).toBe("category");
+    expect(requested.searchParams.get("select")).toBe("slug,category");
   });
 
   it("treats malformed percent-encoding as a miss rather than throwing", async () => {
@@ -369,5 +371,162 @@ describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(response.status).not.toBe(503);
     expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Catalog detail URLs still on their pre-slug id — the Phase B redirect.
+//
+// Same reasoning as /agents/:id above, and the same reason it cannot live in
+// the page: under cacheComponents a redirect thrown from a server component is
+// streamed into an already-sent 200 and Google reads it as a soft redirect. The
+// 308 status itself is asserted against a production build in the PR; what
+// these cover is the routing logic — which requests trigger a lookup at all,
+// and what each outcome maps to.
+// ---------------------------------------------------------------------------
+
+describe("proxy — /skills, /vibes, /cli, /mcp resolve an id to its slug", () => {
+  it("308s /skills/{id} to /skills/{slug}", async () => {
+    stubAgentLookup([{ slug: "seo-geo" }]);
+    const response = await proxy(req("https://vibetrends.dk/skills/s_1785096155359"));
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/skills/seo-geo");
+  });
+
+  it("308s /vibes/{id} to /vibes/{slug}", async () => {
+    stubAgentLookup([{ slug: "dansk-designsystem" }]);
+    const response = await proxy(req("https://vibetrends.dk/vibes/p_1785096155359"));
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/vibes/dansk-designsystem");
+  });
+
+  it("308s a legacy seed_ id", async () => {
+    stubAgentLookup([{ slug: "skill-creator" }]);
+    const response = await proxy(req("https://vibetrends.dk/skills/seed_skill_creator"));
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/skills/skill-creator");
+  });
+
+  it("queries the table that matches the surface", async () => {
+    const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(
+      async () => new Response(JSON.stringify([{ slug: "a-vibe" }]), { status: 200 })
+    );
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await proxy(req("https://vibetrends.dk/vibes/p_2001"));
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/rest/v1/vibes?");
+    // vibes has no `category` column — selecting one would 400 the request.
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("select")).toBe("slug");
+  });
+
+  // The gate that makes this affordable on a live route at all.
+  it("does not query Supabase for a slug request — the hot path stays free", async () => {
+    const fetchMock = vi.fn();
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxy(req("https://vibetrends.dk/skills/seo-geo"));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  // slugify can emit "s-123" but never "s_123", so an ID-looking slug is served
+  // directly rather than sent round the lookup and into a redirect loop.
+  it("serves a hyphenated ID-lookalike slug directly", async () => {
+    const fetchMock = vi.fn();
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxy(req("https://vibetrends.dk/skills/s-1785096155359"));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("does not query for /skills/topic/{slug} — a sibling static segment, not a detail id", async () => {
+    const fetchMock = vi.fn();
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxy(req("https://vibetrends.dk/skills/topic/agent-methodology"));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("falls through to a 404 for an ID-shaped param naming no row", async () => {
+    stubAgentLookup([]);
+    const response = await proxy(req("https://vibetrends.dk/skills/s_9999999999999"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).not.toBe(503);
+  });
+
+  it("answers 503 — not 404 — when the lookup fails", async () => {
+    stubAgentLookup(null);
+    const response = await proxy(req("https://vibetrends.dk/skills/s_5550000000001"));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("120");
+  });
+
+  it("answers 503 when Supabase credentials are absent — a preview deploy must not 404 the namespace", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+    const response = await proxy(req("https://vibetrends.dk/skills/s_5550000000002"));
+    expect(response.status).toBe(503);
+  });
+
+  it("answers 503 when the lookup times out", async () => {
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new DOMException("timeout", "TimeoutError"); }));
+    const response = await proxy(req("https://vibetrends.dk/skills/s_5550000000003"));
+    expect(response.status).toBe(503);
+  });
+
+  // Only reachable between the column landing and the backfill running. 503 asks
+  // the crawler back; a 404 would tell it a live page is permanently gone.
+  it("answers 503 for a row that exists but has no slug yet", async () => {
+    stubAgentLookup([{ slug: null }]);
+    const response = await proxy(req("https://vibetrends.dk/skills/s_5550000000004"));
+    expect(response.status).toBe(503);
+  });
+
+  it("sends an id requested under the wrong surface to the right one in one hop", async () => {
+    stubAgentLookup([{ category: "MCP Server", slug: "supabase-mcp" }]);
+    const response = await proxy(req("https://vibetrends.dk/cli/a_1785096155001"));
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/mcp/supabase-mcp");
+  });
+
+  it("namespaces the lookup cache by table — the same seed_ id can exist in two tables", async () => {
+    const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(async (url) =>
+      new Response(
+        JSON.stringify([{ slug: String(url).includes("/skills") ? "from-skills" : "from-vibes" }]),
+        { status: 200 }
+      )
+    );
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const fromSkills = await proxy(req("https://vibetrends.dk/skills/seed_shared_id"));
+    const fromVibes = await proxy(req("https://vibetrends.dk/vibes/seed_shared_id"));
+
+    expect(new URL(fromSkills.headers.get("location")!).pathname).toBe("/skills/from-skills");
+    expect(new URL(fromVibes.headers.get("location")!).pathname).toBe("/vibes/from-vibes");
+  });
+
+  it("resolves a percent-encoded spelling of an id rather than 404ing it", async () => {
+    const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(
+      async () => new Response(JSON.stringify([{ slug: "encoded-skill" }]), { status: 200 })
+    );
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // "s%5F1" is a legal encoding of "s_1" — the gate has to test the decoded form.
+    const response = await proxy(req("https://vibetrends.dk/skills/s%5F1785096155360"));
+
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("id")).toBe("eq.s_1785096155360");
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/skills/encoded-skill");
   });
 });

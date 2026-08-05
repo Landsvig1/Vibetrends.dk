@@ -110,7 +110,7 @@ async function HomeContent() {
             {spotlightVibe && (
               <article className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
                 <Link
-                  href={`/vibes/${spotlightVibe.id}`}
+                  href={`/vibes/${spotlightVibe.slug}`}
                   aria-label={spotlightVibe.title}
                   className="absolute inset-0 z-10 rounded-xl"
                 />
@@ -168,7 +168,7 @@ async function HomeContent() {
                   <div className="flex items-center justify-between text-xs text-text-secondary">
                     <span className="truncate">Af {spotlightMcp.developer}</span>
                     <Link
-                      href={`/mcp/${spotlightMcp.id}`}
+                      href={`/mcp/${spotlightMcp.slug}`}
                       className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
                     >
                       Se alle
@@ -202,7 +202,7 @@ async function HomeContent() {
                 <div className="flex items-center justify-between pt-3 border-t border-card-border text-xs text-text-secondary">
                   <span className="truncate">{spotlightSkill.vibeCoder}</span>
                   <Link
-                    href={`/skills/${spotlightSkill.id}`}
+                    href={`/skills/${spotlightSkill.slug}`}
                     className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
                   >
                     Se alle
@@ -234,7 +234,7 @@ async function HomeContent() {
               {/* Card-wide overlay: screenshot and title open the project
                   detail page (same pattern as SkillCard). */}
               <Link
-                href={`/vibes/${project.id}`}
+                href={`/vibes/${project.slug}`}
                 aria-label={project.title}
                 className="absolute inset-0 z-10 rounded-xl"
               />

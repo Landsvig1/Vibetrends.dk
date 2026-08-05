@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { slugify } from "@/lib/slug";
 import { filterProjects, executeUpvote } from "../VibesExplorer";
 import type { ShowcaseProject } from "@/lib/db";
 
@@ -22,6 +23,7 @@ function makeProject(
 ): ShowcaseProject {
   return {
     id,
+    slug: slugify(title),
     title,
     description,
     author: "alice",

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { slugify } from "@/lib/slug";
 import { filterSkills, executeUpvote } from "../SkillsExplorer";
 import type { Skill } from "@/lib/db";
 
@@ -23,6 +24,7 @@ function makeSkill(
 ): Skill {
   return {
     id,
+    slug: slugify(title),
     title,
     description,
     vibeCoder: "alice",

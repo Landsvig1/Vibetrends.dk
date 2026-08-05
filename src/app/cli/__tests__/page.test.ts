@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { slugify } from "@/lib/slug";
 
 /**
  * U7 — server component tests for /cli page.tsx.
@@ -50,6 +51,7 @@ const getCliMock = vi.mocked(getCli);
 function makeAgent(id: string, name: string, description: string) {
   return {
     id,
+    slug: slugify(name),
     name,
     developer: "alice",
     category: "CLI" as const,

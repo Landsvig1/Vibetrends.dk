@@ -59,7 +59,7 @@ function AgentCardComponent({
       className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
     >
       <Link
-        href={`${detailBase}/${agent.id}`}
+        href={`${detailBase}/${agent.slug}`}
         aria-label={agent.name}
         className="absolute inset-0 z-10 rounded-xl"
       />

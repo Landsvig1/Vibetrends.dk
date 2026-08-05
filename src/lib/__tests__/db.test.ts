@@ -2276,3 +2276,176 @@ describe("U4 — createBlogPost", () => {
     expect(insert).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// U15 / U8 — slugs on the write path and the slug-keyed reads.
+// ---------------------------------------------------------------------------
+
+describe("slug on the insert path", () => {
+  /** Minimal row for whichever table is under test; the mappers only need these. */
+  const skillRow = (slug: string) => ({
+    id: "s_new", slug, title_da: "T", title_en: "T", category: "agent-methodology",
+    vibe_coder: "alice", vibe_coder_title_da: "Bidragyder", vibe_coder_title_en: "Contributor",
+    rating: "5.0", reviews_count: 0, description_da: null, description_en: "Desc",
+    tags: [], github_url: null,
+  });
+
+  /** Rejects the first `collisions` attempts the way Postgres rejects a duplicate slug. */
+  function handlerWithCollisions(collisions: number, row: (slug: string) => unknown) {
+    const attempted: string[] = [];
+    state.serverHandler = (ops) => {
+      if (ops.method !== "insert") return { data: [], error: null };
+      const slug = (ops.payload as { slug: string }).slug;
+      attempted.push(slug);
+      if (attempted.length <= collisions) {
+        return { data: null, error: { code: "23505", message: "duplicate key value" } };
+      }
+      return { data: row(slug), error: null };
+    };
+    return attempted;
+  }
+
+  it("createSkill inserts slugify(title)", async () => {
+    state.serverHandler = () => ({ data: skillRow("seo-geo"), error: null });
+    await db.createSkill("SEO & GEO", "Alice", "Desc", "agent-methodology", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).slug).toBe("seo-geo");
+  });
+
+  it("createSkill folds Danish letters the same way the backfill does", async () => {
+    state.serverHandler = () => ({ data: skillRow("dansk-oe-analyse"), error: null });
+    await db.createSkill("Dansk Ø-analyse", "Alice", "Desc", "agent-methodology", []);
+    const insert = state.serverCalls.find(c => c.method === "insert");
+    expect((insert!.payload as Record<string, unknown>).slug).toBe("dansk-oe-analyse");
+  });
+
+  it("retries with -2 when the slug is taken, and still succeeds", async () => {
+    const attempted = handlerWithCollisions(1, skillRow);
+    const skill = await db.createSkill("Same Title", "Alice", "Desc", "agent-methodology", []);
+    expect(attempted).toEqual(["same-title", "same-title-2"]);
+    expect(skill.slug).toBe("same-title-2");
+  });
+
+  it("walks x, x-2 … x-5 and then throws rather than looping forever", async () => {
+    const attempted = handlerWithCollisions(99, skillRow);
+    await expect(
+      db.createSkill("Same Title", "Alice", "Desc", "agent-methodology", [])
+    ).rejects.toThrow();
+    expect(attempted).toEqual([
+      "same-title", "same-title-2", "same-title-3", "same-title-4", "same-title-5",
+    ]);
+  });
+
+  it("never offers a reserved slug bare — 'topic' is shadowed by /skills/topic", async () => {
+    const attempted = handlerWithCollisions(0, skillRow);
+    await db.createSkill("Topic", "Alice", "Desc", "agent-methodology", []);
+    expect(attempted).toEqual(["topic-2"]);
+  });
+
+  it("does not retry an error that is not a unique violation", async () => {
+    const attempted: string[] = [];
+    state.serverHandler = (ops) => {
+      if (ops.method !== "insert") return { data: [], error: null };
+      attempted.push((ops.payload as { slug: string }).slug);
+      return { data: null, error: { code: "23502", message: "null value in column" } };
+    };
+    await expect(
+      db.createSkill("Some Title", "Alice", "Desc", "agent-methodology", [])
+    ).rejects.toThrow();
+    expect(attempted).toEqual(["some-title"]);
+  });
+
+  it("createProject inserts a slug and retries on collision", async () => {
+    const projectRow = (slug: string) => ({
+      id: "p_new", slug, title_da: "T", title_en: "T", author: "a",
+      description_da: null, description_en: "Desc", tools: [], prompts: [], upvotes: 1,
+      demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01T00:00:00Z",
+    });
+    const attempted = handlerWithCollisions(1, projectRow);
+    const project = await db.createProject("Dansk Designsystem", "Author", "Desc", [], [], "https://demo.com");
+    expect(attempted).toEqual(["dansk-designsystem", "dansk-designsystem-2"]);
+    expect(project.slug).toBe("dansk-designsystem-2");
+  });
+
+  it("createAgent slugs the name, not a title column, and retries on collision", async () => {
+    const agentRow = (slug: string) => ({
+      id: "a_new", slug, name: "Claude Code", developer: "dev", category: "CLI",
+      description_da: null, description_en: "Desc", install_command: "npx",
+      system_prompt_da: "s", system_prompt_en: "s", upvotes: 1, tags: [],
+    });
+    const attempted = handlerWithCollisions(1, agentRow);
+    const agent = await db.createAgent("Claude Code", "dev", "CLI", "Desc", "npx", "s", []);
+    expect(attempted).toEqual(["claude-code", "claude-code-2"]);
+    expect(agent.slug).toBe("claude-code-2");
+  });
+});
+
+describe("slug on the read path", () => {
+  it("mapSkill surfaces the row's slug", async () => {
+    state.publicHandler = () => ({
+      data: {
+        id: "s1", slug: "react-dashboard", title_da: "T", title_en: "T",
+        category: "frontend", vibe_coder: "a", vibe_coder_title_da: "b", vibe_coder_title_en: "b",
+        rating: "5", reviews_count: 0, description_da: null, description_en: "d",
+        tags: [], github_url: null,
+      },
+      error: null,
+    });
+    const skill = await db.getSkillBySlug("react-dashboard");
+    expect(skill?.slug).toBe("react-dashboard");
+  });
+
+  it("falls back to the id when a row has no slug yet — never renders 'undefined'", async () => {
+    state.publicHandler = () => ({
+      data: [{
+        id: "s_1785096155359", slug: null, title_da: "T", title_en: "T",
+        category: "frontend", vibe_coder: "a", vibe_coder_title_da: "b", vibe_coder_title_en: "b",
+        rating: "5", reviews_count: 0, description_da: null, description_en: "d",
+        tags: [], github_url: null,
+      }],
+      error: null,
+    });
+    const skills = await db.getSkills();
+    expect(skills[0].slug).toBe("s_1785096155359");
+  });
+
+  it("getSkillBySlug queries the slug column, not the id", async () => {
+    state.publicHandler = () => ({ data: null, error: { message: "not found" } });
+    await db.getSkillBySlug("react-dashboard");
+    const call = state.publicCalls.find(c => c.table === "skills");
+    expect(call!.filters).toContainEqual(["eq", "slug", "react-dashboard"]);
+  });
+
+  // Without the id tag, revalidateTag(`skill-${id}`) from every mutation path
+  // would miss the slug-keyed entry and an edited skill would serve stale
+  // content on its canonical URL indefinitely.
+  it("getSkillBySlug tags the entry on the row id as well as the slug", async () => {
+    state.publicHandler = () => ({
+      data: {
+        id: "s_1785096155359", slug: "react-dashboard", title_da: "T", title_en: "T",
+        category: "frontend", vibe_coder: "a", vibe_coder_title_da: "b", vibe_coder_title_en: "b",
+        rating: "5", reviews_count: 0, description_da: null, description_en: "d",
+        tags: [], github_url: null,
+      },
+      error: null,
+    });
+    await db.getSkillBySlug("react-dashboard");
+    const flat = state.cacheTagCalls.flat();
+    expect(flat).toContain("skill-slug-react-dashboard");
+    expect(flat).toContain("skill-s_1785096155359");
+  });
+
+  it("getProjectBySlug and getAgentBySlug tag on the row id too", async () => {
+    state.publicHandler = (ops) =>
+      ops.table === "vibes"
+        ? { data: { id: "p_1", slug: "dansk-designsystem", title_da: "T", title_en: "T", author: "a", description_da: null, description_en: "d", tools: [], prompts: [], upvotes: 0, demo_url: null, github_url: null, image_url: null, created_at: "2026-01-01" }, error: null }
+        : { data: { id: "a_1", slug: "claude-code", name: "Claude Code", developer: "d", category: "CLI", description_da: null, description_en: "d", install_command: "npx", system_prompt_da: "s", system_prompt_en: "s", upvotes: 0, tags: [] }, error: null };
+
+    await db.getProjectBySlug("dansk-designsystem");
+    await db.getAgentBySlug("claude-code");
+
+    const flat = state.cacheTagCalls.flat();
+    expect(flat).toContain("project-p_1");
+    expect(flat).toContain("agent-a_1");
+  });
+});

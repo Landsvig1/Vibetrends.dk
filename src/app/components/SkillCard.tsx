@@ -51,7 +51,7 @@ function SkillCardComponent({
       className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
     >
       <Link
-        href={`/skills/${skill.id}`}
+        href={`/skills/${skill.slug}`}
         aria-label={skill.title}
         className="absolute inset-0 z-10 rounded-xl"
       />
@@ -131,7 +131,7 @@ function SkillCardComponent({
 
         <div className="flex items-center gap-2">
           <Link
-            href={`/skills/${skill.id}#connect`}
+            href={`/skills/${skill.slug}#connect`}
             data-testid="skill-connect"
             onClick={(e) => e.stopPropagation()}
             className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
