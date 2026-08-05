@@ -163,6 +163,60 @@ textarea:focus-visible,
   to { opacity: 1; }
 }
 
+/**
+ * One-shot entrance for a confirmation mark (submit-success states).
+ *
+ * This exists because the `animate-in` / `fade-in` / `zoom-in-*` /
+ * `slide-in-from-*` utilities used in ~12 places in this codebase are DEAD:
+ * they come from `tailwindcss-animate`, which is not installed, and
+ * globals.css only imports core Tailwind. Verified against the compiled CSS —
+ * zero occurrences of `animate-in`, and the only entrance keyframes that
+ * exist are the two above. Anything relying on those classes renders with no
+ * animation at all.
+ *
+ * Exponential ease-out from a reduced scale, runs once, then rests — the
+ * success state should land, not keep asking for attention. The global
+ * prefers-reduced-motion rule below collapses this to ~0s along with
+ * everything else.
+ */
+@keyframes settle-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+
+.settle-in {
+  animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) both settle-in;
+}
+
+/**
+ * Dialog panel entrance. Replaces `animate-in fade-in zoom-in` on the five
+ * modal panels (login, and the four submit forms), which never animated for
+ * the reason described above. Rises and resolves rather than zooming, so the
+ * panel reads as arriving rather than popping.
+ */
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.panel-in {
+  animation: 200ms cubic-bezier(0.16, 1, 0.3, 1) both panel-in;
+}
+
+/**
+ * Nav dropdown entrance. The panel is toggled with display (hidden →
+ * group-hover:block), and moving out of display:none restarts a CSS
+ * animation, so this replays on each open without any JS.
+ */
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.menu-in {
+  animation: 150ms cubic-bezier(0.16, 1, 0.3, 1) both menu-in;
+}
+
 /* Anchored Header & Footer to prevent jumpiness */
 ::view-transition-group(site-header) {
   animation: none;

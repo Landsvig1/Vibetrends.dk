@@ -6,7 +6,7 @@ import AgentsExplorer from "../components/AgentsExplorer";
 import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
-  title: "CLI Tools",
+  title: "CLI-værktøjer",
   description: "CLI-tools din agent kan kalde direkte. Kuraterede og testede.",
   path: "/cli",
   image: "/images/og-default.jpg",

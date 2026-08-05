@@ -35,8 +35,6 @@ export interface FeedType {
   href: string;
   /** lucide-react icon name, resolved to a component in the UI layer. */
   icon: string;
-  /** Accent colour (hex) for the feed type's nav and hub treatment. */
-  accent: string;
 }
 
 export const FEED_TYPES: readonly FeedType[] = [
@@ -48,7 +46,6 @@ export const FEED_TYPES: readonly FeedType[] = [
     descEn: "Curated skills, one step from your agent.",
     href: "/skills",
     icon: "Sparkles",
-    accent: "#a78bfa",
   },
   {
     slug: "mcp-servers",
@@ -58,7 +55,6 @@ export const FEED_TYPES: readonly FeedType[] = [
     descEn: "MCP capabilities, one step from your setup.",
     href: "/mcp",
     icon: "Cpu",
-    accent: "#38bdf8",
   },
   {
     slug: "cli",
@@ -68,7 +64,6 @@ export const FEED_TYPES: readonly FeedType[] = [
     descEn: "CLI tools your agent can invoke.",
     href: "/cli",
     icon: "TerminalSquare",
-    accent: "#34d399",
   },
 ] as const;
 

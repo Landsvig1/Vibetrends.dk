@@ -285,7 +285,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Project <span className="text-accent-primary">Showcase</span>
+            Vibes fra <span className="text-accent-primary">fællesskabet</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
             Se hvad andre bygger med AI. Bliv inspireret, og vis dit eget frem.
@@ -355,7 +355,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 isPriority={index < 2}
                 canDelete={canDeleteProject}
                 confirmDeleteLabel="Er du sikker på, at du vil slette dette projekt?"
-                detailsLabel="Se Detaljer"
+                demoLabel="Se live"
                 onDelete={handleDeleteProject}
                 onUpvote={handleUpvote}
               />
@@ -387,7 +387,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
       {/* Submission Modal */}
       {submitOpen && (
         <div role="dialog" aria-modal="true" aria-label="Udgiv dit vibe-kodede produkt" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             {/* Close */}
             <button
               onClick={() => setSubmitOpen(false)}
@@ -399,8 +399,12 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
             {subSuccess ? (
               <div className="text-center py-12 space-y-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
-                  <CheckCircle2 className="h-6 w-6 animate-bounce" />
+                {/* One settling entrance, then rest. This was a perpetual
+                    bouncing icon: that easing reads dated, and an infinite
+                    loop on a confirmation keeps demanding attention long
+                    after the moment it is confirming has passed. */}
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto settle-in">
+                  <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">Projektet er udgivet!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">

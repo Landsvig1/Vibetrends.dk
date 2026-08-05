@@ -28,6 +28,10 @@ vi.mock("next/headers", () => ({
 
 vi.mock("@/lib/db", () => ({
   getThreads: vi.fn(),
+  // Only called on a cold start (zero threads), to seed the empty state's
+  // conversation starters. Defaults to empty so the populated-forum tests,
+  // which are the majority here, don't have to care.
+  getTopSkills: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/jsonLd", () => ({
@@ -45,7 +49,7 @@ vi.mock("../loading", () => ({
 }));
 
 import { cookies } from "next/headers";
-import { getThreads } from "@/lib/db";
+import { getThreads, getTopSkills } from "@/lib/db";
 import { ForumPageContent, getValidForumView } from "../page";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +58,7 @@ import { ForumPageContent, getValidForumView } from "../page";
 
 const cookiesMock = vi.mocked(cookies);
 const getThreadsMock = vi.mocked(getThreads);
+const getTopSkillsMock = vi.mocked(getTopSkills);
 
 /** Minimal ForumThread fixture with reply counts. */
 function makeThread(
@@ -336,5 +341,44 @@ describe("ForumPageContent — ForumExplorer receives the fetched thread list", 
 
     expect(explorerEl.props.initialView).toBe("new");
     expect(explorerEl.props.initialCategory).toBe("Tools");
+  });
+
+  describe("cold-start conversation starters", () => {
+    // The forum link is no longer hidden while the hub is empty, so the empty
+    // state has to carry its own weight: real catalog entries a first visitor
+    // can ask about. These guard both halves of that — that the seed appears
+    // when it is needed, and that a populated forum never pays for it.
+    it("seeds starters from the catalog when the forum has no threads", async () => {
+      getThreadsMock.mockResolvedValue([]);
+      getTopSkillsMock.mockResolvedValue([
+        { id: "s1", title: "Rejseplanen" },
+        { id: "s2", title: "Boliga Property Data" },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ] as any);
+
+      const result = await ForumPageContent({ searchParams: Promise.resolve({}) });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const explorerEl = ((result as any).props.children as any[])[1];
+
+      expect(getTopSkillsMock).toHaveBeenCalledWith(3, "da");
+      expect(explorerEl.props.coldStartTopics).toEqual([
+        { id: "s1", title: "Rejseplanen" },
+        { id: "s2", title: "Boliga Property Data" },
+      ]);
+    });
+
+    it("does not query the catalog when the forum already has threads", async () => {
+      getThreadsMock.mockResolvedValue([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { id: "t1", title: "En tråd", replies: [] } as any,
+      ]);
+
+      const result = await ForumPageContent({ searchParams: Promise.resolve({}) });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const explorerEl = ((result as any).props.children as any[])[1];
+
+      expect(getTopSkillsMock).not.toHaveBeenCalled();
+      expect(explorerEl.props.coldStartTopics).toEqual([]);
+    });
   });
 });

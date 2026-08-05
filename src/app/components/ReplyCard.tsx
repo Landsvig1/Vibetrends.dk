@@ -19,7 +19,7 @@ function ReplyCardComponent({
   onDelete,
 }: ReplyCardProps) {
   return (
-    <div className="rounded-xl bg-background border border-card-border p-5 space-y-4 relative group/reply animate-in slide-in-from-bottom-2 duration-300">
+    <div className="rounded-xl bg-background border border-card-border p-5 space-y-4 relative group/reply">
       {canDelete && (
         <button
           onClick={() => onDelete(reply.id)}

@@ -63,7 +63,7 @@ export async function VibesPageContent({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "name": "Vibe Coding Project Showcase",
+    "name": "Vibes fra fællesskabet",
     "description":
       "Showcase af innovative softwareprojekter og værktøjer bygget ved hjælp af AI.",
     "numberOfItems": projects.length,

@@ -68,14 +68,21 @@ function ThreadCardComponent({
 
           {canDelete && (
             <motion.button
-              whileHover={{ scale: 1.1, color: "#ef4444" }}
+              // Colour comes from the hover: class below, not from Framer, so
+              // it matches AgentCard/ProjectCard exactly and resolves the
+              // token through CSS. Framer keeps the scale only.
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onDelete(thread.id);
               }}
-              className="ml-auto p-1 text-text-secondary transition-colors z-20 cursor-pointer"
+              /* Was a raw #ef4444 in whileHover — the only one in the codebase
+                 and outside the palette. The system has no destructive token,
+                 so that red was undocumented drift rather than a semantic
+                 choice; every other delete affordance hovers to Forest Ink. */
+              className="ml-auto p-1 text-text-secondary hover:text-accent-primary transition-colors z-20 cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </motion.button>

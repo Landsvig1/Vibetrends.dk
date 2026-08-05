@@ -200,6 +200,28 @@ export default function SkillsExplorer({
 
   const showTopicCards = !searchActive && view === "all";
 
+  /**
+   * Cards rendered before the user asks for more. The grid used to render every
+   * match at once, which put 46 cards and ~17,000px of scroll on a phone with
+   * no way to reach the end. The stated visitor is mid-task and after one
+   * specific thing, so the default is a screenful, not the whole catalog.
+   */
+  const INITIAL_VISIBLE = 12;
+
+  // Any change to what is being listed starts the count over — otherwise a
+  // narrow search inherits a previous "Vis flere" expansion and silently shows
+  // everything again. Stored WITH the list identity rather than reset from an
+  // effect, so the reset happens during render instead of as a second pass
+  // (see react.dev "You Might Not Need an Effect").
+  const listKey = `${search}|${view}`;
+  const [expansion, setExpansion] = useState({ key: listKey, count: INITIAL_VISIBLE });
+  const visibleCount = expansion.key === listKey ? expansion.count : INITIAL_VISIBLE;
+  const showMore = () =>
+    setExpansion({ key: listKey, count: visibleCount + INITIAL_VISIBLE });
+
+  const shownSkills = gridSkills.slice(0, visibleCount);
+  const hiddenCount = gridSkills.length - shownSkills.length;
+
   const viewTabs: {
     value: string;
     label: string;
@@ -307,10 +329,24 @@ export default function SkillsExplorer({
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-4 text-center md:text-left">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Skills{" "}
-            <span className="text-accent-primary">Bibliotek</span>
-          </h1>
+          <div className="flex items-center justify-center md:justify-start gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+              Skills-<span className="text-accent-primary">biblioteket</span>
+            </h1>
+            {/* Live count. Without it the grid gave no sense of how much is
+                here, which made a curated catalog read as an endless dump.
+                It describes the list directly below it, so it is the filtered
+                count, not the catalog total — showing the total above a
+                filtered grid puts two numbers that don't reconcile on one
+                screen. Hidden entirely on the Emner view, where the topic
+                tiles carry their own per-topic counts and a single number
+                above them would be a third, differently-scoped figure. */}
+            {!showTopicCards && (
+              <span className="px-2 py-0.5 text-xs font-mono rounded bg-background text-text-secondary border border-card-border">
+                {gridSkills.length}
+              </span>
+            )}
+          </div>
           <p className="text-text-secondary max-w-2xl">
             AI-skills der virker. Verdens bedste, plus dem kun Danmark har. Gratis, open source og klar til din agent.
           </p>
@@ -324,8 +360,10 @@ export default function SkillsExplorer({
         </button>
       </div>
 
-      {/* Search + view tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Search + view tabs. Sticky under the 64px header: the controls used to
+          scroll away after the first row, leaving no way to refine without
+          scrolling back to the top of a very long grid. */}
+      <div className="sticky top-16 z-30 -mx-4 px-4 py-3 bg-background/85 backdrop-blur-md border-b border-card-border flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary"
@@ -372,13 +410,7 @@ export default function SkillsExplorer({
               className="group relative rounded-xl glass-card p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition"
             >
               <div className="flex items-center justify-between">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-lg"
-                  style={{
-                    backgroundColor: `${topic.accent}1a`,
-                    color: topic.accent,
-                  }}
-                >
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent-light text-accent-primary">
                   <TopicIcon name={topic.icon} className="h-5 w-5" />
                 </div>
                 <span className="text-xs font-mono text-text-secondary">
@@ -405,14 +437,15 @@ export default function SkillsExplorer({
       {/* Skill grid (search / Dansk / Trending) — opacity overlay during refetch */}
       {!showTopicCards &&
         (gridSkills.length > 0 ? (
+          <>
           <motion.div
             layout
-            className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${
+            className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${
               isRefetching ? "opacity-50 pointer-events-none" : ""
             }`}
           >
             <AnimatePresence mode="popLayout">
-              {gridSkills.map((skill, index) => (
+              {shownSkills.map((skill, index) => (
                 <motion.div
                   key={skill.id}
                   layout
@@ -433,6 +466,18 @@ export default function SkillsExplorer({
               ))}
             </AnimatePresence>
           </motion.div>
+
+          {hiddenCount > 0 && (
+            <div className="flex justify-center pt-8">
+              <button
+                onClick={showMore}
+                className="btn-secondary"
+              >
+                Vis flere ({hiddenCount})
+              </button>
+            </div>
+          )}
+          </>
         ) : (
           <EmptyState
             icon={Briefcase}
@@ -463,7 +508,7 @@ export default function SkillsExplorer({
           aria-label="Del en Skill"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         >
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             {/* Close */}
             <button
               onClick={() => setSubmitOpen(false)}

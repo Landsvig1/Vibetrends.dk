@@ -81,7 +81,7 @@ export async function SkillsPageContent({
   // empty — every crawler saw numberOfItems: 0.
   const jsonLd = skillsListJsonLd(
     allSkills,
-    "Community Skills Bibliotek",
+    "Skills-biblioteket",
     "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
   );
 

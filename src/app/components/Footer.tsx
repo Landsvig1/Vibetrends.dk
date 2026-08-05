@@ -30,12 +30,12 @@ export default function Footer() {
               <ul className="mt-4 space-y-2">
                 <li>
                   <Link href="/skills" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    Skills Bibliotek
+                    Skills-biblioteket
                   </Link>
                 </li>
                 <li>
                   <Link href="/vibes" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    Project Showcase
+                    Vibes
                   </Link>
                 </li>
                 <li>

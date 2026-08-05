@@ -7,7 +7,7 @@ interface EntityMetaInput {
    */
   title: string;
   /**
-   * Section suffix appended after the entity name, e.g. " - Skills Library".
+   * Section suffix appended after the entity name, e.g. " - Skills-biblioteket".
    * Only the entity name is shortened when the composed title runs long, so
    * the suffix always survives. Omit on hub pages.
    */

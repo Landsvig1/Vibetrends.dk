@@ -68,7 +68,7 @@ async function CliDetailContent({ params }: { params: Promise<{ slug: string }> 
         dangerouslySetInnerHTML={{
           __html: jsonLdScript(
             breadcrumbJsonLd([
-              { name: "CLI Tools", url: "https://vibetrends.dk/cli" },
+              { name: "CLI-værktøjer", url: "https://vibetrends.dk/cli" },
               { name: agent.name, url: `https://vibetrends.dk/cli/${slug}` },
             ])
           ),

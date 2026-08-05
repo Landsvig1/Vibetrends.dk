@@ -43,7 +43,19 @@ describe("skillCategories taxonomy", () => {
       expect(category.descDa).toBeTruthy();
       expect(category.descEn).toBeTruthy();
       expect(category.icon).toBeTruthy();
-      expect(category.accent).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it("carries no per-category colour", () => {
+    // The Single Ink Rule (DESIGN.md) allows one chromatic colour system-wide.
+    // Categories used to define a saturated hex accent each, which put eight
+    // hues on the topic grid — including the violet/cyan/rose of the removed
+    // prior identity. Guard the removal rather than trusting a comment.
+    for (const category of SKILL_CATEGORIES) {
+      const colourish = Object.entries(category).filter(
+        ([, value]) => typeof value === "string" && /^#[0-9a-f]{3,8}$/i.test(value),
+      );
+      expect(colourish).toEqual([]);
     }
   });
 
