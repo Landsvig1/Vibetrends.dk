@@ -48,68 +48,70 @@ function SkillCardComponent({
   return (
     <div
       data-testid="skill-card"
-      className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
+      className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 h-full group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
     >
       <Link
         href={`/skills/${skill.id}`}
         aria-label={skill.title}
         className="absolute inset-0 z-10 rounded-xl"
       />
-      <div className="space-y-4">
-        <div className="flex justify-between items-start">
-          <div className="space-y-2">
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
-              {skill.categoryLabel}
-            </span>
-            <h3 className="text-lg font-bold text-foreground mt-1 leading-tight group-hover:text-accent-primary transition-colors">
-              {skill.title}
-            </h3>
-          </div>
+      <div className="space-y-4 flex-1 flex flex-col justify-between">
+        <div className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
+                {skill.categoryLabel}
+              </span>
+              <h3 className="text-lg font-bold text-foreground mt-1 leading-tight group-hover:text-accent-primary transition-colors">
+                {skill.title}
+              </h3>
+            </div>
 
-          <div className="flex items-center gap-2">
-            {onDelete && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(skill.id, e); }}
-                aria-label={`Delete ${skill.title}`}
-                data-testid="skill-delete"
-                className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            )}
-            {onUpvote ? (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
-                aria-label={`Upvote ${skill.title}`}
-                data-testid="skill-upvote"
-                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.3 }}
-                  key={skill.upvotes}
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(skill.id, e); }}
+                  aria-label={`Delete ${skill.title}`}
+                  data-testid="skill-delete"
+                  className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              )}
+              {onUpvote ? (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
+                  aria-label={`Upvote ${skill.title}`}
+                  data-testid="skill-upvote"
+                  className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.3 }}
+                    key={skill.upvotes}
+                  >
+                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                  </motion.div>
+                  <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+                </motion.button>
+              ) : (
+                <span
+                  data-testid="skill-upvote-count"
+                  className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
                 >
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                </motion.div>
-                <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
-              </motion.button>
-            ) : (
-              <span
-                data-testid="skill-upvote-count"
-                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
-              >
-                <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
-              </span>
-            )}
+                  <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
-          {skill.description}
-        </p>
+          <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
+            {skill.description}
+          </p>
+        </div>
 
         <div className="flex flex-wrap gap-1.5 pt-1">
           {skill.tags.slice(0, 4).map((tag) => (

@@ -420,6 +420,7 @@ export default function SkillsExplorer({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.2, delay: index * 0.04 }}
+                  className="h-full flex flex-col"
                 >
                   <SkillCard
                     skill={skill}
