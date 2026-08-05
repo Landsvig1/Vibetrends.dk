@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { slugify } from "@/lib/slug";
 
 /**
  * U4 — server component tests for /vibes page.tsx.
@@ -57,6 +58,7 @@ const getProjectsMock = vi.mocked(getProjects);
 function makeProject(id: string, title: string, description: string) {
   return {
     id,
+    slug: slugify(title),
     title,
     description,
     author: "alice",

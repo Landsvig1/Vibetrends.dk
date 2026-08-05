@@ -376,7 +376,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   items: initialProjects.slice(0, 3).map((p) => ({
                     id: p.id,
                     title: p.title,
-                    href: `/vibes/${p.id}`,
+                    href: `/vibes/${p.slug}`,
                   })),
                 }
               : undefined

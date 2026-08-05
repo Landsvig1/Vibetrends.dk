@@ -373,7 +373,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   items: initialItems.slice(0, 3).map((a) => ({
                     id: a.id,
                     title: a.name,
-                    href: `${detailBase}/${a.id}`,
+                    href: `${detailBase}/${a.slug}`,
                   })),
                 }
               : undefined

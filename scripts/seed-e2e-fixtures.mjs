@@ -97,11 +97,17 @@ async function run() {
 
       // is_danish: true — the /cli and /mcp explorers default to the Dansk
       // tab, so the fixture must be Danish-flagged to be visible there.
+      // `slug` is NOT NULL and unique on agents/vibes/skills. Omitting it here
+      // would throw, and because every insert shares one transaction the whole
+      // fixture set would roll back and fail the required e2e check on every
+      // PR. The row id doubles as the slug: it is already per-run unique and
+      // hyphenated, so it satisfies both constraints without a second scheme
+      // (and the sitemap's isE2eFixtureId filter still keys on the id).
       await client.query(
         `insert into public.agents
-           (id, name, developer, category, description_da, description_en,
+           (id, slug, name, developer, category, description_da, description_en,
             install_command, system_prompt_da, system_prompt_en, upvotes, tags, is_danish)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)`,
+         values ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)`,
         [
           cliId,
           'E2E Fixture CLI',
@@ -124,11 +130,12 @@ async function run() {
       // builds images.remotePatterns from getAllowedImageHostnames(), so a
       // remote host that isn't on that list throws at render time. A local
       // path can never drift out of sync with that allowlist.
+      // See the agents insert above for why `slug` is the id.
       await client.query(
         `insert into public.vibes
-           (id, title_da, title_en, author, description_da, description_en,
+           (id, slug, title_da, title_en, author, description_da, description_en,
             tools, prompts, upvotes, demo_url, image_url, is_danish)
-         values ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)`,
+         values ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)`,
         [
           vibeId,
           vibeTitle,

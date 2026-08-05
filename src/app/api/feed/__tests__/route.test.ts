@@ -28,7 +28,7 @@ describe("GET /api/feed", () => {
         type: "skill",
         title: "Test Skill",
         summary: "A nice skill",
-        url: "https://vibetrends.dk/skills/s_123456789",
+        url: "https://vibetrends.dk/skills/example-skill",
         tags: ["test"],
         publishedAt: "2026-07-09T00:00:00Z",
       },

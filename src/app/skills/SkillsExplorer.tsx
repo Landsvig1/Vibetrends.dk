@@ -447,7 +447,7 @@ export default function SkillsExplorer({
                     items: initialAllSkills.slice(0, 3).map((s) => ({
                       id: s.id,
                       title: s.title,
-                      href: `/skills/${s.id}`,
+                      href: `/skills/${s.slug}`,
                     })),
                   }
                 : undefined

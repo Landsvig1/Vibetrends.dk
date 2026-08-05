@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { slugify } from "@/lib/slug";
 import { filterAgents, executeUpvote, cardTestId } from "../AgentsExplorer";
 import type { Agent } from "@/lib/db";
 
@@ -27,6 +28,7 @@ function makeAgent(
 ): Agent {
   return {
     id,
+    slug: slugify(name),
     name,
     developer: "alice",
     category,

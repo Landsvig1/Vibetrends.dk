@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { slugify } from "@/lib/slug";
 
 /**
  * U7 — server component tests for /mcp page.tsx.
@@ -47,6 +48,7 @@ const getAgentsMock = vi.mocked(getAgents);
 function makeMcpAgent(id: string, name: string, description: string) {
   return {
     id,
+    slug: slugify(name),
     name,
     developer: "alice",
     category: "MCP Server" as const,

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Heart, ExternalLink, Code, Sparkles } from "lucide-react";
-import { getProjectById } from "@/lib/db";
+import { getProjectBySlug } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
@@ -24,17 +24,17 @@ const GithubIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const project = await getProjectById(id, 'da');
+  const project = await getProjectBySlug(slug, 'da');
   if (!project) return { title: "Projekt ikke fundet" };
 
   return entityMetadata({
     title: project.title,
     suffix: " - Vibe Coding Showcase",
     description: project.description,
-    path: `/vibes/${id}`,
+    path: `/vibes/${slug}`,
     lang: 'da',
     type: "article",
   });
@@ -46,12 +46,13 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [
     {
-      params: { id: "p1" }
+      // A real slug, so the runtime prefetch sample renders an actual page.
+      params: { slug: "panoptik" }
     }
   ]
 };
 
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -69,10 +70,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   );
 }
 
-async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+async function ShowcaseProjectContent({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const project = await getProjectById(id, 'da');
+  const project = await getProjectBySlug(slug, 'da');
 
   if (!project) {
     notFound();
@@ -107,7 +108,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
           __html: jsonLdScript(
             breadcrumbJsonLd([
               { name: "Vibes", url: "https://vibetrends.dk/vibes" },
-              { name: project.title, url: `https://vibetrends.dk/vibes/${id}` },
+              { name: project.title, url: `https://vibetrends.dk/vibes/${slug}` },
             ])
           ),
         }}
@@ -194,7 +195,7 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ id: string
                     )}
                     <ShareButton
                       title={project.title}
-                      url={`https://vibetrends.dk/vibes/${id}`}
+                      url={`https://vibetrends.dk/vibes/${slug}`}
                     />
                  </div>
               </div>

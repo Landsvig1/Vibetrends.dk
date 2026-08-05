@@ -43,9 +43,62 @@ async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseCl
 
 import { skillCategoryLabel, type SkillCategorySlug } from "./skillCategories";
 import { type ForumCategoryKey } from "./forumCategories";
+import { slugify, RESERVED_SLUGS } from "./slug";
+
+/**
+ * How many slugs an insert tries before giving up: `x`, `x-2` … `x-5`.
+ *
+ * Bounded rather than open-ended because the retry loop can also spin on a
+ * unique violation that has nothing to do with the slug (`id` is `s_` +
+ * Date.now(), so two submissions inside one millisecond collide on it), and an
+ * unbounded loop would turn that into a hang instead of an error.
+ */
+const SLUG_MAX_ATTEMPTS = 5;
+
+/**
+ * The slugs an insert should try, in order.
+ *
+ * A base slug that is reserved (see RESERVED_SLUGS — a skill slugged "topic"
+ * would be shadowed by src/app/skills/topic) skips straight to the suffixed
+ * form; it is never offered bare.
+ */
+function slugCandidates(base: string): string[] {
+  const start = RESERVED_SLUGS.has(base) ? 2 : 1;
+  return Array.from({ length: SLUG_MAX_ATTEMPTS }, (_, i) => {
+    const n = start + i;
+    return n === 1 ? base : `${base}-${n}`;
+  });
+}
+
+/** PostgREST surfaces a unique-index violation with the Postgres SQLSTATE. */
+const UNIQUE_VIOLATION = '23505';
+
+/**
+ * Run an insert once per slug candidate, stopping at the first success.
+ *
+ * Without this, submitting a title someone already used surfaces the unique
+ * violation as the generic "Kunne ikke oprette …" throw, which reads to the
+ * submitter as an outage rather than a name clash. Any error that is not a
+ * unique violation returns immediately — retrying a malformed insert five
+ * times helps nobody.
+ */
+async function insertWithUniqueSlug<T>(
+  baseSlug: string,
+  attempt: (slug: string) => PromiseLike<{ data: T | null; error: { code?: string } | null }>
+): Promise<{ data: T | null; error: { code?: string } | null }> {
+  let last: { data: T | null; error: { code?: string } | null } = { data: null, error: null };
+  for (const slug of slugCandidates(baseSlug)) {
+    last = await attempt(slug);
+    if (!last.error) return last;
+    if (last.error.code !== UNIQUE_VIOLATION) return last;
+  }
+  return last;
+}
 
 export interface Skill {
   id: string;
+  /** URL slug — the canonical path is /skills/{slug}. Stable across title edits. */
+  slug: string;
   /** Canonical skill category slug (see src/lib/skillCategories.ts). */
   category: SkillCategorySlug;
   /** Localized category label resolved from `category` for display. */
@@ -74,6 +127,8 @@ export function parseSkillView(v: unknown): SkillView | undefined {
 
 export interface ShowcaseProject {
   id: string;
+  /** URL slug — the canonical path is /vibes/{slug}. Stable across title edits. */
+  slug: string;
   title: string;
   author: string;
   description: string;
@@ -211,6 +266,8 @@ export async function countRealBlogPosts(): Promise<number> {
 
 export interface Agent {
   id: string;
+  /** URL slug — the canonical path is /cli/{slug} or /mcp/{slug}. Stable across renames. */
+  slug: string;
   name: string;
   developer: string;
   // Feed-vs-host taxonomy (src/lib/feedTypes.ts). "Host" rows are retained but
@@ -233,6 +290,13 @@ export interface Agent {
 // Database row shapes (snake_case, bilingual columns)
 interface SkillRow {
   id: string;
+  /**
+   * Null only in the window between the column being added and
+   * scripts/backfill-slugs.mjs running — the unique index and NOT NULL land
+   * after that. Mappers fall back to the id so a null can never render as
+   * "/skills/undefined".
+   */
+  slug?: string | null;
   title_da: string;
   title_en: string;
   category: string;
@@ -258,6 +322,8 @@ interface SkillRow {
 
 interface ShowcaseRow {
   id: string;
+  /** See SkillRow.slug. */
+  slug?: string | null;
   title_da: string;
   title_en: string;
   author: string;
@@ -320,6 +386,8 @@ interface BlogPostRow {
 
 interface AgentRow {
   id: string;
+  /** See SkillRow.slug. */
+  slug?: string | null;
   name: string;
   developer: string;
   // Widened to string so a legacy pre-migration category never trips the
@@ -355,6 +423,9 @@ function withEnglishFallback(da: string | null | undefined, en: string, lang: 'd
 function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
   return {
     id: s.id,
+    // The id fallback only fires in the pre-backfill window; it stops a URL
+    // producer emitting "/skills/undefined" if a row is ever missing one.
+    slug: s.slug || s.id,
     title: lang === 'en' ? s.title_en : s.title_da,
     // DB rows are migrated to slugs; skillCategoryLabel still falls back
     // safely for any legacy value, so the cast documents intent without
@@ -376,6 +447,8 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
 function mapProject(p: ShowcaseRow, lang: 'da' | 'en'): ShowcaseProject {
   return {
     id: p.id,
+    // See mapSkill.
+    slug: p.slug || p.id,
     title: lang === 'en' ? p.title_en : p.title_da,
     author: p.author,
     description: withEnglishFallback(p.description_da, p.description_en, lang),
@@ -441,6 +514,8 @@ function toAgentCategory(value: string): Agent["category"] {
 function mapAgent(a: AgentRow, lang: 'da' | 'en'): Agent {
   return {
     id: a.id,
+    // See mapSkill.
+    slug: a.slug || a.id,
     name: a.name,
     developer: a.developer,
     category: toAgentCategory(a.category),
@@ -559,6 +634,31 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
 
   const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
   if (error || !data) return null;
+  return mapSkill(data, lang);
+}
+
+/**
+ * Slug-keyed twin of getSkillById — the resolver behind /skills/{slug}.
+ *
+ * Tagged on BOTH the slug and the row id. The id tag is the load-bearing half:
+ * every mutation path in this file calls revalidateTag(`skill-${id}`), and
+ * without it an edited skill would serve stale content on its slug URL until
+ * the cache profile expired. Tagging from fetched data after the await is the
+ * documented pattern — see "Creating tags from external data" in
+ * node_modules/next/dist/docs/01-app/03-api-reference/04-functions/cacheTag.md.
+ *
+ * A separate .eq() query rather than folding slug and id into one .or():
+ * PostgREST's filter grammar has silently broken reads here before (the
+ * `tags::text` cast, fixed in PR #85) and mocks cannot catch that class of bug.
+ */
+export async function getSkillBySlug(slug: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`skill-slug-${slug}`, `skill-slug-${slug}:${lang}`)
+
+  const { data, error } = await supabasePublic.from('skills').select('*').eq('slug', slug).single();
+  if (error || !data) return null;
+  cacheTag(`skill-${data.id}`, `skill-${data.id}:${lang}`)
   return mapSkill(data, lang);
 }
 
@@ -706,6 +806,18 @@ export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
 
   const { data, error } = await supabasePublic.from('vibes').select('*').eq('id', id).single();
   if (error || !data) return null;
+  return mapProject(data, lang);
+}
+
+/** Slug-keyed twin of getProjectById — see getSkillBySlug for the dual-tag rationale. */
+export async function getProjectBySlug(slug: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`project-slug-${slug}`, `project-slug-${slug}:${lang}`)
+
+  const { data, error } = await supabasePublic.from('vibes').select('*').eq('slug', slug).single();
+  if (error || !data) return null;
+  cacheTag(`project-${data.id}`, `project-${data.id}:${lang}`)
   return mapProject(data, lang);
 }
 
@@ -1108,6 +1220,25 @@ export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
   return mapAgent(data, lang);
 }
 
+/**
+ * Slug-keyed twin of getAgentById — see getSkillBySlug for the dual-tag rationale.
+ *
+ * Slugs are unique table-wide rather than per category, so this resolves a row
+ * from either surface. The callers (/cli and /mcp) check `category` themselves
+ * and 404 on a mismatch, which is what stops an MCP server rendering under /cli
+ * because someone guessed its slug there.
+ */
+export async function getAgentBySlug(slug: string, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`agent-slug-${slug}`, `agent-slug-${slug}:${lang}`)
+
+  const { data, error } = await supabasePublic.from('agents').select('*').eq('slug', slug).single();
+  if (error || !data) return null;
+  cacheTag(`agent-${data.id}`, `agent-${data.id}:${lang}`)
+  return mapAgent(data, lang);
+}
+
 export async function upvoteAgent(id: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
 
@@ -1151,23 +1282,26 @@ export async function createProject(title: string, author: string, description: 
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'p_' + Date.now();
-  const { data, error } = await supabase.from('vibes').insert({
-    id: newId,
-    title_da: title,
-    title_en: title,
-    author,
-    // `||` not `??`: an empty string means "no translation supplied" and must
-    // normalize to null, or the English-fallback state is unreachable via the API.
-    description_da: descriptionDa || null,
-    description_en: description,
-    tools,
-    prompts,
-    upvotes: 1,
-    demo_url: demoUrl,
-    github_url: githubUrl,
-    image_url: imageUrl || '/images/autonewsletter.jpg',
-    user_id: userId,
-  }).select().single();
+  const { data, error } = await insertWithUniqueSlug<ShowcaseRow>(slugify(title), (slug) =>
+    supabase.from('vibes').insert({
+      id: newId,
+      slug,
+      title_da: title,
+      title_en: title,
+      author,
+      // `||` not `??`: an empty string means "no translation supplied" and must
+      // normalize to null, or the English-fallback state is unreachable via the API.
+      description_da: descriptionDa || null,
+      description_en: description,
+      tools,
+      prompts,
+      upvotes: 1,
+      demo_url: demoUrl,
+      github_url: githubUrl,
+      image_url: imageUrl || '/images/autonewsletter.jpg',
+      user_id: userId,
+    }).select().single()
+  );
 
   if (error || !data) {
     console.error('Failed to create project:', error);
@@ -1184,24 +1318,27 @@ export async function createSkill(title: string, vibeCoder: string, description:
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 's_' + Date.now();
-  const { data, error } = await supabase.from('skills').insert({
-    id: newId,
-    title_da: title,
-    title_en: title,
-    vibe_coder: vibeCoder,
-    vibe_coder_title_da: 'Community-bidragyder',
-    vibe_coder_title_en: 'Community Contributor',
-    rating: 5.0,
-    reviews_count: 0,
-    // See createProject: `||` normalizes "" to null.
-    description_da: descriptionDa || null,
-    description_en: description,
-    category,
-    tags,
-    github_url: githubUrl,
-    source,
-    user_id: userId,
-  }).select().single();
+  const { data, error } = await insertWithUniqueSlug<SkillRow>(slugify(title), (slug) =>
+    supabase.from('skills').insert({
+      id: newId,
+      slug,
+      title_da: title,
+      title_en: title,
+      vibe_coder: vibeCoder,
+      vibe_coder_title_da: 'Community-bidragyder',
+      vibe_coder_title_en: 'Community Contributor',
+      rating: 5.0,
+      reviews_count: 0,
+      // See createProject: `||` normalizes "" to null.
+      description_da: descriptionDa || null,
+      description_en: description,
+      category,
+      tags,
+      github_url: githubUrl,
+      source,
+      user_id: userId,
+    }).select().single()
+  );
 
   if (error || !data) {
     console.error('Failed to create skill:', error);
@@ -1266,22 +1403,26 @@ export async function createAgent(name: string, developer: string, category: Age
   const { supabase, userId } = await resolveActor(actingAs);
 
   const newId = 'a_' + Date.now();
-  const { data, error } = await supabase.from('agents').insert({
-    id: newId,
-    name,
-    developer,
-    category,
-    // See createProject: `||` normalizes "" to null.
-    description_da: descriptionDa || null,
-    description_en: description,
-    install_command: installCommand,
-    system_prompt_da: systemPrompt,
-    system_prompt_en: systemPrompt,
-    upvotes: 1,
-    tags,
-    source_url: sourceUrl || null,
-    user_id: userId,
-  }).select().single();
+  // Slugged from `name` — agents have no bilingual title column.
+  const { data, error } = await insertWithUniqueSlug<AgentRow>(slugify(name), (slug) =>
+    supabase.from('agents').insert({
+      id: newId,
+      slug,
+      name,
+      developer,
+      category,
+      // See createProject: `||` normalizes "" to null.
+      description_da: descriptionDa || null,
+      description_en: description,
+      install_command: installCommand,
+      system_prompt_da: systemPrompt,
+      system_prompt_en: systemPrompt,
+      upvotes: 1,
+      tags,
+      source_url: sourceUrl || null,
+      user_id: userId,
+    }).select().single()
+  );
 
   if (error || !data) {
     console.error('Failed to create agent:', error);
@@ -1544,19 +1685,19 @@ export async function getFeedItems(opts: {
 
   const wantAgents = types.includes('mcp') || types.includes('cli');
 
-  let skillsQuery = supabasePublic.from('skills').select('id, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit);
+  let skillsQuery = supabasePublic.from('skills').select('id, slug, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (s_ + ms)
     skillsQuery = skillsQuery.gt('id', 's_' + sinceMs);
   }
 
-  let agentsQuery = supabasePublic.from('agents').select('id, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit);
+  let agentsQuery = supabasePublic.from('agents').select('id, slug, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (a_ + ms)
     agentsQuery = agentsQuery.gt('id', 'a_' + sinceMs);
   }
 
-  let vibesQuery = supabasePublic.from('vibes').select('id, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit);
+  let vibesQuery = supabasePublic.from('vibes').select('id, slug, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using real created_at timestamp column
     vibesQuery = vibesQuery.gt('created_at', new Date(sinceMs).toISOString());
@@ -1588,7 +1729,7 @@ export async function getFeedItems(opts: {
       type: 'skill',
       title: lang === 'da' ? s.title_da : s.title_en,
       summary: withEnglishFallback(s.description_da, s.description_en, lang),
-      url: `https://vibetrends.dk/skills/${s.id}`,
+      url: `https://vibetrends.dk/skills/${s.slug || s.id}`,
       tags: s.tags ?? [],
       publishedAtMs,
     });
@@ -1603,7 +1744,7 @@ export async function getFeedItems(opts: {
       type,
       title: a.name,
       summary: withEnglishFallback(a.description_da, a.description_en, lang),
-      url: `https://vibetrends.dk/${type}/${a.id}`,
+      url: `https://vibetrends.dk/${type}/${a.slug || a.id}`,
       tags: a.tags ?? [],
       publishedAtMs,
     });
@@ -1616,7 +1757,7 @@ export async function getFeedItems(opts: {
       type: 'vibe',
       title: lang === 'da' ? v.title_da : v.title_en,
       summary: withEnglishFallback(v.description_da, v.description_en, lang),
-      url: `https://vibetrends.dk/vibes/${v.id}`,
+      url: `https://vibetrends.dk/vibes/${v.slug || v.id}`,
       tags: v.tools ?? [],
       publishedAtMs,
       createdAt: v.created_at || undefined,

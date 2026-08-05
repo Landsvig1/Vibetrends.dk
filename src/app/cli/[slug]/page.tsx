@@ -1,35 +1,26 @@
-import { getAgentById } from "@/lib/db";
+import { getAgentBySlug } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const agent = await getAgentById(id, 'da');
-  if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
+  const agent = await getAgentBySlug(slug, 'da');
+  if (!agent || agent.category !== "CLI") return { title: "CLI ikke fundet" };
 
   return entityMetadata({
     title: agent.name,
-    suffix: " - MCP Server Registry",
+    suffix: " - CLIs",
     description: agent.description,
-    path: `/mcp/${id}`,
+    path: `/cli/${slug}`,
     lang: 'da',
   });
 }
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [
-    {
-      params: { id: "a1" }
-    }
-  ]
-};
-
-export default async function McpDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CliDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -42,17 +33,18 @@ export default async function McpDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
     }>
-      <McpDetailContent params={params} />
+      <CliDetailContent params={params} />
     </Suspense>
   );
 }
 
-async function McpDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+async function CliDetailContent({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const agent = await getAgentById(id, 'da');
-  // Only MCP servers belong here; CLI rows live at /cli/[id].
-  if (!agent || agent.category !== "MCP Server") {
+  const agent = await getAgentBySlug(slug, 'da');
+  // Only CLIs belong here; MCP servers live at /mcp/[slug] and hosts are
+  // never shown as catalog items.
+  if (!agent || agent.category !== "CLI") {
     notFound();
   }
 
@@ -66,7 +58,7 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
               name: agent.name,
               description: agent.description,
               developer: agent.developer,
-              url: `https://vibetrends.dk/mcp/${id}`,
+              url: `https://vibetrends.dk/cli/${slug}`,
             })
           ),
         }}
@@ -76,13 +68,13 @@ async function McpDetailContent({ params }: { params: Promise<{ id: string }> })
         dangerouslySetInnerHTML={{
           __html: jsonLdScript(
             breadcrumbJsonLd([
-              { name: "MCP Servere", url: "https://vibetrends.dk/mcp" },
-              { name: agent.name, url: `https://vibetrends.dk/mcp/${id}` },
+              { name: "CLI Tools", url: "https://vibetrends.dk/cli" },
+              { name: agent.name, url: `https://vibetrends.dk/cli/${slug}` },
             ])
           ),
         }}
       />
-      <AgentDetailView agent={agent} backHref="/mcp" />
+      <AgentDetailView agent={agent} backHref="/cli" />
     </>
   );
 }

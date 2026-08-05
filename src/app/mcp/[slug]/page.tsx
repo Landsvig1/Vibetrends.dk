@@ -1,26 +1,36 @@
-import { getAgentById } from "@/lib/db";
+import { getAgentBySlug } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { Suspense } from "react";
 import AgentDetailView from "../../components/AgentDetailView";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const agent = await getAgentById(id, 'da');
-  if (!agent || agent.category !== "CLI") return { title: "CLI ikke fundet" };
+  const agent = await getAgentBySlug(slug, 'da');
+  if (!agent || agent.category !== "MCP Server") return { title: "MCP-server ikke fundet" };
 
   return entityMetadata({
     title: agent.name,
-    suffix: " - CLIs",
+    suffix: " - MCP Server Registry",
     description: agent.description,
-    path: `/cli/${id}`,
+    path: `/mcp/${slug}`,
     lang: 'da',
   });
 }
 
-export default async function CliDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [
+    {
+      // A real slug, so the runtime prefetch sample renders an actual page.
+      params: { slug: "danmarks-statistik-mcp" }
+    }
+  ]
+};
+
+export default async function McpDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense fallback={
       <div className="space-y-10 animate-pulse">
@@ -33,18 +43,17 @@ export default async function CliDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
     }>
-      <CliDetailContent params={params} />
+      <McpDetailContent params={params} />
     </Suspense>
   );
 }
 
-async function CliDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+async function McpDetailContent({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
 
-  const agent = await getAgentById(id, 'da');
-  // Only CLIs belong here; MCP servers live at /mcp/[id] and hosts are
-  // never shown as catalog items.
-  if (!agent || agent.category !== "CLI") {
+  const agent = await getAgentBySlug(slug, 'da');
+  // Only MCP servers belong here; CLI rows live at /cli/[slug].
+  if (!agent || agent.category !== "MCP Server") {
     notFound();
   }
 
@@ -58,7 +67,7 @@ async function CliDetailContent({ params }: { params: Promise<{ id: string }> })
               name: agent.name,
               description: agent.description,
               developer: agent.developer,
-              url: `https://vibetrends.dk/cli/${id}`,
+              url: `https://vibetrends.dk/mcp/${slug}`,
             })
           ),
         }}
@@ -68,13 +77,13 @@ async function CliDetailContent({ params }: { params: Promise<{ id: string }> })
         dangerouslySetInnerHTML={{
           __html: jsonLdScript(
             breadcrumbJsonLd([
-              { name: "CLI Tools", url: "https://vibetrends.dk/cli" },
-              { name: agent.name, url: `https://vibetrends.dk/cli/${id}` },
+              { name: "MCP Servere", url: "https://vibetrends.dk/mcp" },
+              { name: agent.name, url: `https://vibetrends.dk/mcp/${slug}` },
             ])
           ),
         }}
       />
-      <AgentDetailView agent={agent} backHref="/cli" />
+      <AgentDetailView agent={agent} backHref="/mcp" />
     </>
   );
 }

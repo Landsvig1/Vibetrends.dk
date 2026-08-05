@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { slugify } from "@/lib/slug";
 
 /**
  * U5 — server component tests for /skills page.tsx.
@@ -76,6 +77,7 @@ const getSkillsMock = vi.mocked(getSkills);
 function makeSkill(id: string, title: string, description: string) {
   return {
     id,
+    slug: slugify(title),
     title,
     description,
     vibeCoder: "alice",
