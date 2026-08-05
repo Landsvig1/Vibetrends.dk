@@ -67,7 +67,7 @@ function AgentCardComponent({
         <div className="flex justify-between items-start">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
                 {categoryIcons[agent.category as keyof typeof categoryIcons]}
                 {agent.category}
               </div>

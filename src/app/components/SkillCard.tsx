@@ -48,7 +48,7 @@ function SkillCardComponent({
   return (
     <div
       data-testid="skill-card"
-      className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition"
+      className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
     >
       <Link
         href={`/skills/${skill.id}`}
@@ -57,11 +57,11 @@ function SkillCardComponent({
       />
       <div className="space-y-4">
         <div className="flex justify-between items-start">
-          <div>
-            <span className="px-2 py-0.5 text-xs rounded bg-accent-light text-accent-primary border border-accent-primary/20">
+          <div className="space-y-2">
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
               {skill.categoryLabel}
             </span>
-            <h3 className="text-lg font-bold text-foreground mt-2 leading-tight group-hover:text-accent-primary transition-colors">
+            <h3 className="text-lg font-bold text-foreground mt-1 leading-tight group-hover:text-accent-primary transition-colors">
               {skill.title}
             </h3>
           </div>
@@ -106,27 +106,27 @@ function SkillCardComponent({
             )}
           </div>
         </div>
-        <p className="text-sm text-text-secondary leading-relaxed">{skill.description}</p>
-        <div className="flex flex-wrap gap-1.5 pt-2">
-          {skill.tags.map((tag) => (
+
+        <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
+          {skill.description}
+        </p>
+
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {skill.tags.slice(0, 4).map((tag) => (
             <span
               key={tag}
-              className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border"
+              className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono"
             >
-              {tag}
+              #{tag.replace(/^#/, "")}
             </span>
           ))}
         </div>
       </div>
 
-      {/* flex-wrap: the two action buttons are ~226px together, which does not
-          fit beside the author block in a ~290px card at 390px viewport — the
-          row overflowed and scrolled the page sideways. min-w-0 lets a long
-          author name shrink instead of pushing. */}
       <div className="flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t border-card-border">
-        <div className="min-w-0">
-          <span className="text-sm font-semibold text-foreground">{skill.vibeCoder}</span>
-          <p className="text-xs text-text-secondary mt-0.5">{skill.vibeCoderTitle}</p>
+        <div className="min-w-0 pr-2">
+          <span className="text-xs font-semibold text-foreground truncate block">@{skill.vibeCoder}</span>
+          <p className="text-[10px] text-text-secondary truncate mt-0.5">{skill.vibeCoderTitle}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -134,9 +134,9 @@ function SkillCardComponent({
             href={`/skills/${skill.id}#connect`}
             data-testid="skill-connect"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
+            className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
           >
-            <Plug className="h-4 w-4" />
+            <Plug className="h-3.5 w-3.5" />
             {connectLabel}
           </Link>
           {skill.githubUrl && (
@@ -145,9 +145,9 @@ function SkillCardComponent({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="relative z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
+              className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
             >
-              <GithubIcon className="h-4 w-4" />
+              <GithubIcon className="h-3.5 w-3.5" />
               {githubLabel}
             </a>
           )}
