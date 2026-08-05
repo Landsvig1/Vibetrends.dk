@@ -334,6 +334,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2, delay: index * 0.04 }}
+                  className="h-full flex flex-col"
                 >
                   <AgentCard
                     agent={agent}
