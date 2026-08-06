@@ -261,9 +261,9 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
         <div className="space-y-3 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
             {isMcp ? (
-              <>MCP <span className="text-accent-primary">Capabilities</span></>
+              <>MCP-<span className="text-accent-primary">servere</span></>
             ) : (
-              <>Command-line <span className="text-accent-primary">CLIs</span></>
+              <>CLI-<span className="text-accent-primary">værktøjer</span></>
             )}
           </h1>
           <p className="text-text-secondary max-w-2xl">
@@ -384,7 +384,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
       {/* Add Modal */}
       {addOpen && (
         <div role="dialog" aria-modal="true" aria-label="Tilføj dit AI-værktøj til registry" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             <button
               onClick={() => setAddOpen(false)}
               aria-label="Luk"
@@ -395,8 +395,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
             {addSuccess ? (
               <div className="text-center py-12 space-y-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto">
-                  <CheckCircle2 className="h-6 w-6 animate-bounce" />
+                {/* One settling entrance, then rest — see the matching success
+                    state in vibes/VibesExplorer.tsx. */}
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent-primary mx-auto settle-in">
+                  <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">Agent registreret!</h3>
                 <p className="text-sm text-text-secondary max-w-xs mx-auto">

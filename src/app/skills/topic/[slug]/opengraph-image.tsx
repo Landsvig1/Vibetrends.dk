@@ -8,5 +8,5 @@ export const alt = "vibetrends.dk skills topic";
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const topic = getSkillCategory(slug);
-  return renderOgImage("Skills", topic ? `${topic.labelEn} skills` : "Skills Library");
+  return renderOgImage("Skills", topic ? `${topic.labelDa} skills` : "Skills-biblioteket");
 }

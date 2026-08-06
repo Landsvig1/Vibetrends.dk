@@ -8,5 +8,5 @@ export const alt = "vibetrends.dk skill";
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const skill = await getSkillBySlug(slug, "da");
-  return renderOgImage("Skills Library", skill?.title ?? "vibetrends.dk");
+  return renderOgImage("Skills-biblioteket", skill?.title ?? "vibetrends.dk");
 }

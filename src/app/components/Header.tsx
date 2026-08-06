@@ -32,6 +32,9 @@ interface NavItem {
  */
 export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  /** Name of the desktop nav dropdown currently open. Reported via
+   *  aria-expanded; the visual open/close stays CSS-driven. */
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -88,10 +91,28 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
               const Icon = item.icon;
 
               if (item.isDropdown) {
+                const isOpen = openDropdown === item.name;
                 return (
-                  <div key={item.name} className="relative group py-2">
+                  /* Visibility stays CSS (group-hover / group-focus-within) —
+                     it handles the hover bridge and keyboard focus correctly.
+                     React state here exists only so aria-expanded reports the
+                     truth to assistive tech, which a CSS-only disclosure never
+                     can. Both pointer and focus paths update it. */
+                  <div
+                    key={item.name}
+                    className="relative group py-2"
+                    onPointerEnter={() => setOpenDropdown(item.name)}
+                    onPointerLeave={() => setOpenDropdown((cur) => (cur === item.name ? null : cur))}
+                    onFocus={() => setOpenDropdown(item.name)}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                        setOpenDropdown((cur) => (cur === item.name ? null : cur));
+                      }
+                    }}
+                  >
                     <button
                       aria-haspopup="true"
+                      aria-expanded={isOpen}
                       className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
                         isActive
                           ? "text-accent-primary bg-accent-light"
@@ -104,7 +125,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
                     </button>
 
                     {/* Dropdown Menu — opens on hover and on keyboard focus */}
-                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block group-focus-within:block animate-in fade-in slide-in-from-top-2 duration-150 z-50 before:absolute before:-top-4 before:left-0 before:right-0 before:h-4 before:content-['']">
+                    <div className="absolute left-0 mt-1 w-44 rounded-lg glass-card bg-card-bg border border-card-border shadow-lg py-1.5 hidden group-hover:block group-focus-within:block menu-in z-50 before:absolute before:-top-4 before:left-0 before:right-0 before:h-4 before:content-['']">
                       {item.items?.map((subItem) => {
                         const SubIcon = subItem.icon;
                         const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
@@ -237,7 +258,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
                           onClick={() => setMobileMenuOpen(false)}
                           className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition ${
                             isSubActive
-                              ? "bg-accent-light text-accent-primary font-semibold border-l-2 border-accent-primary"
+                              ? "bg-accent-light text-accent-primary font-semibold"
                               : "text-text-secondary hover:text-foreground hover:bg-accent-light"
                           }`}
                         >
@@ -270,8 +291,25 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
             );
           })}
 
+          {/* Primary conversion action. Desktop has had this since launch; the
+              mobile panel ended at the auth button, so the site's main
+              contribute path did not exist in mobile navigation at all. */}
+          <div className="pt-4 border-t border-card-border">
+            <Link
+              href="/vibes"
+              prefetch={false}
+              transitionTypes={["nav-forward"]}
+              onClick={() => setMobileMenuOpen(false)}
+              className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+              style={{ padding: "12px 16px" }}
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Vis dit projekt
+            </Link>
+          </div>
+
           {user ? (
-            <div className="pt-4 pb-2 border-t border-card-border flex items-center justify-between px-3">
+            <div className="pt-3 pb-2 flex items-center justify-between px-3">
               <span className="text-sm text-text-secondary">@{user.username}</span>
               <button
                 onClick={() => {
@@ -284,7 +322,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
               </button>
             </div>
           ) : (
-            <div className="pt-4 pb-2 border-t border-card-border">
+            <div className="pt-3 pb-2">
               <button
                 onClick={() => {
                   setLoginModalOpen(true);

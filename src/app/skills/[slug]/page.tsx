@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   return entityMetadata({
     title: skill.title,
-    suffix: " - Skills Library",
+    suffix: " - Skills-biblioteket",
     description: skill.description,
     path: `/skills/${slug}`,
     lang: 'da',

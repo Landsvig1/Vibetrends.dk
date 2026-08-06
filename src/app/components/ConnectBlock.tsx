@@ -54,7 +54,7 @@ export default function ConnectBlock({
                 className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-all active:scale-90 cursor-pointer shrink-0"
               >
                 {copied === "install" ? (
-                  <CheckCircle className="h-4 w-4 text-accent-primary animate-in zoom-in-50 duration-200" aria-hidden="true" />
+                  <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
                 ) : (
                   <Copy className="h-4 w-4" aria-hidden="true" />
                 )}
@@ -64,7 +64,7 @@ export default function ConnectBlock({
               <div
                 role="status"
                 aria-live="polite"
-                className="absolute -top-3 right-3 text-[10px] font-mono font-bold bg-accent-primary text-white px-2 py-0.5 rounded-full shadow-md animate-in fade-in slide-in-from-bottom-1 duration-150"
+                className="absolute -top-3 right-3 text-[10px] font-mono font-bold bg-accent-primary text-white px-2 py-0.5 rounded-full shadow-md"
               >
                 {lang === "da" ? "Kopieret!" : "Copied!"}
               </div>

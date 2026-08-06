@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getThreads } from "@/lib/db";
+import { getThreads, getTopSkills } from "@/lib/db";
 import { jsonLdScript } from "@/lib/jsonLd";
 import ForumLoading from "./loading";
 import ForumExplorer from "./ForumExplorer";
@@ -74,6 +74,21 @@ export async function ForumPageContent({
   // inside getThreads — reply counts are populated server-side.
   const threads = await getThreads({ category, lang: 'da', sort: serverSort });
 
+  // Cold-start seed. The forum used to be hidden from the nav while empty,
+  // which was self-sealing: the surface that produces the first thread can't
+  // produce one if nobody can reach it (see hiddenNavHrefs in lib/hubContent).
+  // The link is now always shown, so the empty state has to earn it — it offers
+  // real catalog entries as conversation starters rather than a bare "be the
+  // first!". Only fetched when there is genuinely nothing to show, so the
+  // populated forum pays nothing for it. getTopSkills is 'use cache'/max.
+  const coldStartTopics =
+    threads.length === 0
+      ? (await getTopSkills(3, 'da')).map((s) => ({
+          id: s.id,
+          title: s.title,
+        }))
+      : [];
+
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously the forum hub had NO JSON-LD at all — the
   // layout.tsx only supplies page metadata, and the page was pure client-side.
@@ -82,7 +97,7 @@ export async function ForumPageContent({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "Developer Forum",
+    name: "Forum",
     description:
       "Stil spørgsmål, del prompts og diskuter de nyeste AI-modeller med andre danske vibe coders.",
     numberOfItems: threads.length,
@@ -111,6 +126,7 @@ export async function ForumPageContent({
         initialThreads={threads}
         initialView={view}
         initialCategory={resolvedParams?.category ?? "All"}
+        coldStartTopics={coldStartTopics}
       />
     </>
   );

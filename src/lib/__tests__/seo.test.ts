@@ -48,8 +48,8 @@ describe("entityMetadata", () => {
   // without the brand. Emitting title.absolute makes the output independent of
   // where the page sits in the layout tree.
   it("emits an absolute title carrying the brand, so no layout template is involved", () => {
-    const m = entityMetadata({ title: "Rejseplanen", suffix: " - Skills Library", description: "D", path: "/skills/s1" });
-    expect(m.title).toEqual({ absolute: "Rejseplanen - Skills Library | vibetrends.dk" });
+    const m = entityMetadata({ title: "Rejseplanen", suffix: " - Skills-biblioteket", description: "D", path: "/skills/s1" });
+    expect(m.title).toEqual({ absolute: "Rejseplanen - Skills-biblioteket | vibetrends.dk" });
   });
 
   it("appends the brand on hub pages that pass no suffix", () => {

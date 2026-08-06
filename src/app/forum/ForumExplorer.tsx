@@ -83,12 +83,19 @@ interface ForumExplorerProps {
   initialView: "danish" | "top" | "new";
   /** The category the server pre-fetched data for ("All" or a specific category key). */
   initialCategory: string;
+  /**
+   * Real catalog entries offered as conversation starters when the forum has no
+   * threads at all. Empty whenever the forum has content — the server only pays
+   * for this on a cold start. See the comment in forum/page.tsx.
+   */
+  coldStartTopics?: { id: string; title: string }[];
 }
 
 export default function ForumExplorer({
   initialThreads,
   initialView,
   initialCategory,
+  coldStartTopics = [],
 }: ForumExplorerProps) {
   const [threads, setThreads] = useState<ForumThread[]>(initialThreads);
   const [selectedCategory, setSelectedCategory] = useQueryState(
@@ -114,6 +121,30 @@ export default function ForumExplorer({
   const [threadCategory, setThreadCategory] = useState<ForumThread["category"]>("General");
   const [threadContent, setThreadContent] = useState("");
   const [threadSuccess, setThreadSuccess] = useState(false);
+
+  /**
+   * True only when the forum itself is empty — not when a filter or search
+   * happens to match nothing. The two states need different copy: "nothing
+   * matched, widen your filter" is unhelpful advice on a forum that has never
+   * had a post, and "be the first!" is wrong when there are 40 threads one
+   * category over.
+   */
+  const isColdStart =
+    threads.length === 0 && !search && (selectedCategory === "All" || !selectedCategory);
+
+  /**
+   * Opens the composer pre-filled with a question about a real catalog entry.
+   * A blank textarea is the actual barrier on a cold-start forum, so the
+   * starter fills the title and leaves the cursor's work to the body.
+   */
+  const startThreadAbout = useCallback(
+    (topicTitle: string) => {
+      setThreadTitle(`Spørgsmål om ${topicTitle}`);
+      setThreadCategory("Setup & Config");
+      setNewThreadOpen(true);
+    },
+    []
+  );
 
   // Skip the first mount fetch — the server already fetched with the initial
   // category/view and passed real data as initialThreads. Only refetch
@@ -279,7 +310,7 @@ export default function ForumExplorer({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 text-center md:text-left">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-            Developer <span className="text-accent-primary">Forum</span>
+            Spørg <span className="text-accent-primary">fællesskabet</span>
           </h1>
           <p className="text-text-secondary max-w-2xl">
             Spørg om AI. Få svar fra folk der bygger.
@@ -404,6 +435,29 @@ export default function ForumExplorer({
                 ))}
               </AnimatePresence>
             </motion.div>
+          ) : isColdStart ? (
+            /* Nothing in the forum at all — not a filter that came up empty.
+               This is the state a first visitor sees, so it names something
+               concrete to ask about instead of an empty box with a button. */
+            <EmptyState
+              icon={MessageSquare}
+              title="Der er ingen tråde endnu."
+              description="Forummet er nyt. Spørg om noget du sidder fast i, eller start med et af de værktøjer der ligger i katalogområdet."
+              actionLabel="Skriv det første indlæg"
+              onAction={() => setNewThreadOpen(true)}
+              suggestions={
+                coldStartTopics.length > 0
+                  ? {
+                      title: "Spørg om",
+                      items: coldStartTopics.map((topic) => ({
+                        id: topic.id,
+                        title: topic.title,
+                        onSelect: () => startThreadAbout(topic.title),
+                      })),
+                    }
+                  : undefined
+              }
+            />
           ) : (
             <EmptyState
               icon={MessageSquare}
@@ -431,7 +485,7 @@ export default function ForumExplorer({
       {/* Start Thread Modal */}
       {newThreadOpen && (
         <div role="dialog" aria-modal="true" aria-label="Start en ny diskussion" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl panel-in">
             {/* Close */}
             <button
               onClick={() => setNewThreadOpen(false)}

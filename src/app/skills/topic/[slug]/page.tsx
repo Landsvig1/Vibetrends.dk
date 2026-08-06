@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   return entityMetadata({
     title: topic.labelDa,
-    suffix: " skills - Skills Library",
+    suffix: " skills - Skills-biblioteket",
     description: topic.descDa,
     path: `/skills/topic/${slug}`,
     lang: "da",
@@ -125,10 +125,7 @@ async function TopicContent({
 
       {/* Hero */}
       <div className="rounded-2xl glass-panel border border-card-border p-8 flex flex-col sm:flex-row sm:items-center gap-6">
-        <div
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${topic.accent}1a`, color: topic.accent }}
-        >
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-accent-light text-accent-primary">
           <TopicIcon name={topic.icon} className="h-8 w-8" />
         </div>
         <div className="space-y-2">

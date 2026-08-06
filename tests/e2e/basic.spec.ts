@@ -56,7 +56,7 @@ function fixtureProjectTitle(): string | null {
 async function openProjectCard(page: import('@playwright/test').Page) {
   const title = fixtureProjectTitle();
   await page.goto(title ? `/vibes?q=${encodeURIComponent(title)}` : '/vibes');
-  await expect(page.getByRole('heading', { name: /Project Showcase/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Vibes fra fællesskabet/i })).toBeVisible();
 
   const all = cards(page, 'project-card');
   return title
@@ -80,32 +80,36 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // only render in the DOM as visible after hover.
     await expect(page.locator('nav').getByText('Vibes', { exact: true })).toBeVisible();
 
-    // Forum and Blog are only advertised once their hub holds real content
-    // (hiddenNavHrefs, src/lib/hubContent.ts). Fixture rows are deliberately
-    // discounted, so the seeded e2e thread does NOT bring /forum back into the
-    // nav. Rather than hardcode "hidden" — which would turn the first real
-    // thread or published post into a false failure — assert the invariant the
-    // shared predicate exists to guarantee: a hub is either noindexed AND
+    // Forum is always linked, whether or not it holds threads. It is the only
+    // hub a visitor can fill, so gating the link on its own content was
+    // self-sealing — the surface that produces the first thread was hidden
+    // until a first thread existed. Its empty state is designed instead (see
+    // the cold-start branch in ForumExplorer). Indexing is a separate question
+    // and is deliberately still gated: an empty forum stays noindexed.
+    await expect(page.locator('nav').getByText('Forum', { exact: true })).toBeVisible();
+
+    // Blog stays gated, because no visitor can populate it — hiding an empty
+    // one costs nothing and spares a dead link. Rather than hardcode "hidden",
+    // which would turn the first published post into a false failure, assert
+    // the invariant hiddenNavHrefs still guarantees for /blog: noindexed AND
     // unlinked, or indexable AND linked. Never one without the other.
     //
     // The hub's own robots meta is the right signal to compare against because
-    // it comes from the same hasForumContent/hasBlogContent call the nav uses.
-    // Do NOT substitute /api/forum or /api/blog here: those routes read rows
-    // (getThreads/getBlogPosts) rather than the counts, under entirely
-    // different "use cache" keys, so they can legitimately hold different data.
-    // Confirmed 2026-08-04: a deleted post lingered in the getBlogPosts('da')
-    // entry while the no-arg entry was correctly empty, which made an earlier
-    // version of this assertion fail against a hub that was behaving correctly.
-    for (const [label, hubPath] of [['Forum', '/forum'], ['Blog', '/blog']] as const) {
-      const hubHtml = await (await page.request.get(hubPath)).text();
-      const hubIsEmpty = /<meta name="robots" content="noindex/.test(hubHtml);
-      const navLink = page.locator('nav').getByText(label, { exact: true });
+    // it comes from the same hasBlogContent call the nav uses. Do NOT
+    // substitute /api/blog here: that route reads rows (getBlogPosts) rather
+    // than the count, under an entirely different "use cache" key, so it can
+    // legitimately hold different data. Confirmed 2026-08-04: a deleted post
+    // lingered in the getBlogPosts('da') entry while the no-arg entry was
+    // correctly empty, which made an earlier version of this assertion fail
+    // against a hub that was behaving correctly.
+    const blogHtml = await (await page.request.get('/blog')).text();
+    const blogIsEmpty = /<meta name="robots" content="noindex/.test(blogHtml);
+    const blogNavLink = page.locator('nav').getByText('Blog', { exact: true });
 
-      if (hubIsEmpty) {
-        await expect(navLink).toHaveCount(0);
-      } else {
-        await expect(navLink).toBeVisible();
-      }
+    if (blogIsEmpty) {
+      await expect(blogNavLink).toHaveCount(0);
+    } else {
+      await expect(blogNavLink).toBeVisible();
     }
 
     const toolsTrigger = page.locator('nav').getByRole('button', { name: 'Tools' });
@@ -119,12 +123,12 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
   });
 
-  test('project card overlay links directly to the project\'s live demo site', async ({ page }) => {
+  test('project card overlay opens the in-site detail page, not the demo', async ({ page }) => {
     // The card carries two links: a card-wide overlay (aria-label = project
-    // title) that opens the project's live demoUrl in a new tab, and a small
-    // info icon (aria-label = "Se Detaljer") that navigates to the
-    // internal /vibes/[id] detail page. This test asserts the overlay; the
-    // info icon is covered by the detail-navigation test below.
+    // title) that navigates to /vibes/{slug}, and a labelled "Se live" action
+    // that opens the project's own site in a new tab. This used to be inverted
+    // — the whole card was the off-site link — which exported every visitor
+    // permanently. This test asserts the overlay; "Se live" is covered below.
     const targetProject = await openProjectCard(page);
     // /vibes is partial-prerendered — this data streams in after the static
     // shell, and a cold CI runner's Supabase connection can occasionally push
@@ -135,7 +139,24 @@ test.describe('VibeTrends.dk Core Flows', () => {
 
     const overlay = targetProject.getByRole('link', { name: projectTitle });
     await expect(overlay).toBeVisible();
-    await expect(overlay).toHaveAttribute('target', '_blank');
+    // The overlay must NOT leave the site.
+    await expect(overlay).not.toHaveAttribute('target', '_blank');
+    await expect(overlay).toHaveAttribute('href', /^\/vibes\/[^/]+$/);
+
+    await overlay.click();
+    await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
+    await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
+  });
+
+  test('project card "Se live" opens the project\'s own site in a new tab', async ({ page }) => {
+    const targetProject = await openProjectCard(page);
+    // See the cold-start rationale in the test above.
+    await expect(targetProject).toBeVisible({ timeout: 15000 });
+    const projectTitle = (await targetProject.locator('h3').innerText()).trim();
+
+    const demoLink = targetProject.getByRole('link', { name: 'Se live' });
+    await expect(demoLink).toBeVisible();
+    await expect(demoLink).toHaveAttribute('target', '_blank');
 
     // Cross-check the rendered href against the API's demoUrl for this
     // project, rather than only asserting the href is non-empty. Narrowed by
@@ -146,28 +167,15 @@ test.describe('VibeTrends.dk Core Flows', () => {
     ).json();
     const project = projects.find((p: { title: string }) => p.title === projectTitle);
     expect(project?.demoUrl).toBeTruthy();
-    await expect(overlay).toHaveAttribute('href', project.demoUrl);
-  });
-
-  test('project card info icon opens the /vibes/[id] detail page', async ({ page }) => {
-    const targetProject = await openProjectCard(page);
-    // See the cold-start rationale in the test above.
-    await expect(targetProject).toBeVisible({ timeout: 15000 });
-    const projectTitle = (await targetProject.locator('h3').innerText()).trim();
-
-    // The card-wide overlay now opens the external demo site (see the test
-    // above), so detail navigation goes through the dedicated info icon link.
-    await targetProject.getByRole('link', { name: 'Se Detaljer' }).click();
-    await expect(page).toHaveURL(/\/vibes\/[^/]+$/);
-    await expect(page.getByRole('heading', { name: projectTitle })).toBeVisible();
+    await expect(demoLink).toHaveAttribute('href', project.demoUrl);
   });
 
   test('should navigate to Forum and check tråde', async ({ page }) => {
     await page.goto('/forum');
     
-    // The h1 renders "Developer <span>Forum</span>" (accessible name
-    // "Developer Forum") — a bare /^Forum$/ can never match it.
-    await expect(page.getByRole('heading', { name: 'Developer Forum' })).toBeVisible();
+    // The h1 renders "Spørg <span>fællesskabet</span>" (accessible name
+    // "Spørg fællesskabet") — a bare /^Forum$/ can never match it.
+    await expect(page.getByRole('heading', { name: 'Spørg fællesskabet' })).toBeVisible();
     
     // Check categories. forumCategoryLabel() resolves category keys to their
     // Danish label (src/lib/forumCategories.ts) — "General" renders as
@@ -191,7 +199,7 @@ test.describe('VibeTrends.dk Core Flows', () => {
   test('should navigate to the CLIs feed', async ({ page }) => {
     await page.goto('/cli');
 
-    await expect(page.getByRole('heading', { name: /CLIs/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /CLI-værktøjer/i })).toBeVisible();
 
     // Check a detail page
     const firstCli = cards(page, 'cli-card').first();

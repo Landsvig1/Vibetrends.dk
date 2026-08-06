@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Terminal,
@@ -13,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Agent } from "@/lib/db";
+import { ListCard } from "./ListCard";
 
 interface AgentCardProps {
   agent: Agent;
@@ -54,15 +54,12 @@ function AgentCardComponent({
   onCopy,
 }: AgentCardProps) {
   return (
-    <div
+    <ListCard
       data-testid={testId}
-      className="relative rounded-xl glass-card p-6 flex flex-col justify-between space-y-6 h-full group hover:-translate-y-0.5 transition-all hover:shadow-md hover:shadow-accent-primary/5"
+      href={`${detailBase}/${agent.slug}`}
+      ariaLabel={agent.name}
+      className="p-6 flex flex-col justify-between space-y-6 h-full"
     >
-      <Link
-        href={`${detailBase}/${agent.slug}`}
-        aria-label={agent.name}
-        className="absolute inset-0 z-10 rounded-xl"
-      />
       <div className="space-y-4 flex-1 flex flex-col justify-between">
         <div className="space-y-4">
           <div className="flex justify-between items-start">
@@ -172,7 +169,7 @@ function AgentCardComponent({
           {detailsLabel} <span className="text-xs">&rarr;</span>
         </span>
       </div>
-    </div>
+    </ListCard>
   );
 }
 
