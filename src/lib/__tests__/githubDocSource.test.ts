@@ -7,6 +7,8 @@ import {
   stripFrontmatter,
   skillSlugCandidates,
   pickDocPathFromTree,
+  contentHash,
+  planDocWrite,
   DOC_MAX_CHARS,
 } from "../githubDocSource";
 
@@ -307,5 +309,110 @@ describe("pickDocPathFromTree", () => {
 
   it("ignores a root-level SKILL.md, which is not skill-specific", () => {
     expect(pickDocPathFromTree(["SKILL.md"], ["anything"])).toBeNull();
+  });
+});
+
+/**
+ * The composed pipeline the refresher runs: strip frontmatter, truncate, hash.
+ * Asserted as a pipeline rather than on contentHash alone because the property
+ * that matters is "the hash covers what the page renders", and that only holds
+ * for this composition.
+ */
+function renderedHash(raw: string, maxChars: number = DOC_MAX_CHARS): string {
+  return contentHash(truncateMarkdown(stripFrontmatter(raw), maxChars).markdown);
+}
+
+describe("contentHash", () => {
+  it("is stable across calls for the same input", () => {
+    const md = "# Title\n\nSome body text.";
+    expect(contentHash(md)).toBe(contentHash(md));
+  });
+
+  it("returns a sha256 hex digest", () => {
+    expect(contentHash("x")).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("differs for a one-character change", () => {
+    expect(contentHash("# Title\n\nBody.")).not.toBe(contentHash("# Title\n\nBodz."));
+  });
+
+  it("distinguishes empty from whitespace", () => {
+    expect(contentHash("")).not.toBe(contentHash(" "));
+  });
+
+  // The reason the hash covers the rendered string and not the raw file: an
+  // upstream edit to the YAML header changes the bytes but not one character of
+  // the page, and stamping a content-change date for it is exactly the noise
+  // content_updated_at exists to remove.
+  it("ignores a frontmatter-only upstream edit", () => {
+    const before = "---\nname: thing\nversion: 1\n---\n\n# Doc\n\nBody text.";
+    const after = "---\nname: thing\nversion: 2\nlicense: MIT\n---\n\n# Doc\n\nBody text.";
+    expect(renderedHash(before)).toBe(renderedHash(after));
+  });
+
+  it("still detects a body edit under identical frontmatter", () => {
+    const before = "---\nname: thing\n---\n\n# Doc\n\nBody text.";
+    const after = "---\nname: thing\n---\n\n# Doc\n\nBody text, revised.";
+    expect(renderedHash(before)).not.toBe(renderedHash(after));
+  });
+
+  // An upstream change entirely past the truncation cap never reaches the page.
+  it("ignores an upstream change beyond the truncation cap", () => {
+    const head = "# Doc\n\n" + "kept paragraph.\n\n".repeat(20);
+    const before = head + "tail one.";
+    const after = head + "tail two, materially different.";
+    const cap = 120;
+    expect(truncateMarkdown(before, cap).truncated).toBe(true);
+    expect(renderedHash(before, cap)).toBe(renderedHash(after, cap));
+  });
+});
+
+describe("planDocWrite", () => {
+  const HASH_A = contentHash("a");
+  const HASH_B = contentHash("b");
+
+  it("writes nothing new when the hash is unchanged", () => {
+    expect(planDocWrite(HASH_A, HASH_A)).toEqual({
+      branch: "contentUnchanged",
+      writeContent: false,
+      stampContentUpdatedAt: false,
+    });
+  });
+
+  // The whole table passes through here exactly once, at the migration. Stamping
+  // content_updated_at on this branch would overwrite every seeded creation date
+  // with one shared run date — the bug being fixed, reintroduced.
+  it("initializes a null hash without touching content_updated_at", () => {
+    expect(planDocWrite(HASH_A, null)).toEqual({
+      branch: "hashInitialized",
+      writeContent: true,
+      stampContentUpdatedAt: false,
+    });
+    expect(planDocWrite(HASH_A, undefined).branch).toBe("hashInitialized");
+    // An empty string is a corrupt hash, not a real one — treat it as absent.
+    expect(planDocWrite(HASH_A, "").branch).toBe("hashInitialized");
+  });
+
+  it("stamps content_updated_at only when a real hash changed", () => {
+    expect(planDocWrite(HASH_B, HASH_A)).toEqual({
+      branch: "contentChanged",
+      writeContent: true,
+      stampContentUpdatedAt: true,
+    });
+  });
+
+  // A revert is a content change: the page differs from what it served
+  // yesterday, even though the hash returns to a value it held before.
+  it("treats a revert to an earlier version as a change", () => {
+    expect(planDocWrite(HASH_A, HASH_B).stampContentUpdatedAt).toBe(true);
+  });
+
+  it("maps each branch to a distinct counter name", () => {
+    const branches = [
+      planDocWrite(HASH_A, HASH_A).branch,
+      planDocWrite(HASH_A, null).branch,
+      planDocWrite(HASH_B, HASH_A).branch,
+    ];
+    expect(new Set(branches).size).toBe(3);
   });
 });

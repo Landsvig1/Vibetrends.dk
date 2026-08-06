@@ -44,6 +44,10 @@ async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseCl
 import { skillCategoryLabel, type SkillCategorySlug } from "./skillCategories";
 import { type ForumCategoryKey } from "./forumCategories";
 import { slugify, RESERVED_SLUGS } from "./slug";
+// Shared with scripts/seed-content-updated-at.mjs so the feed's publishedAt and
+// the seeded skills.content_updated_at can never drift apart — they are the same
+// derivation from the same id.
+import { epochFromId } from "./epochId";
 
 /**
  * How many slugs an insert tries before giving up: `x`, `x-2` … `x-5`.
@@ -114,6 +118,18 @@ export interface Skill {
   githubUrl?: string;
   /** Attribution for seeded/imported entries (e.g. the upstream repo URL). */
   source?: string;
+  /**
+   * When the rendered doc content last actually changed — the sitemap's lastmod
+   * for this page. Null for legacy `seed_*` rows, whose ids carry no creation
+   * epoch to seed from; the sitemap omits lastmod rather than inventing one.
+   * NOT doc_fetched_at, which is refresher-run time (see
+   * scripts/refresh-skill-docs.mjs).
+   *
+   * Optional because a Skill built outside mapSkill (test fixtures, any future
+   * narrowed select) has no date to offer; mapSkill always populates it, and
+   * both absent and null mean the same thing to the sitemap — omit lastmod.
+   */
+  contentUpdatedAt?: string | null;
 }
 
 export type SkillView = "danish" | "hot" | "trending";
@@ -318,6 +334,8 @@ interface SkillRow {
   is_danish?: boolean;
   /** Skill is specifically about Denmark (sorted first in the Dansk view). */
   denmark_specific?: boolean;
+  /** See Skill.contentUpdatedAt. Absent on rows selected with a narrowed column list. */
+  content_updated_at?: string | null;
 }
 
 interface ShowcaseRow {
@@ -441,6 +459,7 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     tags: s.tags || [],
     githubUrl: s.github_url || undefined,
     source: s.source || undefined,
+    contentUpdatedAt: s.content_updated_at ?? null,
   };
 }
 
@@ -1656,20 +1675,6 @@ export interface FeedItem {
   url: string;
   tags: string[];
   publishedAt: string; // ISO 8601
-}
-
-function epochFromId(id: string): number {
-  // Bolt Optimization ⚡: Avoid regular expression matching for nearly 2x faster ID-to-epoch extraction
-  if (id.length > 2 && id.charCodeAt(1) === 95) { // 95 is '_'
-    const first = id.charCodeAt(0);
-    if (first >= 97 && first <= 122) { // 'a'-'z'
-      const ms = Number(id.slice(2));
-      if (!Number.isNaN(ms)) {
-        return ms;
-      }
-    }
-  }
-  return 0;
 }
 
 export async function getFeedItems(opts: {

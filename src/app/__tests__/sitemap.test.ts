@@ -25,9 +25,12 @@ vi.mock("next/cache", () => ({
 }));
 
 // Minimal shape matching what the sitemap function accesses from each row.
+// Two skills with real, distinct content_updated_at values plus one legacy
+// `seed_*` row, whose id carries no creation epoch and so has none.
 const mockSkills = [
-  { id: "skill-1", slug: "react-dashboard" },
-  { id: "skill-2", slug: "seo-geo" },
+  { id: "skill-1", slug: "react-dashboard", contentUpdatedAt: "2026-03-02T10:00:00Z" },
+  { id: "skill-2", slug: "seo-geo", contentUpdatedAt: "2026-04-11T08:30:00Z" },
+  { id: "seed_legacy", slug: "legacy-skill", contentUpdatedAt: null },
 ];
 const mockProjects = [{ id: "proj-1", slug: "dansk-designsystem", createdAt: "2026-05-01T00:00:00Z" }];
 const mockClis = [
@@ -250,10 +253,51 @@ describe("sitemap()", () => {
 
     expect(byUrl("")).not.toHaveProperty("lastModified");
     expect(byUrl("/skills")).not.toHaveProperty("lastModified");
-    expect(byUrl("/skills/react-dashboard")).not.toHaveProperty("lastModified");
+    // Topic pages aggregate content that changes independently of them, and
+    // `agents` has no date column — neither gained one alongside skills.
     expect(byUrl("/skills/topic/agent-methodology")).not.toHaveProperty("lastModified");
     expect(byUrl("/cli/claude-code")).not.toHaveProperty("lastModified");
     expect(byUrl("/mcp/supabase-mcp")).not.toHaveProperty("lastModified");
+  });
+
+  it("uses skills.content_updated_at as the skill lastmod", async () => {
+    const entries = await sitemap();
+    const byUrl = (path: string) => entries.find((e) => e.url === `${baseUrl}${path}`);
+
+    expect(byUrl("/skills/react-dashboard")?.lastModified).toBe(
+      new Date("2026-03-02T10:00:00Z").toISOString()
+    );
+    expect(byUrl("/skills/seo-geo")?.lastModified).toBe(
+      new Date("2026-04-11T08:30:00Z").toISOString()
+    );
+  });
+
+  // A legacy `seed_*` id has no creation epoch to seed content_updated_at from.
+  // Omitting lastmod is the honest outcome; a fallback guess would be the
+  // fabricated date this whole mechanism exists to avoid.
+  it("omits lastmod for a skill with no content_updated_at rather than guessing", async () => {
+    const entries = await sitemap();
+    const legacy = entries.find((e) => e.url === `${baseUrl}/skills/legacy-skill`);
+    expect(legacy).toBeDefined();
+    expect(legacy).not.toHaveProperty("lastModified");
+  });
+
+  /**
+   * The direct regression guard on the original bug — all 150 URLs sharing one
+   * build date, which is what taught Google to ignore lastmod here — and the
+   * check that catches a Phase C shipping green while emitting nothing: a
+   * change that left every row null would pass every other assertion above.
+   */
+  it("emits at least one skill lastmod, and no two skills share a value", async () => {
+    const entries = await sitemap();
+    const skillDates = entries
+      .filter((e) => /\/skills\/[^/]+$/.test(e.url) && !e.url.includes("/topic/"))
+      .map((e) => e.lastModified)
+      .filter((d): d is string | Date => d !== undefined)
+      .map((d) => new Date(d).toISOString());
+
+    expect(skillDates.length).toBeGreaterThan(0);
+    expect(new Set(skillDates).size).toBe(skillDates.length);
   });
 
   it("does not stamp every entry with the same lastModified — the bug this fixes", async () => {
