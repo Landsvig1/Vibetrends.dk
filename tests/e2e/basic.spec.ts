@@ -119,8 +119,16 @@ test.describe('VibeTrends.dk Core Flows', () => {
       await expect(page.locator('nav').getByText(item, { exact: true })).toBeVisible();
     }
 
-    // Agents is no longer a primary-nav entry.
-    await expect(page.locator('nav').getByText('Agenter')).toHaveCount(0);
+    // The Agents hub is no longer a primary-nav entry. exact:true matters here:
+    // a bare string is a case-insensitive *substring* match, so this assertion
+    // also caught the unrelated "For agenter" link when that was added.
+    await expect(page.locator('nav').getByText('Agenter', { exact: true })).toHaveCount(0);
+
+    // The agent-facing entry point is in the nav, though — that link is the
+    // whole point of /agent-guide being discoverable.
+    await expect(
+      page.locator('nav').getByRole('link', { name: 'For agenter' }).first(),
+    ).toBeVisible();
   });
 
   test('project card overlay opens the in-site detail page, not the demo', async ({ page }) => {
