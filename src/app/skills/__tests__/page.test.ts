@@ -65,6 +65,7 @@ vi.mock("../loading", () => ({
 import { cookies } from "next/headers";
 import { getSkills } from "@/lib/db";
 import { SkillsPageContent, getValidView } from "../page";
+import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -267,13 +268,7 @@ describe("SkillsPageContent — JSON-LD is built from server-fetched data, not e
       searchParams: Promise.resolve({}),
     });
 
-    // Result is a React Fragment: [script element, SkillsExplorer element].
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const scriptEl = children[0];
-    const jsonLdString = scriptEl.props.dangerouslySetInnerHTML
-      .__html as string;
-    const jsonLd = JSON.parse(jsonLdString);
+    const jsonLd = getJsonLd(result);
 
     expect(jsonLd["@type"]).toBe("ItemList");
     expect(jsonLd.numberOfItems).toBe(2);
@@ -288,9 +283,7 @@ describe("SkillsPageContent — JSON-LD is built from server-fetched data, not e
       searchParams: Promise.resolve({}),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     const firstItem = jsonLd.itemListElement[0];
     expect(firstItem.position).toBe(1);
@@ -306,9 +299,7 @@ describe("SkillsPageContent — JSON-LD is built from server-fetched data, not e
       searchParams: Promise.resolve({}),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     expect(jsonLd.numberOfItems).toBe(0);
     expect(jsonLd.itemListElement).toHaveLength(0);
@@ -326,9 +317,7 @@ describe("SkillsPageContent — JSON-LD is built from server-fetched data, not e
       searchParams: Promise.resolve({ q: "react" }),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     expect(jsonLd.numberOfItems).toBe(1);
     expect(jsonLd.itemListElement).toHaveLength(1);
@@ -353,9 +342,7 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
       searchParams: Promise.resolve({}),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialAllSkills");
 
     expect(explorerEl.props.initialAllSkills).toHaveLength(2);
     expect(explorerEl.props.initialAllSkills[0].title).toBe("Alpha Skill");
@@ -370,9 +357,7 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
       searchParams: Promise.resolve({ view: "danish" }),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialAllSkills");
 
     expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
     expect(explorerEl.props.initialViewSkills).toHaveLength(1);
@@ -386,9 +371,7 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
       searchParams: Promise.resolve({ view: "all" }),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialAllSkills");
 
     expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
     expect(explorerEl.props.initialViewSkills).toHaveLength(0);
@@ -401,9 +384,7 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
       searchParams: Promise.resolve({}),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialAllSkills");
 
     expect(Array.isArray(explorerEl.props.initialAllSkills)).toBe(true);
     expect(explorerEl.props.initialAllSkills).toHaveLength(0);

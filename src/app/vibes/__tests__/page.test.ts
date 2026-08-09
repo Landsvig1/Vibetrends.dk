@@ -46,6 +46,7 @@ vi.mock("../loading", () => ({
 import { cookies } from "next/headers";
 import { getProjects } from "@/lib/db";
 import { VibesPageContent } from "../page";
+import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -162,13 +163,7 @@ describe("VibesPageContent — JSON-LD is built from server-fetched data, not em
 
     const result = await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    // The result is a React Fragment: [script element, VibesExplorer element].
-    // We extract the JSON-LD from the script element's dangerouslySetInnerHTML prop.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const scriptEl = children[0];
-    const jsonLdString = scriptEl.props.dangerouslySetInnerHTML.__html as string;
-    const jsonLd = JSON.parse(jsonLdString);
+    const jsonLd = getJsonLd(result);
 
     expect(jsonLd["@type"]).toBe("ItemList");
     expect(jsonLd.numberOfItems).toBe(2);
@@ -181,9 +176,7 @@ describe("VibesPageContent — JSON-LD is built from server-fetched data, not em
 
     const result = await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     const firstItem = jsonLd.itemListElement[0];
     expect(firstItem.position).toBe(1);
@@ -197,9 +190,7 @@ describe("VibesPageContent — JSON-LD is built from server-fetched data, not em
 
     const result = await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     expect(jsonLd.numberOfItems).toBe(0);
     expect(jsonLd.itemListElement).toHaveLength(0);
@@ -217,9 +208,7 @@ describe("VibesPageContent — JSON-LD is built from server-fetched data, not em
       searchParams: Promise.resolve({ q: "react" }),
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const jsonLd = JSON.parse(children[0].props.dangerouslySetInnerHTML.__html);
+    const jsonLd = getJsonLd(result);
 
     // JSON-LD shows the filtered count, not the full catalog count.
     expect(jsonLd.numberOfItems).toBe(1);
@@ -242,9 +231,7 @@ describe("VibesPageContent — VibesExplorer receives the fetched project list",
 
     const result = await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialProjects");
 
     // The explorer element's initialProjects prop must be the real fetched list.
     expect(explorerEl.props.initialProjects).toHaveLength(2);
@@ -257,9 +244,7 @@ describe("VibesPageContent — VibesExplorer receives the fetched project list",
 
     const result = await VibesPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children = (result as any).props.children as any[];
-    const explorerEl = children[1];
+    const explorerEl = getElementWithProp(result, "initialProjects");
     expect(Array.isArray(explorerEl.props.initialProjects)).toBe(true);
     expect(explorerEl.props.initialProjects).toHaveLength(0);
   });

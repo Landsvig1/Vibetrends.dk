@@ -39,6 +39,7 @@ vi.mock("../loading", () => ({
 import { cookies } from "next/headers";
 import { getCli } from "@/lib/db";
 import { CliPageContent } from "../page";
+import { getElementWithProp } from "@/test-utils/reactTree";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -129,9 +130,7 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
 
     const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
-    // The result is an AgentsExplorer element.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const el = result as any;
+    const el = getElementWithProp(result, "initialItems");
     expect(el.props.scope).toBe("cli");
     expect(el.props.initialItems).toHaveLength(2);
     expect(el.props.initialItems[0].name).toBe("vibe-cli");
@@ -143,8 +142,7 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
 
     const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const el = result as any;
+    const el = getElementWithProp(result, "initialItems");
     expect(el.props.scope).toBe("cli");
     expect(Array.isArray(el.props.initialItems)).toBe(true);
     expect(el.props.initialItems).toHaveLength(0);
@@ -155,7 +153,6 @@ describe("CliPageContent — AgentsExplorer receives the fetched CLI item list",
 
     const result = await CliPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result as any).props.scope).toBe("cli");
+    expect(getElementWithProp(result, "initialItems").props.scope).toBe("cli");
   });
 });

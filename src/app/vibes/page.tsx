@@ -3,6 +3,7 @@ import { getProjects } from "@/lib/db";
 import { jsonLdScript } from "@/lib/jsonLd";
 import ShowcaseLoading from "./loading";
 import VibesExplorer from "./VibesExplorer";
+import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 
 /**
  * Outer server component — wraps the data-fetch layer in a Suspense boundary
@@ -94,7 +95,10 @@ export async function VibesPageContent({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
-      <VibesExplorer initialProjects={projects} />
+      <div className="space-y-12 sm:space-y-14">
+        <VibesExplorer initialProjects={projects} />
+        <AgentSurfaceStrip hub="vibes" />
+      </div>
     </>
   );
 }

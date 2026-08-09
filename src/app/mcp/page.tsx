@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getAgents } from "@/lib/db";
 import AgentsExplorer from "../components/AgentsExplorer";
+import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
@@ -60,5 +61,10 @@ export async function McpPageContent({
   // (U1/U2). Scoped to 'MCP Server' category matching the AgentsExplorer scope.
   const items = await getAgents(search, "MCP Server", 'da');
 
-  return <AgentsExplorer scope="mcp" initialItems={items} />;
+  return (
+    <div className="space-y-12 sm:space-y-14">
+      <AgentsExplorer scope="mcp" initialItems={items} />
+      <AgentSurfaceStrip hub="mcp" />
+    </div>
+  );
 }

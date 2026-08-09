@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, Settings, Search, MessageSquare, FileJson } from "lucide-react";
+import { Bot, Settings, Search, MessageSquare, FileJson, Plug } from "lucide-react";
 import { entityMetadata } from "@/lib/seo";
+import SiteConnectBlock from "../components/SiteConnectBlock";
+import CopyableCommand from "../components/CopyableCommand";
+import { MCP_ENDPOINT } from "@/lib/agentSurface";
 
 export async function generateMetadata(): Promise<Metadata> {
   return entityMetadata({
@@ -23,26 +26,70 @@ export default async function AgentGuidePage() {
         <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
           Agent Guide
         </h1>
+        {/* The previous version of this sentence ended "Alt nedenfor er
+            read-only i dag", which the Skriveadgang section below has
+            contradicted since the write tools shipped (see the 2026-07-09 and
+            2026-07-10 amendments to docs/decisions/2026-06-19-agent-auth.md).
+            Læsning is the part that needs no auth; writes are scoped there. */}
         <p className="text-text-secondary text-lg max-w-2xl">
           vibetrends.dk er bygget til at kunne læses af både mennesker og AI-agenter.
           Alle hubs — Vibes, Skills, MCP, CLI og Forum — har en rigtig JSON-API, og hele
-          kataloget kan også tilgås gennem én samlet MCP-server. Alt nedenfor er read-only i dag.
+          kataloget kan også tilgås gennem én samlet MCP-server. Læsning kræver hverken
+          konto eller nøgle; skriveadgang er beskrevet nederst.
         </p>
       </div>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <Plug className="h-5 w-5 text-accent-primary" />
+          Kobl kataloget på din agent
+        </h2>
+        <p className="text-text-secondary leading-relaxed">
+          vibetrends.dk er selv en MCP-server. Peg din coding agent på den, og
+          den kan søge i skills, vibes, CLI-værktøjer og MCP-servere direkte —
+          uden at nogen skal browse først.
+        </p>
+        <SiteConnectBlock />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Settings className="h-5 w-5 text-accent-primary" />
           MCP-server
         </h2>
-        <div className="text-text-secondary leading-relaxed space-y-3">
+        <div className="text-text-secondary leading-relaxed space-y-4">
           <p>
-            Ét JSON-RPC 2.0-endpoint på <code className="text-accent-primary">/api/mcp</code> stiller
-            søgeværktøjer til rådighed på tværs af skills, vibes, CLI-værktøjer, MCP-servere og
-            forummet. Send <code className="text-accent-primary">initialize</code>, <code className="text-accent-primary">tools/list</code> eller
+            Ét JSON-RPC 2.0-endpoint stiller søgeværktøjer til rådighed på tværs af
+            skills, vibes, CLI-værktøjer, MCP-servere og forummet.
+            Send <code className="text-accent-primary">initialize</code>, <code className="text-accent-primary">tools/list</code> eller
             <code className="text-accent-primary"> tools/call</code> via POST — et almindeligt GET på samme URL returnerer
             værktøjslisten til mennesker/debugging.
           </p>
+          <CopyableCommand label="Endpoint" value={MCP_ENDPOINT} />
+          <p>Et konkret kald, som det ser ud fra en terminal:</p>
+          <CopyableCommand
+            label="Eksempel: søg i MCP-kataloget"
+            multiline
+            value={`curl -s -X POST ${MCP_ENDPOINT} \\
+  -H 'Content-Type: application/json' \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"search_mcp_servers",
+                 "arguments":{"query":"vejr"}}}'`}
+          />
+          <p>
+            Svaret er JSON-RPC med resultatet som tekst i{" "}
+            <code className="text-accent-primary">result.content[0].text</code> — her forkortet
+            til de felter der betyder noget:
+          </p>
+          <pre className="rounded-lg bg-background border border-card-border p-3 font-mono text-xs text-accent-primary overflow-x-auto">
+{`{
+  "name": "mcp-danish-weather",
+  "developer": "robobobby",
+  "installCommand": "npx mcp-danish-weather",
+  "tags": ["vejr", "dmi", "prognoser"],
+  "sourceUrl": "https://github.com/robobobby/mcp-danish-weather"
+}`}
+          </pre>
         </div>
       </section>
 

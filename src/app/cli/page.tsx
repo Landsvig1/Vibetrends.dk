@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getCli } from "@/lib/db";
 import CliLoading from "./loading";
 import AgentsExplorer from "../components/AgentsExplorer";
+import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 import { entityMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = entityMetadata({
@@ -57,5 +58,10 @@ export async function CliPageContent({
   // stores the result. The Suspense fallback (loading.tsx) covers the miss.
   const items = await getCli(search, 'da');
 
-  return <AgentsExplorer scope="cli" initialItems={items} />;
+  return (
+    <div className="space-y-12 sm:space-y-14">
+      <AgentsExplorer scope="cli" initialItems={items} />
+      <AgentSurfaceStrip hub="cli" />
+    </div>
+  );
 }

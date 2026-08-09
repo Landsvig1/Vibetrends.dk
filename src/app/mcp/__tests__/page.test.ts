@@ -36,6 +36,7 @@ vi.mock("../../components/AgentsExplorer", () => ({
 import { cookies } from "next/headers";
 import { getAgents } from "@/lib/db";
 import { McpPageContent } from "../page";
+import { getElementWithProp } from "@/test-utils/reactTree";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,8 +129,7 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
 
     const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const el = result as any;
+    const el = getElementWithProp(result, "initialItems");
     expect(el.props.scope).toBe("mcp");
     expect(el.props.initialItems).toHaveLength(2);
     expect(el.props.initialItems[0].name).toBe("claude-mcp");
@@ -141,8 +141,7 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
 
     const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const el = result as any;
+    const el = getElementWithProp(result, "initialItems");
     expect(el.props.scope).toBe("mcp");
     expect(Array.isArray(el.props.initialItems)).toBe(true);
     expect(el.props.initialItems).toHaveLength(0);
@@ -153,7 +152,6 @@ describe("McpPageContent — AgentsExplorer receives the fetched MCP server list
 
     const result = await McpPageContent({ searchParams: Promise.resolve({}) });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result as any).props.scope).toBe("mcp");
+    expect(getElementWithProp(result, "initialItems").props.scope).toBe("mcp");
   });
 });
