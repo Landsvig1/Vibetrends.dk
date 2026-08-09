@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Bot, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import dynamic from "next/dynamic";
@@ -60,6 +60,12 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
       ],
     },
     { name: "Blog", href: "/blog", icon: BookOpen },
+    // The site's second audience (PRODUCT.md gives it equal weight) had no
+    // entry point in the nav at all: /agent-guide was reachable only from the
+    // footer and from one 14px link on the homepage that vanished on every
+    // hub. A top-level item is the point — it tells a *human* that the machine
+    // surface exists, on every page.
+    { name: "For agenter", href: "/agent-guide", icon: Bot },
   ].filter((item) => !item.href || !hiddenHrefs.includes(item.href));
 
   return (
@@ -83,7 +89,15 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center space-x-1 absolute left-1/2 -translate-x-1/2">
+          {/* Tighter horizontal rhythm between lg and xl. The nav is centred
+              on the viewport independently of the logo and the action buttons
+              that flank it, so it has no way to yield: at exactly 1024px with
+              all five items shown it overlapped the action buttons by 1px.
+              Measured, not guessed — and easy to miss locally, because /blog is
+              hidden from the nav while it has no posts (hubContent.ts), so a
+              dev machine with an empty blog renders four items and never
+              reproduces it. Restores full padding at xl. */}
+          <nav className="hidden lg:flex items-center space-x-0.5 xl:space-x-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item, idx) => {
               const isActive = isItemActive(item);
               const activeIdx = navItems.findIndex((ni) => isItemActive(ni));
@@ -113,7 +127,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
                     <button
                       aria-haspopup="true"
                       aria-expanded={isOpen}
-                      className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
+                      className={`flex items-center space-x-1.5 px-2 xl:px-3 py-2 rounded-md text-sm font-medium transition duration-200 cursor-pointer ${
                         isActive
                           ? "text-accent-primary bg-accent-light"
                           : "text-text-secondary hover:text-foreground hover:bg-accent-light"
@@ -157,7 +171,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
                   href={item.href!}
                   prefetch={false}
                   transitionTypes={[directionType]}
-                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
+                  className={`flex items-center space-x-1.5 px-2 xl:px-3 py-2 rounded-md text-sm font-medium transition duration-200 ${
                     isActive
                       ? "text-accent-primary bg-accent-light"
                       : "text-text-secondary hover:text-foreground hover:bg-accent-light"

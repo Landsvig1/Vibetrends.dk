@@ -86,12 +86,16 @@ async function HomeContent() {
             <Info className="mr-1.5 h-3.5 w-3.5" />
             Hvad er vibetrends.dk?
           </Link>
+          {/* Addressed to the human, not the agent. "Er du en AI-agent? Start
+              her" spoke past the person reading it: the decision being made on
+              this page is whether to hand the URL to an agent, and that is a
+              human's call. */}
           <Link
             href="/agent-guide"
             className="inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
           >
             <Cpu className="mr-1.5 h-3.5 w-3.5" />
-            Er du en AI-agent? Start her →
+            Kobl kataloget på din agent →
           </Link>
         </div>
       </section>

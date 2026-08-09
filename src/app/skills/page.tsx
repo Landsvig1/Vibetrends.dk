@@ -3,6 +3,7 @@ import { getSkills, SkillView } from "@/lib/db";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import SkillsLoading from "./loading";
 import SkillsExplorer from "./SkillsExplorer";
+import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 
 /**
  * Validates the `view` URL param to the four values the skills page supports.
@@ -91,10 +92,13 @@ export async function SkillsPageContent({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
-      <SkillsExplorer
-        initialAllSkills={allSkills}
-        initialViewSkills={initialViewSkills}
-      />
+      <div className="space-y-12 sm:space-y-14">
+        <SkillsExplorer
+          initialAllSkills={allSkills}
+          initialViewSkills={initialViewSkills}
+        />
+        <AgentSurfaceStrip hub="skills" />
+      </div>
     </>
   );
 }
