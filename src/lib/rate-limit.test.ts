@@ -11,12 +11,18 @@ const state = vi.hoisted(() => ({
   dualRpcResponse: null as boolean | null,
 }));
 
-// Mock the supabase-server module so we control supabasePublic.rpc() without
-// hitting a real database.  We mock the module rather than @supabase/supabase-js
-// directly so we don't need to worry about createServerClient / cookies()
-// plumbing that lives in the same file.
+// Mock the supabase-server module so we control the RPC without hitting a real
+// database.  We mock the module rather than @supabase/supabase-js directly so
+// we don't need to worry about createServerClient / cookies() plumbing that
+// lives in the same file.
+//
+// These RPCs go through the SERVICE-ROLE client, not the anon one: the
+// functions are no longer EXECUTE-granted to anon (migration
+// 20260809000000_rate_limit_rpc_revoke_anon_execute.sql). `supabasePublic` is
+// still exported here so a future accidental switch back to it fails on the
+// grant rather than silently working in tests.
 vi.mock('@/lib/supabase-server', () => ({
-  supabasePublic: {
+  getSupabaseServiceRole: vi.fn(() => ({
     rpc: vi.fn(async (fn: string, params: Record<string, unknown>) => {
       state.lastRpcCall = { fn, params };
       if (fn === 'check_and_increment_dual_rate_limit' && state.dualRpcResponse !== null) {
@@ -24,10 +30,18 @@ vi.mock('@/lib/supabase-server', () => ({
       }
       return state.rpcResponse;
     }),
+  })),
+  supabasePublic: {
+    rpc: vi.fn(async () => {
+      throw new Error(
+        'Rate-limit RPCs must use the service-role client — anon has no EXECUTE grant.',
+      );
+    }),
   },
 }));
 
 import { hashIp, checkRateLimit, checkAgentWriteAllowed, resolveAgentWriteLimit, enforceAgentWriteRateLimit } from '@/lib/rate-limit';
+import { getSupabaseServiceRole, supabasePublic } from '@/lib/supabase-server';
 
 beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
@@ -95,6 +109,40 @@ describe('checkRateLimit', () => {
   it('throws when the RPC returns an error', async () => {
     state.rpcResponse = { data: null, error: { message: 'connection refused' } };
     await expect(checkRateLimit('key', 5, 60)).rejects.toThrow('Rate limit RPC failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Client selection — regression guard
+// ---------------------------------------------------------------------------
+
+describe('rate-limit RPCs use the service-role client', () => {
+  /**
+   * Not a style preference. `check_and_increment_rate_limit` and
+   * `check_and_increment_dual_rate_limit` are no longer EXECUTE-granted to
+   * `anon` (migration 20260809000000), because the anon key is public and the
+   * caller chooses both the bucket key and the limit — which let anyone
+   * exhaust `agentwrite:global` and deny writes to every agent site-wide.
+   *
+   * Switching either call site back to `supabasePublic` would restore that
+   * hole AND break in production on the missing grant. The mock makes
+   * `supabasePublic.rpc` throw, so these fail loudly if someone does.
+   */
+  it('resolves the service-role client for the single-key check', async () => {
+    await expect(checkRateLimit('k', 5, 60)).resolves.toBe(true);
+    expect(getSupabaseServiceRole).toHaveBeenCalled();
+  });
+
+  it('resolves the service-role client for the dual-key check', async () => {
+    vi.mocked(getSupabaseServiceRole).mockClear();
+    await checkAgentWriteAllowed('user-1');
+    expect(getSupabaseServiceRole).toHaveBeenCalled();
+  });
+
+  it('never routes a rate-limit RPC through the anon client', async () => {
+    await checkRateLimit('k', 5, 60);
+    await checkAgentWriteAllowed('user-1');
+    expect(vi.mocked(supabasePublic.rpc)).not.toHaveBeenCalled();
   });
 });
 

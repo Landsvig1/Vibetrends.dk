@@ -18,6 +18,50 @@ export const supabasePublic = createClient(
   { global: { fetch: fetchWithTimeout } }
 );
 
+/**
+ * Service-role client, for server-only operations that must not be reachable
+ * with a key the browser holds. Currently: the rate-limit RPCs.
+ *
+ * Those RPCs were `EXECUTE`-granted to `anon`, and the anon key is public by
+ * design (it ships in the client bundle). Since the caller supplies both the
+ * bucket key and the limit, anyone could call
+ * `check_and_increment_dual_rate_limit` directly with `agentwrite:global` and
+ * drive the site-wide agent-write budget to its ceiling in ~200 unauthenticated
+ * requests, denying writes to every legitimate agent until the window rolled.
+ * Every one of these call sites is a route handler, so nothing ever needed the
+ * anon role for them.
+ *
+ * This client BYPASSES RLS. Use it only where that is the point. Anything
+ * carrying user data or acting on a user's behalf must keep going through
+ * `supabasePublic` or `createSupabaseServerClient()`, which is where RLS
+ * (`auth.uid() = user_id`) is enforced.
+ *
+ * Lazily constructed and memoized: a module-level `createClient` would read
+ * the env var at import time and bake `undefined!` into a client that fails
+ * confusingly on first use. This throws where the call happens instead.
+ */
+let serviceRoleClient: SupabaseClient | null = null;
+
+export function getSupabaseServiceRole(): SupabaseClient {
+  if (serviceRoleClient) return serviceRoleClient;
+
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is not set — required for the rate-limit RPCs, ' +
+        'which are no longer executable by the anon role.',
+    );
+  }
+
+  serviceRoleClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+    global: { fetch: fetchWithTimeout },
+    // No session to persist or refresh: this client authenticates with a
+    // static key and must never pick up a user session from storage.
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return serviceRoleClient;
+}
+
 /** Shared by getAuthUser() and resolveBotRequestAuth() so the fallback-username
  * rule (sanitize local-part, suffix "_vibe") only lives in one place. */
 function deriveUsername(user: { email?: string | null; user_metadata?: Record<string, unknown> }): string {

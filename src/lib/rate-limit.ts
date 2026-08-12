@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
-import { supabasePublic } from '@/lib/supabase-server';
+import { getSupabaseServiceRole } from '@/lib/supabase-server';
 
 /**
  * Hash an IP address with SHA-256 before storing it as a rate-limit key.
@@ -55,7 +55,7 @@ export async function checkRateLimit(
   limit: number,
   windowSeconds: number
 ): Promise<boolean> {
-  const { data, error } = await supabasePublic.rpc(
+  const { data, error } = await getSupabaseServiceRole().rpc(
     'check_and_increment_rate_limit',
     {
       p_key: key,
@@ -101,7 +101,7 @@ const GLOBAL_AGENT_WRITE_LIMIT = 200;
 const AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
 
 export async function checkAgentWriteAllowed(userId: string): Promise<boolean> {
-  const { data, error } = await supabasePublic.rpc('check_and_increment_dual_rate_limit', {
+  const { data, error } = await getSupabaseServiceRole().rpc('check_and_increment_dual_rate_limit', {
     p_key1: `agentwrite:${userId}`,
     p_limit1: AGENT_WRITE_LIMIT,
     p_key2: 'agentwrite:global',
