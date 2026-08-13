@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { addReply } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { replySchema } from "@/lib/schemas";
 
@@ -32,12 +33,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const thread = await addReply(threadId, user.username, result.data.content, actingAs);
-    if (!thread) {
+    const added = await addReply(threadId, user.username, result.data.content, actingAs);
+    if (!added) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    return NextResponse.json(thread, { status: 201 });
+    // Inert today — see POST /api/forum for why this branch exists anyway.
+    if (reviewStateForWrite('forum_replies', Boolean(actingAs)) === 'pending') {
+      return NextResponse.json(pendingSubmissionBody(added.replyId), { status: 202 });
+    }
+
+    return NextResponse.json(added.thread, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }

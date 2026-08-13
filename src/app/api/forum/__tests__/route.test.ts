@@ -165,9 +165,12 @@ describe("POST /api/forum/[id]/replies — addReply via bearer token", () => {
     const { identity, actingAs } = makeBotIdentity("bot-456");
     resolveRequestIdentityMock.mockResolvedValue(identity);
     vi.mocked(dbMod.addReply).mockResolvedValue({
-      id: "t1", title: "Thread", author: "a", category: "General",
-      content: "c", upvotes: 1, createdAt: "2026-01-01", replies: [],
-      isDanish: false, denmarkSpecific: false,
+      thread: {
+        id: "t1", title: "Thread", author: "a", category: "General",
+        content: "c", upvotes: 1, createdAt: "2026-01-01", replies: [],
+        isDanish: false, denmarkSpecific: false,
+      },
+      replyId: "r_1",
     });
 
     const res = await repliesPost(makeRequest(validBody), { params });
@@ -188,9 +191,12 @@ describe("POST /api/forum/[id]/replies — addReply via bearer token", () => {
   it("backward compat: cookie session passes undefined actingAs", async () => {
     resolveRequestIdentityMock.mockResolvedValue(makeCookieIdentity("bob"));
     vi.mocked(dbMod.addReply).mockResolvedValue({
-      id: "t1", title: "T", author: "bob", category: "General",
-      content: "c", upvotes: 1, createdAt: "2026-01-01", replies: [],
-      isDanish: false, denmarkSpecific: false,
+      thread: {
+        id: "t1", title: "T", author: "bob", category: "General",
+        content: "c", upvotes: 1, createdAt: "2026-01-01", replies: [],
+        isDanish: false, denmarkSpecific: false,
+      },
+      replyId: "r_1",
     });
 
     await repliesPost(makeRequest(validBody), { params });

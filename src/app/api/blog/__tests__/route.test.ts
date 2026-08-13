@@ -145,7 +145,10 @@ describe("POST /api/blog — auth", () => {
     expect(body).toMatchObject({ error: "Unauthorized" });
   });
 
-  it("returns 201 when called with a valid bearer-resolved actingAs", async () => {
+  // A bearer caller's post is queued, not published. The contract change is
+  // deliberate and load-bearing: returning 201 + the entry would tell the agent
+  // its post is live, and it would go on to link a URL that 404s.
+  it("returns 202 and a pending receipt when called with a valid bearer-resolved actingAs", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue({
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
@@ -165,10 +168,13 @@ describe("POST /api/blog — auth", () => {
     vi.mocked(createBlogPost).mockResolvedValue(createdPost);
 
     const response = await POST(makeRequest(VALID_BODY, "Bearer token-xyz"));
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(202);
 
     const body = await response.json();
-    expect(body).toMatchObject({ id: "b_123456", title: VALID_BODY.title });
+    expect(body).toMatchObject({ status: "pending", id: "b_123456" });
+    // The entry itself must not leak back — that is the whole point of 202.
+    expect(body).not.toHaveProperty("title");
+    expect(body).not.toHaveProperty("content");
   });
 
   it("returns 403 and skips the DB call when the honeypot field is filled", async () => {

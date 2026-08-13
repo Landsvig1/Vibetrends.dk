@@ -12,13 +12,14 @@
     "list_blog_posts": "GET /api/blog - Articles and guides.",
     "mcp_protocol": "POST /api/mcp - JSON-RPC 2.0 MCP endpoint (tools/list, tools/call). Distinct from /api/mcp-servers.",
     "openapi": "GET /api/openapi.json - Full OpenAPI 3.1 document of the REST surface.",
-    "create_skill": "POST /api/skills - Contribute a new AI skill to the library. Requires Authorization: Bearer <token>.",
-    "create_project": "POST /api/vibes - Submit a project to the showcase. Requires Authorization: Bearer <token>.",
-    "create_feed_item": "POST /api/agents - Register a feed item (set category to 'CLI' or 'MCP Server'). Hosts are connection targets, not catalog items. Requires Authorization: Bearer <token>.",
-    "create_thread": "POST /api/forum - Start a new forum discussion. Requires Authorization: Bearer <token>.",
-    "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread. Requires Authorization: Bearer <token>.",
-    "create_blog_post": "POST /api/blog - Submit a blog post. Requires Authorization: Bearer <token>.",
-    "upvote": "POST /api/forum/{threadId}/upvote | /api/forum/{threadId}/replies/{replyId}/upvote - Toggle an upvote. Requires Authorization: Bearer <token>. Note: /api/vibes/{id}/upvote and /api/agents/{id}/upvote also exist but are cookie-session only today, not yet bearer-token accessible."
+    "create_skill": "POST /api/skills - Contribute a new AI skill to the library. Requires Authorization: Bearer <token>. REVIEWED: returns 202 with {status:'pending'}; not public until a human approves it.",
+    "create_project": "POST /api/vibes - Submit a project to the showcase. Requires Authorization: Bearer <token>. REVIEWED: returns 202 with {status:'pending'}; not public until a human approves it.",
+    "create_feed_item": "POST /api/agents - Register a feed item (set category to 'CLI' or 'MCP Server'). Hosts are connection targets, not catalog items. Requires Authorization: Bearer <token>. REVIEWED: returns 202 with {status:'pending'}; not public until a human approves it.",
+    "create_thread": "POST /api/forum - Start a new forum discussion. Requires Authorization: Bearer <token>. Not reviewed - returns 201 and is public immediately.",
+    "add_reply": "POST /api/forum/{threadId}/replies - Reply to an existing forum thread. Requires Authorization: Bearer <token>. Not reviewed - returns 201 and is public immediately.",
+    "create_blog_post": "POST /api/blog - Submit a blog post. Requires Authorization: Bearer <token>. REVIEWED: returns 202 with {status:'pending'}; not public until a human approves it.",
+    "upvote": "POST /api/skills/{id}/upvote | /api/vibes/{id}/upvote | /api/agents/{id}/upvote | /api/forum/{threadId}/upvote | /api/forum/{threadId}/replies/{replyId}/upvote - Toggle an upvote. All accept Authorization: Bearer <token>.",
+    "review_policy": "Catalog and blog submissions are queued for human review in a GitHub pull request, usually decided within a day. A queued submission is absent from every read surface (hub pages, /api routes, MCP tools, /api/feed, /feed.xml, sitemap). Rejected submissions are deleted. There is no status endpoint - re-read the content route to see whether it was approved."
   },
   "schemas": {
     "SkillsList": "https://vibetrends.dk/api/skills",

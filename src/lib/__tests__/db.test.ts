@@ -2054,6 +2054,32 @@ describe("U3 — addReply with actingAs", () => {
     expect((insert!.payload as Record<string, unknown>).user_id).toBe('bot-uid-456');
   });
 
+  // The pending receipt's contract defines `id` as the queued ROW's id, and a
+  // pending reply is filtered out of thread.replies — so the reply id has to
+  // come back from here or the caller gets handed the thread's id instead.
+  // Unreachable today (the forum's gate is off), but the branch exists so that
+  // flipping FORUM_GATE_ENABLED is correct rather than subtly wrong.
+  it("returns the new reply's own id alongside the thread", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-reply-id', (ops) =>
+      ops.method === 'insert' ? { data: null, error: null } : { data: [], error: null },
+    );
+    state.publicHandler = (ops) => {
+      if (ops.table === 'forum_threads') return {
+        data: { id: 't1', title_da: 'T', title_en: 'T', author: 'a', category: 'General', content_da: 'c', content_en: 'c', upvotes: 1, created_at: '2026-01-01' },
+        error: null,
+      };
+      return { data: [], error: null };
+    };
+
+    const added = await db.addReply('t1', 'testbot', 'Reply content text.', actingAs);
+
+    expect(added).not.toBeNull();
+    expect(added!.thread.id).toBe('t1');
+    expect(added!.replyId).toMatch(/^r_\d+$/);
+    // Specifically NOT the thread id — that was the bug.
+    expect(added!.replyId).not.toBe('t1');
+  });
+
   it("addReply with actingAs and invalid threadId still returns null on insert failure (existing contract)", async () => {
     const { actingAs } = makeActingAsMock('bot-uid-789', () => ({
       data: null,
@@ -2235,7 +2261,12 @@ describe("U4 — createBlogPost", () => {
     expect(result?.id).toBe('b_mock');
   });
 
-  it("calls revalidateTag('blog-posts') with the single-arg form (KTD7)", async () => {
+  // A bearer-authenticated post is now held for review, and a pending row is
+  // invisible to every gated read — so it must NOT revalidate. Dropping the
+  // blog cache to surface a row nobody can see is pure cache churn, and
+  // dropping HUB_EMPTINESS_TAG would additionally re-ask a question whose
+  // answer hasn't changed (countRealBlogPosts discounts pending rows).
+  it("does not revalidate when the post is held for review", async () => {
     const { actingAs } = makeActingAsMock('bot-uid-blog', (ops) => {
       if (ops.method === 'insert') return {
         data: { id: 'b1', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E', content_da: 'C', content_en: 'C', author: 'a', read_time: '1 min', published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Guides' },
@@ -2246,8 +2277,28 @@ describe("U4 — createBlogPost", () => {
 
     await db.createBlogPost('T', 'E', 'C', 'a', '1 min', '2026-07-10', 'https://images.unsplash.com/x.jpg', 'Guides', actingAs);
 
+    expect(state.revalidateTagCalls).toEqual([]);
+  });
+
+  it("calls revalidateTag('blog-posts') with the single-arg form when published directly (KTD7)", async () => {
+    // No actingAs: the cookie-session path, which is not reviewed and is live
+    // on the next read, so both tags must drop immediately. That path resolves
+    // its client through createSupabaseServerClient, so the insert has to be
+    // stubbed on the *server* handler, not the actingAs one.
+    state.user = { id: 'cookie-uid-blog' };
+    state.serverHandler = (ops) => {
+      if (ops.method === 'insert') return {
+        data: { id: 'b1', title_da: 'T', title_en: 'T', excerpt_da: 'E', excerpt_en: 'E', content_da: 'C', content_en: 'C', author: 'a', read_time: '1 min', published_at: '2026-07-10', image_url: 'https://images.unsplash.com/x.jpg', category: 'Guides' },
+        error: null,
+      };
+      return { data: [], error: null };
+    };
+
+    await db.createBlogPost('T', 'E', 'C', 'a', '1 min', '2026-07-10', 'https://images.unsplash.com/x.jpg', 'Guides');
+
     const tags = state.revalidateTagCalls.map(c => c[0]);
     expect(tags).toContain('blog-posts');
+    expect(tags).toContain('hub-emptiness');
     for (const call of state.revalidateTagCalls) {
       expect(call.length).toBe(1);
     }
@@ -2447,5 +2498,146 @@ describe("slug on the read path", () => {
     const flat = state.cacheTagCalls.flat();
     expect(flat).toContain("project-p_1");
     expect(flat).toContain("agent-a_1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review gate — every public read must exclude pending rows
+//
+// reviewGate.test.ts covers the helper. This covers the thing that actually
+// breaks: a read function in db.ts that forgets to call it. A submission held
+// for review is invisible everywhere or it is not held at all — one unfiltered
+// read (a detail page, an OG image, the feed, the sitemap) publishes it.
+//
+// Asserted against the recorded query rather than the returned rows, because
+// the mock returns whatever the handler says regardless of filters; only the
+// emitted filter list proves the SQL would have excluded anything.
+// ---------------------------------------------------------------------------
+describe("review gate — gated reads filter on review_state", () => {
+  const hasGateFilter = (ops: { filters: unknown[] }) =>
+    ops.filters.some(
+      (f) => Array.isArray(f) && f[0] === "eq" && f[1] === "review_state" && f[2] === "approved",
+    );
+
+  /** Reads that must exclude pending rows, and the table each one hits. */
+  const GATED_READS: Array<[string, string, () => Promise<unknown>]> = [
+    ["getSkills", "skills", () => db.getSkills()],
+    ["getSkillById", "skills", () => db.getSkillById("s1")],
+    ["getSkillBySlug", "skills", () => db.getSkillBySlug("a-slug")],
+    ["getSkillDoc", "skills", () => db.getSkillDoc("s1")],
+    ["getTopSkills", "skills", () => db.getTopSkills(3)],
+    ["getProjects", "vibes", () => db.getProjects()],
+    ["getProjectById", "vibes", () => db.getProjectById("p1")],
+    ["getProjectBySlug", "vibes", () => db.getProjectBySlug("a-slug")],
+    ["getTopProjects", "vibes", () => db.getTopProjects(3)],
+    ["getAgents", "agents", () => db.getAgents()],
+    ["getCli", "agents", () => db.getCli()],
+    ["getAgentById", "agents", () => db.getAgentById("a1")],
+    ["getAgentBySlug", "agents", () => db.getAgentBySlug("a-slug")],
+    ["getTopAgents", "agents", () => db.getTopAgents(3)],
+    ["getBlogPosts", "blog_posts", () => db.getBlogPosts()],
+    ["getBlogPostById", "blog_posts", () => db.getBlogPostById("b1")],
+    ["getLatestPosts", "blog_posts", () => db.getLatestPosts(3)],
+    ["countRealBlogPosts", "blog_posts", () => db.countRealBlogPosts()],
+  ];
+
+  it.each(GATED_READS)("%s excludes pending rows from %s", async (_name, table, run) => {
+    await run();
+    const calls = state.publicCalls.filter((c) => c.table === table);
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) expect(hasGateFilter(call)).toBe(true);
+  });
+
+  it("getCounts excludes pending rows from every table it counts", async () => {
+    await db.getCounts();
+    // forum_threads is counted too, but its gate is off — assert the three
+    // gated tables specifically rather than blanket-asserting every call.
+    for (const table of ["skills", "vibes", "agents"]) {
+      const calls = state.publicCalls.filter((c) => c.table === table);
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) expect(hasGateFilter(call)).toBe(true);
+    }
+  });
+
+  it("getFeedItems excludes pending rows from all three source tables", async () => {
+    await db.getFeedItems();
+    for (const table of ["skills", "agents", "vibes"]) {
+      const calls = state.publicCalls.filter((c) => c.table === table);
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) expect(hasGateFilter(call)).toBe(true);
+    }
+  });
+
+  // The forum's gate ships off, so its reads must be unchanged. A filter
+  // appearing here would mean the forum silently started hiding content.
+  it.each([
+    ["getThreads", () => db.getThreads()],
+    ["getThreadById", () => db.getThreadById("t1")],
+  ] as Array<[string, () => Promise<unknown>]>)(
+    "%s does not filter forum tables while the forum gate is off",
+    async (_name, run) => {
+      await run();
+      const calls = state.publicCalls.filter(
+        (c) => c.table === "forum_threads" || c.table === "forum_replies",
+      );
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) expect(hasGateFilter(call)).toBe(false);
+    },
+  );
+
+  it("countRealThreads still discounts e2e fixtures but does not filter on review_state", async () => {
+    await db.countRealThreads();
+    const [call] = state.publicCalls.filter((c) => c.table === "forum_threads");
+    expect(call).toBeDefined();
+    expect(hasGateFilter(call)).toBe(false);
+    expect(call.filters).toContainEqual(["not", "id", "like", "e2e-fixture-%"]);
+  });
+});
+
+describe("review gate — writes record the right state", () => {
+  const skillInsert = (calls: BuilderOps[]) =>
+    calls.find((c) => c.table === "skills" && c.method === "insert")?.payload as
+      | Record<string, unknown>
+      | undefined;
+
+  it("a bearer-authenticated skill submission is written as pending", async () => {
+    const { actingAs, calls } = makeActingAsMock("bot-uid", (ops) =>
+      ops.method === "insert"
+        ? { data: { ...skillRow, id: "s_new" }, error: null }
+        : { data: [], error: null },
+    );
+
+    await db.createSkill("T", "bot", "D", "agent-methodology", [], undefined, undefined, undefined, actingAs);
+
+    expect(skillInsert(calls)?.review_state).toBe("pending");
+    // And it must not dump the list cache to surface a row nobody can read.
+    expect(state.revalidateTagCalls.flat()).not.toContain("skills-list");
+  });
+
+  it("a cookie-session skill submission is written as approved and revalidates", async () => {
+    state.user = { id: "human-uid" };
+    state.serverHandler = (ops) =>
+      ops.method === "insert"
+        ? { data: { ...skillRow, id: "s_new" }, error: null }
+        : { data: [], error: null };
+
+    await db.createSkill("T", "human", "D", "agent-methodology", []);
+
+    expect(skillInsert(state.serverCalls)?.review_state).toBe("approved");
+    expect(state.revalidateTagCalls.flat()).toContain("skills-list");
+  });
+
+  // The forum's gate is off, so a bearer thread publishes immediately — and
+  // therefore MUST still revalidate. This is the case that a `if (!actingAs)`
+  // guard would have broken the day someone flipped FORUM_GATE_ENABLED.
+  it("a bearer-authenticated forum thread is approved and still revalidates", async () => {
+    const { actingAs, calls } = makeActingAsMock("bot-uid");
+
+    await db.createThread("T", "testbot", "General", "Content.", actingAs);
+
+    const insert = calls.find((c) => c.table === "forum_threads" && c.method === "insert");
+    expect((insert?.payload as Record<string, unknown>)?.review_state).toBe("approved");
+    expect(state.revalidateTagCalls.flat()).toContain("threads-list");
+    expect(state.revalidateTagCalls.flat()).toContain("hub-emptiness");
   });
 });
