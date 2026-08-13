@@ -279,4 +279,17 @@ test.describe('VibeTrends.dk Core Flows', () => {
     await expect(page.locator('#mobile-menu').getByText('@testuser_vibe')).toBeVisible();
   });
 
+  test('routing-level unknown paths return true HTTP 404; dynamic detail not-founds include noindex', async ({ page }) => {
+    // 1. A completely unknown route that matches no route segment returns a real HTTP 404.
+    const unknownRes = await page.request.get('/totally-unknown-path');
+    expect(unknownRes.status()).toBe(404);
+
+    // 2. Dynamic detail routes that match a segment but fail data lookup stream
+    // under PPR (cacheComponents: true) and emit <meta name="robots" content="noindex">
+    // to prevent indexing.
+    const dynamicRes = await page.request.get('/skills/non-existent-test-slug-404');
+    const html = await dynamicRes.text();
+    expect(html).toContain('content="noindex"');
+  });
+
 });
