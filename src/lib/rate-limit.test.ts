@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createHash } from 'crypto';
 
 // Shared state, hoisted above all imports so the vi.mock factory can close
 // over it — same pattern as supabase-server.test.ts.
@@ -47,7 +48,14 @@ beforeEach(() => {
   state.rpcResponse = { data: true, error: null };
   state.lastRpcCall = null;
   state.dualRpcResponse = null;
+  // hashIp HMACs over this and throws without it. Stubbed per test so the
+  // "missing salt" case below can unset it without leaking into other tests.
+  vi.stubEnv('RATE_LIMIT_IP_SALT', 'test-salt-not-a-real-secret');
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 // ---------------------------------------------------------------------------
@@ -72,6 +80,37 @@ describe('hashIp', () => {
     const ip = '203.0.113.42';
     const hash = hashIp(ip);
     expect(hash).not.toContain(ip);
+  });
+
+  /**
+   * The point of the 2026-08-13 change. A bare sha256(ip) is not a pseudonym:
+   * IPv4 is 2^32, so anyone holding the digests can enumerate the whole space
+   * and recover every address. These pin the properties that make the HMAC
+   * actually do something, so a future "simplification" back to createHash
+   * fails loudly instead of quietly restoring a reversible identifier.
+   */
+  it('produces a different digest under a different salt (the salt is real)', () => {
+    vi.stubEnv('RATE_LIMIT_IP_SALT', 'salt-a');
+    const a = hashIp('203.0.113.42');
+    vi.stubEnv('RATE_LIMIT_IP_SALT', 'salt-b');
+    const b = hashIp('203.0.113.42');
+    expect(a).not.toBe(b);
+  });
+
+  it('does not equal the unsalted sha256 of the same IP', () => {
+    const ip = '203.0.113.42';
+    const unsalted = createHash('sha256').update(ip).digest('hex');
+    expect(hashIp(ip)).not.toBe(unsalted);
+  });
+
+  it('is stable across calls for a fixed salt (buckets must not rotate)', () => {
+    vi.stubEnv('RATE_LIMIT_IP_SALT', 'fixed');
+    expect(hashIp('198.51.100.7')).toBe(hashIp('198.51.100.7'));
+  });
+
+  it('throws when the salt is missing rather than silently falling back', () => {
+    vi.stubEnv('RATE_LIMIT_IP_SALT', '');
+    expect(() => hashIp('203.0.113.42')).toThrow('RATE_LIMIT_IP_SALT');
   });
 });
 
