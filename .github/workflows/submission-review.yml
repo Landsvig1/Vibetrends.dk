@@ -146,12 +146,30 @@ jobs:
               echo "<sub>Åbnet af \`.github/workflows/submission-review.yml\`.</sub>"
             } > /tmp/submission-pr-body.md
 
-            gh pr create \
+            # If PR creation fails, delete the branch we just pushed. The branch
+            # is the dedup key, so leaving it behind means this row is skipped
+            # on every future run and the submission is never seen again — the
+            # push has already happened by this point, so the window is real.
+            # This has bitten twice already: once on a missing label, once on
+            # the "GitHub Actions is not permitted to create pull requests"
+            # repo setting. Both were one-off causes; this covers the class.
+            #
+            # `|| true` on the delete only: a cleanup failure must not mask the
+            # original error, and the step still exits non-zero via `set -e`
+            # when gh pr create failed.
+            if ! gh pr create \
               --base main \
               --head "$branch" \
               --label submission \
               --title "Submission: $title" \
               --body-file /tmp/submission-pr-body.md
+            then
+              echo "::error::gh pr create failed for $table/$id — removing $branch so the next run retries it."
+              git push -q origin --delete "$branch" || true
+              git checkout -q --detach origin/main
+              exit 1
+            fi
+
             opened=$((opened + 1))
             git checkout -q --detach origin/main
           done
