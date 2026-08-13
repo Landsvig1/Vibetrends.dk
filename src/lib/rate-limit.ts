@@ -1,16 +1,46 @@
-import { createHash } from 'crypto';
+import { createHmac } from 'crypto';
 import { NextResponse } from 'next/server';
 import { getSupabaseServiceRole } from '@/lib/supabase-server';
 
 /**
- * Hash an IP address with SHA-256 before storing it as a rate-limit key.
+ * Pseudonymise an IP address before storing it as a rate-limit key.
  *
  * Raw IPs are unnecessary personal data for a control that only needs to
  * answer "has this source exceeded N requests in this window" (KTD5 — EU/GDPR
  * context; minimal-retention posture). Never log or return the raw IP.
+ *
+ * This was a bare `sha256(ip)` until 2026-08-13, which did not achieve that.
+ * IPv4 is a 2^32 keyspace: anyone holding the stored digests can enumerate it
+ * end to end in minutes and recover every raw address, so the values were
+ * reversible identifiers wearing a hash's clothing rather than pseudonyms.
+ * An HMAC over a server-held secret removes that shortcut — without the key
+ * the digests cannot be brute-forced back to addresses.
+ *
+ * Scope, stated honestly: `rate_limits` has RLS enabled with no policies, and
+ * an anon SELECT returns zero rows, so these digests were never publicly
+ * readable. This closes exposure to anyone reaching the table directly
+ * (service-role credentials, a database breach, an operator with a console) —
+ * defence in depth and an accurate GDPR posture, not a patched leak.
+ *
+ * The secret MUST be stable for a deployment. Rotating it re-keys every
+ * bucket, which silently resets all in-flight rate-limit windows: harmless
+ * here (the longest window is one hour) but not free, so don't rotate casually.
  */
+function ipSalt(): string {
+  const salt = process.env.RATE_LIMIT_IP_SALT;
+  if (!salt) {
+    // Deliberately fatal rather than falling back to an unsalted digest. A
+    // silent downgrade would restore the brute-forceable state this function
+    // exists to prevent, and would do it invisibly.
+    throw new Error(
+      'RATE_LIMIT_IP_SALT is not set — required to pseudonymise IPs for rate-limit keys.',
+    );
+  }
+  return salt;
+}
+
 export function hashIp(ip: string): string {
-  return createHash('sha256').update(ip).digest('hex');
+  return createHmac('sha256', ipSalt()).update(ip).digest('hex');
 }
 
 /**

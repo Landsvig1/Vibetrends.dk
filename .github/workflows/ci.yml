@@ -58,6 +58,12 @@ jobs:
       CI: "true"
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+      # hashIp() HMACs IPs with this and throws without it, so the routes that
+      # rate-limit (/api/mcp, /api/agentauth, /api/github-meta) 500 if it is
+      # unset. CI only needs *a* stable value — the digests it produces are
+      # thrown away with the ephemeral run — so the placeholder is fine here and
+      # must never be the production value. Same fallback shape as the two above.
+      RATE_LIMIT_IP_SALT: ${{ secrets.RATE_LIMIT_IP_SALT || 'placeholder-ci-salt' }}
       # Postgres connection for scripts/seed-e2e-fixtures.mjs and
       # tests/e2e/global-teardown.mjs — bypasses RLS, so no auth session is
       # needed to seed/clean up forum_threads/agents fixture rows.
