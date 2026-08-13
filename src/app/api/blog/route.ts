@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBlogPosts, getBlogPostById, createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { validateHoneypot } from "@/lib/honeypot";
 import { blogPostSchema } from "@/lib/schemas";
@@ -65,6 +66,12 @@ export async function POST(request: Request) {
       category,
       actingAs
     );
+
+    // See /api/skills: a held submission returns 202 + a pending body, never
+    // the entry, because the entry is not publicly readable yet.
+    if (reviewStateForWrite('blog_posts', Boolean(actingAs)) === 'pending') {
+      return NextResponse.json(pendingSubmissionBody(post.id), { status: 202 });
+    }
 
     return NextResponse.json(post, { status: 201 });
   } catch {

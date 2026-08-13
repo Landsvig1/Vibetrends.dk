@@ -246,7 +246,7 @@ describe("POST /api/mcp (JSON-RPC)", () => {
 });
 
 describe("POST /api/mcp — write tools (bearer auth)", () => {
-  it("submit_skill with a valid identity creates a skill and returns it", async () => {
+  it("submit_skill with a valid identity queues a skill and returns a pending receipt", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
     const res = await POST(
       rpc({
@@ -271,10 +271,15 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
       undefined, // descriptionDa — omitted, so the row stores null
       MOCK_IDENTITY.botAuth
     );
-    expect(JSON.parse(body.result.content[0].text)).toEqual({ id: "s2", title: "New Skill" });
+    // Held for review: the tool returns a pending receipt, not the skill. The
+    // MCP mirror of the REST 202 — an agent must not be told its submission is
+    // in the catalog when it is not.
+    const skillResult = JSON.parse(body.result.content[0].text);
+    expect(skillResult).toMatchObject({ status: "pending", id: "s2" });
+    expect(skillResult).not.toHaveProperty("title");
   });
 
-  it("submit_blog_post with a valid identity creates a blog post", async () => {
+  it("submit_blog_post with a valid identity queues a post and returns a pending receipt", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
     const res = await POST(
       rpc({
@@ -297,7 +302,10 @@ describe("POST /api/mcp — write tools (bearer auth)", () => {
     );
     const body = await res.json();
     expect(db.createBlogPost).toHaveBeenCalled();
-    expect(JSON.parse(body.result.content[0].text)).toEqual({ id: "b1", title: "New Post" });
+    // Held for review — see submit_skill above.
+    const postResult = JSON.parse(body.result.content[0].text);
+    expect(postResult).toMatchObject({ status: "pending", id: "b1" });
+    expect(postResult).not.toHaveProperty("title");
   });
 
   it("rejects a bearer-authenticated write tool once the write budget (identity or site-wide) is exhausted, without calling the underlying mutation", async () => {

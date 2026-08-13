@@ -41,6 +41,7 @@ async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseCl
   return { supabase, userId };
 }
 
+import { visibleOnly, reviewStateForWrite } from "./reviewGate";
 import { skillCategoryLabel, type SkillCategorySlug } from "./skillCategories";
 import { type ForumCategoryKey } from "./forumCategories";
 import { slugify, RESERVED_SLUGS } from "./slug";
@@ -230,10 +231,17 @@ const E2E_FIXTURE_ID_PATTERN = "e2e-fixture-%";
  * `head: true` means PostgREST returns the count without any row payload.
  */
 async function countRealRows(table: "forum_threads" | "blog_posts"): Promise<number> {
-  const { count, error } = await supabasePublic
-    .from(table)
-    .select("id", { count: "exact", head: true })
-    .not("id", "like", E2E_FIXTURE_ID_PATTERN);
+  // Pending rows are discounted for the same reason fixture rows are: this
+  // count decides whether a hub *exists* (nav link, sitemap entry, robots
+  // index), and a submission nobody has approved yet must not make an empty
+  // hub look populated. Without this, one queued blog post would un-hide
+  // /blog, put it in the sitemap and drop its noindex while the hub still
+  // renders zero posts — a thin page published on the strength of a row the
+  // public cannot see.
+  const { count, error } = await visibleOnly(
+    supabasePublic.from(table).select("id", { count: "exact", head: true }),
+    table,
+  ).not("id", "like", E2E_FIXTURE_ID_PATTERN);
 
   if (error) {
     throw new Error(`Failed to count rows in ${table}: ${error.message}`);
@@ -586,7 +594,7 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
   // Next's tag matching is exact-string — prefix matching is not supported.
   cacheTag('skills-list', `skills-list:${category ?? 'all'}:${search ?? ''}:${lang}:${view ?? ''}`)
 
-  let query = supabasePublic.from('skills').select('*');
+  let query = visibleOnly(supabasePublic.from('skills').select('*'), 'skills');
 
   if (category && category !== "All") {
     query = query.eq('category', category);
@@ -651,7 +659,7 @@ export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`skill-${id}`, `skill-${id}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('skills').select('*').eq('id', id).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('skills').select('*'), 'skills').eq('id', id).single();
   if (error || !data) return null;
   return mapSkill(data, lang);
 }
@@ -675,7 +683,7 @@ export async function getSkillBySlug(slug: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`skill-slug-${slug}`, `skill-slug-${slug}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('skills').select('*').eq('slug', slug).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('skills').select('*'), 'skills').eq('slug', slug).single();
   if (error || !data) return null;
   cacheTag(`skill-${data.id}`, `skill-${data.id}:${lang}`)
   return mapSkill(data, lang);
@@ -716,9 +724,16 @@ export async function getSkillDoc(id: string): Promise<SkillDoc | null> {
   cacheLife('days')
   cacheTag(`skill-${id}`, `skill-doc-${id}`)
 
-  const { data, error } = await supabasePublic
-    .from('skills')
-    .select('doc_markdown, doc_path, doc_source_url, doc_truncated, doc_fetched_at')
+  // Gated too, though it is only ever reached from an already-resolved skill
+  // page: a pending skill 404s before this runs. Defensive rather than
+  // load-bearing — an id-keyed read that skipped the filter is exactly the
+  // hole a future caller would fall into.
+  const { data, error } = await visibleOnly(
+    supabasePublic
+      .from('skills')
+      .select('doc_markdown, doc_path, doc_source_url, doc_truncated, doc_fetched_at'),
+    'skills',
+  )
     .eq('id', id)
     .single();
 
@@ -782,7 +797,7 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
   cacheTag('projects-list', `projects-list:${search ?? ''}:${lang}:${sort}`)
 
   // 'new' = most recent (default), 'top' = most upvoted, 'az' = alphabetical. Mirrors getThreads.
-  let query = supabasePublic.from('vibes').select('*');
+  let query = visibleOnly(supabasePublic.from('vibes').select('*'), 'vibes');
   if (sort === 'top') {
     query = query.order('upvotes', { ascending: false });
   } else if (sort === 'az') {
@@ -823,7 +838,7 @@ export async function getProjectById(id: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`project-${id}`, `project-${id}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('vibes').select('*').eq('id', id).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('vibes').select('*'), 'vibes').eq('id', id).single();
   if (error || !data) return null;
   return mapProject(data, lang);
 }
@@ -834,7 +849,7 @@ export async function getProjectBySlug(slug: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`project-slug-${slug}`, `project-slug-${slug}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('vibes').select('*').eq('slug', slug).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('vibes').select('*'), 'vibes').eq('slug', slug).single();
   if (error || !data) return null;
   cacheTag(`project-${data.id}`, `project-${data.id}:${lang}`)
   return mapProject(data, lang);
@@ -914,7 +929,7 @@ export async function getThreads({
 
   // 'top' = most upvoted (default), 'new' = most recent. Reddit-style sort tabs.
   const orderColumn = sort === 'new' ? 'created_at' : 'upvotes';
-  let query = supabasePublic.from('forum_threads').select('*').order(orderColumn, { ascending: false });
+  let query = visibleOnly(supabasePublic.from('forum_threads').select('*'), 'forum_threads').order(orderColumn, { ascending: false });
 
   if (category && category !== "All") {
     query = query.eq('category', category);
@@ -954,9 +969,10 @@ export async function getThreads({
   const threadIds = threads.map(t => t.id);
   if (threadIds.length === 0) return [];
 
-  const { data: replies, error: replyErr } = await supabasePublic
-    .from('forum_replies')
-    .select('*')
+  const { data: replies, error: replyErr } = await visibleOnly(
+    supabasePublic.from('forum_replies').select('*'),
+    'forum_replies',
+  )
     .in('thread_id', threadIds)
     .order('created_at', { ascending: true });
   if (replyErr) return [];
@@ -985,11 +1001,12 @@ export async function getThreadById(id: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`thread-${id}`, `thread-${id}:${lang}`)
 
-  const { data: thread, error } = await supabasePublic.from('forum_threads').select('*').eq('id', id).single();
+  const { data: thread, error } = await visibleOnly(supabasePublic.from('forum_threads').select('*'), 'forum_threads').eq('id', id).single();
   if (error || !thread) return null;
-  const { data: replies } = await supabasePublic
-    .from('forum_replies')
-    .select('*')
+  const { data: replies } = await visibleOnly(
+    supabasePublic.from('forum_replies').select('*'),
+    'forum_replies',
+  )
     .eq('thread_id', id)
     .order('created_at', { ascending: true });
   return mapThread(thread, replies || [], lang);
@@ -1090,6 +1107,10 @@ export async function upvoteReply(id: string, threadId?: string, actingAs?: Acti
 
 export async function createThread(title: string, author: string, category: ForumThread["category"], content: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
+  // Always 'approved' today: the forum's gate ships off (FORUM_GATE_ENABLED in
+  // lib/reviewGate.ts explains why). The column and this call are here so that
+  // turning the gate on is a one-line change with no schema work.
+  const reviewState = reviewStateForWrite('forum_threads', Boolean(actingAs));
 
   const newId = 't_' + Date.now();
   const { data, error } = await supabase.from('forum_threads').insert({
@@ -1102,6 +1123,7 @@ export async function createThread(title: string, author: string, category: Foru
     content_en: content,
     upvotes: 1,
     user_id: userId,
+    review_state: reviewState,
   }).select().single();
 
   if (error || !data) {
@@ -1109,16 +1131,21 @@ export async function createThread(title: string, author: string, category: Foru
     throw new Error('Kunne ikke oprette tråd');
   }
 
-  // Invalidate the threads list so the new thread appears on the next read.
-  revalidateTag('threads-list')
-  // First thread un-empties the hub: nav link, sitemap entry, robots index.
-  revalidateTag(HUB_EMPTINESS_TAG)
+  if (reviewState === 'approved') {
+    // Invalidate the threads list so the new thread appears on the next read.
+    revalidateTag('threads-list')
+    // First thread un-empties the hub: nav link, sitemap entry, robots index.
+    revalidateTag(HUB_EMPTINESS_TAG)
+  }
 
   return mapThread(data, [], 'da');
 }
 
 export async function addReply(threadId: string, author: string, content: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
+
+  // Always 'approved' today — see createThread.
+  const reviewState = reviewStateForWrite('forum_replies', Boolean(actingAs));
 
   const newId = 'r_' + Date.now();
   const { error } = await supabase.from('forum_replies').insert({
@@ -1128,6 +1155,7 @@ export async function addReply(threadId: string, author: string, content: string
     content_da: content,
     content_en: content,
     user_id: userId,
+    review_state: reviewState,
   });
 
   if (error) {
@@ -1135,14 +1163,18 @@ export async function addReply(threadId: string, author: string, content: string
     return null;
   }
 
-  // Invalidate the specific thread detail cache AND the broad threads-list tag
-  // so reply counts (embedded in thread list rows) are also refreshed.
-  revalidateTag('threads-list')
-  revalidateTag(`thread-${threadId}`)
+  if (reviewState === 'approved') {
+    // Invalidate the specific thread detail cache AND the broad threads-list tag
+    // so reply counts (embedded in thread list rows) are also refreshed.
+    revalidateTag('threads-list')
+    revalidateTag(`thread-${threadId}`)
+  }
 
-  // Return the parent thread populated with all replies
-  const { data: thread } = await supabasePublic.from('forum_threads').select('*').eq('id', threadId).single();
-  const { data: replies } = await supabasePublic.from('forum_replies').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+  // Return the parent thread populated with all replies. Gated the same way the
+  // public read is, so a pending reply is absent from the echoed thread rather
+  // than handed straight back to the author as though it were live.
+  const { data: thread } = await visibleOnly(supabasePublic.from('forum_threads').select('*'), 'forum_threads').eq('id', threadId).single();
+  const { data: replies } = await visibleOnly(supabasePublic.from('forum_replies').select('*'), 'forum_replies').eq('thread_id', threadId).order('created_at', { ascending: true });
 
   if (!thread) return null;
   return mapThread(thread, replies || [], 'da');
@@ -1153,7 +1185,7 @@ export async function getBlogPosts(lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag('blog-posts', `blog-posts:${lang}`)
 
-  const { data, error } = await supabasePublic.from('blog_posts').select('*');
+  const { data, error } = await visibleOnly(supabasePublic.from('blog_posts').select('*'), 'blog_posts');
   if (error || !data) return [];
   return data.map(b => mapBlogPost(b, lang));
 }
@@ -1163,7 +1195,7 @@ export async function getBlogPostById(id: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`blog-post-${id}`, `blog-post-${id}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('blog_posts').select('*').eq('id', id).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('blog_posts').select('*'), 'blog_posts').eq('id', id).single();
   if (error || !data) return null;
   return mapBlogPost(data, lang);
 }
@@ -1174,7 +1206,7 @@ export async function getAgents(search?: string, category?: string, lang: 'da' |
   // Both broad and variant-specific tags — see getSkills for rationale.
   cacheTag('agents-list', `agents-list:${category ?? 'all'}:${search ?? ''}:${lang}`)
 
-  let query = supabasePublic.from('agents').select('*').order('upvotes', { ascending: false });
+  let query = visibleOnly(supabasePublic.from('agents').select('*'), 'agents').order('upvotes', { ascending: false });
 
   // Hosts are connection targets, never catalog items — excluded from every
   // list, even when a category is explicitly requested (a 'Host' request
@@ -1234,7 +1266,7 @@ export async function getAgentById(id: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`agent-${id}`, `agent-${id}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('agents').select('*').eq('id', id).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('agents').select('*'), 'agents').eq('id', id).single();
   if (error || !data) return null;
   return mapAgent(data, lang);
 }
@@ -1252,7 +1284,7 @@ export async function getAgentBySlug(slug: string, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag(`agent-slug-${slug}`, `agent-slug-${slug}:${lang}`)
 
-  const { data, error } = await supabasePublic.from('agents').select('*').eq('slug', slug).single();
+  const { data, error } = await visibleOnly(supabasePublic.from('agents').select('*'), 'agents').eq('slug', slug).single();
   if (error || !data) return null;
   cacheTag(`agent-${data.id}`, `agent-${data.id}:${lang}`)
   return mapAgent(data, lang);
@@ -1299,6 +1331,7 @@ export async function upvoteAgent(id: string, actingAs?: ActingAs) {
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
+  const reviewState = reviewStateForWrite('vibes', Boolean(actingAs));
 
   const newId = 'p_' + Date.now();
   const { data, error } = await insertWithUniqueSlug<ShowcaseRow>(slugify(title), (slug) =>
@@ -1319,6 +1352,8 @@ export async function createProject(title: string, author: string, description: 
       github_url: githubUrl,
       image_url: imageUrl || '/images/autonewsletter.jpg',
       user_id: userId,
+      // See createSkill: bearer callers are held for review.
+      review_state: reviewState,
     }).select().single()
   );
 
@@ -1327,14 +1362,15 @@ export async function createProject(title: string, author: string, description: 
     throw new Error('Kunne ikke oprette projekt');
   }
 
-  // Invalidate the projects list so the new project appears on the next read.
-  revalidateTag('projects-list')
+  // Keyed on the written state, not on `actingAs` — see createSkill.
+  if (reviewState === 'approved') revalidateTag('projects-list')
 
   return mapProject(data, 'da');
 }
 
 export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
+  const reviewState = reviewStateForWrite('skills', Boolean(actingAs));
 
   const newId = 's_' + Date.now();
   const { data, error } = await insertWithUniqueSlug<SkillRow>(slugify(title), (slug) =>
@@ -1356,6 +1392,10 @@ export async function createSkill(title: string, vibeCoder: string, description:
       github_url: githubUrl,
       source,
       user_id: userId,
+      // Bearer-token callers are held for review; cookie sessions publish
+      // directly. `actingAs` is set only on the bearer path — see
+      // reviewStateForWrite and resolveRequestIdentity.
+      review_state: reviewState,
     }).select().single()
   );
 
@@ -1364,8 +1404,18 @@ export async function createSkill(title: string, vibeCoder: string, description:
     throw new Error('Kunne ikke oprette skill');
   }
 
-  // Invalidate the skills list so the new skill appears on the next read.
-  revalidateTag('skills-list')
+  // Keyed on the written state, NOT on `actingAs`. A pending row is invisible
+  // to every gated read, so revalidating would dump the whole skills cache to
+  // surface nothing. But the two conditions are not interchangeable: when a
+  // table's gate is off (the forum today) a bearer write publishes immediately
+  // and MUST revalidate, so testing `actingAs` here would break the forum the
+  // day someone flips FORUM_GATE_ENABLED.
+  //
+  // Approval revalidates instead, via POST /api/revalidate — the approve job
+  // runs in GitHub Actions, outside the Next runtime, and cannot call
+  // revalidateTag itself (the constraint getSkillDoc documents for the doc
+  // refresher).
+  if (reviewState === 'approved') revalidateTag('skills-list')
 
   return mapSkill(data, 'da');
 }
@@ -1420,6 +1470,7 @@ export async function deleteReply(threadId: string, replyId: string) {
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
+  const reviewState = reviewStateForWrite('agents', Boolean(actingAs));
 
   const newId = 'a_' + Date.now();
   // Slugged from `name` — agents have no bilingual title column.
@@ -1440,6 +1491,8 @@ export async function createAgent(name: string, developer: string, category: Age
       tags,
       source_url: sourceUrl || null,
       user_id: userId,
+      // See createSkill: bearer callers are held for review.
+      review_state: reviewState,
     }).select().single()
   );
 
@@ -1448,8 +1501,8 @@ export async function createAgent(name: string, developer: string, category: Age
     throw new Error('Kunne ikke oprette agent');
   }
 
-  // Invalidate the agents list so the new agent appears on the next read.
-  revalidateTag('agents-list')
+  // Keyed on the written state, not on `actingAs` — see createSkill.
+  if (reviewState === 'approved') revalidateTag('agents-list')
 
   return mapAgent(data, 'da');
 }
@@ -1466,6 +1519,7 @@ export async function createBlogPost(
   actingAs?: ActingAs
 ) {
   const { supabase, userId } = await resolveActor(actingAs);
+  const reviewState = reviewStateForWrite('blog_posts', Boolean(actingAs));
 
   const newId = 'b_' + Date.now();
   const { data, error } = await supabase.from('blog_posts').insert({
@@ -1482,6 +1536,8 @@ export async function createBlogPost(
     image_url: imageUrl,
     category,
     user_id: userId,
+    // See createSkill: bearer callers are held for review.
+    review_state: reviewState,
   }).select().single();
 
   if (error || !data) {
@@ -1489,10 +1545,16 @@ export async function createBlogPost(
     throw new Error('Kunne ikke oprette blogindlæg');
   }
 
-  // Invalidate the blog posts list so the new post appears on the next read.
-  revalidateTag('blog-posts')
-  // First post un-empties the hub: nav link, sitemap entry, robots index.
-  revalidateTag(HUB_EMPTINESS_TAG)
+  // Both tags are skipped for a pending post, and HUB_EMPTINESS_TAG especially:
+  // countRealBlogPosts now discounts pending rows, so revalidating it would
+  // re-run the count and get the same answer, and a queued post must not
+  // un-hide /blog before a human has approved it. Keyed on the written state
+  // rather than on `actingAs` — see createSkill.
+  if (reviewState === 'approved') {
+    revalidateTag('blog-posts')
+    // First post un-empties the hub: nav link, sitemap entry, robots index.
+    revalidateTag(HUB_EMPTINESS_TAG)
+  }
 
   return mapBlogPost(data, 'da');
 }
@@ -1570,12 +1632,12 @@ export interface EntityCounts {
 export async function getCounts(): Promise<EntityCounts> {
   const head = { count: 'exact' as const, head: true };
   const [skills, vibes, threads, agents] = await Promise.all([
-    supabasePublic.from('skills').select('*', head),
-    supabasePublic.from('vibes').select('*', head),
-    supabasePublic.from('forum_threads').select('*', head),
+    visibleOnly(supabasePublic.from('skills').select('*', head), 'skills'),
+    visibleOnly(supabasePublic.from('vibes').select('*', head), 'vibes'),
+    visibleOnly(supabasePublic.from('forum_threads').select('*', head), 'forum_threads'),
     // The CLI feed count excludes MCP servers (own surface) and hosts
     // (connection targets, not catalog items).
-    supabasePublic.from('agents').select('*', head).neq('category', 'MCP Server').neq('category', 'Host'),
+    visibleOnly(supabasePublic.from('agents').select('*', head), 'agents').neq('category', 'MCP Server').neq('category', 'Host'),
   ]);
 
   return {
@@ -1591,9 +1653,7 @@ export async function getTopProjects(limit = 1, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag('projects-list', `top-projects:${limit}:${lang}`)
 
-  const { data, error } = await supabasePublic
-    .from('vibes')
-    .select('*')
+  const { data, error } = await visibleOnly(supabasePublic.from('vibes').select('*'), 'vibes')
     .order('upvotes', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
@@ -1608,9 +1668,7 @@ export async function getTopSkills(limit = 1, lang: 'da' | 'en' = 'da') {
   // Homepage feature spot: showcase the Danish catalog, ranked by upvotes.
   // (Previously ordered by the legacy rating column, which is no longer
   // rendered and identical across real rows.)
-  const { data, error } = await supabasePublic
-    .from('skills')
-    .select('*')
+  const { data, error } = await visibleOnly(supabasePublic.from('skills').select('*'), 'skills')
     .eq('is_danish', true)
     .order('upvotes', { ascending: false })
     .limit(limit);
@@ -1623,9 +1681,7 @@ export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
   cacheLife('max')
   cacheTag('agents-list', `top-agents:${limit}:${lang}`)
 
-  const { data, error } = await supabasePublic
-    .from('agents')
-    .select('*')
+  const { data, error } = await visibleOnly(supabasePublic.from('agents').select('*'), 'agents')
     .neq('category', 'MCP Server')
     .neq('category', 'Host')
     .order('upvotes', { ascending: false })
@@ -1635,9 +1691,7 @@ export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
 }
 
 export async function getLatestPosts(limit = 1, lang: 'da' | 'en' = 'da') {
-  const { data, error } = await supabasePublic
-    .from('blog_posts')
-    .select('*')
+  const { data, error } = await visibleOnly(supabasePublic.from('blog_posts').select('*'), 'blog_posts')
     .order('published_at', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
@@ -1690,19 +1744,19 @@ export async function getFeedItems(opts: {
 
   const wantAgents = types.includes('mcp') || types.includes('cli');
 
-  let skillsQuery = supabasePublic.from('skills').select('id, slug, title_da, title_en, description_da, description_en, tags').order('id', { ascending: false }).limit(limit);
+  let skillsQuery = visibleOnly(supabasePublic.from('skills').select('id, slug, title_da, title_en, description_da, description_en, tags'), 'skills').order('id', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (s_ + ms)
     skillsQuery = skillsQuery.gt('id', 's_' + sinceMs);
   }
 
-  let agentsQuery = supabasePublic.from('agents').select('id, slug, name, category, description_da, description_en, tags').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit);
+  let agentsQuery = visibleOnly(supabasePublic.from('agents').select('id, slug, name, category, description_da, description_en, tags'), 'agents').in('category', ['CLI', 'MCP Server']).order('id', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using lexicographical comparison on prefixed ID (a_ + ms)
     agentsQuery = agentsQuery.gt('id', 'a_' + sinceMs);
   }
 
-  let vibesQuery = supabasePublic.from('vibes').select('id, slug, title_da, title_en, description_da, description_en, tools, created_at').order('created_at', { ascending: false }).limit(limit);
+  let vibesQuery = visibleOnly(supabasePublic.from('vibes').select('id, slug, title_da, title_en, description_da, description_en, tools, created_at'), 'vibes').order('created_at', { ascending: false }).limit(limit);
   if (!Number.isNaN(sinceMs)) {
     // Bolt Optimization ⚡: Filter at database-level using real created_at timestamp column
     vibesQuery = vibesQuery.gt('created_at', new Date(sinceMs).toISOString());

@@ -35,42 +35,77 @@
           "response_fields": ["access_token", "token_type", "expires_in"]
         }
       },
+      "review_policy": {
+        "summary": "Catalog and blog submissions are queued for human review before publication. Forum posts are not.",
+        "reviewed_response": "202 Accepted, body {\"status\":\"pending\",\"id\":\"...\",\"message\":\"...\",\"moreInfo\":\"...\"} — not the created entry",
+        "visibility_while_pending": "none — absent from hub pages, /api routes, MCP tools, /api/feed, /feed.xml and the sitemap",
+        "decided_by": "a human, in a GitHub pull request, usually within a day",
+        "on_rejection": "the submission is deleted",
+        "status_polling": "none — re-read the content route to see whether it was approved"
+      },
       "write_endpoints": {
         "/api/skills": {
           "description": "Share a new AI skill",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["title", "category", "githubUrl"]
+          "required_fields": ["title", "category", "githubUrl"],
+          "reviewed": true,
+          "success_status": 202
         },
         "/api/vibes": {
           "description": "Submit a vibe-coded project",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["title", "description", "demoUrl"]
+          "required_fields": ["title", "description", "demoUrl"],
+          "reviewed": true,
+          "success_status": 202
         },
         "/api/agents": {
           "description": "Register a CLI tool or MCP server (category: 'CLI' or 'MCP Server')",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["name", "category", "description"]
+          "required_fields": ["name", "category", "description"],
+          "reviewed": true,
+          "success_status": 202
         },
         "/api/forum": {
           "description": "Create a new forum discussion",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["title", "category", "content"]
+          "required_fields": ["title", "category", "content"],
+          "reviewed": false,
+          "success_status": 201
         },
         "/api/forum/{id}/replies": {
           "description": "Reply to a forum thread",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["content"]
+          "required_fields": ["content"],
+          "reviewed": false,
+          "success_status": 201
         },
         "/api/blog": {
           "description": "Submit a blog post",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
-          "required_fields": ["title", "excerpt", "content", "readTime", "publishedAt", "imageUrl", "category"]
+          "required_fields": ["title", "excerpt", "content", "readTime", "publishedAt", "imageUrl", "category"],
+          "reviewed": true,
+          "success_status": 202
+        },
+        "/api/skills/{id}/upvote": {
+          "description": "Upvote a skill",
+          "method": "POST",
+          "auth": "Authorization: Bearer <access_token>"
+        },
+        "/api/vibes/{id}/upvote": {
+          "description": "Upvote a showcase project",
+          "method": "POST",
+          "auth": "Authorization: Bearer <access_token>"
+        },
+        "/api/agents/{id}/upvote": {
+          "description": "Upvote a CLI tool or MCP server",
+          "method": "POST",
+          "auth": "Authorization: Bearer <access_token>"
         },
         "/api/forum/{id}/upvote": {
           "description": "Upvote a forum thread",

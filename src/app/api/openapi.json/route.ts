@@ -18,6 +18,15 @@ import { BLOG_CATEGORIES } from "@/lib/blogCategories";
 const DESCRIPTION_DA_DOC =
   "Danish translation of `description`. Optional: omit it (or send an empty string) and the entry falls back to the English original when rendered. Do NOT send the English text here — send nothing.";
 
+/**
+ * Attached to every reviewed submit route. Spelled out per route rather than
+ * left to the top-level description because an agent reading this document
+ * usually reads one operation, and "your submission is not live" is not
+ * something it can afford to miss.
+ */
+const REVIEW_DOC =
+  "REVIEWED BEFORE PUBLICATION. A submission from an `Authorization: Bearer` caller is queued, not published: it returns 202 with a pending receipt instead of 201 with the entry, and it is absent from every read surface (this route's own GET, the hub pages, the MCP search tools, /api/feed, /feed.xml and the sitemap) until a human approves it in a GitHub pull request — usually within a day. Rejected submissions are deleted. There is no status endpoint; re-read this route's GET later to see whether it was approved. Submissions made with a browser session cookie through the site's own forms are published immediately.";
+
 const OPENAPI_DOCUMENT = {
   openapi: "3.1.0",
   info: {
@@ -55,6 +64,24 @@ const OPENAPI_DOCUMENT = {
       Forbidden: {
         description: "Honeypot field was filled — request rejected as likely automated spam.",
         content: { "application/json": { schema: { type: "object", properties: { error: { type: "string" } } } } },
+      },
+      SubmissionQueued: {
+        description:
+          "Accepted and queued for human review. The submission is NOT public and will not appear on any read surface until it is approved. Deliberately not the created entry — there is no published entry to return.",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "id", "message"],
+              properties: {
+                status: { type: "string", enum: ["pending"] },
+                id: { type: "string", description: "The queued row's id, for correlating with the eventual publication." },
+                message: { type: "string" },
+                moreInfo: { type: "string", format: "uri" },
+              },
+            },
+          },
+        },
       },
       NotFound: {
         description: "The requested resource does not exist.",
@@ -153,6 +180,7 @@ const OPENAPI_DOCUMENT = {
       get: { summary: "List showcase projects", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "sort", in: "query", schema: { type: "string", enum: ["new", "top", "az"] } }], responses: { "200": { description: "OK" } } },
       post: {
         summary: "Submit a showcase project",
+        description: REVIEW_DOC,
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
@@ -175,7 +203,8 @@ const OPENAPI_DOCUMENT = {
           },
         },
         responses: {
-          "201": { description: "Created" },
+          "201": { description: "Created and published immediately — the caller authenticated with a browser session cookie, which is not subject to review." },
+          "202": { $ref: "#/components/responses/SubmissionQueued" },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": { $ref: "#/components/responses/Forbidden" },
@@ -188,6 +217,7 @@ const OPENAPI_DOCUMENT = {
       get: { summary: "List skills", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "category", in: "query", schema: { type: "string" } }, { name: "view", in: "query", schema: { type: "string", enum: ["danish", "hot", "trending"] } }], responses: { "200": { description: "OK" } } },
       post: {
         summary: "Submit a skill",
+        description: REVIEW_DOC,
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
@@ -209,7 +239,8 @@ const OPENAPI_DOCUMENT = {
           },
         },
         responses: {
-          "201": { description: "Created" },
+          "201": { description: "Created and published immediately — the caller authenticated with a browser session cookie, which is not subject to review." },
+          "202": { $ref: "#/components/responses/SubmissionQueued" },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": { $ref: "#/components/responses/Forbidden" },
@@ -222,6 +253,7 @@ const OPENAPI_DOCUMENT = {
       get: { summary: "List CLI tools, MCP servers, and hosts", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "category", in: "query", schema: { type: "string", enum: ["CLI", "MCP Server", "Host"] } }], responses: { "200": { description: "OK" } } },
       post: {
         summary: "Submit a CLI tool or MCP server",
+        description: REVIEW_DOC,
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
@@ -244,7 +276,8 @@ const OPENAPI_DOCUMENT = {
           },
         },
         responses: {
-          "201": { description: "Created" },
+          "201": { description: "Created and published immediately — the caller authenticated with a browser session cookie, which is not subject to review." },
+          "202": { $ref: "#/components/responses/SubmissionQueued" },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": { $ref: "#/components/responses/Forbidden" },
@@ -351,6 +384,7 @@ const OPENAPI_DOCUMENT = {
       get: { summary: "List or fetch blog posts", parameters: [{ name: "id", in: "query", schema: { type: "string" } }], responses: { "200": { description: "OK" }, "404": { $ref: "#/components/responses/NotFound" } } },
       post: {
         summary: "Submit a blog post",
+        description: REVIEW_DOC,
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
@@ -372,7 +406,8 @@ const OPENAPI_DOCUMENT = {
           },
         },
         responses: {
-          "201": { description: "Created" },
+          "201": { description: "Created and published immediately — the caller authenticated with a browser session cookie, which is not subject to review." },
+          "202": { $ref: "#/components/responses/SubmissionQueued" },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
           "403": { $ref: "#/components/responses/Forbidden" },

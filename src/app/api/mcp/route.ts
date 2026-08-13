@@ -16,6 +16,7 @@ import {
   type FeedItemType,
 } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { resolveAgentWriteLimit } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
@@ -178,7 +179,9 @@ const TOOLS = [
   },
   {
     name: "submit_skill",
-    description: "Indsend en ny skill til biblioteket. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description:
+      "Indsend en ny skill til biblioteket. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
       properties: {
@@ -194,7 +197,9 @@ const TOOLS = [
   },
   {
     name: "submit_project",
-    description: "Indsend et nyt vibe-projekt til showcase. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description:
+      "Indsend et nyt vibe-projekt til showcase. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
       properties: {
@@ -211,7 +216,9 @@ const TOOLS = [
   },
   {
     name: "submit_blog_post",
-    description: "Indsend et nyt blogindlæg. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description:
+      "Indsend et nyt blogindlæg. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
       properties: {
@@ -305,6 +312,10 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       const submitterUsername = username ?? "agent";
       const thread = await addReply(threadId, submitterUsername, content, actingAs);
       if (!thread) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
+      // Inert today — the forum's gate ships off. See POST /api/forum.
+      if (reviewStateForWrite("forum_replies", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(threadId));
+      }
       return textContent(thread);
     }
     case "submit_skill": {
@@ -325,6 +336,11 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         descriptionDa || undefined,
         actingAs
       );
+      // Held submissions return the pending body, not the entry — the MCP
+      // mirror of the REST 202. See pendingSubmissionBody.
+      if (reviewStateForWrite("skills", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(skill.id));
+      }
       return textContent(skill);
     }
     case "submit_project": {
@@ -346,6 +362,10 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         descriptionDa || undefined,
         actingAs
       );
+      // See submit_skill.
+      if (reviewStateForWrite("vibes", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(project.id));
+      }
       return textContent(project);
     }
     case "submit_blog_post": {
@@ -366,6 +386,10 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         category,
         actingAs
       );
+      // See submit_skill.
+      if (reviewStateForWrite("blog_posts", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(post.id));
+      }
       return textContent(post);
     }
     case "search_skills":

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getThreads, createThread } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
@@ -61,6 +62,14 @@ export async function POST(request: Request) {
     const { title, category, content } = result.data;
 
     const thread = await createThread(title, user.username, category, content, actingAs);
+    // Inert today — the forum's gate ships off, so this branch is never taken
+    // (FORUM_GATE_ENABLED in lib/reviewGate.ts). Present so that turning the
+    // gate on flips the API contract with it, instead of leaving the forum
+    // returning 201 + the thread for a submission nobody can see.
+    if (reviewStateForWrite('forum_threads', Boolean(actingAs)) === 'pending') {
+      return NextResponse.json(pendingSubmissionBody(thread.id), { status: 202 });
+    }
+
     return NextResponse.json(thread, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });

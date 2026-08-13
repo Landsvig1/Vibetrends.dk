@@ -1,0 +1,171 @@
+name: Submission review
+
+# Turns each pending agent submission into its own pull request, so review
+# happens in GitHub's diff UI instead of in an admin page nobody opens.
+#
+# ONE PR PER SUBMISSION, not one batched PR per day. Merge and close give two
+# outcomes; a batch needs three, because "4 good and 1 spam" is the normal case.
+# With a batch you either approve the spam or reject the four, and the
+# workaround (drop the bad manifest from the branch, then merge) leaves that row
+# pending, so the next run picks it up and you re-review the same spam forever.
+# Per-submission PRs make merge=approve and close=reject exact. Volume is the
+# tradeoff and it is small: writes are capped at 20/hour per identity and
+# 200/hour site-wide, and MAX_PRS_PER_RUN below bounds the burst case.
+#
+# The merged manifests are not dead files. They are the curation ledger —
+# PRODUCT.md bets the positioning on "curated, never scraped", and a git history
+# of every accepted entry with a reviewer and a timestamp is that claim made
+# auditable. Rejected submissions leave no file.
+#
+# NOTIFICATION: opening the PR *is* the alert. GitHub already emails and pushes
+# on pull_request opened, which is why this runs on a short interval instead of
+# the app firing a webhook — that would put a GitHub token in the Vercel
+# environment and add a failure mode to the write path, to save ~15 minutes on a
+# queue nobody is waiting on. The stale sweep at the bottom covers the other
+# half: a PR opened and then not looked at.
+
+on:
+  schedule:
+    # Every 15 minutes, offset off the hour to dodge GitHub's cron congestion
+    # (jobs scheduled exactly on the hour are routinely delayed).
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+# Two overlapping runs would open duplicate PRs for the same pending row: the
+# second run's `gh pr list` check happens before the first run's PR exists.
+concurrency:
+  group: submission-review
+  cancel-in-progress: false
+
+jobs:
+  open-prs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Bounds the burst case. An agent that hits its hourly ceiling could queue
+      # 20 submissions; opening 20 PRs in one tick would bury everything else in
+      # the notification stream. The rest wait for the next run — they are not
+      # dropped, and the count is logged below so the backlog is never silent.
+      MAX_PRS_PER_RUN: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check DATABASE_URL is configured
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set — add it in repo Settings > Secrets."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Open a PR per pending submission
+        run: |
+          set -euo pipefail
+
+          node scripts/review-queue.mjs list > /tmp/pending.json
+          total=$(jq 'length' /tmp/pending.json)
+          echo "Pending submissions: $total"
+          if [ "$total" -eq 0 ]; then exit 0; fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          opened=0
+          for i in $(seq 0 $((total - 1))); do
+            table=$(jq -r ".[$i].table" /tmp/pending.json)
+            id=$(jq -r ".[$i].id"    /tmp/pending.json)
+            title=$(jq -r ".[$i].title" /tmp/pending.json)
+            path=$(jq -r ".[$i].path"  /tmp/pending.json)
+            branch="submission/$table/$id"
+
+            # The branch name is the dedup key, and it is derived from the row
+            # rather than tracked anywhere, so this stays stateless. Checking
+            # the remote (not just open PRs) also stops a PR that was closed and
+            # whose row somehow survived from being reopened on a loop.
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+              echo "· $table/$id already has branch $branch — skipping"
+              continue
+            fi
+
+            if [ "$opened" -ge "$MAX_PRS_PER_RUN" ]; then
+              echo "::notice::Reached MAX_PRS_PER_RUN ($MAX_PRS_PER_RUN). $((total - i)) submission(s) deferred to the next run."
+              break
+            fi
+
+            git checkout -q -b "$branch" origin/main
+            mkdir -p "$(dirname "$path")"
+            node scripts/review-queue.mjs manifest "$table" "$id" > "$path"
+            git add "$path"
+            git commit -q -m "submission: $table/$id"
+            git push -q origin "$branch"
+
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --label submission \
+              --title "Submission: $title" \
+              --body "$(cat <<EOF
+En agent har indsendt dette via API'et. Rækken ligger i Supabase som \`review_state = 'pending'\` og er ikke offentlig.
+
+- **Merge** = godkend. Rækken bliver synlig, og manifestet bliver stående som kurateringsspor.
+- **Luk uden merge** = afvis. Rækken slettes.
+
+Hele indholdet ligger i diffen — der er ingen detaljeside at slå op, fordi posten ikke er publiceret endnu.
+
+<sub>Åbnet af \`.github/workflows/submission-review.yml\`.</sub>
+EOF
+)"
+            opened=$((opened + 1))
+            git checkout -q --detach origin/main
+          done
+
+          echo "Opened $opened PR(s)."
+
+  # A PR that was opened and then not looked at is the failure the notification
+  # is supposed to prevent, and GitHub does not re-notify. This bumps anything
+  # untouched for 3 days, which also puts it in front of the bot-pr-review
+  # morning pass.
+  nudge-stale:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comment on submission PRs older than 3 days
+        run: |
+          set -euo pipefail
+
+          # Only once a day, at the 04:xx tick — this job shares the 15-minute
+          # schedule with open-prs, and an hourly nudge would be noise.
+          hour=$(date -u +%H)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$hour" != "04" ]; then
+            echo "Not the daily window (UTC hour $hour) — skipping."
+            exit 0
+          fi
+
+          cutoff=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh pr list --label submission --state open \
+            --json number,title,createdAt,updatedAt \
+            --jq ".[] | select(.updatedAt < \"$cutoff\") | .number" > /tmp/stale.txt || true
+
+          count=$(wc -l < /tmp/stale.txt | tr -d ' ')
+          echo "Stale submission PRs: $count"
+
+          while read -r number; do
+            [ -z "$number" ] && continue
+            gh pr comment "$number" --body \
+              "Dette bidrag har ventet på gennemsyn i over 3 dage. Merge for at godkende, luk for at afvise."
+          done < /tmp/stale.txt

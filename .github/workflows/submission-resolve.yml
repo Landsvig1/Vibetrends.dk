@@ -1,0 +1,83 @@
+name: Submission resolve
+
+# The other half of .github/workflows/submission-review.yml: turns the outcome
+# of a submission PR into a database change.
+#
+#   merged        -> approve: review_state = 'approved', then revalidate the
+#                    caches so the entry actually appears (the app caches lists
+#                    at cacheLife('max') = 30 days, and an Action cannot call
+#                    revalidateTag itself — hence POST /api/revalidate).
+#   closed unmerged -> reject: the pending row is DELETED.
+#
+# Runs on `pull_request_target` rather than `pull_request` because a
+# `pull_request` job on a closed PR gets no secrets and cannot reach the
+# database. `pull_request_target` runs in the context of the base repo, with
+# secrets, which is safe here for one specific reason: this workflow NEVER
+# checks out or executes the PR branch. It checks out main, and the only thing
+# it reads from the PR is the list of changed file paths, which are matched
+# against a strict `submissions/<table>/<id>.md` pattern and validated against a
+# hardcoded table allowlist in scripts/review-queue.mjs. Do not add a
+# `ref: ${{ github.event.pull_request.head.sha }}` to the checkout below.
+
+on:
+  pull_request_target:
+    types: [closed]
+
+# Serialize per PR — a merge fires once, but a re-run must not race itself.
+concurrency:
+  group: submission-resolve-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    # Only PRs this system opened. The label is applied at creation time by
+    # submission-review.yml; anything else closing is none of this job's
+    # business.
+    if: contains(github.event.pull_request.labels.*.name, 'submission')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+    steps:
+      # Base repo only — see the pull_request_target note above.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Collect the submission manifests this PR touched
+        run: |
+          set -euo pipefail
+          gh pr view "${{ github.event.pull_request.number }}" \
+            --json files --jq '.files[].path' \
+            | grep -E '^submissions/[a-z_]+/.+\.md$' > /tmp/paths.txt || true
+          echo "Manifest paths in this PR:"
+          cat /tmp/paths.txt || echo "(none)"
+
+      - name: Approve
+        if: github.event.pull_request.merged == true
+        run: node scripts/review-queue.mjs approve --paths-from /tmp/paths.txt
+
+      - name: Reject
+        if: github.event.pull_request.merged == false
+        run: node scripts/review-queue.mjs reject --paths-from /tmp/paths.txt
+
+      # The branch is the dedup key submission-review.yml checks before opening
+      # a PR. Left behind, an approved-then-somehow-still-pending row would
+      # never get a second PR; deleted, the system self-heals on the next tick.
+      - name: Delete the submission branch
+        if: always()
+        run: |
+          branch="${{ github.event.pull_request.head.ref }}"
+          case "$branch" in
+            submission/*) git push origin --delete "$branch" || true ;;
+            *) echo "Not a submission branch ($branch) — leaving it alone." ;;
+          esac

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getAgents, createAgent } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -93,6 +94,12 @@ export async function POST(request: Request) {
       descriptionDa || undefined,
       actingAs
     );
+
+    // See /api/skills: a held submission returns 202 + a pending body, never
+    // the entry, because the entry is not publicly readable yet.
+    if (reviewStateForWrite('agents', Boolean(actingAs)) === 'pending') {
+      return NextResponse.json(pendingSubmissionBody(agent.id), { status: 202 });
+    }
 
     return NextResponse.json(agent, { status: 201 });
   } catch {

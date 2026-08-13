@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
 import { skillSchema } from "@/lib/schemas";
 export { skillSchema };
@@ -65,6 +66,14 @@ export async function POST(request: Request) {
       descriptionDa || undefined,
       actingAs
     );
+
+    // 202 + a pending body rather than 201 + the entry when the submission was
+    // held: the row exists but is invisible to every public read, so echoing it
+    // back as though it were live would be a false statement to a caller that
+    // has no other way to find out. See pendingSubmissionBody.
+    if (reviewStateForWrite('skills', Boolean(actingAs)) === 'pending') {
+      return NextResponse.json(pendingSubmissionBody(newSkill.id), { status: 202 });
+    }
 
     return NextResponse.json(newSkill, { status: 201 });
   } catch (error) {
