@@ -7,21 +7,9 @@ import SkillTopicIndex from "./SkillTopicIndex";
 import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 import { countByCategory } from "@/lib/skillCategories";
 
-/**
- * Validates the `view` URL param to the four values the skills page supports.
- * "all" is the topic-cards view (no viewSkills grid).
- * Exported for unit testing.
- */
-export function getValidView(view: string | undefined): string {
-  if (
-    view === "danish" ||
-    view === "hot" ||
-    view === "trending" ||
-    view === "all"
-  )
-    return view;
-  return "danish";
-}
+/** Re-exported so the route's own tests and callers keep one import path; the
+ * implementation lives in lib so the client island can share it. */
+export { getValidView } from "@/lib/skillViews";
 
 /**
  * Outer server component — wraps the data-fetch layer in a Suspense boundary
@@ -47,9 +35,26 @@ export default async function SkillsPage({
  * every detail page in this codebase (skills/[id], agents/[id], etc. — see
  * KTD4 in docs/plans/2026-07-08-001-feat-site-wide-performance-seo-optimization-plan.md).
  *
- * Reads lang from cookie, calls the cached getSkills() twice:
- *   1. Full catalog (no view) — drives search and per-topic counts.
- *   2. View-specific board (danish/hot/trending) — the initial grid.
+ * Fetches every board this page can show, up front and concurrently:
+ *   1. Full catalog, unfiltered — the "Alle" board, the search corpus, the
+ *      per-topic counts, and the empty-state fallbacks.
+ *   2. The Dansk board.
+ *   3. The Trender board.
+ *   4. The search-filtered catalog, only when ?q= is set, and only to keep the
+ *      JSON-LD honest about what the page is actually listing.
+ *
+ * All four are `use cache` reads with cacheLife('max'), so fetching three
+ * boards instead of one costs a warm cache lookup rather than three queries.
+ * Buying all of them here is what lets the client switch tabs with no network
+ * round-trip, print a real count on every tab, and drop the refetch whose only
+ * failure handler was a console.error behind an unchanged grid.
+ *
+ * The catalog read is deliberately NOT filtered by ?q=. It used to be, which
+ * meant that on any URL carrying a search term the client island received an
+ * empty catalog — so the zero-results state lost its suggestions on exactly
+ * the URLs people share and reload. Search itself runs client-side in
+ * filterSkills(), against this list.
+ *
  * Builds JSON-LD server-side from real data (fixing the SEO gap where it was
  * previously built from client state that starts empty), then delegates all
  * interactivity to the client island.
@@ -62,39 +67,31 @@ export async function SkillsPageContent({
   searchParams: Promise<{ view?: string; q?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const view = getValidView(resolvedParams?.view);
+  // `?view=` is not read here any more: every board is fetched regardless, and
+  // the client island validates the param with the same getValidView().
   const search = resolvedParams?.q || undefined;
 
-  // Full catalog and the view-specific board are independent cached reads —
-  // fetch them concurrently rather than sequentially.
-  // When ?q= is present (human search box or ?format=json agent call), pass it
-  // through so both fetches and the JSON-LD reflect the filtered result.
-  const skillView = view !== "all" ? (view as SkillView) : undefined;
-  const [allSkills, initialViewSkills, unfilteredSkills] = await Promise.all([
-    // Drives client-side search and per-topic counts for the topic cards.
-    // No view arg → all skills ordered by upvotes (filtered by search if set).
-    getSkills(search, undefined, 'da'),
-    // Only fetched when the initial view is a board view, not the topic-cards
-    // "all" view (which uses the full catalog for counts).
-    skillView ? getSkills(search, undefined, 'da', skillView) : Promise.resolve([]),
-    // Counts for SkillTopicIndex, which describes the whole library and must
-    // not shrink to the current ?q=. Deliberately a separate read rather than
-    // reusing allSkills: that one has `search` applied. When no search is
-    // active this resolves to the same `use cache` entry, so the common path
-    // (and every crawler) pays nothing extra for it.
-    search ? getSkills(undefined, undefined, 'da') : Promise.resolve(null),
-  ]);
+  const [allSkills, danishSkills, trendingSkills, searchedSkills] =
+    await Promise.all([
+      getSkills(undefined, undefined, 'da'),
+      getSkills(undefined, undefined, 'da', 'danish' satisfies SkillView),
+      getSkills(undefined, undefined, 'da', 'trending' satisfies SkillView),
+      // JSON-LD only. When ?q= is present (human search box or ?format=json
+      // agent call) the page lists the filtered result, so the structured data
+      // has to say so rather than describing the whole catalog.
+      search ? getSkills(search, undefined, 'da') : Promise.resolve(null),
+    ]);
 
-  // Build JSON-LD server-side from the full catalog so crawlers see it in the
-  // initial response. Previously this was built from client state that starts
-  // empty — every crawler saw numberOfItems: 0.
+  // Build JSON-LD server-side from real rows so crawlers see it in the initial
+  // response. Previously this was built from client state that starts empty —
+  // every crawler saw numberOfItems: 0.
   const jsonLd = skillsListJsonLd(
-    allSkills,
+    searchedSkills ?? allSkills,
     "Skills-biblioteket",
     "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
   );
 
-  const topicCounts = countByCategory(unfilteredSkills ?? allSkills);
+  const topicCounts = countByCategory(allSkills);
 
   return (
     <>
@@ -105,7 +102,8 @@ export async function SkillsPageContent({
       <div className="space-y-12 sm:space-y-14">
         <SkillsExplorer
           initialAllSkills={allSkills}
-          initialViewSkills={initialViewSkills}
+          initialDanishSkills={danishSkills}
+          initialTrendingSkills={trendingSkills}
         />
         <SkillTopicIndex counts={topicCounts} />
         <AgentSurfaceStrip hub="skills" />

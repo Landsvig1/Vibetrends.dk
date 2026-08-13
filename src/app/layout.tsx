@@ -140,8 +140,16 @@ async function RootLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <NuqsAdapter>
+        {/* First stop in the tab order. Without it a keyboard user crossed ten
+            header controls, on every page, before reaching the content. */}
+        <a
+          href="#indhold"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-lg focus:bg-accent-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Spring til indhold
+        </a>
         <Header hiddenHrefs={hiddenHrefs} />
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <main id="indhold" className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <RouteTransitionProvider>{children}</RouteTransitionProvider>
         </main>
         <Footer />

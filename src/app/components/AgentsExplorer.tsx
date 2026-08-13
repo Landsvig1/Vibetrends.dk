@@ -299,12 +299,18 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           {viewTabs.map((tab) => {
             const Icon = tab.icon;
             return (
+              /* aria-pressed, 44px and no shadow: same board-tab contract as
+                 /skills and /vibes. The active board used to be marked by fill
+                 colour alone, which announces nothing, and the shadow was
+                 doing hierarchy work that DESIGN.md assigns to the fill. */
               <button
                 key={tab.value}
+                type="button"
                 onClick={() => setView(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                aria-pressed={view === tab.value && !searchActive}
+                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                   view === tab.value && !searchActive
-                    ? "bg-accent-primary text-white font-extrabold shadow-md"
+                    ? "bg-accent-primary text-white font-extrabold"
                     : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >

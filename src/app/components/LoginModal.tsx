@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { X, Mail, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
+import { useDialogKeyboard } from "./useDialogKeyboard";
 
 export default function LoginModal({ onClose }: { onClose: () => void }) {
   const { loginWithEmail, loginWithOAuth } = useAuth();
+  // Mounted only while open, so `open` is simply true for its whole life.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const { close } = useDialogKeyboard(true, dialogRef, onClose);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -40,9 +44,10 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Log ind" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-card-border bg-background p-6 shadow-2xl panel-in">
+      <div ref={dialogRef} className="relative w-full max-w-md rounded-xl border border-card-border bg-background p-6 shadow-2xl panel-in">
         <button
-          onClick={onClose}
+          type="button"
+          onClick={close}
           aria-label="Luk"
           className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
         >

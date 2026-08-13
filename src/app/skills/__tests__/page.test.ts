@@ -65,6 +65,7 @@ vi.mock("../loading", () => ({
 import { cookies } from "next/headers";
 import { getSkills } from "@/lib/db";
 import { SkillsPageContent, getValidView } from "../page";
+import { SKILL_BOARDS, DEFAULT_SKILL_BOARD } from "@/lib/skillViews";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
@@ -111,7 +112,11 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("getValidView", () => {
-  it("returns 'danish' for undefined", () => {
+  // The Danish default is a site-wide convention: /vibes, /cli, /mcp and
+  // /forum all open on the Danish board. This hub must not drift off it on
+  // its own — the "only 45 of 98 are on the default board" problem is solved
+  // by printing each board's count on its tab, not by reordering the boards.
+  it("defaults to 'danish', matching every other hub", () => {
     expect(getValidView(undefined)).toBe("danish");
   });
   it("returns 'danish' for unknown values", () => {
@@ -121,14 +126,25 @@ describe("getValidView", () => {
   it("returns 'danish' when given 'danish'", () => {
     expect(getValidView("danish")).toBe("danish");
   });
-  it("returns 'hot' when given 'hot'", () => {
-    expect(getValidView("hot")).toBe("hot");
-  });
   it("returns 'trending' when given 'trending'", () => {
     expect(getValidView("trending")).toBe("trending");
   });
   it("returns 'all' when given 'all'", () => {
     expect(getValidView("all")).toBe("all");
+  });
+  // 'hot' is a real getSkills board and stays on /api/skills and the MCP tool,
+  // but no tab on this page surfaces it: ?view=hot used to render rows with
+  // every tab reading inactive and no control to get back out of it.
+  it("folds the tab-less 'hot' board to the default", () => {
+    expect(getValidView("hot")).toBe("danish");
+  });
+});
+
+describe("SKILL_BOARDS — cross-hub consistency", () => {
+  it("orders the tabs Dansk first, then Alle, like /vibes and /cli", () => {
+    expect([...SKILL_BOARDS]).toEqual(["danish", "all", "trending"]);
+    expect(DEFAULT_SKILL_BOARD).toBe("danish");
+    expect(SKILL_BOARDS[0]).toBe(DEFAULT_SKILL_BOARD);
   });
 });
 
@@ -136,118 +152,65 @@ describe("getValidView", () => {
 // SkillsPageContent — data-fetch call contract
 // ---------------------------------------------------------------------------
 
-describe("SkillsPageContent — fetches with lang from cookie and validated view", () => {
-  it("calls getSkills with the lang from the vibe_lang cookie", async () => {
-    const skills = [makeSkill("s1", "Alpha Skill", "Alpha description here")];
-    getSkillsMock.mockResolvedValue(skills);
+describe("SkillsPageContent — data-fetch call contract", () => {
+  it("fetches the whole catalog plus both boards, unfiltered, regardless of ?view=", async () => {
+    getSkillsMock.mockResolvedValue([]);
 
     await SkillsPageContent({
       searchParams: Promise.resolve({ view: "danish" }),
     });
 
-    // First call: full catalog (no view)
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da", "danish");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da", "trending");
+    expect(getSkillsMock).toHaveBeenCalledTimes(3);
   });
 
-  it("defaults lang to 'da' when the cookie is absent", async () => {
-    cookiesMock.mockResolvedValue({
-      get: () => undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+  it("issues the same three reads on the default view", async () => {
     getSkillsMock.mockResolvedValue([]);
 
     await SkillsPageContent({ searchParams: Promise.resolve({}) });
 
+    expect(getSkillsMock).toHaveBeenCalledTimes(3);
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 
-  it("fetches view-specific board for 'danish' view (default)", async () => {
-    getSkillsMock.mockResolvedValue([]);
-
-    await SkillsPageContent({ searchParams: Promise.resolve({}) });
-
-    // Second call: view-specific board
-    expect(getSkillsMock).toHaveBeenCalledWith(
-      undefined,
-      undefined,
-      "da",
-      "danish"
-    );
-  });
-
-  it("fetches view-specific board for 'hot' view", async () => {
-    getSkillsMock.mockResolvedValue([]);
-
-    await SkillsPageContent({ searchParams: Promise.resolve({ view: "hot" }) });
-
-    expect(getSkillsMock).toHaveBeenCalledWith(
-      undefined,
-      undefined,
-      "da",
-      "hot"
-    );
-  });
-
-  it("fetches view-specific board for 'trending' view", async () => {
+  /**
+   * The catalog read must NOT carry ?q=. It used to, which meant the client
+   * island received an empty catalog on any URL with a search term — so the
+   * zero-results state lost its suggestions on exactly the URLs people share
+   * and reload. Search runs client-side in filterSkills() against this list.
+   */
+  it("never passes ?q= to the catalog read", async () => {
     getSkillsMock.mockResolvedValue([]);
 
     await SkillsPageContent({
-      searchParams: Promise.resolve({ view: "trending" }),
+      searchParams: Promise.resolve({ q: "react" }),
     });
 
-    expect(getSkillsMock).toHaveBeenCalledWith(
-      undefined,
-      undefined,
-      "da",
-      "trending"
-    );
-  });
-
-  it("does NOT fetch a view-specific board for 'all' (topic-cards view)", async () => {
-    getSkillsMock.mockResolvedValue([]);
-
-    await SkillsPageContent({ searchParams: Promise.resolve({ view: "all" }) });
-
-    // Only one call: the full catalog. No second view-specific call.
-    expect(getSkillsMock).toHaveBeenCalledTimes(1);
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
+    expect(getSkillsMock).not.toHaveBeenCalledWith("react", undefined, "da", "danish");
   });
 
-  it("falls back to 'danish' for an unrecognised view param value", async () => {
+  it("adds one search-filtered read when ?q= is set, for the JSON-LD only", async () => {
     getSkillsMock.mockResolvedValue([]);
 
     await SkillsPageContent({
-      searchParams: Promise.resolve({ view: "random" }),
+      searchParams: Promise.resolve({ q: "react" }),
     });
 
-    expect(getSkillsMock).toHaveBeenCalledWith(
-      undefined,
-      undefined,
-      "da",
-      "danish"
-    );
-  });
-
-  it("passes ?q= as search to getSkills for both full catalog and view board", async () => {
-    getSkillsMock.mockResolvedValue([]);
-
-    await SkillsPageContent({
-      searchParams: Promise.resolve({ q: "react", view: "hot" }),
-    });
-
-    // First call: full catalog with search
     expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "da");
-    // Second call: view board with search
-    expect(getSkillsMock).toHaveBeenCalledWith("react", undefined, "da", "hot");
+    expect(getSkillsMock).toHaveBeenCalledTimes(4);
   });
 
-  it("passes undefined search when q is empty string", async () => {
+  it("treats an empty q as no search, so no extra read is issued", async () => {
     getSkillsMock.mockResolvedValue([]);
 
     await SkillsPageContent({
       searchParams: Promise.resolve({ q: "" }),
     });
 
+    expect(getSkillsMock).toHaveBeenCalledTimes(3);
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 });
@@ -350,32 +313,54 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
     expect(explorerEl.props.initialAllSkills[1].title).toBe("Beta Skill");
   });
 
-  it("passes initialViewSkills for board views", async () => {
-    const viewSkills = [makeSkill("s1", "Danish Skill", "A danish skill here")];
-    getSkillsMock.mockResolvedValue(viewSkills);
+  /**
+   * Every board is handed over up front. That is what lets the client switch
+   * tabs with no network round-trip and print a real count on each tab; the
+   * page used to fetch a board per click, and the only failure handler was a
+   * console.error behind an unchanged grid.
+   */
+  it("passes each board as its own prop", async () => {
+    const danish = [makeSkill("s1", "Danish Skill", "A danish skill here")];
+    const trending = [makeSkill("s2", "Trending Skill", "A trending skill")];
+    const catalog = [...danish, ...trending, makeSkill("s3", "Other", "desc")];
+
+    getSkillsMock.mockImplementation(
+      async (_search?: string, _cat?: string, _lang?: string, view?: string) =>
+        view === "danish" ? danish : view === "trending" ? trending : catalog,
+    );
 
     const result = await SkillsPageContent({
-      searchParams: Promise.resolve({ view: "danish" }),
+      searchParams: Promise.resolve({}),
     });
 
     const explorerEl = getElementWithProp(result, "initialAllSkills");
 
-    expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
-    expect(explorerEl.props.initialViewSkills).toHaveLength(1);
-    expect(explorerEl.props.initialViewSkills[0].title).toBe("Danish Skill");
+    expect(explorerEl.props.initialAllSkills).toHaveLength(3);
+    expect(explorerEl.props.initialDanishSkills).toHaveLength(1);
+    expect(explorerEl.props.initialDanishSkills[0].title).toBe("Danish Skill");
+    expect(explorerEl.props.initialTrendingSkills).toHaveLength(1);
+    expect(explorerEl.props.initialTrendingSkills[0].title).toBe("Trending Skill");
   });
 
-  it("passes empty initialViewSkills for 'all' (topic-cards) view", async () => {
-    getSkillsMock.mockResolvedValue([makeSkill("s1", "Any", "Any skill desc")]);
+  it("hands the client the whole catalog even when ?q= is set", async () => {
+    const catalog = [
+      makeSkill("s1", "Alpha", "desc"),
+      makeSkill("s2", "Beta", "desc"),
+      makeSkill("s3", "Gamma", "desc"),
+    ];
+    getSkillsMock.mockImplementation(async (search?: string) =>
+      search === undefined ? catalog : [catalog[1]],
+    );
 
     const result = await SkillsPageContent({
-      searchParams: Promise.resolve({ view: "all" }),
+      searchParams: Promise.resolve({ q: "beta" }),
     });
 
     const explorerEl = getElementWithProp(result, "initialAllSkills");
 
-    expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
-    expect(explorerEl.props.initialViewSkills).toHaveLength(0);
+    // The search itself is applied client-side; the island needs the full list
+    // so the zero-results state can still offer a way back into it.
+    expect(explorerEl.props.initialAllSkills).toHaveLength(3);
   });
 
   it("passes empty arrays when there are no skills (not undefined)", async () => {
@@ -389,7 +374,8 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
 
     expect(Array.isArray(explorerEl.props.initialAllSkills)).toBe(true);
     expect(explorerEl.props.initialAllSkills).toHaveLength(0);
-    expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
+    expect(Array.isArray(explorerEl.props.initialDanishSkills)).toBe(true);
+    expect(Array.isArray(explorerEl.props.initialTrendingSkills)).toBe(true);
   });
 
 });
@@ -454,22 +440,7 @@ describe("SkillsPageContent — topic index", () => {
     });
 
     const { counts } = getElementWithProp(result, "counts").props;
-    const explorerEl = getElementWithProp(result, "initialAllSkills");
 
-    // The grid narrows to the hit; the topic index keeps describing the library.
-    expect(explorerEl.props.initialAllSkills).toHaveLength(1);
     expect(counts.frontend).toBe(3);
-  });
-
-  it("does not issue a second unfiltered read when no search is active", async () => {
-    getSkillsMock.mockResolvedValue([makeSkill("s1", "Alpha", "desc")]);
-
-    await SkillsPageContent({ searchParams: Promise.resolve({ view: "all" }) });
-
-    // "all" skips the board read, so the only call left is the catalog one.
-    // A second identical call here would mean the search branch had leaked
-    // into the common path that every crawler takes.
-    expect(getSkillsMock).toHaveBeenCalledTimes(1);
-    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
   });
 });
