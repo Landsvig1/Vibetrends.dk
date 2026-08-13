@@ -65,6 +65,13 @@ textarea:focus-visible,
 [role="button"]:focus-visible,
 [role="link"]:focus-visible {
   outline: 2px solid var(--accent-primary);
+  /* Explicit longhand, not decoration. The shorthand alone was computing to
+     currentColor, so the ring took the control's text color: on any Forest Ink
+     fill (the active board tab, every btn-primary) that meant a white ring
+     drawn at 4px offset, i.e. on the paper page background — 1.02:1, well
+     under the 3:1 that WCAG 2.2 SC 1.4.11 asks of a focus indicator. Forest
+     Ink on paper is 10.85:1 and reads on both surfaces. */
+  outline-color: var(--accent-primary);
   outline-offset: 4px;
 }
 

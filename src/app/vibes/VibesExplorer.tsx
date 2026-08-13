@@ -319,20 +319,26 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             const Icon = tab.icon;
             const isDisabled = tab.disabled;
             return (
+              /* aria-pressed, 44px and no shadow: same board-tab contract as
+                 /skills and /cli. The active board used to be marked by fill
+                 colour alone, which announces nothing, and the shadow was
+                 doing hierarchy work that DESIGN.md assigns to the fill. */
               <button
                 key={tab.value}
+                type="button"
                 disabled={isDisabled}
                 aria-disabled={isDisabled}
+                aria-pressed={view === tab.value && !searchActive}
                 onClick={() => {
                   if (!isDisabled) {
                     setView(tab.value);
                   }
                 }}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${
+                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${
                   isDisabled
                     ? "bg-background border border-card-border/40 text-text-secondary/40 cursor-not-allowed select-none opacity-50"
                     : view === tab.value && !searchActive
-                      ? "bg-accent-primary text-white font-extrabold shadow-md cursor-pointer"
+                      ? "bg-accent-primary text-white font-extrabold cursor-pointer"
                       : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground cursor-pointer"
                 }`}
               >
