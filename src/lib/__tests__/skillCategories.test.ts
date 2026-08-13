@@ -4,6 +4,7 @@ import {
   SKILL_CATEGORY_SLUGS,
   getSkillCategory,
   skillCategoryLabel,
+  countByCategory,
 } from "@/lib/skillCategories";
 
 describe("skillCategories taxonomy", () => {
@@ -64,5 +65,36 @@ describe("skillCategories taxonomy", () => {
     for (const old of oldSlugs) {
       expect(SKILL_CATEGORY_SLUGS as readonly string[]).not.toContain(old);
     }
+  });
+});
+
+describe("countByCategory", () => {
+  it("seeds every topic at zero so no topic link is dropped for want of a count", () => {
+    const counts = countByCategory([]);
+    expect(Object.keys(counts).sort()).toEqual([...SKILL_CATEGORY_SLUGS].sort());
+    expect(Object.values(counts).every((n) => n === 0)).toBe(true);
+  });
+
+  it("tallies skills into their own topic", () => {
+    const counts = countByCategory([
+      { category: "frontend" },
+      { category: "frontend" },
+      { category: "compliance" },
+    ]);
+    expect(counts.frontend).toBe(2);
+    expect(counts.compliance).toBe(1);
+    expect(counts["design-ux"]).toBe(0);
+  });
+
+  it("skips rows carrying a legacy category rather than inventing a bucket", () => {
+    const counts = countByCategory([
+      { category: "frontend" },
+      { category: "webshop" }, // retired slug still present on old rows
+    ]);
+    expect(counts.frontend).toBe(1);
+    expect(counts).not.toHaveProperty("webshop");
+    // Sums to less than the input length — the deliberate, documented outcome.
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    expect(total).toBe(1);
   });
 });
