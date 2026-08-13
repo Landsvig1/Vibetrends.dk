@@ -8,7 +8,10 @@ vi.mock("@/lib/db", () => ({
   parseSkillView: (v: unknown) => (v === "hot" || v === "trending" ? v : undefined),
   upvoteThread: vi.fn(async () => 5),
   upvoteReply: vi.fn(async () => 3),
-  addReply: vi.fn(async () => ({ id: "r1", threadId: "t1" })),
+  // Matches addReply's real shape: the parent thread plus the new reply's own
+  // id, which the pending receipt needs (a queued reply is filtered out of
+  // thread.replies, so its id is not recoverable from the thread).
+  addReply: vi.fn(async () => ({ thread: { id: "t1", replies: [] }, replyId: "r1" })),
   createSkill: vi.fn(async () => ({ id: "s2", title: "New Skill" })),
   createProject: vi.fn(async () => ({ id: "p2", title: "New Project" })),
   createBlogPost: vi.fn(async () => ({ id: "b1", title: "New Post" })),

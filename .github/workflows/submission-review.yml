@@ -68,6 +68,16 @@ jobs:
 
       - run: npm ci
 
+      # The label is load-bearing, not cosmetic: submission-resolve.yml gates
+      # its entire job on it, so a PR created without it merges without
+      # approving anything. Created here rather than assumed to exist, because
+      # `gh pr create --label` FAILS when the label is missing — and it fails
+      # after the branch push, so the dedup check would then skip that row
+      # forever and the submission would never be seen again. --force makes
+      # this idempotent.
+      - name: Ensure the submission label exists
+        run: gh label create submission --description "An agent submission awaiting review. Merge = approve, close = reject." --color 0e8a16 --force
+
       - name: Open a PR per pending submission
         run: |
           set -euo pipefail
@@ -81,6 +91,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           opened=0
+          skipped=0
           for i in $(seq 0 $((total - 1))); do
             table=$(jq -r ".[$i].table" /tmp/pending.json)
             id=$(jq -r ".[$i].id"    /tmp/pending.json)
@@ -94,11 +105,19 @@ jobs:
             # whose row somehow survived from being reopened on a loop.
             if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
               echo "· $table/$id already has branch $branch — skipping"
+              skipped=$((skipped + 1))
               continue
             fi
 
             if [ "$opened" -ge "$MAX_PRS_PER_RUN" ]; then
-              echo "::notice::Reached MAX_PRS_PER_RUN ($MAX_PRS_PER_RUN). $((total - i)) submission(s) deferred to the next run."
+              # `total - i` is exactly the rows not yet examined this run (rows
+              # skipped above sit at an index below i, so they are already
+              # excluded). Worded as "unreviewed" rather than "deferred"
+              # because some of them may already have an open PR and will be
+              # skipped rather than opened on the next tick — knowing which
+              # would mean running the remaining ls-remote checks purely to
+              # phrase a log line.
+              echo "::notice::Reached MAX_PRS_PER_RUN ($MAX_PRS_PER_RUN). $((total - i)) pending submission(s) still unreviewed; $skipped already had an open PR."
               break
             fi
 

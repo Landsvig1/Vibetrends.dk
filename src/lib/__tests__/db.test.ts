@@ -2054,6 +2054,32 @@ describe("U3 — addReply with actingAs", () => {
     expect((insert!.payload as Record<string, unknown>).user_id).toBe('bot-uid-456');
   });
 
+  // The pending receipt's contract defines `id` as the queued ROW's id, and a
+  // pending reply is filtered out of thread.replies — so the reply id has to
+  // come back from here or the caller gets handed the thread's id instead.
+  // Unreachable today (the forum's gate is off), but the branch exists so that
+  // flipping FORUM_GATE_ENABLED is correct rather than subtly wrong.
+  it("returns the new reply's own id alongside the thread", async () => {
+    const { actingAs } = makeActingAsMock('bot-uid-reply-id', (ops) =>
+      ops.method === 'insert' ? { data: null, error: null } : { data: [], error: null },
+    );
+    state.publicHandler = (ops) => {
+      if (ops.table === 'forum_threads') return {
+        data: { id: 't1', title_da: 'T', title_en: 'T', author: 'a', category: 'General', content_da: 'c', content_en: 'c', upvotes: 1, created_at: '2026-01-01' },
+        error: null,
+      };
+      return { data: [], error: null };
+    };
+
+    const added = await db.addReply('t1', 'testbot', 'Reply content text.', actingAs);
+
+    expect(added).not.toBeNull();
+    expect(added!.thread.id).toBe('t1');
+    expect(added!.replyId).toMatch(/^r_\d+$/);
+    // Specifically NOT the thread id — that was the bug.
+    expect(added!.replyId).not.toBe('t1');
+  });
+
   it("addReply with actingAs and invalid threadId still returns null on insert failure (existing contract)", async () => {
     const { actingAs } = makeActingAsMock('bot-uid-789', () => ({
       data: null,

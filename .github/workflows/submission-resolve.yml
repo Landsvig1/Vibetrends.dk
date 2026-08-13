@@ -36,7 +36,12 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'submission')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # write, not read: the last step deletes the submission branch, and a
+      # read-scoped token 403s on that push. The `|| true` there would swallow
+      # it, leaving the branch as a permanent dedup key — so a failed approve
+      # could never be re-queued, which is the opposite of the self-heal the
+      # deletion exists to provide.
+      contents: write
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

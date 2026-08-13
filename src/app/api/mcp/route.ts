@@ -310,13 +310,13 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       }
       const { content } = parsed.data;
       const submitterUsername = username ?? "agent";
-      const thread = await addReply(threadId, submitterUsername, content, actingAs);
-      if (!thread) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
+      const added = await addReply(threadId, submitterUsername, content, actingAs);
+      if (!added) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
       // Inert today — the forum's gate ships off. See POST /api/forum.
       if (reviewStateForWrite("forum_replies", Boolean(actingAs)) === "pending") {
-        return textContent(pendingSubmissionBody(threadId));
+        return textContent(pendingSubmissionBody(added.replyId));
       }
-      return textContent(thread);
+      return textContent(added.thread);
     }
     case "submit_skill": {
       const parsed = skillSchema.safeParse(args);

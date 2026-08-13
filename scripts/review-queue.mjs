@@ -146,24 +146,38 @@ async function connect() {
   const raw = process.env.DATABASE_URL;
   if (!raw) throw new Error('DATABASE_URL is not set');
 
-  const url = new URL(raw);
-  const projectRef = url.hostname.split('.')[1];
+  // Mirrors scripts/refresh-skill-docs.mjs exactly, including the conditional.
+  // The rewrite is applied ONLY when DATABASE_URL is the direct host form,
+  // because db.<ref>.supabase.co is IPv6-only and GitHub runners have no IPv6
+  // egress. If the secret is already a pooler URL, it is passed straight
+  // through: deriving a project ref from it unconditionally would produce
+  // `postgres.pooler` as the username and fail authentication with a
+  // thoroughly misleading error.
+  //
+  // ssl is mandatory either way. rejectUnauthorized:false still negotiates
+  // real TLS — it only skips chain validation, which Supabase's pooler cert
+  // fails against Node's default trust store. With no ssl option at all,
+  // node-postgres silently connects over plaintext and sends this password
+  // unencrypted (AGENTS.md).
+  let config = { connectionString: raw, ssl: { rejectUnauthorized: false } };
 
-  // The pooler, not the direct host: db.<ref>.supabase.co is IPv6-only and
-  // GitHub-hosted runners have no IPv6 egress (AGENTS.md documents the same
-  // fallback for local runs behind a broken IPv6 route).
-  const client = new Client({
-    host: 'aws-0-eu-west-1.pooler.supabase.com',
-    port: 5432,
-    user: `postgres.${projectRef}`,
-    password: url.password,
-    database: 'postgres',
-    // rejectUnauthorized:false still negotiates real TLS — it only skips chain
-    // validation, which Supabase's pooler cert fails against Node's default
-    // trust store. Without any ssl option node-postgres would silently connect
-    // in plaintext and send this password over the wire unencrypted.
-    ssl: { rejectUnauthorized: false },
-  });
+  const directHost = raw.match(/@db\.([a-z0-9-]+)\.supabase\.co/);
+  if (directHost) {
+    const url = new URL(raw);
+    config = {
+      host: 'aws-0-eu-west-1.pooler.supabase.com',
+      port: 5432,
+      user: `postgres.${directHost[1]}`,
+      // Decoded: URL.password returns the percent-encoded form, and a password
+      // containing an escaped character would otherwise be sent as the literal
+      // escape sequence.
+      password: decodeURIComponent(url.password),
+      database: 'postgres',
+      ssl: { rejectUnauthorized: false },
+    };
+  }
+
+  const client = new Client(config);
   await client.connect();
   return client;
 }
@@ -267,16 +281,25 @@ async function revalidate(tags) {
   }
   if (!tags.length) return;
 
-  const res = await fetch(`${base}/api/revalidate`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
-    body: JSON.stringify({ tags: [...new Set(tags)] }),
-  });
-  if (!res.ok) {
-    console.warn(`::warning::Revalidation failed (${res.status}). Rows are approved; the site will catch up on the next cache expiry or deploy.`);
-    return;
+  // try/catch, not just an !res.ok check: fetch REJECTS on DNS failure,
+  // connect timeout and TLS error. Uncaught, that propagates to main().catch
+  // and exits 1 — turning a successful approval (the UPDATE has already
+  // committed by this point) into a red job, which is the exact outcome this
+  // function's contract promises to avoid.
+  try {
+    const res = await fetch(`${base}/api/revalidate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ tags: [...new Set(tags)] }),
+    });
+    if (!res.ok) {
+      console.warn(`::warning::Revalidation failed (${res.status}). Rows are approved; the site will catch up on the next cache expiry or deploy.`);
+      return;
+    }
+    console.log(`Revalidated ${new Set(tags).size} tag(s).`);
+  } catch (err) {
+    console.warn(`::warning::Revalidation request failed (${err.message}). Rows are approved; the site will catch up on the next cache expiry or deploy.`);
   }
-  console.log(`Revalidated ${new Set(tags).size} tag(s).`);
 }
 
 async function approve(client, targets) {
@@ -323,7 +346,15 @@ function targetsFromPaths(paths) {
   for (const p of paths) {
     const m = p.trim().match(/^submissions\/([a-z_]+)\/(.+)\.md$/);
     if (!m) continue;
-    assertTable(m[1]);
+    // Skip, don't throw. The regex accepts any directory name, so a PR that
+    // also touches submissions/<something-else>/x.md — hand-created, or a
+    // table added to the workflow's grep before this map — would otherwise
+    // abort the whole resolve job and strand the legitimate manifests
+    // alongside it. Matches how a non-matching path is already handled.
+    if (!Object.hasOwn(TABLES, m[1])) {
+      console.warn(`::warning::Ignoring manifest for unknown table "${m[1]}": ${p.trim()}`);
+      continue;
+    }
     targets.push({ table: m[1], id: m[2] });
   }
   return targets;

@@ -1177,7 +1177,12 @@ export async function addReply(threadId: string, author: string, content: string
   const { data: replies } = await visibleOnly(supabasePublic.from('forum_replies').select('*'), 'forum_replies').eq('thread_id', threadId).order('created_at', { ascending: true });
 
   if (!thread) return null;
-  return mapThread(thread, replies || [], 'da');
+  // Returns the reply's own id alongside the thread. Callers need it for the
+  // pending receipt, whose contract defines `id` as the queued ROW's id — and
+  // a pending reply is filtered out of `replies` above, so it cannot be
+  // recovered from the thread. Handing back the thread id instead would give a
+  // queued caller an id that review-queue.mjs does not key on.
+  return { thread: mapThread(thread, replies || [], 'da'), replyId: newId };
 }
 
 export async function getBlogPosts(lang: 'da' | 'en' = 'da') {

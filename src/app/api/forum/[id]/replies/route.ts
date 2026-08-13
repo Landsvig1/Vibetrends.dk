@@ -33,19 +33,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const thread = await addReply(threadId, user.username, result.data.content, actingAs);
-    if (!thread) {
+    const added = await addReply(threadId, user.username, result.data.content, actingAs);
+    if (!added) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
     // Inert today — see POST /api/forum for why this branch exists anyway.
-    // `thread` is the parent thread, so the reply's own id isn't in hand here;
-    // the thread id is the useful correlation handle for a queued reply.
     if (reviewStateForWrite('forum_replies', Boolean(actingAs)) === 'pending') {
-      return NextResponse.json(pendingSubmissionBody(threadId), { status: 202 });
+      return NextResponse.json(pendingSubmissionBody(added.replyId), { status: 202 });
     }
 
-    return NextResponse.json(thread, { status: 201 });
+    return NextResponse.json(added.thread, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
