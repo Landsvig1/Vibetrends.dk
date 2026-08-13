@@ -50,7 +50,7 @@ docs/marketing/gtm-90-days.md
 next-env.d.ts
 .env
 
-# impeccable: machine-local hook wiring and detector caches.
+# impeccable: machine-local hook wiring, detector caches, and per-run output.
 # The design system itself — DESIGN.md, PRODUCT.md, .impeccable/design.json —
 # is committed.
 .claude/settings.local.json
@@ -59,3 +59,7 @@ next-env.d.ts
 .impeccable/hook.cache.json
 .impeccable/hook.pending.json
 .impeccable/config.local.json
+# Timestamped critique reports, one per audited file per run. Read them
+# locally, but they accumulate and describe a moment rather than the design
+# system, so they don't belong in history.
+.impeccable/critique/

@@ -4,36 +4,10 @@ import { getAgents, createAgent } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { z } from "zod";
+import { agentSchema } from "@/lib/schemas";
 
-// Exported for unit testing the submission contract (validation boundary).
-export const agentSchema = z.object({
-  name: z.string().min(1).max(100),
-  // Feed-worthy categories only — hosts are connection targets, not submittable
-  // catalog items (R2).
-  category: z.enum(["CLI", "MCP Server"]),
-  description: z.string().min(10).max(500),
-  // Danish translation of `description` — see skillSchema.descriptionDa in
-  // src/lib/schemas.ts. Omitted means null, which renders as the English.
-  descriptionDa: z.string().max(500).optional().or(z.literal("")),
-  // installCommand is rendered as a copyable "run this in your terminal"
-  // command by ConnectBlock, so reject shell metacharacters that would let a
-  // submitted row smuggle a command-chaining / substitution payload into a
-  // one-click copy. Legit install strings (npx/npm/pnpm/uvx ...) do not use them.
-  installCommand: z
-    .string()
-    .max(300)
-    .refine((s) => !/[;&|`$\n\r<>]/.test(s), {
-      message: "installCommand must not contain shell metacharacters (; & | ` $ < > or newlines)",
-    })
-    .optional(),
-  // Limit systemPrompt to 10000 characters to prevent database bloat/DoS.
-  systemPrompt: z.string().max(10000).optional(),
-  // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
-  tags: z.array(z.string().max(50)).max(10).optional(),
-  // Canonical repo/site for the tool (rendered as an outbound link).
-  sourceUrl: z.string().url().max(300).optional().or(z.literal("")),
-});
+// Re-exported for unit testing the submission contract (validation boundary).
+export { agentSchema };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
