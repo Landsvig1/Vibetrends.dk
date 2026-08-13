@@ -128,22 +128,30 @@ jobs:
             git commit -q -m "submission: $table/$id"
             git push -q origin "$branch"
 
+            # Body written to a file rather than an inline heredoc. A heredoc's
+            # body must start at column 0, which terminates this `run: |` block
+            # scalar and makes the whole workflow unparseable — GitHub then
+            # shows the file path instead of the workflow name and refuses
+            # workflow_dispatch. Everything here stays indented inside the
+            # block. Double quotes with escaped backticks, so the backticks are
+            # literal rather than command substitution.
+            {
+              echo "En agent har indsendt dette via API. Rækken ligger i Supabase som \`review_state = 'pending'\` og er ikke offentlig."
+              echo ""
+              echo "- **Merge** = godkend. Rækken bliver synlig, og manifestet bliver stående som kurateringsspor."
+              echo "- **Luk uden merge** = afvis. Rækken slettes."
+              echo ""
+              echo "Hele indholdet ligger i diffen. Der er ingen detaljeside at slå op, fordi posten ikke er publiceret endnu."
+              echo ""
+              echo "<sub>Åbnet af \`.github/workflows/submission-review.yml\`.</sub>"
+            } > /tmp/submission-pr-body.md
+
             gh pr create \
               --base main \
               --head "$branch" \
               --label submission \
               --title "Submission: $title" \
-              --body "$(cat <<EOF
-En agent har indsendt dette via API'et. Rækken ligger i Supabase som \`review_state = 'pending'\` og er ikke offentlig.
-
-- **Merge** = godkend. Rækken bliver synlig, og manifestet bliver stående som kurateringsspor.
-- **Luk uden merge** = afvis. Rækken slettes.
-
-Hele indholdet ligger i diffen — der er ingen detaljeside at slå op, fordi posten ikke er publiceret endnu.
-
-<sub>Åbnet af \`.github/workflows/submission-review.yml\`.</sub>
-EOF
-)"
+              --body-file /tmp/submission-pr-body.md
             opened=$((opened + 1))
             git checkout -q --detach origin/main
           done

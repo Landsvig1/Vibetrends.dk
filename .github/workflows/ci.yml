@@ -16,6 +16,32 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+
+      # Parse every workflow file. An unparseable workflow fails SILENTLY:
+      # GitHub keeps the old registered definition, shows the file path instead
+      # of the `name:`, refuses workflow_dispatch, and simply never runs the
+      # thing on its schedule. submission-review.yml shipped broken this way (a
+      # heredoc body at column 0 terminated a `run: |` block scalar) and every
+      # other check here was green, because nothing looks at these files.
+      - name: Validate workflow YAML
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+          bad = False
+          for f in sorted(glob.glob('.github/workflows/*.yml')):
+              try:
+                  doc = yaml.safe_load(open(f))
+              except Exception as e:
+                  print(f'::error file={f}::unparseable: {e}'); bad = True; continue
+              # `on:` parses as the boolean True in YAML 1.1 — check both.
+              if not doc.get('name'):
+                  print(f'::error file={f}::missing top-level name:'); bad = True
+              if not (doc.get('on') or doc.get(True)):
+                  print(f'::error file={f}::missing trigger block'); bad = True
+              print(f'ok {f}')
+          sys.exit(1 if bad else 0)
+          PY
+
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:unit
