@@ -69,7 +69,7 @@ function SkillCardComponent({
               {onDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onDelete(skill.id, e); }}
-                  aria-label={`Delete ${skill.title}`}
+                  aria-label={`Slet ${skill.title}`}
                   data-testid="skill-delete"
                   className="relative flex items-center justify-center p-1.5 rounded-lg bg-background border border-card-border hover:bg-accent-light hover:border-accent-primary/20 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
                 >
@@ -81,7 +81,7 @@ function SkillCardComponent({
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={(e) => { e.stopPropagation(); onUpvote(skill.id, e); }}
-                  aria-label={`Upvote ${skill.title}`}
+                  aria-label={`Stem på ${skill.title}`}
                   data-testid="skill-upvote"
                   className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
                 >
@@ -106,7 +106,11 @@ function SkillCardComponent({
             </div>
           </div>
 
-          <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
+          {/* title so the clamped tail is recoverable without opening the card. */}
+          <p
+            title={skill.description}
+            className="text-sm text-text-secondary leading-relaxed line-clamp-3"
+          >
             {skill.description}
           </p>
         </div>
@@ -129,28 +133,37 @@ function SkillCardComponent({
           <p className="text-[10px] text-text-secondary truncate mt-0.5">{skill.vibeCoderTitle}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/skills/${skill.slug}#connect`}
-            data-testid="skill-connect"
-            onClick={(e) => e.stopPropagation()}
-            className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
-          >
-            <Plug className="h-3.5 w-3.5" />
-            {connectLabel}
-          </Link>
+        {/* Connect carries the weight, GitHub does not.
+            These were two identical secondary buttons, and the GitHub one was
+            the wider of the pair — so the control that sends the reader off to
+            a README outranked the one that gets the skill into their agent.
+            Connectability is the whole bet (PRODUCT.md), and the off-ramp was
+            winning the card. The hover scale is gone with them: it was an
+            un-guarded transform sitting outside the reduced-motion override. */}
+        {/* py-2.5 on the GitHub link is hit area, not visual weight: as a bare
+            text link it was a 16px-tall target, under the 24px floor. */}
+        <div className="flex items-center gap-3">
           {skill.githubUrl && (
             <a
               href={skill.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground shadow-sm hover:scale-[1.02] transition cursor-pointer"
+              className="relative z-20 flex items-center gap-1.5 py-2.5 text-xs font-semibold text-text-secondary hover:text-accent-primary transition-colors cursor-pointer"
             >
               <GithubIcon className="h-3.5 w-3.5" />
               {githubLabel}
             </a>
           )}
+          <Link
+            href={`/skills/${skill.slug}#connect`}
+            data-testid="skill-connect"
+            onClick={(e) => e.stopPropagation()}
+            className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-primary cursor-pointer"
+          >
+            <Plug className="h-3.5 w-3.5" aria-hidden="true" />
+            {connectLabel}
+          </Link>
         </div>
       </div>
     </ListCard>

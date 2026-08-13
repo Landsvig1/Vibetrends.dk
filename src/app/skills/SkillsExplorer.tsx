@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryState, parseAsString } from "nuqs";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -12,15 +11,16 @@ import {
   X,
   Flag,
   TrendingUp,
-  ArrowRight,
+  Library,
 } from "lucide-react";
 import { Skill } from "@/lib/db";
-import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS, countByCategory } from "@/lib/skillCategories";
-import { TopicIcon } from "../components/TopicIcon";
+import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
+import { getValidView, DEFAULT_SKILL_BOARD, type SkillBoard } from "@/lib/skillViews";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
+import { useDialogKeyboard } from "../components/useDialogKeyboard";
 
 const LoginModal = dynamic(() => import("../components/LoginModal"), {
   ssr: false,
@@ -91,44 +91,45 @@ export async function executeUpvote(
 
 interface SkillsExplorerProps {
   initialAllSkills: Skill[];
-  initialViewSkills: Skill[];
+  initialDanishSkills: Skill[];
+  initialTrendingSkills: Skill[];
 }
 
 export default function SkillsExplorer({
   initialAllSkills,
-  initialViewSkills,
+  initialDanishSkills,
+  initialTrendingSkills,
 }: SkillsExplorerProps) {
-  // Full catalog — drives search and per-topic counts.
+  // Every board arrives from the server. Switching tabs is a state read, not a
+  // fetch: the page used to hit /api/skills on each tab click, whose only
+  // failure path was a console.error behind an unchanged grid, so a dropped
+  // request looked exactly like a tab that had loaded.
   const [allSkills, setAllSkills] = useState<Skill[]>(initialAllSkills);
-  // View-specific board — danish/hot/trending grid.
-  const [viewSkills, setViewSkills] = useState<Skill[]>(initialViewSkills);
+  const [danishSkills, setDanishSkills] = useState<Skill[]>(initialDanishSkills);
+  const [trendingSkills, setTrendingSkills] =
+    useState<Skill[]>(initialTrendingSkills);
 
-  // Mirrors `allSkills` and `viewSkills` so handleUpvote can read the current lists without
-  // depending on them — keeps handleUpvote's identity stable across upvotes
-  // so memoized SkillCard instances don't all re-render on every upvote.
+  // Mirrors the lists so handleUpvote can read them without depending on them —
+  // keeps handleUpvote's identity stable across upvotes so memoized SkillCard
+  // instances don't all re-render on every upvote.
   const allSkillsRef = useRef(allSkills);
-  const viewSkillsRef = useRef(viewSkills);
   useEffect(() => {
     allSkillsRef.current = allSkills;
   }, [allSkills]);
-  useEffect(() => {
-    viewSkillsRef.current = viewSkills;
-  }, [viewSkills]);
 
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
-  const [view, setView] = useQueryState(
+  const [rawView, setView] = useQueryState(
     "view",
-    parseAsString.withDefault("danish")
+    parseAsString.withDefault(DEFAULT_SKILL_BOARD)
   );
+  // Same validator the route uses, so an unknown or retired ?view= (e.g. the
+  // old ?view=hot) lands on a board that actually has a tab.
+  const view = getValidView(rawView);
   const { user } = useAuth();
 
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-
-  // In-flight view refetch loading affordance — keeps the current
-  // grid visible at reduced opacity rather than replacing it with a skeleton.
-  const [isRefetching, setIsRefetching] = useState(false);
 
   // Form states
   const [subTitle, setSubTitle] = useState("");
@@ -137,57 +138,24 @@ export default function SkillsExplorer({
   const [subTags, setSubTags] = useState("");
   const [subUrl, setSubUrl] = useState("");
 
-  // Skip the first mount fetch — the server already fetched with the initial
-  // view and passed real data as initialViewSkills. Only refetch when view
-  // actually changes post-mount.
-  const skipViewSkillsFetch = useRef(true);
-
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
 
-  // Refetch view-specific board when view changes post-mount.
-  useEffect(() => {
-    const isFirstMount = skipViewSkillsFetch.current;
-    skipViewSkillsFetch.current = false;
-    const isBoardView = view === "danish" || view === "hot" || view === "trending";
-    if (isFirstMount || !isBoardView) {
-      return;
-    }
-
-    setIsRefetching(true);
-    fetch(`/api/skills?view=${view}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        setViewSkills(data);
-        setIsRefetching(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching skills:", err);
-        setIsRefetching(false);
-      });
-  }, [view]);
-
-  // Per-topic counts from the full catalog (not the filtered board).
-  // Bolt Optimization ⚡: Wrap counts in useMemo to prevent redundant recalculation
-  // during active search typing, and compute in O(N + K) linear-time execution rather than O(K * N).
-  const counts = useMemo(() => countByCategory(allSkills), [allSkills]);
+  const boards: Record<SkillBoard, Skill[]> = useMemo(
+    () => ({ all: allSkills, danish: danishSkills, trending: trendingSkills }),
+    [allSkills, danishSkills, trendingSkills]
+  );
 
   const searchActive = search.trim() !== "";
 
-  // Search overrides the view. Otherwise danish/hot/trending render their
-  // board and "all" shows the topic cards.
+  // Search overrides the board.
   // ⚡ Optimization: Memoize the gridSkills computation to prevent redundant search matching
   // and array copying during active search typing or view changes.
-  const gridSkills = useMemo(() => {
-    return searchActive
-      ? filterSkills(allSkills, search)
-      : view === "danish" || view === "hot" || view === "trending"
-        ? viewSkills
-        : [];
-  }, [searchActive, allSkills, search, view, viewSkills]);
-
-  const showTopicCards = !searchActive && view === "all";
+  const gridSkills = useMemo(
+    () => (searchActive ? filterSkills(allSkills, search) : boards[view]),
+    [searchActive, allSkills, search, boards, view]
+  );
 
   /**
    * Cards rendered before the user asks for more. The grid used to render every
@@ -211,23 +179,54 @@ export default function SkillsExplorer({
   const shownSkills = gridSkills.slice(0, visibleCount);
   const hiddenCount = gridSkills.length - shownSkills.length;
 
+  /**
+   * Dansk first, then Alle, then this hub's third board — the same order and
+   * the same default as /vibes, /cli and /mcp. Don't reorder this hub alone.
+   *
+   * Each tab prints the size of the board behind it, which is the actual fix
+   * for the old problem: three bare labels plus one unlabeled count chip beside
+   * the heading (whose scope changed silently per tab) left no way to see that
+   * the default board holds 45 of a 98-entry library.
+   *
+   * The old "Emner" tab is gone. It rendered topic tiles that duplicate the
+   * SkillTopicIndex at the foot of this same page, and it put a taxonomy in a
+   * row of boards; "Alle" takes its slot, which is also where /vibes and /cli
+   * put theirs.
+   */
   const viewTabs: {
-    value: string;
+    value: SkillBoard;
     label: string;
-    icon: typeof Flag | null;
+    icon: typeof Flag;
+    count: number;
   }[] = [
-    {
-      value: "danish",
-      label: "Dansk",
-      icon: Flag,
-    },
-    { value: "all", label: "Emner", icon: null },
+    { value: "danish", label: "Dansk", icon: Flag, count: danishSkills.length },
+    { value: "all", label: "Alle", icon: Library, count: allSkills.length },
     {
       value: "trending",
       label: "Trender",
       icon: TrendingUp,
+      count: trendingSkills.length,
     },
   ];
+
+  const boardHeading =
+    view === "danish"
+      ? "Danske skills"
+      : view === "trending"
+        ? "Skills der trender"
+        : "Alle skills";
+
+  const clearSearch = () => setSearch(null);
+
+  /** A tab click is a request to see that board, so it also drops the search
+   * that would otherwise override it. The tabs used to be inert while a search
+   * was active: clicking one changed nothing, highlighted nothing, and said
+   * nothing. */
+  const selectView = (value: SkillBoard) => {
+    // null clears the param, so the default board keeps a clean /skills URL.
+    setView(value === DEFAULT_SKILL_BOARD ? null : value);
+    if (searchActive) clearSearch();
+  };
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
@@ -239,23 +238,26 @@ export default function SkillsExplorer({
       return;
     }
     // Save pre-click count so executeUpvote callbacks can roll back on failure.
+    // The catalog list is a superset of every board, so it always has the row.
     const prevCount =
-      allSkillsRef.current.find((s) => s.id === id)?.upvotes ??
-      viewSkillsRef.current.find((s) => s.id === id)?.upvotes ??
-      0;
+      allSkillsRef.current.find((s) => s.id === id)?.upvotes ?? 0;
     const optimistic = (list: Skill[]) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: prevCount + 1 } : s));
     const restore = (list: Skill[]) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: prevCount } : s));
     const applyCount = (list: Skill[], count: number) =>
       list.map((s) => (s.id === id ? { ...s, upvotes: count } : s));
+    // The same row can sit in more than one board, so every board gets the
+    // update — otherwise switching tabs after an upvote shows the old count.
+    const applyToBoards = (fn: (list: Skill[]) => Skill[]) => {
+      setAllSkills(fn);
+      setDanishSkills(fn);
+      setTrendingSkills(fn);
+    };
     await executeUpvote(id, `/api/skills/${id}/upvote`, pendingUpvoteIds.current, fetch, {
-      onOptimistic: () => { setAllSkills(optimistic); setViewSkills(optimistic); },
-      onSuccess: (count) => {
-        setAllSkills((prev) => applyCount(prev, count));
-        setViewSkills((prev) => applyCount(prev, count));
-      },
-      onRollback: () => { setAllSkills(restore); setViewSkills(restore); },
+      onOptimistic: () => applyToBoards(optimistic),
+      onSuccess: (count) => applyToBoards((prev) => applyCount(prev, count)),
+      onRollback: () => applyToBoards(restore),
       onAuthRequired: () => setLoginModalOpen(true),
     });
   }, [user]);
@@ -269,13 +271,23 @@ export default function SkillsExplorer({
     try {
       const res = await fetch(`/api/skills/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setAllSkills((prev) => prev.filter((s) => s.id !== id));
-        setViewSkills((prev) => prev.filter((s) => s.id !== id));
+        const drop = (prev: Skill[]) => prev.filter((s) => s.id !== id);
+        setAllSkills(drop);
+        setDanishSkills(drop);
+        setTrendingSkills(drop);
       }
     } catch (err) {
       console.error("Error deleting skill:", err);
     }
   }, []);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const { close: closeSubmit } = useDialogKeyboard(
+    submitOpen,
+    dialogRef,
+    useCallback(() => setSubmitOpen(false), []),
+  );
+  const openSubmit = () => setSubmitOpen(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,7 +313,7 @@ export default function SkillsExplorer({
         setSubmitSuccess(true);
         setTimeout(() => {
           setSubmitSuccess(false);
-          setSubmitOpen(false);
+          closeSubmit();
           setSubTitle("");
           setSubDesc("");
           setSubTags("");
@@ -318,30 +330,15 @@ export default function SkillsExplorer({
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-4 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
-              Skills-<span className="text-accent-primary">biblioteket</span>
-            </h1>
-            {/* Live count. Without it the grid gave no sense of how much is
-                here, which made a curated catalog read as an endless dump.
-                It describes the list directly below it, so it is the filtered
-                count, not the catalog total — showing the total above a
-                filtered grid puts two numbers that don't reconcile on one
-                screen. Hidden entirely on the Emner view, where the topic
-                tiles carry their own per-topic counts and a single number
-                above them would be a third, differently-scoped figure. */}
-            {!showTopicCards && (
-              <span className="px-2 py-0.5 text-xs font-mono rounded bg-background text-text-secondary border border-card-border">
-                {gridSkills.length}
-              </span>
-            )}
-          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+            Skills-<span className="text-accent-primary">biblioteket</span>
+          </h1>
           <p className="text-text-secondary max-w-2xl">
             AI-skills der virker. Verdens bedste, plus dem kun Danmark har. Gratis, open source og klar til din agent.
           </p>
         </div>
         <button
-          onClick={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
+          onClick={() => (user ? openSubmit() : setLoginModalOpen(true))}
           className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
         >
           <PlusCircle className="h-5 w-5" />
@@ -349,10 +346,11 @@ export default function SkillsExplorer({
         </button>
       </div>
 
-      {/* Search + view tabs. Sticky under the 64px header: the controls used to
-          scroll away after the first row, leaving no way to refine without
-          scrolling back to the top of a very long grid. */}
-      <div className="sticky top-16 z-30 -mx-4 px-4 py-3 bg-background/85 backdrop-blur-md border-b border-card-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Search + board tabs. Sticky under the header (64px tall plus its
+          hairline): the controls used to scroll away after the first row,
+          leaving no way to refine without scrolling back to the top of a very
+          long grid. */}
+      <div className="sticky top-[65px] z-30 -mx-4 px-4 py-3 bg-background/85 backdrop-blur-md border-b border-card-border flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-text-secondary"
@@ -363,75 +361,95 @@ export default function SkillsExplorer({
             aria-label="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
             placeholder="Søg efter kompetencer, fx 'Cursor', 'LangGraph'..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
+            onChange={(e) => setSearch(e.target.value || null)}
+            className="w-full pl-10 pr-11 py-2.5 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 focus:ring-1 focus:ring-accent-primary/30 transition text-sm"
           />
+          {/* The only way out of a search used to be select-all-delete. */}
+          {search !== "" && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              aria-label="Ryd søgning"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md text-text-secondary hover:bg-accent-light hover:text-foreground transition cursor-pointer"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2">
           {viewTabs.map((tab) => {
             const Icon = tab.icon;
+            const isActive = view === tab.value && !searchActive;
             return (
               <button
                 key={tab.value}
-                onClick={() => setView(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  view === tab.value && !searchActive
-                    ? "bg-accent-primary text-white font-extrabold shadow-md"
+                type="button"
+                onClick={() => selectView(tab.value)}
+                aria-pressed={isActive}
+                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  isActive
+                    ? "bg-accent-primary text-white font-extrabold"
                     : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 {tab.label}
+                <span
+                  className={`font-mono tabular-nums ${isActive ? "text-white/80" : "text-text-secondary"}`}
+                >
+                  {tab.count}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Topic cards (default "all" view) */}
-      {showTopicCards && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {SKILL_CATEGORIES.map((topic) => (
-            <Link
-              key={topic.slug}
-              href={`/skills/topic/${topic.slug}`}
-              className="group relative rounded-xl glass-card p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent-light text-accent-primary">
-                  <TopicIcon name={topic.icon} className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-mono text-text-secondary">
-                  {counts[topic.slug] ?? 0}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-foreground group-hover:text-accent-primary transition-colors">
-                  {topic.labelDa}
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {topic.descDa}
-                </p>
-              </div>
-              <span className="inline-flex items-center text-xs font-semibold text-accent-primary mt-auto">
-                Udforsk
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
+      {/* What the grid below is actually listing. The page used to carry a bare
+          number beside the heading whose scope changed silently per tab and
+          never reconciled with the topic totals further down. */}
+      <p aria-live="polite" className="-mt-4 text-sm text-text-secondary">
+        {searchActive ? (
+          <>
+            <span className="font-mono tabular-nums text-foreground">
+              {gridSkills.length}
+            </span>{" "}
+            {gridSkills.length === 1 ? "skill matcher" : "skills matcher"} “
+            {search.trim()}” af {allSkills.length} i biblioteket.
+          </>
+        ) : view === "all" ? (
+          <>
+            Hele biblioteket:{" "}
+            <span className="font-mono tabular-nums text-foreground">
+              {allSkills.length}
+            </span>{" "}
+            skills.
+          </>
+        ) : (
+          <>
+            <span className="font-mono tabular-nums text-foreground">
+              {gridSkills.length}
+            </span>{" "}
+            af {allSkills.length} skills{" "}
+            {view === "danish"
+              ? "er fra danske bidragydere."
+              : "trender lige nu."}
+          </>
+        )}
+      </p>
 
-      {/* Skill grid (search / Dansk / Trending) — opacity overlay during refetch */}
-      {!showTopicCards &&
-        (gridSkills.length > 0 ? (
+      {/* The grid's own heading. The document went straight from the h1 to the
+          twelve card h3s, so the outline read as if the cards hung off nothing.
+          It is not visible because the tabs already say which board is showing;
+          a screen reader has no equivalent of that visual state. */}
+      <h2 className="sr-only">{searchActive ? "Søgeresultater" : boardHeading}</h2>
+
+      {gridSkills.length > 0 ? (
           <>
           <motion.div
             layout
-            className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${
-              isRefetching ? "opacity-50 pointer-events-none" : ""
-            }`}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             <AnimatePresence mode="popLayout">
               {shownSkills.map((skill, index) => (
@@ -468,17 +486,42 @@ export default function SkillsExplorer({
           )}
           </>
         ) : (
+          /* Two different empty states. A search that found nothing needs a way
+             back to the catalog first; a board that is genuinely empty needs a
+             contribution. The suggestions come from the Trender board so the
+             "Trender lige nu" header names the same list the Trender tab does —
+             it used to be sliced from the catalog by upvotes, which is a
+             different set of rows under the same word. */
           <EmptyState
             icon={Briefcase}
-            title="Ingen skills matcher din søgning."
-            description="Prøv at søge efter noget andet eller nulstil filtre."
-            actionLabel="Del en Skill"
-            onAction={() => (user ? setSubmitOpen(true) : setLoginModalOpen(true))}
+            title={
+              searchActive
+                ? `Ingen skills matcher “${search.trim()}”.`
+                : "Der er ingen skills på denne liste endnu."
+            }
+            description={
+              searchActive
+                ? "Prøv et andet ord, eller ryd søgningen for at se hele biblioteket."
+                : "Kender du en, der hører til her? Del den, så ryger den i biblioteket."
+            }
+            actionLabel={searchActive ? "Ryd søgning" : "Del en Skill"}
+            actionIcon={searchActive ? X : undefined}
+            onAction={
+              searchActive
+                ? clearSearch
+                : () => (user ? openSubmit() : setLoginModalOpen(true))
+            }
+            secondaryActionLabel={searchActive ? "Del en Skill" : undefined}
+            onSecondaryAction={
+              searchActive
+                ? () => (user ? openSubmit() : setLoginModalOpen(true))
+                : undefined
+            }
             suggestions={
-              searchActive && initialAllSkills.length > 0
+              trendingSkills.length > 0
                 ? {
                     title: "Trender lige nu",
-                    items: initialAllSkills.slice(0, 3).map((s) => ({
+                    items: trendingSkills.slice(0, 3).map((s) => ({
                       id: s.id,
                       title: s.title,
                       href: `/skills/${s.slug}`,
@@ -487,7 +530,7 @@ export default function SkillsExplorer({
                 : undefined
             }
           />
-        ))}
+        )}
 
       {/* Submit Modal */}
       {submitOpen && (
@@ -497,10 +540,14 @@ export default function SkillsExplorer({
           aria-label="Del en Skill"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         >
-          <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
+          <div
+            ref={dialogRef}
+            className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in"
+          >
             {/* Close */}
             <button
-              onClick={() => setSubmitOpen(false)}
+              type="button"
+              onClick={closeSubmit}
               aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
@@ -543,10 +590,11 @@ export default function SkillsExplorer({
 
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">
+                    <label htmlFor="skill-title" className="text-xs font-semibold text-text-secondary">
                       Titel
                     </label>
                     <input
+                      id="skill-title"
                       required
                       value={subTitle}
                       onChange={(e) => setSubTitle(e.target.value)}
@@ -557,10 +605,11 @@ export default function SkillsExplorer({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">
+                      <label htmlFor="skill-category" className="text-xs font-semibold text-text-secondary">
                         Kategori
                       </label>
                       <select
+                        id="skill-category"
                         value={subCat}
                         onChange={(e) => setSubCat(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-background border border-card-border text-foreground focus:outline-none focus:border-accent-primary/30 text-sm"
@@ -573,10 +622,15 @@ export default function SkillsExplorer({
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-text-secondary">
-                        GitHub / Repo Link (valgfrit)
+                      {/* Labelled "(valgfrit)" over a required input until now:
+                          following the label blocked the submit. The submit
+                          schema requires a URL (src/lib/schemas.ts), so the
+                          label is what was wrong. */}
+                      <label htmlFor="skill-url" className="text-xs font-semibold text-text-secondary">
+                        GitHub / Repo-link
                       </label>
                       <input
+                        id="skill-url"
                         type="url"
                         required
                         value={subUrl}
@@ -588,10 +642,11 @@ export default function SkillsExplorer({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">
+                    <label htmlFor="skill-description" className="text-xs font-semibold text-text-secondary">
                       Beskrivelse
                     </label>
                     <textarea
+                      id="skill-description"
                       rows={3}
                       value={subDesc}
                       onChange={(e) => setSubDesc(e.target.value)}
@@ -601,10 +656,11 @@ export default function SkillsExplorer({
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-text-secondary">
+                    <label htmlFor="skill-tags" className="text-xs font-semibold text-text-secondary">
                       Tags (kommasepareret)
                     </label>
                     <input
+                      id="skill-tags"
                       value={subTags}
                       onChange={(e) => setSubTags(e.target.value)}
                       placeholder="fx Cursor, Supabase, Workflow"

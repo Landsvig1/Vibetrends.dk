@@ -22,6 +22,17 @@ interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Defaults to the plus, which is right for "add one" and wrong for anything
+   * else. Pass null when the primary action is not a contribution. */
+  actionIcon?: React.ElementType | null;
+  /**
+   * A second way out, rendered beside the primary one. A zero-results search
+   * has two genuinely useful next moves — get back to the full list, and add
+   * the thing that was missing — and making one of them the only button meant
+   * dropping the other.
+   */
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
   suggestions?: {
     title: string;
     items: EmptyStateSuggestion[];
@@ -34,6 +45,9 @@ export default function EmptyState({
   description,
   actionLabel,
   onAction,
+  actionIcon: ActionIcon = PlusCircle,
+  secondaryActionLabel,
+  onSecondaryAction,
   suggestions,
 }: EmptyStateProps) {
   return (
@@ -50,13 +64,25 @@ export default function EmptyState({
       </p>
 
       {onAction && actionLabel && (
-        <button
-          onClick={onAction}
-          className="btn-primary flex items-center gap-2 mb-10"
-        >
-          <PlusCircle className="h-4 w-4" />
-          {actionLabel}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
+          <button
+            type="button"
+            onClick={onAction}
+            className="btn-primary flex items-center gap-2"
+          >
+            {ActionIcon && <ActionIcon className="h-4 w-4" aria-hidden="true" />}
+            {actionLabel}
+          </button>
+          {onSecondaryAction && secondaryActionLabel && (
+            <button
+              type="button"
+              onClick={onSecondaryAction}
+              className="btn-secondary cursor-pointer"
+            >
+              {secondaryActionLabel}
+            </button>
+          )}
+        </div>
       )}
 
       {suggestions && suggestions.items.length > 0 && (
