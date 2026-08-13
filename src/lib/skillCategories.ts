@@ -122,6 +122,30 @@ export function getSkillCategory(slug: string): SkillCategory | undefined {
 }
 
 /**
+ * Count skills per topic slug, seeded so every one of the eight topics is
+ * present at 0 rather than absent. Rows carrying a legacy or unknown category
+ * are skipped, which is why the returned counts can sum to less than
+ * `skills.length` — that is a data condition to notice, not to paper over.
+ *
+ * Shared by the client explorer's topic cards and the server-rendered
+ * SkillTopicIndex so the two can never disagree about the same number.
+ */
+export function countByCategory(
+  skills: readonly { category: string }[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const topic of SKILL_CATEGORIES) {
+    counts[topic.slug] = 0;
+  }
+  for (const skill of skills) {
+    if (skill.category in counts) {
+      counts[skill.category]++;
+    }
+  }
+  return counts;
+}
+
+/**
  * Resolve a skill category slug to its localized label. Falls back to the raw
  * value so a legacy or unknown category never renders blank.
  */

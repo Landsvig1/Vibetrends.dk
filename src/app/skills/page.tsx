@@ -3,7 +3,9 @@ import { getSkills, SkillView } from "@/lib/db";
 import { jsonLdScript, skillsListJsonLd } from "@/lib/jsonLd";
 import SkillsLoading from "./loading";
 import SkillsExplorer from "./SkillsExplorer";
+import SkillTopicIndex from "./SkillTopicIndex";
 import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
+import { countByCategory } from "@/lib/skillCategories";
 
 /**
  * Validates the `view` URL param to the four values the skills page supports.
@@ -68,13 +70,19 @@ export async function SkillsPageContent({
   // When ?q= is present (human search box or ?format=json agent call), pass it
   // through so both fetches and the JSON-LD reflect the filtered result.
   const skillView = view !== "all" ? (view as SkillView) : undefined;
-  const [allSkills, initialViewSkills] = await Promise.all([
+  const [allSkills, initialViewSkills, unfilteredSkills] = await Promise.all([
     // Drives client-side search and per-topic counts for the topic cards.
     // No view arg → all skills ordered by upvotes (filtered by search if set).
     getSkills(search, undefined, 'da'),
     // Only fetched when the initial view is a board view, not the topic-cards
     // "all" view (which uses the full catalog for counts).
     skillView ? getSkills(search, undefined, 'da', skillView) : Promise.resolve([]),
+    // Counts for SkillTopicIndex, which describes the whole library and must
+    // not shrink to the current ?q=. Deliberately a separate read rather than
+    // reusing allSkills: that one has `search` applied. When no search is
+    // active this resolves to the same `use cache` entry, so the common path
+    // (and every crawler) pays nothing extra for it.
+    search ? getSkills(undefined, undefined, 'da') : Promise.resolve(null),
   ]);
 
   // Build JSON-LD server-side from the full catalog so crawlers see it in the
@@ -85,6 +93,8 @@ export async function SkillsPageContent({
     "Skills-biblioteket",
     "Et bibliotek af gratis AI-skills, workflows og scripts delt af det danske community.",
   );
+
+  const topicCounts = countByCategory(unfilteredSkills ?? allSkills);
 
   return (
     <>
@@ -97,6 +107,7 @@ export async function SkillsPageContent({
           initialAllSkills={allSkills}
           initialViewSkills={initialViewSkills}
         />
+        <SkillTopicIndex counts={topicCounts} />
         <AgentSurfaceStrip hub="skills" />
       </div>
     </>

@@ -65,6 +65,7 @@ vi.mock("../loading", () => ({
 import { cookies } from "next/headers";
 import { getSkills } from "@/lib/db";
 import { SkillsPageContent, getValidView } from "../page";
+import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
 // ---------------------------------------------------------------------------
@@ -391,4 +392,84 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
     expect(Array.isArray(explorerEl.props.initialViewSkills)).toBe(true);
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// SkillTopicIndex — the server-rendered crawl path to the topic pages
+// ---------------------------------------------------------------------------
+
+/**
+ * Regression guard for the two crawl holes found in the 2026-08-13 audit:
+ * the hub linked to none of the eight /skills/topic/* URLs (Google had never
+ * crawled one), and the explorer's 12-card cap left 86 of 98 skill detail
+ * pages reachable only via the sitemap. The topic index is the one hop that
+ * closes both, so it has to stay in the *server* tree — mocking it away or
+ * moving it inside the client island would silently reopen both holes.
+ */
+describe("SkillsPageContent — topic index", () => {
+  it("renders the topic index in the server tree, not the client island", async () => {
+    getSkillsMock.mockResolvedValue([makeSkill("s1", "Alpha", "desc")]);
+
+    const result = await SkillsPageContent({
+      searchParams: Promise.resolve({}),
+    });
+
+    // `counts` is SkillTopicIndex's identifying prop; the explorer has none.
+    expect(() => getElementWithProp(result, "counts")).not.toThrow();
+  });
+
+  it("counts every topic, including ones with no skills", async () => {
+    getSkillsMock.mockResolvedValue([
+      makeSkill("s1", "Alpha", "desc"),
+      makeSkill("s2", "Beta", "desc"),
+    ]);
+
+    const result = await SkillsPageContent({
+      searchParams: Promise.resolve({}),
+    });
+    const { counts } = getElementWithProp(result, "counts").props;
+
+    // makeSkill hardcodes category "frontend".
+    expect(counts.frontend).toBe(2);
+    // Every slug present at 0 rather than absent, so the link still renders.
+    expect(Object.keys(counts).sort()).toEqual([...SKILL_CATEGORY_SLUGS].sort());
+    expect(counts["backend-data"]).toBe(0);
+  });
+
+  it("counts the whole library, not the ?q= result, when a search is active", async () => {
+    const wholeLibrary = [
+      makeSkill("s1", "Alpha", "desc"),
+      makeSkill("s2", "Beta", "desc"),
+      makeSkill("s3", "Gamma", "desc"),
+    ];
+    const searchHit = [makeSkill("s2", "Beta", "desc")];
+
+    // Filtered read (search passed) vs unfiltered read (search undefined).
+    getSkillsMock.mockImplementation(async (search?: string) =>
+      search === undefined ? wholeLibrary : searchHit,
+    );
+
+    const result = await SkillsPageContent({
+      searchParams: Promise.resolve({ q: "beta" }),
+    });
+
+    const { counts } = getElementWithProp(result, "counts").props;
+    const explorerEl = getElementWithProp(result, "initialAllSkills");
+
+    // The grid narrows to the hit; the topic index keeps describing the library.
+    expect(explorerEl.props.initialAllSkills).toHaveLength(1);
+    expect(counts.frontend).toBe(3);
+  });
+
+  it("does not issue a second unfiltered read when no search is active", async () => {
+    getSkillsMock.mockResolvedValue([makeSkill("s1", "Alpha", "desc")]);
+
+    await SkillsPageContent({ searchParams: Promise.resolve({ view: "all" }) });
+
+    // "all" skips the board read, so the only call left is the catalog one.
+    // A second identical call here would mean the search branch had leaked
+    // into the common path that every crawler takes.
+    expect(getSkillsMock).toHaveBeenCalledTimes(1);
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
+  });
 });

@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Skill } from "@/lib/db";
-import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
+import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS, countByCategory } from "@/lib/skillCategories";
 import { TopicIcon } from "../components/TopicIcon";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
@@ -171,18 +171,7 @@ export default function SkillsExplorer({
   // Per-topic counts from the full catalog (not the filtered board).
   // Bolt Optimization ⚡: Wrap counts in useMemo to prevent redundant recalculation
   // during active search typing, and compute in O(N + K) linear-time execution rather than O(K * N).
-  const counts = useMemo(() => {
-    const acc: Record<string, number> = {};
-    for (const topic of SKILL_CATEGORIES) {
-      acc[topic.slug] = 0;
-    }
-    for (const skill of allSkills) {
-      if (skill.category in acc) {
-        acc[skill.category]++;
-      }
-    }
-    return acc;
-  }, [allSkills]);
+  const counts = useMemo(() => countByCategory(allSkills), [allSkills]);
 
   const searchActive = search.trim() !== "";
 
