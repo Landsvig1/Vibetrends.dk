@@ -4,14 +4,9 @@ import { getThreads, createThread } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
-import { z } from "zod";
-import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
+import { threadSchema } from "@/lib/schemas";
 
-const threadSchema = z.object({
-  title: z.string().min(1).max(200),
-  category: z.enum(FORUM_CATEGORY_KEYS),
-  content: z.string().min(10).max(5000),
-});
+export { threadSchema };
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

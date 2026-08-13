@@ -4,39 +4,49 @@ import {
   getProjects,
   getAgents,
   getCli,
+  getThreads,
   parseSkillView,
   upvoteThread,
   upvoteReply,
+  upvoteSkill,
+  upvoteProject,
+  upvoteAgent,
   createSkill,
   createProject,
+  createAgent,
+  createThread,
   addReply,
   createBlogPost,
   getFeedItems,
   type ActingAs,
   type FeedItemType,
 } from "@/lib/db";
-import { resolveRequestIdentity } from "@/lib/supabase-server";
+import { resolveRequestIdentity, supabasePublic } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
-import { resolveAgentWriteLimit } from "@/lib/rate-limit";
+import { resolveAgentWriteLimit, checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
-import { checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
-import { skillSchema, projectSchema, blogPostSchema, replySchema, formatZodError } from "@/lib/schemas";
+import { FORUM_CATEGORY_KEYS } from "@/lib/forumCategories";
+import {
+  skillSchema,
+  projectSchema,
+  agentSchema,
+  threadSchema,
+  blogPostSchema,
+  replySchema,
+  formatZodError,
+} from "@/lib/schemas";
 
 const RATE_LIMIT_LIMIT = 60;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP transport, POST).
- * Read-only tools (search_*, list_*) require no authentication. Write tools
- * (upvote_thread, upvote_reply, submit_skill, submit_project, reply_to_thread,
- * submit_blog_post) require an `Authorization: Bearer <access_token>` header
- * on the HTTP request, resolved via `resolveRequestIdentity()` — the same
- * bearer-token mechanism already used by /api/vibes, /api/skills, /api/forum,
- * and /api/blog. A token can come from a real Supabase session or from
- * `POST /api/agentauth` (self-service, no signup). See
- * docs/decisions/2026-06-19-agent-auth.md for the superseded original design.
+ * Read-only tools (search_*, list_*) require no authentication.
+ * Write tools require authentication via `authToken` parameter in arguments
+ * or an `Authorization: Bearer <access_token>` header on the HTTP request.
+ * Agents can self-authenticate autonomously using the `request_agent_auth` tool.
  */
 
 const PROTOCOL_VERSION = "2025-06-18";
@@ -109,6 +119,27 @@ const TOOLS = [
     },
   },
   {
+    name: "search_forum",
+    description: "Søg i forumtråde eller filtrer efter kategori.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Valgfri søgeterm i titel og indhold" },
+        category: {
+          type: "string",
+          enum: [...FORUM_CATEGORY_KEYS],
+          description: "Valgfri forumkategori",
+        },
+        sort: {
+          type: "string",
+          enum: ["new", "top"],
+          description: "Sortering: 'new' (nyeste først) eller 'top' (flest stemmer først, standard)",
+        },
+        lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
+      },
+    },
+  },
+  {
     name: "list_topics",
     description: "Vis de 8 emner i Skills-biblioteket med dansk/engelsk label, beskrivelse og slug — samme taksonomi som /skills-emnekortene.",
     inputSchema: {
@@ -143,36 +174,99 @@ const TOOLS = [
     },
   },
   {
+    name: "request_agent_auth",
+    description:
+      "Anmod om en midlertidig agent-identitet (access_token) til brug ved skrivehandlinger. " +
+      "Returnerer access_token og refresh_token. Send access_token som 'authToken' i efterfølgende skriveværktøjer eller som HTTP Authorization: Bearer <token> header.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "upvote_skill",
+    description: "Stem op på en skill. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        skillId: { type: "string", description: "Skill-id eller slug, fx 's_1234567890'" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
+      },
+      required: ["skillId"],
+    },
+  },
+  {
+    name: "upvote_vibe",
+    description: "Stem op på et vibe-projekt. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        vibeId: { type: "string", description: "Vibe/projekt-id eller slug, fx 'p_1234567890'" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
+      },
+      required: ["vibeId"],
+    },
+  },
+  {
+    name: "upvote_agent",
+    description: "Stem op på et CLI-værktøj eller en MCP-server. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agentId: { type: "string", description: "Agent/værktøj-id eller slug, fx 'a_1234567890'" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
+      },
+      required: ["agentId"],
+    },
+  },
+  {
     name: "upvote_thread",
-    description: "Stem op på en forumtråd. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description: "Stem op på en forumtråd. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
     inputSchema: {
       type: "object",
       properties: {
         threadId: { type: "string", description: "Tråd-id, fx 't_1234567890'" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["threadId"],
     },
   },
   {
     name: "upvote_reply",
-    description: "Stem op på et forumsvar. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description: "Stem op på et forumsvar. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
     inputSchema: {
       type: "object",
       properties: {
         replyId: { type: "string", description: "Svar-id, fx 'r_1234567890'" },
         threadId: { type: "string", description: "Valgfrit forældre-tråd-id (undgår et ekstra opslag)" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["replyId"],
     },
   },
   {
+    name: "create_forum_thread",
+    description: "Opret en ny forumtråd. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Trådtitel (1-200 tegn)" },
+        category: { type: "string", enum: [...FORUM_CATEGORY_KEYS], description: "Forumkategori" },
+        content: { type: "string", description: "Trådens indhold (10-5000 tegn)" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
+      },
+      required: ["title", "category", "content"],
+    },
+  },
+  {
     name: "reply_to_thread",
-    description: "Tilføj et svar til en forumtråd. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth).",
+    description: "Tilføj et svar til en forumtråd. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth).",
     inputSchema: {
       type: "object",
       properties: {
         threadId: { type: "string", description: "Tråd-id, fx 't_1234567890'" },
         content: { type: "string", description: "Svarets indhold (1-5000 tegn)" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["threadId", "content"],
     },
@@ -180,7 +274,7 @@ const TOOLS = [
   {
     name: "submit_skill",
     description:
-      "Indsend en ny skill til biblioteket. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Indsend en ny skill til biblioteket. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth). " +
       "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
@@ -191,6 +285,8 @@ const TOOLS = [
         tags: { type: "array", items: { type: "string" }, description: "Op til 10 tags (valgfri)" },
         githubUrl: { type: "string", description: "URL til skillets repo" },
         source: { type: "string", description: "Valgfri kilde-URL (fx det oprindelige repo)" },
+        descriptionDa: { type: "string", description: "Valgfri dansk oversættelse af beskrivelsen" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["title", "category", "githubUrl"],
     },
@@ -198,7 +294,7 @@ const TOOLS = [
   {
     name: "submit_project",
     description:
-      "Indsend et nyt vibe-projekt til showcase. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Indsend et nyt vibe-projekt til showcase. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth). " +
       "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
@@ -210,14 +306,37 @@ const TOOLS = [
         demoUrl: { type: "string", description: "Valgfri URL til den kørende demo" },
         githubUrl: { type: "string", description: "Valgfri URL til projektets repo" },
         imageUrl: { type: "string", description: "Valgfrit skærmbillede-URL (skal matche next.config.ts's tilladte billed-hosts)" },
+        descriptionDa: { type: "string", description: "Valgfri dansk oversættelse af beskrivelsen" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["title", "description"],
     },
   },
   {
+    name: "submit_agent",
+    description:
+      "Indsend et nyt CLI-værktøj eller en MCP-server til kataloget. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth). " +
+      "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Titel / værktøjsnavn (1-100 tegn)" },
+        category: { type: "string", enum: ["CLI", "MCP Server"], description: "Værktøjskategori" },
+        description: { type: "string", description: "Beskrivelse (10-500 tegn)" },
+        installCommand: { type: "string", description: "Valgfri installations-/kørselskommando (fx 'npx my-tool')" },
+        systemPrompt: { type: "string", description: "Valgfri system prompt (op til 10000 tegn)" },
+        tags: { type: "array", items: { type: "string" }, description: "Op til 10 tags (valgfri)" },
+        sourceUrl: { type: "string", description: "Valgfri URL til kilderepo/website" },
+        descriptionDa: { type: "string", description: "Valgfri dansk oversættelse af beskrivelsen" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
+      },
+      required: ["name", "category", "description"],
+    },
+  },
+  {
     name: "submit_blog_post",
     description:
-      "Indsend et nyt blogindlæg. Kræver Authorization: Bearer <access_token> (se POST /api/agentauth). " +
+      "Indsend et nyt blogindlæg. Kræver authToken eller Authorization: Bearer <access_token> (se request_agent_auth). " +
       "Bidraget sættes i kø til gennemsyn og er ikke offentligt, før et menneske har godkendt det — svaret er en pending-kvittering, ikke selve posten.",
     inputSchema: {
       type: "object",
@@ -229,6 +348,7 @@ const TOOLS = [
         publishedAt: { type: "string", description: "Udgivelsesdato" },
         imageUrl: { type: "string", description: "URL til artiklens billede" },
         category: { type: "string", enum: [...BLOG_CATEGORIES], description: "Blog-kategori" },
+        authToken: { type: "string", description: "Valgfrit access-token fra request_agent_auth eller /api/agentauth" },
       },
       required: ["title", "excerpt", "content", "readTime", "publishedAt", "imageUrl", "category"],
     },
@@ -236,11 +356,17 @@ const TOOLS = [
 ] as const;
 
 const WRITE_TOOLS = new Set([
+  "upvote_skill",
+  "upvote_vibe",
+  "upvote_project",
+  "upvote_agent",
   "upvote_thread",
   "upvote_reply",
+  "create_forum_thread",
   "reply_to_thread",
   "submit_skill",
   "submit_project",
+  "submit_agent",
   "submit_blog_post",
 ]);
 
@@ -279,10 +405,69 @@ function asLang(v: unknown): "da" | "en" {
   return v === "en" ? "en" : "da";
 }
 
-async function callTool(name: string, args: Record<string, unknown>, actingAs?: ActingAs, username?: string) {
+async function callTool(
+  name: string,
+  args: Record<string, unknown>,
+  actingAs?: ActingAs,
+  username?: string,
+  request?: Request
+) {
   const query = asString(args.query);
   const lang = asLang(args.lang);
   switch (name) {
+    case "request_agent_auth": {
+      const ip = request ? getClientIp(request) : "127.0.0.1";
+      const withinLimit = await checkRateLimit(
+        `agentauth:${hashIp(ip)}`,
+        5,
+        60 * 60
+      );
+      if (!withinLimit) {
+        return { error: "RATE_LIMITED", message: "Too many auth requests from this IP. Limit is 5 per hour." };
+      }
+      const agentId = crypto.randomUUID().slice(0, 8);
+      const { data, error } = await supabasePublic.auth.signInAnonymously({
+        options: { data: { full_name: `agent_${agentId}` } },
+      });
+      if (error || !data.session) {
+        return {
+          error: "SERVICE_UNAVAILABLE",
+          message: "Failed to provision agent identity. If this persists, anonymous sign-in may not be enabled on this Supabase project.",
+        };
+      }
+      return textContent({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        token_type: "bearer",
+        expires_in: data.session.expires_in,
+        instructions: "Send 'access_token' as 'authToken' in write tools or pass Authorization: Bearer <token> in HTTP headers.",
+      });
+    }
+    case "upvote_skill": {
+      const skillId = asString(args.skillId) || asString(args.id);
+      if (!skillId) return { error: "INVALID_PARAMS", message: "skillId is required" };
+      const upvotes = await upvoteSkill(skillId, actingAs);
+      if (upvotes === "rpc_error") return { error: "SERVICE_UNAVAILABLE", message: "Upvote service unavailable" };
+      if (upvotes === null) return { error: "NOT_FOUND", message: `Skill not found: ${skillId}` };
+      return textContent({ upvotes });
+    }
+    case "upvote_vibe":
+    case "upvote_project": {
+      const vibeId = asString(args.vibeId) || asString(args.projectId) || asString(args.id);
+      if (!vibeId) return { error: "INVALID_PARAMS", message: "vibeId is required" };
+      const upvotes = await upvoteProject(vibeId, actingAs);
+      if (upvotes === "rpc_error") return { error: "SERVICE_UNAVAILABLE", message: "Upvote service unavailable" };
+      if (upvotes === null) return { error: "NOT_FOUND", message: `Project not found: ${vibeId}` };
+      return textContent({ upvotes });
+    }
+    case "upvote_agent": {
+      const agentId = asString(args.agentId) || asString(args.id);
+      if (!agentId) return { error: "INVALID_PARAMS", message: "agentId is required" };
+      const upvotes = await upvoteAgent(agentId, actingAs);
+      if (upvotes === "rpc_error") return { error: "SERVICE_UNAVAILABLE", message: "Upvote service unavailable" };
+      if (upvotes === null) return { error: "NOT_FOUND", message: `Agent not found: ${agentId}` };
+      return textContent({ upvotes });
+    }
     case "upvote_thread": {
       const threadId = asString(args.threadId);
       if (!threadId) return { error: "INVALID_PARAMS", message: "threadId is required" };
@@ -299,6 +484,19 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       if (upvotes === null) return { error: "NOT_FOUND", message: `Reply not found: ${replyId}` };
       return textContent({ upvotes });
     }
+    case "create_forum_thread": {
+      const parsed = threadSchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
+      }
+      const { title, category, content } = parsed.data;
+      const submitterUsername = username ?? "agent";
+      const thread = await createThread(title, submitterUsername, category, content, actingAs);
+      if (reviewStateForWrite("forum_threads", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(thread.id));
+      }
+      return textContent(thread);
+    }
     case "reply_to_thread": {
       const threadId = asString(args.threadId);
       if (!threadId) {
@@ -312,7 +510,6 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       const submitterUsername = username ?? "agent";
       const added = await addReply(threadId, submitterUsername, content, actingAs);
       if (!added) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
-      // Inert today — the forum's gate ships off. See POST /api/forum.
       if (reviewStateForWrite("forum_replies", Boolean(actingAs)) === "pending") {
         return textContent(pendingSubmissionBody(added.replyId));
       }
@@ -336,8 +533,6 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         descriptionDa || undefined,
         actingAs
       );
-      // Held submissions return the pending body, not the entry — the MCP
-      // mirror of the REST 202. See pendingSubmissionBody.
       if (reviewStateForWrite("skills", Boolean(actingAs)) === "pending") {
         return textContent(pendingSubmissionBody(skill.id));
       }
@@ -362,11 +557,34 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         descriptionDa || undefined,
         actingAs
       );
-      // See submit_skill.
       if (reviewStateForWrite("vibes", Boolean(actingAs)) === "pending") {
         return textContent(pendingSubmissionBody(project.id));
       }
       return textContent(project);
+    }
+    case "submit_agent": {
+      const parsed = agentSchema.safeParse(args);
+      if (!parsed.success) {
+        return { error: "INVALID_PARAMS", message: `Invalid input: ${formatZodError(parsed.error)}` };
+      }
+      const { name: agentName, category, description, installCommand, systemPrompt, tags, sourceUrl, descriptionDa } = parsed.data;
+      const submitterUsername = username ?? "agent";
+      const agent = await createAgent(
+        agentName,
+        submitterUsername,
+        category,
+        description,
+        installCommand || "",
+        systemPrompt || "",
+        tags || [],
+        sourceUrl || undefined,
+        descriptionDa || undefined,
+        actingAs
+      );
+      if (reviewStateForWrite("agents", Boolean(actingAs)) === "pending") {
+        return textContent(pendingSubmissionBody(agent.id));
+      }
+      return textContent(agent);
     }
     case "submit_blog_post": {
       const parsed = blogPostSchema.safeParse(args);
@@ -386,7 +604,6 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
         category,
         actingAs
       );
-      // See submit_skill.
       if (reviewStateForWrite("blog_posts", Boolean(actingAs)) === "pending") {
         return textContent(pendingSubmissionBody(post.id));
       }
@@ -398,11 +615,16 @@ async function callTool(name: string, args: Record<string, unknown>, actingAs?: 
       return textContent(await getProjects(query, lang));
     case "search_agents":
     case "search_cli":
-      // Feed items only. getCli excludes Host (and MCP Server) rows, so
-      // hosts never appear as catalog results.
       return textContent(await getCli(query, lang));
     case "search_mcp_servers":
       return textContent(await getAgents(query, "MCP Server", lang));
+    case "search_forum": {
+      const search = query;
+      const category = asString(args.category);
+      const sort = args.sort === "new" ? "new" : "top";
+      const threads = await getThreads({ search, category, lang, sort });
+      return textContent(threads);
+    }
     case "get_market_updates": {
       const since = asString(args.since);
       if (since && Number.isNaN(Date.parse(since))) {
@@ -481,9 +703,6 @@ export async function POST(request: Request) {
     return rpcError(null, INVALID_REQUEST, "Invalid Request: expected JSON-RPC 2.0");
   }
 
-  // A JSON-RPC notification is a request with no `id` member (distinct from an
-  // explicit null id). The spec — and the MCP handshake's notifications/initialized
-  // — require the server to send no response. Acknowledge with 202, no body.
   const isNotification =
     !("id" in (body as object)) ||
     (typeof (body as { method?: unknown }).method === "string" &&
@@ -518,29 +737,21 @@ export async function POST(request: Request) {
         return rpcError(id, INVALID_PARAMS, "Invalid params: missing tool name");
       }
 
-      // KTD9: identity is resolved from the HTTP Authorization header on this
-      // request, not from JSON-RPC params — the body has no natural place for
-      // a bearer token. Read-only tools skip this entirely: no behavior or
-      // latency change for existing callers with no Authorization header.
       let actingAs: ActingAs | undefined;
       let username: string | undefined;
       if (WRITE_TOOLS.has(name)) {
-        const identity = await resolveRequestIdentity(request);
+        const explicitToken = typeof args.authToken === "string" && args.authToken.trim() ? args.authToken.trim() : undefined;
+        const identity = await resolveRequestIdentity(request, explicitToken);
         if (!identity) {
-          return rpcError(id, INVALID_REQUEST, `Authorization required for write tool: ${name}`);
+          return rpcError(
+            id,
+            INVALID_REQUEST,
+            `Authorization required for write tool: ${name}. Call request_agent_auth to get an access_token, or pass Authorization: Bearer <token>.`
+          );
         }
-        // botAuth is only set for bearer-token (agent) callers; when undefined
-        // (a real cookie session), the write functions' resolveActor() falls
-        // back to resolving the cookie session itself — same pattern as the
-        // REST write routes (e.g. src/app/api/vibes/route.ts).
         actingAs = identity.botAuth;
         username = identity.user.username;
 
-        // Cost-control ceiling — only applies to bearer-token (agent) callers,
-        // not cookie-authenticated humans. Checks both the per-identity and
-        // site-wide budgets; shares its 503-vs-429 classification and error
-        // logging with the REST write routes' enforceAgentWriteRateLimit via
-        // resolveAgentWriteLimit, so the two can't drift.
         if (actingAs) {
           const outcome = await resolveAgentWriteLimit(actingAs.user.id);
           if (outcome === "service_unavailable") {
@@ -552,7 +763,7 @@ export async function POST(request: Request) {
         }
       }
 
-      const result = await callTool(name, args, actingAs, username);
+      const result = await callTool(name, args, actingAs, username, request);
       if (result === null) {
         return rpcError(id, METHOD_NOT_FOUND, `Unknown tool: ${name}`);
       }
@@ -561,6 +772,7 @@ export async function POST(request: Request) {
         const code =
           errorKind === "INVALID_PARAMS" ? INVALID_PARAMS
           : errorKind === "SERVICE_UNAVAILABLE" ? SERVICE_UNAVAILABLE_ERROR
+          : errorKind === "RATE_LIMITED" ? RATE_LIMITED_ERROR
           : NOT_FOUND_ERROR;
         return rpcError(id, code, message);
       }

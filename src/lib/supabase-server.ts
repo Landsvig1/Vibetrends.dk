@@ -95,6 +95,28 @@ export async function getAuthUser(): Promise<{ id: string; username: string } | 
 }
 
 /**
+ * Resolve identity directly from a bearer access token string,
+ * returning both the identity and a Supabase client configured with that token.
+ */
+export async function resolveBotTokenAuth(
+  token: string
+): Promise<{ user: { id: string; username: string }; supabase: SupabaseClient } | null> {
+  const cleanToken = token.trim();
+  if (!cleanToken) return null;
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${cleanToken}` }, fetch: fetchWithTimeout } }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  return { user: { id: user.id, username: deriveUsername(user) }, supabase };
+}
+
+/**
  * Resolve identity from an `Authorization: Bearer <access_token>` header,
  * returning both the identity and a Supabase client that carries that token
  * on every subsequent request — so RLS (`auth.uid() = user_id`) passes for
@@ -112,34 +134,29 @@ export async function resolveBotRequestAuth(
   if (!authHeader?.startsWith('Bearer ')) return null;
 
   const token = authHeader.slice('Bearer '.length).trim();
-  if (!token) return null;
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` }, fetch: fetchWithTimeout } }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  return { user: { id: user.id, username: deriveUsername(user) }, supabase };
+  return resolveBotTokenAuth(token);
 }
 
 /**
  * Resolve identity for a route that must accept either a browser session
  * cookie or a bearer-authenticated bot request — tries `getAuthUser()` first,
- * then falls back to `resolveBotRequestAuth()`. Used by every route that opts
- * into bot writes (`/api/vibes`, `/api/skills`, `/api/forum` and its
- * sub-routes, `/api/blog`, `/api/mcp`'s write tools); does not change
- * `getAuthUser()`'s cookie-only behavior for any other caller.
+ * then checks explicitToken (if provided in tool arguments), and falls back to
+ * `resolveBotRequestAuth(request)` (Authorization header).
  */
-export async function resolveRequestIdentity(request: Request): Promise<{
+export async function resolveRequestIdentity(
+  request: Request,
+  explicitToken?: string
+): Promise<{
   user: { id: string; username: string };
   botAuth?: { user: { id: string; username: string }; supabase: SupabaseClient };
 } | null> {
   const user = await getAuthUser();
   if (user) return { user };
+
+  if (explicitToken) {
+    const botAuth = await resolveBotTokenAuth(explicitToken);
+    if (botAuth) return { user: botAuth.user, botAuth };
+  }
 
   const botAuth = await resolveBotRequestAuth(request);
   if (botAuth) return { user: botAuth.user, botAuth };
