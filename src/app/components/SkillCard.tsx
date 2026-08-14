@@ -95,12 +95,16 @@ function SkillCardComponent({
                   <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
                 </motion.button>
               ) : (
+                /* pointer-events-none: this branch is a label, not a control,
+                   and z-20 would otherwise lift it over ListCard's whole-card
+                   overlay link and leave a dead click target on the card. */
                 <span
                   data-testid="skill-upvote-count"
-                  className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20"
+                  className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20 pointer-events-none"
                 >
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{skill.upvotes}</span>
+                  <span className="sr-only">{" upvotes"}</span>
                 </span>
               )}
             </div>

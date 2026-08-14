@@ -138,7 +138,7 @@ function AgentCardComponent({
                 <span className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20 pointer-events-none">
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
-                  <span className="sr-only">upvotes</span>
+                  <span className="sr-only">{" upvotes"}</span>
                 </span>
               )}
             </div>
