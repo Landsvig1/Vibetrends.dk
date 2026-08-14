@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { CardThumbnail } from "./components/CardThumbnail";
-import {
-  ArrowRight, Heart, PlusCircle,
-  Cpu, Layers, Briefcase, Sparkles,
-  Info
-} from "lucide-react";
-import { getTopProjects, getTopSkills, getTopAgents, getProjectById, getAgentById, getSkillById } from "@/lib/db";
+import { ArrowRight, Cpu, Layers, Briefcase } from "lucide-react";
+import { ProjectCard } from "./components/ProjectCard";
+import { SkillCard } from "./components/SkillCard";
+import { AgentCard } from "./components/AgentCard";
+import { getTopProjects, getTopSkills, getTopAgents, getTopMcpServers } from "@/lib/db";
 
 export default function Home() {
   return (
@@ -21,28 +19,34 @@ export default function Home() {
 }
 
 async function HomeContent() {
-  // Fetch what the landing page renders: a small grid of top items per section,
-  // plus three hand-picked spotlight items (fixed IDs, not query-driven) so the
-  // fold gives new visitors something concrete immediately.
-  const [topProjects, topSkills, [featuredAgent], spotlightVibe, spotlightMcp, spotlightSkill] =
-    await Promise.all([
-      getTopProjects(5, 'da'), // one extra: absorbs the spotlight filter below without leaving a gap in the 4-col grid
-      getTopSkills(4, 'da'), // one extra: same reason, for the 3-col grid
-      getTopAgents(1, 'da'),
-      getProjectById("p_1782890295301", 'da'), // Rentemester
-      getAgentById("a_1783085673265", 'da'), // aula-mcp by Casperjuel
-      getSkillById("s_1782976394478", 'da'), // Jobindex Search
-    ]);
+  // One live top-N query per catalog section. There is deliberately no
+  // hand-picked spotlight row: the previous one pinned three literal row IDs
+  // in this file, which on a solo-maintained catalog is a guaranteed staleness
+  // source, and it duplicated the grids below it hard enough that those grids
+  // had to filter the spotlighted items back out to avoid rendering the same
+  // card twice. If an editorial pick is wanted again, it belongs in a column
+  // on the row, not in JSX.
+  const [projects, skills, [topCli], [topMcp]] = await Promise.all([
+    getTopProjects(3, 'da'),
+    getTopSkills(3, 'da'),
+    getTopAgents(1, 'da'),
+    getTopMcpServers(1, 'da'),
+  ]);
 
-  // Spotlighted items already appear above the fold — drop them from the
-  // top-N grids below so the same card doesn't render twice on one page.
-  const featuredProjects = topProjects.filter((p) => p.id !== spotlightVibe?.id).slice(0, 4);
-  const featuredSkills = topSkills.filter((s) => s.id !== spotlightSkill?.id).slice(0, 3);
+  const agentTools = [
+    topCli && { agent: topCli, base: "/cli", testId: "cli-card" as const },
+    topMcp && { agent: topMcp, base: "/mcp", testId: "mcp-card" as const },
+  ].filter((t) => t !== null && t !== undefined);
 
   return (
     <div className="space-y-12 sm:space-y-14">
-      {/* Hero Section */}
-      <section className="relative text-center py-4 sm:py-8 overflow-hidden">
+      {/* The hero states what the site is and offers one way in. It used to
+          carry three buttons and two text links, of which "Indsend dit projekt"
+          duplicated the header's primary CTA and "Hvad er vibetrends.dk?"
+          duplicated the footer — five choices before a visitor had seen a
+          single catalog entry. The whole block was also `hidden sm:flex`, so
+          mobile got no call to action at all. */}
+      <section className="text-center pt-2 pb-1 sm:pt-4 sm:pb-2">
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
           {/* pe-[0.08em]: the italic's final glyph overhangs its advance box and
               crowds the following roman word — tracking-tight leaves only ~5.5px
@@ -50,41 +54,16 @@ async function HomeContent() {
           Gode AI-tools. <span className="text-accent-primary italic pe-[0.08em]">Selv agenter</span> henter dem her.
         </h1>
 
-        <p className="mt-4 text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto">
-          Skills, MCP-servere og CLI-tools der virker. Verdens bedste, plus dem kun Danmark har. Se hvad danskerne bygger med dem.
+        <p className="mt-4 text-lg text-text-secondary max-w-2xl mx-auto">
+          Skills, MCP-servere og CLI-tools der virker. Verdens bedste, plus dem kun Danmark har.
         </p>
 
-        <div className="mt-6 hidden sm:flex flex-wrap justify-center gap-4">
-          <Link
-            href="/skills"
-            className="btn-primary"
-          >
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+          {/* inline-flex, not the bare .btn-primary: that class sets no display,
+              so the trailing icon wrapped onto its own line inside the pill. */}
+          <Link href="/skills" className="btn-primary inline-flex items-center whitespace-nowrap">
             Udforsk tools
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-          <Link
-            href="/vibes"
-            className="btn-secondary"
-          >
-            Se Showcase
-            <Layers className="ml-2 h-4 w-4" />
-          </Link>
-          <Link
-            href="/vibes?submit=1"
-            className="btn-secondary"
-          >
-            Indsend dit projekt
-            <PlusCircle className="ml-2 h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="mt-4 hidden sm:flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <Link
-            href="/about"
-            className="inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
-          >
-            <Info className="mr-1.5 h-3.5 w-3.5" />
-            Hvad er vibetrends.dk?
+            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
           </Link>
           {/* Addressed to the human, not the agent. "Er du en AI-agent? Start
               her" spoke past the person reading it: the decision being made on
@@ -94,269 +73,111 @@ async function HomeContent() {
             href="/agent-guide"
             className="inline-flex items-center text-sm text-text-secondary hover:text-accent-primary transition-colors"
           >
-            <Cpu className="mr-1.5 h-3.5 w-3.5" />
+            <Cpu className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Kobl kataloget på din agent →
           </Link>
         </div>
       </section>
 
-      {/* Spotlight — three hand-picked items (one vibe, one MCP server, one
-          skill) so a first-time visitor sees concrete, specific content
-          immediately instead of scrolling past generic top-N grids. */}
-      {(spotlightVibe || spotlightMcp || spotlightSkill) && (
-        <section aria-label="I rampelyset" className="space-y-4">
-          <h2 className="text-xl font-bold flex items-center">
-            <Sparkles className="mr-2 h-5 w-5 text-accent-primary" />
-            I rampelyset
-          </h2>
+      {projects.length > 0 && (
+        <section className="space-y-4">
+          <SectionHeading icon={<Layers className="mr-2 h-5 w-5 text-accent-primary" />} href="/vibes" linkLabel="Se alle vibes">
+            Bygget i Danmark
+          </SectionHeading>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {spotlightVibe && (
-              <article className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
-                <Link
-                  href={`/vibes/${spotlightVibe.slug}`}
-                  aria-label={spotlightVibe.title}
-                  className="absolute inset-0 z-10 rounded-xl"
-                />
-                <CardThumbnail
-                  src={spotlightVibe.imageUrl}
-                  alt={spotlightVibe.title}
-                  heightClass="h-40"
-                  sizes="(max-width: 767px) 100vw, 33vw"
-                  priority
-                  badge="Showcase"
-                />
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-3 min-w-0">
-                  <div className="space-y-1.5 min-w-0">
-                    <h3 className="text-base font-bold leading-tight [text-wrap:balance]">
-                      {spotlightVibe.title}
-                    </h3>
-                    <p className="text-sm text-text-secondary line-clamp-2">
-                      {spotlightVibe.description}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-card-border text-xs text-text-secondary">
-                    <span className="flex items-center font-medium">
-                      <Heart className="h-3.5 w-3.5 mr-1 text-accent-primary" />
-                      {spotlightVibe.upvotes} upvotes
-                    </span>
-                  </div>
-                </div>
-              </article>
-            )}
-
-            {spotlightMcp && (
-              <article className="rounded-xl glass-card p-5 flex flex-col justify-between space-y-4 min-w-0">
-                <div className="space-y-2 min-w-0">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase">
-                    <Cpu className="h-3 w-3" aria-hidden="true" />
-                    {spotlightMcp.category}
-                  </span>
-                  <h3 className="text-base font-bold leading-tight pt-1 [text-wrap:balance]">
-                    {spotlightMcp.name}
-                  </h3>
-                  <p className="text-sm text-text-secondary line-clamp-2">
-                    {spotlightMcp.description}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <div className="bg-background border border-card-border rounded-lg p-2 font-mono text-[10px] text-text-secondary select-all overflow-x-auto whitespace-nowrap">
-                    {spotlightMcp.installCommand}
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-text-secondary">
-                    <span className="truncate">Af {spotlightMcp.developer}</span>
-                    <Link
-                      href={`/mcp/${spotlightMcp.slug}`}
-                      className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
-                    >
-                      Se alle
-                      <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            )}
-
-            {spotlightSkill && (
-              <article className="rounded-xl glass-card p-5 flex flex-col justify-between space-y-4 min-w-0">
-                <div className="space-y-2 min-w-0">
-                  <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                    {spotlightSkill.categoryLabel}
-                  </span>
-                  <h3 className="text-base font-bold leading-tight pt-1 [text-wrap:balance]">
-                    {spotlightSkill.title}
-                  </h3>
-                  <p className="text-sm text-text-secondary line-clamp-2">
-                    {spotlightSkill.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {spotlightSkill.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 text-[10px] rounded-md bg-background text-text-secondary border border-card-border font-mono">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-card-border text-xs text-text-secondary">
-                  <span className="truncate">{spotlightSkill.vibeCoder}</span>
-                  <Link
-                    href={`/skills/${spotlightSkill.slug}`}
-                    className="text-accent-primary font-medium hover:opacity-80 flex items-center shrink-0 ml-2"
-                  >
-                    Se alle
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </article>
-            )}
+            {projects.map((project, i) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isPriority={i === 0}
+                demoLabel="Se live"
+              />
+            ))}
           </div>
         </section>
       )}
 
-      {/* Showcase Highlight */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold flex items-center">
-            <Layers className="mr-2 h-5 w-5 text-accent-primary" />
-            Trending Vibe
-          </h2>
-          <Link href="/vibes" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-            Se alle
-            <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Link>
-        </div>
+      {skills.length > 0 && (
+        <section className="space-y-4">
+          <SectionHeading icon={<Briefcase className="mr-2 h-5 w-5 text-accent-primary" />} href="/skills" linkLabel="Se alle skills">
+            Skills til din agent
+          </SectionHeading>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProjects.map((project) => (
-            <div key={project.id} className="relative rounded-xl glass-card overflow-hidden flex flex-col group">
-              {/* Card-wide overlay: screenshot and title open the project
-                  detail page (same pattern as SkillCard). */}
-              <Link
-                href={`/vibes/${project.slug}`}
-                aria-label={project.title}
-                className="absolute inset-0 z-10 rounded-xl"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {skills.map((skill) => (
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                githubLabel="Se på GitHub"
+                connectLabel="Forbind"
               />
-              <CardThumbnail
-                src={project.imageUrl}
-                alt={project.title}
-                heightClass="h-48"
-                sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 25vw"
-                badge="Highlight"
-              />
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold leading-tight">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-text-secondary line-clamp-2">
-                    {project.description}
-                  </p>
-                </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-                <div className="flex flex-wrap gap-1.5">
-                  {project.tools.slice(0, 3).map((tool) => (
-                    <span key={tool} className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border">
-                      {tool}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-card-border text-xs text-text-secondary">
-                  <span>Af {project.author}</span>
-                  <span className="flex items-center font-medium">
-                    <Heart className="h-3.5 w-3.5 mr-1 text-accent-primary" />
-                    {project.upvotes} upvotes
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Community Skills Highlight */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold flex items-center">
-            <Briefcase className="mr-2 h-5 w-5 text-accent-primary" />
-            Udvalgte Skills
-          </h2>
-          <Link href="/skills" className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
-            Se alle
-            <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {featuredSkills.map((skill) => (
-            <div key={skill.id} className="rounded-xl glass-card p-6 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="px-2 py-0.5 text-xs rounded bg-background text-text-secondary border border-card-border">
-                      {skill.categoryLabel}
-                    </span>
-                    <h3 className="text-lg font-bold mt-2 leading-tight">
-                      {skill.title}
-                    </h3>
-                  </div>
-                </div>
-                <p className="text-sm text-text-secondary line-clamp-3">
-                  {skill.description}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {skill.tags.map((tag) => (
-                    <span key={tag} className="px-2 py-0.5 text-xs rounded-md bg-background text-text-secondary border border-card-border">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-card-border">
-                <div>
-                  <p className="text-xs text-text-secondary">Bidragyder</p>
-                  <p className="text-sm font-semibold">{skill.vibeCoder}</p>
-                </div>
-                <Link
-                  href="/skills"
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                >
-                  Se alle skills
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Agents & MCP Banner */}
-      {featuredAgent && (
-        <section className="relative rounded-2xl glass-panel p-8 overflow-hidden">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded bg-background text-text-secondary border border-card-border text-xs font-bold">
-                <Cpu className="h-3.5 w-3.5 mr-1" />
-                Populært CLI-værktøj
-              </div>
-              <h2 className="text-2xl font-bold">{featuredAgent.name}</h2>
-              <p className="text-sm text-text-secondary max-w-xl">{featuredAgent.description}</p>
-            </div>
-            <div className="flex flex-col gap-2 w-full md:w-auto">
-              <div className="bg-background border border-card-border rounded-lg p-2 font-mono text-xs text-text-secondary select-all overflow-x-auto whitespace-nowrap">
-                {featuredAgent.installCommand}
-              </div>
-              <Link
-                href="/cli"
-                className="btn-secondary text-xs"
-              >
-                Se alle CLI-værktøjer
+      {agentTools.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <h2 className="text-xl font-bold flex items-center">
+              <Cpu className="mr-2 h-5 w-5 text-accent-primary" aria-hidden="true" />
+              CLI-tools og MCP-servere
+            </h2>
+            {/* Two destinations, so the section heading can't carry a single
+                "Se alle" the way the others do. */}
+            <div className="flex items-center gap-4 text-sm font-medium">
+              <Link href="/cli" className="text-accent-primary hover:opacity-80 flex items-center">
+                Se alle CLI
+                <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+              <Link href="/mcp" className="text-accent-primary hover:opacity-80 flex items-center">
+                Se alle MCP
+                <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {agentTools.map(({ agent, base, testId }) => (
+              <AgentCard
+                key={agent.id}
+                agent={agent}
+                detailBase={base}
+                testId={testId}
+                sourceLabel={`${agent.name} — kilde`}
+                byLabel="Af"
+                detailsLabel="Se detaljer"
+              />
+            ))}
+          </div>
         </section>
       )}
+    </div>
+  );
+}
+
+function SectionHeading({
+  icon,
+  href,
+  linkLabel,
+  children,
+}: {
+  icon: React.ReactNode;
+  href: string;
+  linkLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+      <h2 className="text-xl font-bold flex items-center">
+        {icon}
+        {children}
+      </h2>
+      <Link href={href} className="text-sm text-accent-primary hover:opacity-80 flex items-center font-medium">
+        {linkLabel}
+        <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

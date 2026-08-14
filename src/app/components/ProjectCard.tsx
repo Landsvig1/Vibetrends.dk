@@ -10,11 +10,17 @@ interface ProjectCardProps {
   project: ShowcaseProject;
   isPriority?: boolean;
   canDelete?: boolean;
-  confirmDeleteLabel: string;
+  confirmDeleteLabel?: string;
   /** Label for the secondary action that opens the project's own site. */
   demoLabel: string;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-  onUpvote: (id: string, e: React.MouseEvent) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
+  /**
+   * When set (client surfaces such as /vibes), the heart is an upvote button.
+   * Without it the count renders read-only, so server components — the
+   * homepage — can render the same card instead of hand-copying its markup.
+   * Same arrangement SkillCard already uses for the topic landing pages.
+   */
+  onUpvote?: (id: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -32,7 +38,7 @@ function ProjectCardComponent({
   project,
   isPriority = false,
   canDelete = false,
-  confirmDeleteLabel,
+  confirmDeleteLabel = "",
   demoLabel,
   onDelete,
   onUpvote,
@@ -52,7 +58,7 @@ function ProjectCardComponent({
         priority={isPriority}
       >
         {/* Delete button for author */}
-        {canDelete && (
+        {canDelete && onDelete && (
           <button
             onClick={(e) => onDelete(project.id, e)}
             aria-label={confirmDeleteLabel}
@@ -62,14 +68,21 @@ function ProjectCardComponent({
           </button>
         )}
 
-        <button
-          onClick={(e) => onUpvote(project.id, e)}
-          aria-label={`Upvote ${project.title}`}
-          className="absolute top-4 right-4 flex items-center justify-center gap-1.5 min-h-11 px-3 rounded-lg bg-background border border-card-border hover:bg-accent-primary/10 hover:border-accent-primary/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
-        >
-          <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-          <span className="text-xs font-bold font-mono">{project.upvotes}</span>
-        </button>
+        {onUpvote ? (
+          <button
+            onClick={(e) => onUpvote(project.id, e)}
+            aria-label={`Upvote ${project.title}`}
+            className="absolute top-4 right-4 flex items-center justify-center gap-1.5 min-h-11 px-3 rounded-lg bg-background border border-card-border hover:bg-accent-primary/10 hover:border-accent-primary/40 text-foreground hover:text-accent-primary backdrop-blur-md transition cursor-pointer z-20"
+          >
+            <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            <span className="text-xs font-bold font-mono">{project.upvotes}</span>
+          </button>
+        ) : (
+          <span className="absolute top-4 right-4 flex items-center justify-center gap-1.5 min-h-11 px-3 rounded-lg bg-background border border-card-border text-foreground backdrop-blur-md z-20">
+            <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            <span className="text-xs font-bold font-mono">{project.upvotes}</span>
+          </span>
+        )}
       </CardThumbnail>
 
       <div className="p-6 flex-1 flex flex-col gap-4">

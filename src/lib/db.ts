@@ -1708,6 +1708,25 @@ export async function getTopAgents(limit = 1, lang: 'da' | 'en' = 'da') {
   return data.map(a => mapAgent(a, lang));
 }
 
+/**
+ * The MCP half of getTopAgents. That query deliberately excludes MCP servers
+ * (they live at /mcp, not /cli), so a surface that wants to show both feeds —
+ * the homepage's agent-tools row — needs this twin rather than a `category`
+ * argument, which would silently change getTopAgents' meaning for /cli.
+ */
+export async function getTopMcpServers(limit = 1, lang: 'da' | 'en' = 'da') {
+  'use cache'
+  cacheLife('max')
+  cacheTag('agents-list', `top-mcp:${limit}:${lang}`)
+
+  const { data, error } = await visibleOnly(supabasePublic.from('agents').select('*'), 'agents')
+    .eq('category', 'MCP Server')
+    .order('upvotes', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map(a => mapAgent(a, lang));
+}
+
 export async function getLatestPosts(limit = 1, lang: 'da' | 'en' = 'da') {
   const { data, error } = await visibleOnly(supabasePublic.from('blog_posts').select('*'), 'blog_posts')
     .order('published_at', { ascending: false })
