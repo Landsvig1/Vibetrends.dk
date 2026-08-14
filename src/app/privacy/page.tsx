@@ -40,9 +40,9 @@ export default async function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-bold text-foreground">3. Indsamling af oplysninger ved booking</h2>
+          <h2 className="text-xl font-bold text-foreground">3. Indsamling af oplysninger ved henvendelser</h2>
           <p>
-            Når du foretager en henvendelse eller booker en Vibe Coder via vores formularer, indsamler vi udelukkende de oplysninger, du selv angiver:
+            Når du foretager en henvendelse via vores formularer, indsamler vi udelukkende de oplysninger, du selv angiver:
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>E-mailadresse</li>

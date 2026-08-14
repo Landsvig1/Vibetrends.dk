@@ -550,7 +550,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
       {/* Submission Modal */}
       {submitOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Udgiv dit vibe-kodede produkt" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="Udgiv dit projekt" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             {/* Close */}
             <button
@@ -587,7 +587,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                     <Sparkles className="h-3.5 w-3.5 mr-1" />
                     Vis dit projekt frem
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mt-1">Udgiv dit vibe-kodede produkt</h3>
+                  <h3 className="text-lg font-bold text-foreground mt-1">Udgiv dit projekt</h3>
                 </div>
 
                 {/* Every label here carries htmlFor against an id, matching the

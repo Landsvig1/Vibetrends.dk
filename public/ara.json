@@ -1,10 +1,10 @@
 {
   "name": "vibetrends.dk",
-  "purpose": "Danish hub and registry for AI developers, vibe coders, and automation experts.",
+  "purpose": "Danish hub and registry for AI developers, builders, and automation experts.",
   "capabilities": {
     "get_credentials": "POST /api/agentauth - Auto-provision a bearer token with zero signup. Do this first if you have no Supabase session.",
     "list_skills": "GET /api/skills - Community-shared AI workflows, scripts, and prompts.",
-    "list_projects": "GET /api/vibes - Vibe-coded projects with core prompts and tech stacks.",
+    "list_projects": "GET /api/vibes - Projects showcased with core prompts and tech stacks.",
     "list_cli": "GET /api/cli - CLI tools an agent can invoke (a feed type you attach to a host).",
     "list_mcp_servers": "GET /api/mcp-servers - MCP capabilities one step from your setup.",
     "list_threads": "GET /api/forum - Community discussions and help threads.",

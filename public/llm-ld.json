@@ -6,7 +6,7 @@
       "@id": "https://vibetrends.dk/#website",
       "name": "vibetrends.dk",
       "url": "https://vibetrends.dk",
-      "description": "Danish AI Developer Hub & Vibe Coding Community",
+      "description": "Danish AI Developer Hub & Community",
       "publisher": { "@id": "https://vibetrends.dk/#organization" }
     },
     {

@@ -99,7 +99,7 @@ export async function ForumPageContent({
     "@type": "ItemList",
     name: "Forum",
     description:
-      "Stil spørgsmål, del prompts og diskuter de nyeste AI-modeller med andre danske vibe coders.",
+      "Stil spørgsmål, del prompts og diskuter AI-modeller med danske AI-byggere.",
     numberOfItems: threads.length,
     itemListElement: threads.map((thread, index) => ({
       "@type": "ListItem",

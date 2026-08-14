@@ -34,7 +34,7 @@ export default async function BlogPage() {
           Vibe Trends <span className="text-accent-primary">Blog</span>
         </h1>
         <p className="text-text-secondary max-w-2xl">
-          Guides, tutorials og dybdegående artikler om hvordan du maksimerer dit AI-workflow, opsætter agenter og vibe koder projekter.
+          Guides, tutorials og artikler om hvordan du optimerer dit AI-workflow, opsætter agenter og bygger projekter.
         </p>
       </div>
 

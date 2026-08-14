@@ -6,7 +6,7 @@ import { entityMetadata } from "@/lib/seo";
 export async function generateMetadata(): Promise<Metadata> {
   return entityMetadata({
     title: "Om vibetrends.dk",
-    description: "Hvad vibetrends.dk er, hvordan du bruger det, og hvorfor det findes — det danske community for vibe-kodede projekter, AI-tools og agent-skills.",
+    description: "Hvad vibetrends.dk er, og hvordan du bruger det: et dansk samlingssted for AI-byggeres projekter, tools og agent-skills.",
     path: "/about",
     lang: "da",
   });
@@ -24,9 +24,9 @@ export default async function AboutPage() {
           Et dansk hjem for dem der bygger med AI
         </h1>
         <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-          vibetrends.dk er stedet hvor det danske vibe-coding community viser
-          hvad de bygger, finder kuraterede skills til deres coding agent, og
-          diskuterer hvad der faktisk virker.
+          vibetrends.dk er samlingsstedet hvor danske AI-byggere viser hvad de
+          bygger, finder kuraterede skills til deres agent, og diskuterer hvad
+          der virker i praksis.
         </p>
       </div>
 
@@ -43,25 +43,25 @@ export default async function AboutPage() {
             <li className="flex gap-3">
               <Layers className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
-                <strong className="text-foreground">Vibes</strong> — et showcase af rigtige projekter folk har vibe-kodet, med værktøjerne og prompts bag.
+                <strong className="text-foreground">Vibes</strong>: et showcase af rigtige projekter fra fællesskabet, med værktøjer og prompts bag.
               </span>
             </li>
             <li className="flex gap-3">
               <Briefcase className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
-                <strong className="text-foreground">Skills</strong> — et kurateret katalog af skills, MCP-servere og CLI-værktøjer du kan koble direkte på Claude Code, Cursor eller Gemini CLI for at gøre dem mere kapable.
+                <strong className="text-foreground">Skills</strong>: et kurateret katalog af skills, MCP-servere og CLI-værktøjer du kan koble direkte på Claude Code, Cursor eller Gemini CLI for at gøre dem mere kapable.
               </span>
             </li>
             <li className="flex gap-3">
               <MessageSquare className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
-                <strong className="text-foreground">Forum</strong> — dansksproget diskussion om hvad der faktisk virker (og ikke virker) når man bygger med AI.
+                <strong className="text-foreground">Forum</strong>: dansksproget diskussion om hvad der virker (og ikke virker) når man bygger med AI.
               </span>
             </li>
             <li className="flex gap-3">
               <Cpu className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
-                <strong className="text-foreground">Blog</strong> — længere guides og gennemgange til når en tråd ikke er nok.
+                <strong className="text-foreground">Blog</strong>: dybdegående guides og gennemgange til når en tråd ikke er nok.
               </span>
             </li>
           </ul>
@@ -82,11 +82,11 @@ export default async function AboutPage() {
             </li>
             <li>
               <strong className="text-foreground">Vil du udvide din coding agent?</strong>{" "}
-              Browse <Link href="/skills" className="text-accent-primary hover:underline">Skills</Link>, find noget der passer, og brug dets connect-knap til at få det ind i Claude Code, Cursor eller Gemini CLI — uden manuel opsætning.
+              Browse <Link href="/skills" className="text-accent-primary hover:underline">Skills</Link>, find noget der passer, og brug dets connect-knap til at få det ind i Claude Code, Cursor eller Gemini CLI: helt uden manuel opsætning.
             </li>
             <li>
               <strong className="text-foreground">Har du bygget noget?</strong>{" "}
-              Indsend det til Vibes, eller indsend en skill du har skrevet til kataloget — begge dele er community-bidraget, kurateret, ikke auto-scrapet.
+              Indsend det til Vibes, eller indsend en skill du har skrevet til kataloget. Begge dele er community-bidraget og kurateret, ikke auto-scrapet.
             </li>
             <li>
               <strong className="text-foreground">Sidder du fast?</strong>{" "}
@@ -101,15 +101,15 @@ export default async function AboutPage() {
         <div className="text-text-secondary leading-relaxed space-y-4">
           <p>
             Der findes langt større, engelsksprogede skill-directories
-            derude. vibetrends.dk prøver ikke at overgå dem på antal — vi
-            satser på to ting en stor directory ikke nemt kan: kuratering og
+            derude. vibetrends.dk prøver ikke at overgå dem på antal: vi
+            satser på to ting en stor directory ikke nemt kan, nemlig kuratering og
             forbindelse. Hver eneste entry her er valgt, ikke scrapet, og
             hver af dem er tænkt til at være ét skridt fra faktisk at lande i
-            din agent — ikke bare endnu en fane du bogmærker og glemmer.
+            din agent: ikke bare endnu en fane du bogmærker og glemmer.
           </p>
           <p>
-            Det er også, helt enkelt, et sted for danske byggere at tale
-            sammen på dansk om det de bygger — en niche en global platform
+            Det er også et sted for danske byggere at tale
+            sammen på dansk om det de bygger: en niche en global platform
             ikke betjener godt.
           </p>
         </div>

@@ -21,7 +21,7 @@ All dynamic data (Skills, Showcase, Forum, Agents) is persisted via `src/lib/db.
 ### Schema Reference: `src/data/db.json`
 
 - **Skills**: Community resource library. No pricing/booking logic.
-- **Showcase**: Vibe-coded project displays.
+- **Showcase**: Project displays ("Vibes").
 - **Forum**: Threaded discussions with upvotes.
 - **Agents**: Registry for MCP servers and system prompts.
 

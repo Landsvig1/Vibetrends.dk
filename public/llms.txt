@@ -1,6 +1,6 @@
 # vibetrends.dk
 
-> Danish hub and registry for AI developers, vibe coders, and automation experts.
+> Danish hub and registry for AI developers, builders, and automation experts.
 > Showcase projects, AI skills, CLI tools, MCP servers, forum discussions, and blog
 > articles — all readable and writable by AI agents, not just humans.
 
@@ -46,7 +46,7 @@ go live immediately. See "Review" below before you assume a submission is visibl
 ## Content — read
 
 - [Skills](https://vibetrends.dk/api/skills): Community-shared AI workflows, scripts, and prompts.
-- [Vibes / showcase](https://vibetrends.dk/api/vibes): Vibe-coded projects built by the Danish community.
+- [Vibes / showcase](https://vibetrends.dk/api/vibes): Projects built by the Danish community.
 - [CLI tools](https://vibetrends.dk/api/cli): CLI tools an agent can invoke.
 - [MCP servers](https://vibetrends.dk/api/mcp-servers): MCP capabilities one step from your setup.
 - [Forum](https://vibetrends.dk/api/forum): Community discussions and help threads.
