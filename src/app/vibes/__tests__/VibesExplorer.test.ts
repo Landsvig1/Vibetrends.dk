@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { slugify } from "@/lib/slug";
-import { filterProjects, executeUpvote } from "../VibesExplorer";
+import {
+  filterProjects,
+  executeUpvote,
+  parseToolsInput,
+  parsePromptsInput,
+  MAX_TOOLS,
+  MAX_TOOL_LENGTH,
+  MAX_PROMPTS,
+  MAX_PROMPT_LENGTH,
+} from "../VibesExplorer";
 import type { ShowcaseProject } from "@/lib/db";
 
 /**
@@ -55,11 +64,16 @@ describe("filterProjects — client-side search, no network request", () => {
   });
 
   it("returns all projects for a whitespace-only query", () => {
-    // The filter uses query.toLowerCase() — whitespace is falsy after trim()
-    // but the function uses `if (!query) return projects` so whitespace IS a
-    // query. This documents actual behavior (whitespace = filter on whitespace).
-    // Nothing contains a space-only string, so all fail the includes() check.
-    expect(filterProjects(projects, "   ")).toHaveLength(0);
+    // A whitespace-only query is not a search. The component agrees
+    // (`searchActive` is `search.trim() !== ""`), so this filter has to as
+    // well: when the two disagreed, three spaces produced the empty state with
+    // its suggestions suppressed and the board tab still lit — no results and
+    // no visible cause.
+    expect(filterProjects(projects, "   ")).toHaveLength(3);
+  });
+
+  it("ignores surrounding whitespace on a real query", () => {
+    expect(filterProjects(projects, "  react  ").map((p) => p.id)).toEqual(["p1"]);
   });
 
   it("matches on title case-insensitively", () => {
@@ -85,6 +99,26 @@ describe("filterProjects — client-side search, no network request", () => {
 
   it("returns empty array when nothing matches", () => {
     expect(filterProjects(projects, "xyzzy-no-match-99")).toEqual([]);
+  });
+
+  // The search field promises "forfattere". Author matching was missing, so a
+  // visitor searching a builder's handle got the empty state — and since every
+  // live row has tools = null, title/description were the only fields of the
+  // three named that did anything. These fail if author matching regresses.
+  it("matches on author, which the placeholder promises ('forfattere')", () => {
+    const byAuthor = [
+      ...projects,
+      { ...makeProject("p4", "Unrelated Title", "unrelated description"), author: "webdev82_vibe" },
+    ];
+    const results = filterProjects(byAuthor, "webdev82");
+    expect(results.map((p) => p.id)).toEqual(["p4"]);
+  });
+
+  it("matches author case-insensitively and on a partial handle", () => {
+    const byAuthor = [
+      { ...makeProject("p5", "Nothing Relevant", "nothing relevant"), author: "OCUPIE ApS" },
+    ];
+    expect(filterProjects(byAuthor, "ocupie").map((p) => p.id)).toEqual(["p5"]);
   });
 
   it("returns empty array for an empty project list regardless of query", () => {
@@ -361,5 +395,79 @@ describe("view-tab switching contract (Dansk/Alle/Hot)", () => {
       .filter((p) => p.isDanish)
       .sort((a, b) => b.upvotes - a.upvotes);
     expect(sorted[0].id).toBe("p1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseToolsInput / parsePromptsInput — the submit form's two new fields
+// ---------------------------------------------------------------------------
+//
+// Before these existed the form posted `tools: []` and `prompts: []` hardcoded,
+// so the detail page's "Teknologier & Værktøjer" and "Core Prompts Anvendt"
+// sections could never render for anything submitted through the UI. Both
+// parsers clamp to projectSchema's limits so a freehand field can't turn into
+// a 400 the visitor has to diagnose.
+
+describe("parseToolsInput — comma-separated tools field", () => {
+  it("splits on commas and trims each entry", () => {
+    expect(parseToolsInput("Claude Code, Next.js ,  Supabase")).toEqual([
+      "Claude Code",
+      "Next.js",
+      "Supabase",
+    ]);
+  });
+
+  it("drops empty entries from trailing or doubled commas", () => {
+    expect(parseToolsInput("Cursor,,Vercel,")).toEqual(["Cursor", "Vercel"]);
+  });
+
+  it("returns an empty array for an empty or whitespace-only field", () => {
+    expect(parseToolsInput("")).toEqual([]);
+    expect(parseToolsInput("   ")).toEqual([]);
+    expect(parseToolsInput(" , , ")).toEqual([]);
+  });
+
+  it("caps at MAX_TOOLS so projectSchema's .max(10) can't 400 the submission", () => {
+    const many = Array.from({ length: MAX_TOOLS + 5 }, (_, i) => `tool${i}`).join(",");
+    expect(parseToolsInput(many)).toHaveLength(MAX_TOOLS);
+  });
+
+  it("truncates an over-long tool to MAX_TOOL_LENGTH rather than failing validation", () => {
+    const [tool] = parseToolsInput("x".repeat(MAX_TOOL_LENGTH + 20));
+    expect(tool).toHaveLength(MAX_TOOL_LENGTH);
+  });
+});
+
+describe("parsePromptsInput — blank-line-separated prompts field", () => {
+  it("splits on blank lines, one prompt per block", () => {
+    expect(parsePromptsInput("Byg en dashboard-side\n\nTilføj et filter")).toEqual([
+      "Byg en dashboard-side",
+      "Tilføj et filter",
+    ]);
+  });
+
+  it("keeps a multi-line prompt as ONE prompt", () => {
+    // The reason for splitting on blank lines rather than newlines: prompts
+    // are usually more than one line long.
+    expect(parsePromptsInput("line one\nline two\nline three")).toEqual([
+      "line one\nline two\nline three",
+    ]);
+  });
+
+  it("tolerates blank lines that carry whitespace", () => {
+    expect(parsePromptsInput("first\n   \nsecond")).toEqual(["first", "second"]);
+  });
+
+  it("returns an empty array for an empty or whitespace-only field", () => {
+    expect(parsePromptsInput("")).toEqual([]);
+    expect(parsePromptsInput("\n\n  \n\n")).toEqual([]);
+  });
+
+  it("caps at MAX_PROMPTS and truncates an over-long prompt", () => {
+    const many = Array.from({ length: MAX_PROMPTS + 3 }, (_, i) => `p${i}`).join("\n\n");
+    expect(parsePromptsInput(many)).toHaveLength(MAX_PROMPTS);
+
+    const [prompt] = parsePromptsInput("y".repeat(MAX_PROMPT_LENGTH + 100));
+    expect(prompt).toHaveLength(MAX_PROMPT_LENGTH);
   });
 });

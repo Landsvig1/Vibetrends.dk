@@ -825,6 +825,10 @@ export async function getProjects(search?: string, lang: 'da' | 'en' = 'da', sor
         p.title_en.toLowerCase().includes(q) ||
         (p.description_da ?? '').toLowerCase().includes(q) ||
         p.description_en.toLowerCase().includes(q) ||
+        // The /vibes search field names "forfattere" as a searchable dimension
+        // and this filter is what backs ?q= (and the agent JSON path). Keep in
+        // sync with filterProjects() in vibes/VibesExplorer.tsx.
+        (p.author ?? '').toLowerCase().includes(q) ||
         (p.tools || []).some((t: string) => t.toLowerCase().includes(q))
       )
       .map(p => mapProject(p, lang));
