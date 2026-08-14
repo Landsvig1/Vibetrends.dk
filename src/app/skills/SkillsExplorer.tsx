@@ -16,6 +16,7 @@ import {
 import { Skill } from "@/lib/db";
 import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getValidView, DEFAULT_SKILL_BOARD, type SkillBoard } from "@/lib/skillViews";
+import { visibleBoards } from "@/lib/boardTabs";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import dynamic from "next/dynamic";
@@ -193,21 +194,30 @@ export default function SkillsExplorer({
    * row of boards; "Alle" takes its slot, which is also where /vibes and /cli
    * put theirs.
    */
-  const viewTabs: {
-    value: SkillBoard;
-    label: string;
-    icon: typeof Flag;
-    count: number;
-  }[] = [
-    { value: "danish", label: "Dansk", icon: Flag, count: danishSkills.length },
-    { value: "all", label: "Alle", icon: Library, count: allSkills.length },
-    {
-      value: "trending",
-      label: "Trender",
-      icon: TrendingUp,
-      count: trendingSkills.length,
-    },
-  ];
+  const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag }> = {
+    danish: { label: "Dansk", icon: Flag },
+    all: { label: "Alle", icon: Library },
+    trending: { label: "Trender", icon: TrendingUp },
+  };
+
+  // The same shared rule the other hubs use (lib/boardTabs). /skills is the
+  // hub where the row unambiguously earns its place: 45 Danish, 98 total and
+  // 7 trending of which none are Danish, so all three boards are disjoint and
+  // all three carry a count. Routed through the shared helper anyway so the
+  // hubs cannot drift apart again, and so /skills degrades the same way if its
+  // catalog ever collapses to a single set.
+  const viewTabs = useMemo(
+    () =>
+      visibleBoards(
+        [
+          { value: "danish", items: danishSkills },
+          { value: "all", items: allSkills },
+          { value: "trending", items: trendingSkills },
+        ],
+        (skill) => skill.id
+      ),
+    [danishSkills, allSkills, trendingSkills]
+  );
 
   const boardHeading =
     view === "danish"
@@ -378,14 +388,14 @@ export default function SkillsExplorer({
         </div>
 
         <div className="flex gap-2">
-          {viewTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = view === tab.value && !searchActive;
+          {viewTabs.map((board) => {
+            const { label, icon: Icon } = BOARD_LABELS[board.value];
+            const isActive = view === board.value && !searchActive;
             return (
               <button
-                key={tab.value}
+                key={board.value}
                 type="button"
-                onClick={() => selectView(tab.value)}
+                onClick={() => selectView(board.value as SkillBoard)}
                 aria-pressed={isActive}
                 className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
                   isActive
@@ -394,12 +404,14 @@ export default function SkillsExplorer({
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {tab.label}
-                <span
-                  className={`font-mono tabular-nums ${isActive ? "text-white/80" : "text-text-secondary"}`}
-                >
-                  {tab.count}
-                </span>
+                {label}
+                {board.showCount && (
+                  <span
+                    className={`font-mono tabular-nums ${isActive ? "text-white/80" : "text-text-secondary"}`}
+                  >
+                    {board.items.length}
+                  </span>
+                )}
               </button>
             );
           })}

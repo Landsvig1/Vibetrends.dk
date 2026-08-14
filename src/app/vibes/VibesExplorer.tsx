@@ -6,6 +6,7 @@ import { Search, Code, PlusCircle, CheckCircle2, Sparkles, X, Flag, Flame } from
 import { ShowcaseProject } from "@/lib/db";
 import { parseGithubRepoUrl } from "@/lib/github";
 import { canDelete } from "@/lib/permissions";
+import { visibleBoards, resolveView } from "@/lib/boardTabs";
 import { useAuth } from "../components/AuthProvider";
 import { ProjectCard } from "../components/ProjectCard";
 import dynamic from "next/dynamic";
@@ -282,22 +283,34 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
   const searchActive = search.trim() !== "";
 
+  // Which boards actually differ, per the shared rule in lib/boardTabs. /vibes
+  // keeps all three today because its one non-Danish project makes Dansk a
+  // real subset; the row would disappear on its own if that entry went away.
+  const boards = useMemo(
+    () =>
+      ["danish", "all", "hot"].map((value) => ({
+        value,
+        items: selectBoardProjects(projects, value, false),
+      })),
+    [projects]
+  );
+  const visible = useMemo(() => visibleBoards(boards, (p) => p.id), [boards]);
+
+  // A stale ?view= must not select a board that no longer has a tab.
+  const activeView = resolveView(view, visible, "danish");
+
   // Board rules live in selectBoardProjects (exported, tested). Memoized to
   // avoid re-filtering and re-sorting on every keystroke.
   const filteredProjects = useMemo(
-    () => filterProjects(selectBoardProjects(projects, view, searchActive), search),
-    [projects, view, search, searchActive]
+    () => filterProjects(selectBoardProjects(projects, activeView, searchActive), search),
+    [projects, activeView, search, searchActive]
   );
 
-  const viewTabs: {
-    value: string;
-    label: string;
-    icon: typeof Flag | typeof Flame | null;
-  }[] = [
-    { value: "danish", label: "Dansk", icon: Flag },
-    { value: "all", label: "Alle", icon: null },
-    { value: "hot", label: "Hot", icon: Flame },
-  ];
+  const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag | typeof Flame | null }> = {
+    danish: { label: "Dansk", icon: Flag },
+    all: { label: "Alle", icon: null },
+    hot: { label: "Hot", icon: Flame },
+  };
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
@@ -462,31 +475,37 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           />
         </div>
 
+        {visible.length > 0 && (
         <div className="flex gap-2 justify-center md:justify-end">
-          {viewTabs.map((tab) => {
-            const Icon = tab.icon;
+          {visible.map((board) => {
+            const { label, icon: Icon } = BOARD_LABELS[board.value];
+            const isActive = activeView === board.value && !searchActive;
             return (
               /* aria-pressed, 44px and no shadow: same board-tab contract as
                  /skills and /cli. The active board used to be marked by fill
                  colour alone, which announces nothing, and the shadow was
                  doing hierarchy work that DESIGN.md assigns to the fill. */
               <button
-                key={tab.value}
+                key={board.value}
                 type="button"
-                aria-pressed={view === tab.value && !searchActive}
-                onClick={() => setView(tab.value)}
+                aria-pressed={isActive}
+                onClick={() => setView(board.value)}
                 className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  view === tab.value && !searchActive
+                  isActive
                     ? "bg-accent-primary text-white font-extrabold"
                     : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
-                {tab.label}
+                {label}
+                {board.showCount && (
+                  <span className="font-mono opacity-70">{board.items.length}</span>
+                )}
               </button>
             );
           })}
         </div>
+        )}
       </div>
 
       {filteredProjects.length > 0 ? (
