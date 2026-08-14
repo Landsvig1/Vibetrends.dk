@@ -132,9 +132,13 @@ function AgentCardComponent({
                   <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
                 </motion.button>
               ) : (
-                <span className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20">
+                /* pointer-events-none: this branch is a label, not a control,
+                   and z-20 would otherwise lift it over ListCard's whole-card
+                   overlay link and leave a dead click target on the card. */
+                <span className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20 pointer-events-none">
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                   <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                  <span className="sr-only">upvotes</span>
                 </span>
               )}
             </div>
@@ -145,7 +149,18 @@ function AgentCardComponent({
           </p>
 
           <div className="flex items-center justify-between rounded-lg bg-background border border-card-border p-3 font-mono text-[10px] text-accent-primary relative group/install">
-            <span className={`truncate ${onCopy ? "pr-8" : "select-all"}`}>{agent.installCommand}</span>
+            {/* Without a copy button the command has to stay both readable and
+                grabbable, so it scrolls rather than truncating — `truncate`
+                would clip a long install string with no way to recover it. */}
+            <span
+              className={
+                onCopy
+                  ? "truncate pr-8"
+                  : "select-all overflow-x-auto whitespace-nowrap"
+              }
+            >
+              {agent.installCommand}
+            </span>
             {onCopy && (
               <button
                 onClick={(e) => onCopy(agent.id, agent.installCommand, e)}

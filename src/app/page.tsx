@@ -145,7 +145,7 @@ async function HomeContent() {
                 agent={agent}
                 detailBase={base}
                 testId={testId}
-                sourceLabel={`${agent.name} — kilde`}
+                sourceLabel={`Kilde til ${agent.name}`}
                 byLabel="Af"
                 detailsLabel="Se detaljer"
               />

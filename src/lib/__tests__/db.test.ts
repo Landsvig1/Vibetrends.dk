@@ -1600,6 +1600,14 @@ describe("U2 — cacheTag: broad + variant tags on every read function", () => {
     const topAgentsTag = state.cacheTagCalls.at(-1);
     expect(topAgentsTag![0]).toBe('agents-list');
     expect(topAgentsTag![1]).toBe('top-agents:1:da');
+
+    // getTopMcpServers is the MCP half of the same homepage row and shares the
+    // broad 'agents-list' tag, so every revalidateTag path that already
+    // invalidates getTopAgents invalidates it too.
+    await db.getTopMcpServers(1, "da");
+    const topMcpTag = state.cacheTagCalls.at(-1);
+    expect(topMcpTag![0]).toBe('agents-list');
+    expect(topMcpTag![1]).toBe('top-mcp:1:da');
   });
 });
 
@@ -2535,6 +2543,7 @@ describe("review gate — gated reads filter on review_state", () => {
     ["getAgentById", "agents", () => db.getAgentById("a1")],
     ["getAgentBySlug", "agents", () => db.getAgentBySlug("a-slug")],
     ["getTopAgents", "agents", () => db.getTopAgents(3)],
+    ["getTopMcpServers", "agents", () => db.getTopMcpServers(3)],
     ["getBlogPosts", "blog_posts", () => db.getBlogPosts()],
     ["getBlogPostById", "blog_posts", () => db.getBlogPostById("b1")],
     ["getLatestPosts", "blog_posts", () => db.getLatestPosts(3)],
