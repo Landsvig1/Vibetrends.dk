@@ -421,10 +421,12 @@ describe("selectBoardProjects — board membership and ordering", () => {
   });
 
   it("Hot re-sorts after an upvote rewrites a count in place", () => {
+    // "foreign" sits LAST in the fixture, so this fails if Hot stops sorting.
+    // Upvoting the item that is already first would pass either way.
     const afterUpvote = board.map((p) =>
-      p.id === "dk-low" ? { ...p, upvotes: 99 } : p
+      p.id === "foreign" ? { ...p, upvotes: 99 } : p
     );
-    expect(selectBoardProjects(afterUpvote, "hot", false)[0].id).toBe("dk-low");
+    expect(selectBoardProjects(afterUpvote, "hot", false)[0].id).toBe("foreign");
   });
 
   it("an active search overrides the board and preserves the incoming order", () => {

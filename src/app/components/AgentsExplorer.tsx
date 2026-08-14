@@ -39,6 +39,40 @@ export function filterAgents(agents: Agent[], query: string): Agent[] {
 }
 
 /**
+ * Which agents a board shows, and in what order. Serves /cli and /mcp.
+ *
+ * Exported so the ordering is testable. The rules used to live inline in a
+ * useMemo and the tests that covered them re-implemented the same sort in the
+ * test body, so they passed regardless of what the component did — which is
+ * how the Hot bug below survived.
+ *
+ * Search overrides the board (same contract as /skills and /vibes).
+ *
+ * Every branch sorts explicitly. Hot used to return `agents` untouched,
+ * trusting the server's initial upvotes-desc order. That order goes stale as
+ * soon as the client mutates the list: upvoting rewrites a count in place
+ * without reordering, and a submission is prepended, so a 1-upvote entry sat
+ * above a 40-upvote one. Same defect fixed on /vibes in #129; this is the
+ * copy that shipped to /cli and /mcp.
+ */
+export function selectBoardAgents(
+  agents: Agent[],
+  view: string,
+  searchActive: boolean
+): Agent[] {
+  if (searchActive) return agents;
+  if (view === "danish") {
+    return [...agents]
+      .filter((a) => a.isDanish)
+      .sort((a, b) => b.upvotes - a.upvotes);
+  }
+  if (view === "all") {
+    return [...agents].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return [...agents].sort((a, b) => b.upvotes - a.upvotes);
+}
+
+/**
  * Core upvote logic — extracted for unit testability.
  *
  * Guards against overlapping requests on the same item via `pendingIds` (a
@@ -228,25 +262,12 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
   const searchActive = search.trim() !== "";
 
-  // Search overrides the view (same contract as the /skills tabs). The server
-  // returns the list upvotes-desc, which IS the Hot order; Dansk filters to
-  // Danish contributors, ranked by upvotes; Alle is the full catalog
-  // alphabetically.
-  // ⚡ Optimization: Memoize the filtered and sorted agents list to prevent redundant
-  // recreation, sorting, and filtering on every single render/keystroke.
-  const filteredAgents = useMemo(() => {
-    const viewAgents = searchActive
-      ? agents
-      : view === "danish"
-        ? [...agents]
-            .filter((a) => a.isDanish)
-            .sort((a, b) => b.upvotes - a.upvotes)
-        : view === "all"
-          ? [...agents].sort((a, b) => a.name.localeCompare(b.name))
-          : agents;
-
-    return filterAgents(viewAgents, search);
-  }, [agents, view, search, searchActive]);
+  // Board rules live in selectBoardAgents (exported, tested). Memoized to
+  // avoid re-filtering and re-sorting on every keystroke.
+  const filteredAgents = useMemo(
+    () => filterAgents(selectBoardAgents(agents, view, searchActive), search),
+    [agents, view, search, searchActive]
+  );
 
   const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
     { value: "danish", label: "Dansk", icon: Flag },
