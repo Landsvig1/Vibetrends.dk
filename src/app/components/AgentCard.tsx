@@ -18,17 +18,24 @@ interface AgentCardProps {
   agent: Agent;
   detailBase: string;
   testId: "mcp-card" | "cli-card";
-  isCopied: boolean;
-  canDelete: boolean;
-  confirmDeleteLabel: string;
+  isCopied?: boolean;
+  canDelete?: boolean;
+  confirmDeleteLabel?: string;
   sourceLabel: string;
-  copyLabel: string;
-  copiedLabel: string;
+  copyLabel?: string;
+  copiedLabel?: string;
   byLabel: string;
   detailsLabel: string;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-  onUpvote: (id: string, e: React.MouseEvent) => void;
-  onCopy: (id: string, command: string, e: React.MouseEvent) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
+  /**
+   * Client surfaces (/cli, /mcp) pass these and get an upvote button and a
+   * copy button. Server surfaces — the homepage row — omit them and get the
+   * read-only card: the count renders as text and the install command stays
+   * select-all-able. Same arrangement SkillCard uses for the topic pages, so
+   * one card definition covers both trees instead of a hand-copied twin.
+   */
+  onUpvote?: (id: string, e: React.MouseEvent) => void;
+  onCopy?: (id: string, command: string, e: React.MouseEvent) => void;
 }
 
 const categoryIcons = {
@@ -41,12 +48,12 @@ function AgentCardComponent({
   agent,
   detailBase,
   testId,
-  isCopied,
-  canDelete,
-  confirmDeleteLabel,
+  isCopied = false,
+  canDelete = false,
+  confirmDeleteLabel = "",
   sourceLabel,
-  copyLabel,
-  copiedLabel,
+  copyLabel = "",
+  copiedLabel = "",
   byLabel,
   detailsLabel,
   onDelete,
@@ -69,7 +76,7 @@ function AgentCardComponent({
                   {categoryIcons[agent.category as keyof typeof categoryIcons]}
                   {agent.category}
                 </div>
-                {canDelete && (
+                {canDelete && onDelete && (
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -104,25 +111,36 @@ function AgentCardComponent({
                   <Globe className="h-3.5 w-3.5" aria-hidden="true" />
                 </motion.a>
               )}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpvote(agent.id, e);
-                }}
-                aria-label={`Upvote ${agent.name}`}
-                className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.3 }}
-                  key={agent.upvotes}
+              {onUpvote ? (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpvote(agent.id, e);
+                  }}
+                  aria-label={`Upvote ${agent.name}`}
+                  className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border hover:border-accent-primary/40 text-text-secondary hover:text-accent-primary backdrop-blur-md transition z-20"
                 >
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.3 }}
+                    key={agent.upvotes}
+                  >
+                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                  </motion.div>
+                  <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                </motion.button>
+              ) : (
+                /* pointer-events-none: this branch is a label, not a control,
+                   and z-20 would otherwise lift it over ListCard's whole-card
+                   overlay link and leave a dead click target on the card. */
+                <span className="relative flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-card-border text-text-secondary z-20 pointer-events-none">
                   <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                </motion.div>
-                <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
-              </motion.button>
+                  <span className="text-xs font-bold font-mono">{agent.upvotes}</span>
+                  <span className="sr-only">{" upvotes"}</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -131,21 +149,34 @@ function AgentCardComponent({
           </p>
 
           <div className="flex items-center justify-between rounded-lg bg-background border border-card-border p-3 font-mono text-[10px] text-accent-primary relative group/install">
-            <span className="truncate pr-8">{agent.installCommand}</span>
-            <button
-              onClick={(e) => onCopy(agent.id, agent.installCommand, e)}
-              aria-label={isCopied ? copiedLabel : copyLabel}
-              className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-colors z-20"
+            {/* Without a copy button the command has to stay both readable and
+                grabbable, so it scrolls rather than truncating — `truncate`
+                would clip a long install string with no way to recover it. */}
+            <span
+              className={
+                onCopy
+                  ? "truncate pr-8"
+                  : "select-all overflow-x-auto whitespace-nowrap"
+              }
             >
-              {isCopied ? (
-                <CheckCircle
-                  className="h-3.5 w-3.5 text-accent-primary"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-            </button>
+              {agent.installCommand}
+            </span>
+            {onCopy && (
+              <button
+                onClick={(e) => onCopy(agent.id, agent.installCommand, e)}
+                aria-label={isCopied ? copiedLabel : copyLabel}
+                className="absolute right-2 p-1.5 rounded bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-colors z-20"
+              >
+                {isCopied ? (
+                  <CheckCircle
+                    className="h-3.5 w-3.5 text-accent-primary"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 
