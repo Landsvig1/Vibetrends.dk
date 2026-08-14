@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Flag, Flame } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
 import { entityMetadata } from "@/lib/seo";
@@ -104,7 +104,7 @@ async function TopicContent({
   const tabs: { value: "all" | "danish" | "trending"; label: string; icon: typeof Flag | null; href: string }[] = [
     { value: "all", label: "Alle", icon: null, href: `/skills/topic/${slug}` },
     { value: "danish", label: "Dansk", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
-    { value: "trending", label: "Trender", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
+    { value: "trending", label: "Hot", icon: Flame, href: `/skills/topic/${slug}?view=trending` },
   ];
   const activeTab = view ?? "all";
 

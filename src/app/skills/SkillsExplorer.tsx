@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   X,
   Flag,
-  TrendingUp,
+  Flame,
   Library,
 } from "lucide-react";
 import { Skill } from "@/lib/db";
@@ -194,10 +194,14 @@ export default function SkillsExplorer({
    * row of boards; "Alle" takes its slot, which is also where /vibes and /cli
    * put theirs.
    */
+  /* The third board is called "Hot" on every hub. The board key stays
+     `trending` because that is the DB view behind it (`trending_rank`), and
+     because getSkills() also serves a genuinely different `hot` view — only
+     the label is shared, not the query. */
   const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag }> = {
     danish: { label: "Dansk", icon: Flag },
     all: { label: "Alle", icon: Library },
-    trending: { label: "Trender", icon: TrendingUp },
+    trending: { label: "Hot", icon: Flame },
   };
 
   // The same shared rule the other hubs use (lib/boardTabs). /skills is the
@@ -223,7 +227,7 @@ export default function SkillsExplorer({
     view === "danish"
       ? "Danske skills"
       : view === "trending"
-        ? "Skills der trender"
+        ? "Hot skills"
         : "Alle skills";
 
   const clearSearch = () => setSearch(null);
@@ -446,7 +450,7 @@ export default function SkillsExplorer({
             af {allSkills.length} skills{" "}
             {view === "danish"
               ? "er fra danske bidragydere."
-              : "trender lige nu."}
+              : "er hot lige nu."}
           </>
         )}
       </p>
@@ -500,10 +504,10 @@ export default function SkillsExplorer({
         ) : (
           /* Two different empty states. A search that found nothing needs a way
              back to the catalog first; a board that is genuinely empty needs a
-             contribution. The suggestions come from the Trender board so the
-             "Trender lige nu" header names the same list the Trender tab does —
-             it used to be sliced from the catalog by upvotes, which is a
-             different set of rows under the same word. */
+             contribution. The suggestions come from the Hot board so the
+             "Hot lige nu" header names the same list the Hot tab does — it used
+             to be sliced from the catalog by upvotes, which is a different set
+             of rows under the same word. */
           <EmptyState
             icon={Briefcase}
             title={
@@ -532,7 +536,7 @@ export default function SkillsExplorer({
             suggestions={
               trendingSkills.length > 0
                 ? {
-                    title: "Trender lige nu",
+                    title: "Hot lige nu",
                     items: trendingSkills.slice(0, 3).map((s) => ({
                       id: s.id,
                       title: s.title,
