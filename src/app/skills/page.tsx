@@ -39,7 +39,8 @@ export default async function SkillsPage({
  *   1. Full catalog, unfiltered — the "Alle" board, the search corpus, the
  *      per-topic counts, and the empty-state fallbacks.
  *   2. The Dansk board.
- *   3. The Trender board.
+ *   3. The Hot board (the `trending` view — see SkillsExplorer's BOARD_LABELS
+ *      for why the label and the key differ).
  *   4. The search-filtered catalog, only when ?q= is set, and only to keep the
  *      JSON-LD honest about what the page is actually listing.
  *

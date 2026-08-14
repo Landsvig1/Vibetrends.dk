@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Flag, Flame, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Flag, Flame, Star } from "lucide-react";
 import { getSkills, parseSkillView } from "@/lib/db";
 import { getSkillCategory } from "@/lib/skillCategories";
 import { entityMetadata } from "@/lib/seo";
@@ -104,7 +104,7 @@ async function TopicContent({
   const tabs: { value: "all" | "danish" | "trending"; label: string; icon: typeof Flag | null; href: string }[] = [
     { value: "all", label: "Alle", icon: null, href: `/skills/topic/${slug}` },
     { value: "danish", label: "Dansk", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
-    { value: "trending", label: "Trender", icon: TrendingUp, href: `/skills/topic/${slug}?view=trending` },
+    { value: "trending", label: "Hot", icon: Flame, href: `/skills/topic/${slug}?view=trending` },
   ];
   const activeTab = view ?? "all";
 
@@ -163,8 +163,12 @@ async function TopicContent({
       {/* Featured pick (default view only) */}
       {featured && (
         <div className="space-y-3">
+          {/* Star, not Flame. This pick comes from the `hot` view while the
+              tab above now wears the flame for the `trending` board — two
+              different queries. One flame per page, and it belongs to the
+              board the tab actually opens. */}
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center">
-            <Flame className="h-4 w-4 mr-2 text-accent-primary" />
+            <Star className="h-4 w-4 mr-2 text-accent-primary" />
             Mest populære
           </h2>
           <SkillCard skill={featured} githubLabel={githubLabel} connectLabel={connectLabel} />

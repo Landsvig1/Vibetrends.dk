@@ -5,7 +5,9 @@
  * the server data layer into the client bundle.
  */
 /** Tab order, and it matches the other hubs: Dansk first, then Alle, then the
- * hub's own third board (Hot on /vibes and /cli, Trender here). */
+ * third board, which every hub labels "Hot". Here that board is keyed
+ * `trending` because it is the `trending_rank` view — a real curated subset,
+ * not the re-sort that /vibes and /cli put under the same label. */
 export const SKILL_BOARDS = ["danish", "all", "trending"] as const;
 
 export type SkillBoard = (typeof SKILL_BOARDS)[number];
@@ -24,10 +26,13 @@ export const DEFAULT_SKILL_BOARD: SkillBoard = "danish";
  * is fixed by printing every board's size on its own tab instead of by
  * reordering the boards.
  *
- * "hot" is deliberately not a board here. getSkills() still serves it, and it
- * stays available to agents through /api/skills and the MCP tool, but no tab on
- * this page ever surfaced it: ?view=hot rendered rows with every tab reading
- * inactive and no control to get back. It folds to the default instead.
+ * "hot" is deliberately not a board here, and note that the third tab now
+ * *reads* "Hot" while being keyed `trending`. The two are not the same query:
+ * getSkills()'s `hot` view is a momentum sort over the whole catalog, while
+ * `trending` is the curated `trending_rank` subset the tab actually shows.
+ * `hot` stays available to agents through /api/skills and the MCP tool, but no
+ * tab on this page has ever surfaced it: ?view=hot rendered rows with every tab
+ * reading inactive and no control to get back. It folds to the default instead.
  */
 export function getValidView(view: string | undefined): SkillBoard {
   return SKILL_BOARDS.includes(view as SkillBoard)
