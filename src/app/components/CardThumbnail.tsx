@@ -66,8 +66,13 @@ export function CardThumbnail({
         priority={priority}
         className="object-cover group-hover:scale-[1.03] transition duration-500"
       />
+      {/* Deliberately no z-index. This root is `relative` with `z-index: auto`,
+          so it opens no stacking context and the badge competes directly with
+          the whole-card overlay link its callers put at z-10. A z-20 badge
+          wins that fight and turns its own corner into a dead click zone.
+          Only interactive children need to sit above the link. */}
       {badge && (
-        <span className="absolute bottom-3 left-3 z-20 px-2 py-0.5 rounded text-xs font-semibold bg-background text-text-secondary border border-card-border">
+        <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded text-xs font-semibold bg-background text-text-secondary border border-card-border">
           {badge}
         </span>
       )}

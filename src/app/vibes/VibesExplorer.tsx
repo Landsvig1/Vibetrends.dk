@@ -90,21 +90,48 @@ export async function executeUpvote(
 }
 
 /**
- * Comma-separated tools input → the `tools` array.
+ * Which projects a board shows, and in what order. Exported so the ordering is
+ * testable: the board rules used to live inline in a useMemo, and the tests
+ * that covered them re-implemented the same sort in the test body, so they
+ * would have passed no matter what the component did.
  *
- * Capped and truncated here rather than left to the server: projectSchema
- * rejects >10 tools or any tool over 50 chars with a 400, and a rejected
- * submission is a worse outcome than a quietly trimmed one for a field the
- * visitor is filling freehand.
+ * Search overrides the board entirely (same contract as /skills, /cli, /mcp).
+ *
+ * Every branch sorts explicitly. Hot used to return `projects` untouched,
+ * leaning on the server's initial sort=top order, which goes stale as soon as
+ * the client mutates the list: upvoting rewrites a count in place without
+ * reordering, and a submission is prepended, so a 1-upvote entry could sit
+ * above a 40-upvote one. That was unreachable while the Hot tab was disabled.
  */
+export function selectBoardProjects(
+  projects: ShowcaseProject[],
+  view: string,
+  searchActive: boolean
+): ShowcaseProject[] {
+  if (searchActive) return projects;
+  if (view === "danish") {
+    return [...projects]
+      .filter((p) => p.isDanish)
+      .sort((a, b) => b.upvotes - a.upvotes);
+  }
+  if (view === "all") {
+    return [...projects].sort((a, b) => a.title.localeCompare(b.title));
+  }
+  return [...projects].sort((a, b) => b.upvotes - a.upvotes);
+}
+
+/** Mirrors projectSchema in src/lib/schemas.ts — change both together. */
 export const MAX_TOOLS = 10;
 export const MAX_TOOL_LENGTH = 50;
+export const MAX_PROMPTS = 20;
+export const MAX_PROMPT_LENGTH = 2000;
+
+/** Comma-separated tools input → the `tools` array. */
 export function parseToolsInput(raw: string): string[] {
   return raw
     .split(",")
-    .map((tool) => tool.trim().slice(0, MAX_TOOL_LENGTH))
-    .filter(Boolean)
-    .slice(0, MAX_TOOLS);
+    .map((tool) => tool.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -113,17 +140,43 @@ export function parseToolsInput(raw: string): string[] {
  * One block per prompt, which is what the detail page already renders as
  * "Step 1..N". Blank-line splitting (rather than one line per prompt) is what
  * lets a prompt be more than one line long, and prompts usually are.
- *
- * Mirrors projectSchema's limits for the same reason as parseToolsInput.
  */
-export const MAX_PROMPTS = 20;
-export const MAX_PROMPT_LENGTH = 2000;
 export function parsePromptsInput(raw: string): string[] {
   return raw
     .split(/\n\s*\n/)
-    .map((prompt) => prompt.trim().slice(0, MAX_PROMPT_LENGTH))
-    .filter(Boolean)
-    .slice(0, MAX_PROMPTS);
+    .map((prompt) => prompt.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Danish message naming the first limit the submission breaks, or null.
+ *
+ * These parsers used to clamp to projectSchema's limits with `.slice()`, on
+ * the reasoning that a silently trimmed submission beats a 400 the visitor has
+ * to diagnose. That was the wrong trade once the form gained an error surface:
+ * truncating a 2,500-character prompt to 2,000 loses the submitter's work
+ * without telling them, and a mangled prompt on the detail page is worse than
+ * a message asking them to shorten it. Report, don't mangle.
+ */
+export function validateSubmissionLimits(
+  tools: string[],
+  prompts: string[]
+): string | null {
+  if (tools.length > MAX_TOOLS) {
+    return `Højst ${MAX_TOOLS} værktøjer. Fjern ${tools.length - MAX_TOOLS}.`;
+  }
+  const longTool = tools.find((tool) => tool.length > MAX_TOOL_LENGTH);
+  if (longTool) {
+    return `Værktøjsnavne må højst være ${MAX_TOOL_LENGTH} tegn. "${longTool.slice(0, 20)}..." er for langt.`;
+  }
+  if (prompts.length > MAX_PROMPTS) {
+    return `Højst ${MAX_PROMPTS} prompts. Fjern ${prompts.length - MAX_PROMPTS}.`;
+  }
+  const longIndex = prompts.findIndex((p) => p.length > MAX_PROMPT_LENGTH);
+  if (longIndex !== -1) {
+    return `Prompt ${longIndex + 1} er ${prompts[longIndex].length} tegn. Maks. er ${MAX_PROMPT_LENGTH}.`;
+  }
+  return null;
 }
 
 interface VibesExplorerProps {
@@ -171,6 +224,18 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
 
+  // Every open and close routes through these so the error can't outlive the
+  // attempt that produced it. Closing on a failed submit and reopening used to
+  // show the previous red alert above a form the visitor hadn't touched yet.
+  const openSubmitModal = useCallback(() => {
+    setSubError(null);
+    setSubmitOpen(true);
+  }, []);
+  const closeSubmitModal = useCallback(() => {
+    setSubError(null);
+    setSubmitOpen(false);
+  }, []);
+
   // Best-effort prefill: pull title + description from GitHub's public repo
   // API via our own /api/github-meta proxy (CSP only allows same-origin +
   // Supabase in connect-src, so the browser can't call api.github.com
@@ -207,33 +272,22 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   useEffect(() => {
     if (submitParam === "1") {
       queueMicrotask(() => {
-        setSubmitOpen(true);
+        openSubmitModal();
         setSubmitParam(null);
       });
     }
-  }, [submitParam, setSubmitParam]);
+    // openSubmitModal is a useCallback with no deps, so listing it is free —
+    // it never changes identity and cannot re-fire this effect.
+  }, [submitParam, setSubmitParam, openSubmitModal]);
 
   const searchActive = search.trim() !== "";
 
-  // Search overrides the view (same contract as the /skills, /cli, and /mcp
-  // tabs). The base fetch is already upvotes-desc (sort=top), which
-  // IS the Hot order; Dansk filters to Danish contributors, ranked by
-  // upvotes; Alle is the full catalog alphabetically.
-  // ⚡ Optimization: Memoize the filtered and sorted projects list to prevent redundant
-  // recreation, sorting, and filtering on every single render/keystroke.
-  const filteredProjects = useMemo(() => {
-    const viewProjects = searchActive
-      ? projects
-      : view === "danish"
-        ? [...projects]
-            .filter((p) => p.isDanish)
-            .sort((a, b) => b.upvotes - a.upvotes)
-        : view === "all"
-          ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
-          : projects;
-
-    return filterProjects(viewProjects, search);
-  }, [projects, view, search, searchActive]);
+  // Board rules live in selectBoardProjects (exported, tested). Memoized to
+  // avoid re-filtering and re-sorting on every keystroke.
+  const filteredProjects = useMemo(
+    () => filterProjects(selectBoardProjects(projects, view, searchActive), search),
+    [projects, view, search, searchActive]
+  );
 
   const viewTabs: {
     value: string;
@@ -280,6 +334,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
     if (!subTitle || !subDesc) return;
     setSubError(null);
 
+    const tools = parseToolsInput(subTools);
+    const prompts = parsePromptsInput(subPrompts);
+    const limitError = validateSubmissionLimits(tools, prompts);
+    if (limitError) {
+      setSubError(limitError);
+      return;
+    }
+
     const finalAuthor = user ? user.username : undefined;
 
     try {
@@ -290,8 +352,8 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           title: subTitle,
           author: finalAuthor,
           description: subDesc,
-          tools: parseToolsInput(subTools),
-          prompts: parsePromptsInput(subPrompts),
+          tools,
+          prompts,
           demoUrl: subDemo || "https://vibetrends.dk",
           githubUrl: subGithub || undefined,
         }),
@@ -308,12 +370,14 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
 
       const newProj = await res.json();
       setProjects((prev) => [newProj, ...prev]);
-      // createProject never sets is_danish (the column defaults false), so
-      // the default Dansk board filters the submitter's own entry straight
-      // back out. Jump to Alle so the confirmation ("Andre kan se og stemme
-      // på dit projekt med det samme") is actually true on screen. This is
-      // load-bearing: without it the page's primary CTA appears to succeed
-      // and produces nothing the submitter can find.
+      // Land the submitter somewhere their entry is actually visible, so the
+      // confirmation ("Andre kan se og stemme på dit projekt med det samme")
+      // is true on screen. Clearing the search is half of that: an active
+      // ?q= makes searchActive win over the board entirely, and submitting
+      // mid-search is the common path, not the exotic one — the empty state's
+      // own "Indsend dit projekt" button is how you get here after a search
+      // returned nothing.
+      setSearch("");
       setView("all");
       setSubSuccess(true);
 
@@ -376,7 +440,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             scale was an unguarded transform sitting outside the
             prefers-reduced-motion override. */}
         <button
-          onClick={() => setSubmitOpen(true)}
+          onClick={openSubmitModal}
           className="mx-auto md:mx-0 flex items-center justify-center btn-primary text-sm cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -449,7 +513,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           title="Ingen projekter fundet."
           description="Søg efter et andet emne eller tilføj dit eget projekt."
           actionLabel="Indsend dit projekt"
-          onAction={() => setSubmitOpen(true)}
+          onAction={openSubmitModal}
           suggestions={
             searchActive && initialProjects.length > 0
               ? {
@@ -471,7 +535,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             {/* Close */}
             <button
-              onClick={() => setSubmitOpen(false)}
+              onClick={closeSubmitModal}
               aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >

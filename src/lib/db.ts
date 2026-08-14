@@ -1361,6 +1361,15 @@ export async function createProject(title: string, author: string, description: 
       github_url: githubUrl,
       image_url: imageUrl || '/images/autonewsletter.jpg',
       user_id: userId,
+      // Submissions arrive through a Danish-language UI from a signed-in
+      // contributor, so they are Danish content by default. The column
+      // defaults to false, which meant every submission landed off the Dansk
+      // board — the default board — and was in practice never seen. The
+      // /vibes client had to jump the submitter to Alle just to prove the
+      // write had happened. Agent (bearer) submissions get the same flag but
+      // are held at review_state 'pending' regardless, so a human still sees
+      // them before they are public.
+      is_danish: true,
       // See createSkill: bearer callers are held for review.
       review_state: reviewState,
     }).select().single()
