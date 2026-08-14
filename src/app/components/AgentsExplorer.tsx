@@ -7,6 +7,7 @@ import { Search, Cpu, PlusCircle, X, Terminal, CheckCircle2, Flag, Flame } from 
 import { Agent } from "@/lib/db";
 import { useAuth } from "./AuthProvider";
 import { canDelete } from "@/lib/permissions";
+import { visibleBoards, resolveView } from "@/lib/boardTabs";
 import dynamic from "next/dynamic";
 import EmptyState from "./EmptyState";
 import { AgentCard } from "./AgentCard";
@@ -262,18 +263,36 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
 
   const searchActive = search.trim() !== "";
 
+  const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag | null }> = {
+    danish: { label: "Dansk", icon: Flag },
+    all: { label: "Alle", icon: null },
+    hot: { label: "Hot", icon: Flame },
+  };
+
+  // Which boards actually differ, per the shared rule in lib/boardTabs. On
+  // /cli and /mcp every entry is currently Danish, so Dansk and Hot are
+  // byte-identical and Alle only re-sorts them: visibleBoards returns [] and
+  // the row is not rendered at all. It comes back on its own the day either
+  // hub takes a non-Danish entry.
+  const boards = useMemo(
+    () =>
+      ["danish", "all", "hot"].map((value) => ({
+        value,
+        items: selectBoardAgents(agents, value, false),
+      })),
+    [agents]
+  );
+  const visible = useMemo(() => visibleBoards(boards, (a) => a.id), [boards]);
+
+  // A stale ?view=hot must not select a board that no longer has a tab.
+  const activeView = resolveView(view, visible, "danish");
+
   // Board rules live in selectBoardAgents (exported, tested). Memoized to
   // avoid re-filtering and re-sorting on every keystroke.
   const filteredAgents = useMemo(
-    () => filterAgents(selectBoardAgents(agents, view, searchActive), search),
-    [agents, view, search, searchActive]
+    () => filterAgents(selectBoardAgents(agents, activeView, searchActive), search),
+    [agents, activeView, search, searchActive]
   );
-
-  const viewTabs: { value: string; label: string; icon: typeof Flag | null }[] = [
-    { value: "danish", label: "Dansk", icon: Flag },
-    { value: "all", label: "Alle", icon: null },
-    { value: "hot", label: "Hot", icon: Flame },
-  ];
 
   return (
     <div className="space-y-10">
@@ -316,31 +335,37 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
           />
         </div>
 
-        <div className="flex gap-2">
-          {viewTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              /* aria-pressed, 44px and no shadow: same board-tab contract as
-                 /skills and /vibes. The active board used to be marked by fill
-                 colour alone, which announces nothing, and the shadow was
-                 doing hierarchy work that DESIGN.md assigns to the fill. */
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => setView(tab.value)}
-                aria-pressed={view === tab.value && !searchActive}
-                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  view === tab.value && !searchActive
-                    ? "bg-accent-primary text-white font-extrabold"
-                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
-                }`}
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {visible.length > 0 && (
+          <div className="flex gap-2">
+            {visible.map((board) => {
+              const { label, icon: Icon } = BOARD_LABELS[board.value];
+              const isActive = activeView === board.value && !searchActive;
+              return (
+                /* aria-pressed, 44px and no shadow: same board-tab contract as
+                   /skills and /vibes. The active board used to be marked by fill
+                   colour alone, which announces nothing, and the shadow was
+                   doing hierarchy work that DESIGN.md assigns to the fill. */
+                <button
+                  key={board.value}
+                  type="button"
+                  onClick={() => setView(board.value)}
+                  aria-pressed={isActive}
+                  className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                    isActive
+                      ? "bg-accent-primary text-white font-extrabold"
+                      : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
+                  }`}
+                >
+                  {Icon && <Icon className="h-3.5 w-3.5" />}
+                  {label}
+                  {board.showCount && (
+                    <span className="font-mono opacity-70">{board.items.length}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {filteredAgents.length > 0 ? (

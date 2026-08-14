@@ -8,6 +8,7 @@ import { ForumThread } from "@/lib/db";
 import { FORUM_CATEGORY_KEYS, FORUM_CATEGORIES, forumCategoryLabel } from "@/lib/forumCategories";
 import { useAuth } from "../components/AuthProvider";
 import { canDelete } from "@/lib/permissions";
+import { visibleBoards, resolveView } from "@/lib/boardTabs";
 import { ThreadCard } from "../components/ThreadCard";
 import dynamic from "next/dynamic";
 import EmptyState from "../components/EmptyState";
@@ -164,9 +165,47 @@ export default function ForumExplorer({
     threadsRef.current = threads;
   }, [threads]);
 
+  const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag | typeof TrendingUp | typeof Clock }> = {
+    danish: { label: "Dansk", icon: Flag },
+    top: { label: "Top", icon: TrendingUp },
+    new: { label: "Nyeste", icon: Clock },
+  };
+
+  // Which boards actually differ, per the shared rule in lib/boardTabs.
+  //
+  // Top and Nyeste are SERVER sorts, so they are reconstructed here in their
+  // real orders rather than both being handed the current list: passing the
+  // same array twice would make Nyeste look like an exact duplicate of Top and
+  // drop it, when it is a genuinely different ordering. Only their membership
+  // is identical, which is what makes Nyeste uncounted rather than hidden.
+  //
+  // /forum holds no threads today, so all three boards are empty, the row is
+  // hidden and the empty state carries the page on its own. It reappears with
+  // the first thread that isn't Danish-flagged.
+  const boards = useMemo(
+    () => [
+      {
+        value: "danish",
+        items: [...threads].filter((t) => t.isDanish).sort((a, b) => b.upvotes - a.upvotes),
+      },
+      { value: "top", items: [...threads].sort((a, b) => b.upvotes - a.upvotes) },
+      {
+        value: "new",
+        items: [...threads].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ),
+      },
+    ],
+    [threads]
+  );
+  const visible = useMemo(() => visibleBoards(boards, (t) => t.id), [boards]);
+  const activeView = resolveView(view, visible, "danish");
+
   // getThreads/api/forum only understand top/new — Dansk is a client-side
   // filter/sort layered on the 'top'-sorted base list (see viewThreads below).
-  const serverSort = view === "new" ? "new" : "top";
+  // Follows the resolved view: a stale ?view=new with no Nyeste tab must not
+  // keep the server on the "new" sort while nothing on screen says so.
+  const serverSort = activeView === "new" ? "new" : "top";
 
   // Refetch when category or view changes post-mount. On first
   // render we skip this effect (the server already fetched the right data).
@@ -198,6 +237,7 @@ export default function ForumExplorer({
 
   const searchActive = search.trim() !== "";
 
+
   // Dansk filters the server-fetched (category-scoped, 'top'-sorted) list to
   // Danish contributors, ranked by upvotes — same pattern as
   // VibesExplorer/AgentsExplorer. Top/Nyeste are already sorted server-side.
@@ -205,20 +245,15 @@ export default function ForumExplorer({
   // recreation, sorting, and filtering on every single render/keystroke.
   const filteredThreads = useMemo(() => {
     const list =
-      view === "danish"
+      activeView === "danish"
         ? [...threads]
             .filter((t) => t.isDanish)
             .sort((a, b) => b.upvotes - a.upvotes)
         : threads;
 
     return filterThreads(list, search);
-  }, [threads, view, search]);
+  }, [threads, activeView, search]);
 
-  const viewTabs: { value: string; label: string; icon: typeof Flag | typeof TrendingUp | typeof Clock }[] = [
-    { value: "danish", label: "Dansk", icon: Flag },
-    { value: "top", label: "Top", icon: TrendingUp },
-    { value: "new", label: "Nyeste", icon: Clock },
-  ];
 
   // Handle upvote via API — delegates to executeUpvote (exported above) which
   // guards against duplicate in-flight requests for the same item.
@@ -383,31 +418,35 @@ export default function ForumExplorer({
               />
             </div>
 
+            {visible.length > 0 && (
             <div className="flex gap-2">
-              {viewTabs.map((tab) => {
-                const Icon = tab.icon;
+              {visible.map((board) => {
+                const { label, icon: Icon } = BOARD_LABELS[board.value];
+                const isActive = activeView === board.value && !searchActive;
                 return (
                   /* aria-pressed, 44px and no shadow: same board-tab contract
-                     as the catalog hubs. The active board used to be marked by
-                     fill colour alone, which announces nothing, and the shadow
-                     was doing hierarchy work DESIGN.md assigns to the fill. */
+                     as /skills, /vibes and /cli. */
                   <button
-                    key={tab.value}
+                    key={board.value}
                     type="button"
-                    onClick={() => setView(tab.value)}
-                    aria-pressed={view === tab.value && !searchActive}
+                    onClick={() => setView(board.value)}
+                    aria-pressed={isActive}
                     className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                      view === tab.value && !searchActive
+                      isActive
                         ? "bg-accent-primary text-white font-extrabold"
                         : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    {tab.label}
+                    {Icon && <Icon className="h-3.5 w-3.5" />}
+                    {label}
+                    {board.showCount && (
+                      <span className="font-mono opacity-70">{board.items.length}</span>
+                    )}
                   </button>
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Thread list — opacity overlay during in-flight category/view refetch */}
