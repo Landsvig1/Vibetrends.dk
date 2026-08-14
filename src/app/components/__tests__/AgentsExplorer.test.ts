@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { slugify } from "@/lib/slug";
-import { filterAgents, executeUpvote, cardTestId } from "../AgentsExplorer";
+import {
+  filterAgents,
+  executeUpvote,
+  cardTestId,
+  selectBoardAgents,
+} from "../AgentsExplorer";
 import type { Agent } from "@/lib/db";
 
 /**
@@ -327,34 +332,77 @@ describe("delete flow — agent removed from list", () => {
 // View tab filtering: client-side only, no re-fetch
 // ---------------------------------------------------------------------------
 
-describe("view tab filtering — client-side logic, no network request", () => {
-  const danishAgent = { ...makeAgent("d1", "dansk-cli", "Dansk tool"), isDanish: true, denmarkSpecific: true };
-  const globalAgent = { ...makeAgent("d2", "global-cli", "Global tool"), isDanish: false, denmarkSpecific: false };
-  const allAgents = [danishAgent, globalAgent];
+describe("selectBoardAgents — board membership and ordering", () => {
+  const board = [
+    { ...makeAgent("dk-low", "bravo-cli", "Dansk tool"), isDanish: true, upvotes: 1 },
+    { ...makeAgent("dk-high", "zulu-cli", "Dansk tool"), isDanish: true, upvotes: 40 },
+    { ...makeAgent("global", "alfa-cli", "Global tool"), isDanish: false, upvotes: 10 },
+  ];
 
-  it("danish view: only isDanish agents are shown", () => {
-    const result = allAgents.filter((a) => a.isDanish);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("d1");
+  it("Dansk filters to isDanish and orders by upvotes", () => {
+    expect(selectBoardAgents(board, "danish", false).map((a) => a.id)).toEqual([
+      "dk-high",
+      "dk-low",
+    ]);
   });
 
-  it("all view: all agents shown sorted alphabetically by name", () => {
-    const sorted = [...allAgents].sort((a, b) => a.name.localeCompare(b.name));
-    expect(sorted[0].name).toBe("dansk-cli");
-    expect(sorted[1].name).toBe("global-cli");
+  it("Alle keeps everything and orders alphabetically by name", () => {
+    expect(selectBoardAgents(board, "all", false).map((a) => a.name)).toEqual([
+      "alfa-cli",
+      "bravo-cli",
+      "zulu-cli",
+    ]);
   });
 
-  it("hot view: agents remain in server order (upvotes-desc, no client sort)", () => {
-    const hotAgents = allAgents;
-    expect(hotAgents).toHaveLength(2);
+  it("Hot keeps everything and orders by upvotes", () => {
+    expect(selectBoardAgents(board, "hot", false).map((a) => a.id)).toEqual([
+      "dk-high",
+      "global",
+      "dk-low",
+    ]);
   });
 
-  it("search overrides view: all agents are searched regardless of view", () => {
-    const search = "global";
-    const searchActive = search.trim() !== "";
-    const viewAgents = searchActive ? allAgents : allAgents.filter((a) => a.isDanish);
-    const results = filterAgents(viewAgents, search);
-    expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("d2");
+  // The two regressions this fix addresses. Hot used to return the array
+  // untouched, trusting the server's initial upvotes-desc order. The test that
+  // covered it asserted only that the list still had 2 entries, and its name
+  // ("agents remain in server order, no client sort") documented the bug as
+  // intended behaviour.
+  it("Hot re-sorts after a submission is prepended", () => {
+    // upvotes 0 so it cannot tie with dk-low: a stable sort keeps ties in
+    // insertion order, which would make this pass for the wrong reason.
+    const afterSubmit = [
+      { ...makeAgent("new", "ny-cli", "Ny"), isDanish: true, upvotes: 0 },
+      ...board,
+    ];
+    const hot = selectBoardAgents(afterSubmit, "hot", false);
+    expect(hot[0].id).toBe("dk-high");
+    expect(hot[hot.length - 1].id).toBe("new");
+  });
+
+  it("Hot re-sorts after an upvote rewrites a count in place", () => {
+    // "global" sits LAST in the fixture, so this fails if Hot stops sorting.
+    // Upvoting the item that is already first would pass either way.
+    const afterUpvote = board.map((a) =>
+      a.id === "global" ? { ...a, upvotes: 99 } : a
+    );
+    expect(selectBoardAgents(afterUpvote, "hot", false)[0].id).toBe("global");
+  });
+
+  it("an active search overrides the board and preserves the incoming order", () => {
+    expect(selectBoardAgents(board, "danish", true).map((a) => a.id)).toEqual(
+      board.map((a) => a.id)
+    );
+  });
+
+  it("search still narrows across the whole catalog, not just the board", () => {
+    const results = filterAgents(selectBoardAgents(board, "danish", true), "alfa");
+    expect(results.map((a) => a.id)).toEqual(["global"]);
+  });
+
+  it("does not mutate the array it is given", () => {
+    const before = board.map((a) => a.id);
+    selectBoardAgents(board, "hot", false);
+    selectBoardAgents(board, "all", false);
+    expect(board.map((a) => a.id)).toEqual(before);
   });
 });
