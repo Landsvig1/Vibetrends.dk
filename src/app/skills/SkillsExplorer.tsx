@@ -682,9 +682,11 @@ export default function SkillsExplorer({
                 </div>
 
                 <div className="pt-4 flex justify-end">
+                  {/* Padding and radius were inert against unlayered
+                      `.btn-primary`; see ForumExplorer's CTA. */}
                   <button
                     type="submit"
-                    className="flex items-center justify-center px-6 py-2.5 rounded-lg btn-primary text-sm"
+                    className="flex items-center justify-center btn-primary text-sm"
                   >
                     Udgiv Skill
                   </button>

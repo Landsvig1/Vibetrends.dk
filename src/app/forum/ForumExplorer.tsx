@@ -351,9 +351,19 @@ export default function ForumExplorer({
             Spørg om AI. Få svar fra folk der bygger.
           </p>
         </div>
+        {/* `.btn-primary` is declared unlayered in globals.css while Tailwind's
+            utilities live in `@layer utilities`, so unlayered wins: the
+            px-5/py-3/rounded-lg/text-foreground/font-bold/transition this
+            carried were all inert, and editing them to change the button did
+            nothing. Only text-sm, the flex box and the margins survive the
+            cascade, so only those are kept. shadow-sm and hover:scale-[1.02]
+            DID apply and are dropped on purpose: DESIGN.md gives primary
+            buttons no shadow and defines their hover as opacity 0.9, and the
+            scale was an unguarded transform sitting outside the
+            prefers-reduced-motion override. */}
         <button
           onClick={() => setNewThreadOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center btn-primary text-sm cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Opret tråd
@@ -614,9 +624,10 @@ export default function ForumExplorer({
                   />
                 </div>
 
+                {/* Same inert-utility cleanup as the CTA above. */}
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition"
+                  className="w-full flex items-center justify-center btn-primary text-sm cursor-pointer"
                 >
                   Opret Diskussion
                 </button>

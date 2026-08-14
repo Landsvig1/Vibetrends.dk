@@ -312,9 +312,15 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
               : "CLI-værktøjer din agent kan kalde — ét trin fra din host."}
           </p>
         </div>
+        {/* See ForumExplorer's CTA: padding, radius, color, weight and
+            transition were all inert against unlayered `.btn-primary`, and the
+            shadow and hover scale that did apply are dropped on purpose
+            (DESIGN.md gives primary buttons no shadow and defines their hover
+            as opacity 0.9; the scale sat outside the prefers-reduced-motion
+            override). */}
         <button
           onClick={() => setAddOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
+          className="mx-auto md:mx-0 flex items-center justify-center btn-primary text-sm cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {isMcp ? "Tilføj MCP-server" : "Tilføj CLI"}
@@ -548,9 +554,10 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   />
                 </div>
 
+                {/* Same inert-utility cleanup as the CTA above. */}
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
+                  className="w-full flex items-center justify-center btn-primary text-sm"
                 >
                   <Terminal className="h-4 w-4 mr-2" />
                   Registrer Agent / MCP
