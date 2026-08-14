@@ -180,7 +180,9 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
                     href={repo.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs rounded-full btn-primary font-semibold"
+                    /* Padding, radius and weight were inert against unlayered
+                       `.btn-primary`; see ForumExplorer's CTA. */
+                    className="hidden sm:inline-flex items-center gap-2 text-xs btn-primary"
                   >
                     <GithubIcon className="h-4 w-4" />
                     Se Repository

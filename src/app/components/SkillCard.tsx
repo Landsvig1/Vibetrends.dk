@@ -159,7 +159,9 @@ function SkillCardComponent({
             href={`/skills/${skill.slug}#connect`}
             data-testid="skill-connect"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-primary cursor-pointer"
+            /* See ProjectCard's "Se live": padding, radius and weight were
+               inert against unlayered `.btn-primary`. */
+            className="relative z-20 flex items-center gap-1.5 text-xs btn-primary cursor-pointer"
           >
             <Plug className="h-3.5 w-3.5" aria-hidden="true" />
             {connectLabel}

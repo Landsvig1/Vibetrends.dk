@@ -89,10 +89,13 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
             </div>
+            {/* See ForumExplorer's CTA: padding, radius, color and weight were
+                inert against unlayered `.btn-primary`, and the shadow that did
+                apply is not in DESIGN.md's button spec. */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 rounded-lg btn-primary text-foreground font-bold text-sm shadow cursor-pointer transition flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full btn-primary text-sm cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
                 <>

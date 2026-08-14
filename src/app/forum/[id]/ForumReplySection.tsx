@@ -152,10 +152,15 @@ export default function ForumReplySection({ initialThread }: { initialThread: Fo
           </div>
         )}
 
+        {/* See ForumExplorer's CTA: padding, radius, color and weight were all
+            inert against unlayered `.btn-primary`, and the shadow and hover /
+            active scales that did apply are dropped on purpose (DESIGN.md
+            gives primary buttons no shadow, and the scales sat outside the
+            prefers-reduced-motion override). */}
         <button
           type="submit"
           disabled={submitting}
-          className="flex items-center justify-center px-6 py-3 rounded-xl btn-primary text-foreground font-bold text-sm shadow-sm transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Sender…" : "Send Svar"}
           <Send className="h-4 w-4 ml-2" aria-hidden="true" />
