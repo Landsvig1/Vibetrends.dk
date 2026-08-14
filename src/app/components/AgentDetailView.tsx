@@ -157,7 +157,7 @@ export default function AgentDetailView({
         <div className="min-w-0 space-y-6">
            <ConnectBlock
              feedType={feedType}
-             item={{ name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}
+             item={{ slug: agent.slug, name: agent.name, installCommand: agent.installCommand, source: agent.sourceUrl }}
            />
            <AgentActionSection agent={agent} backHref={backHref} />
 

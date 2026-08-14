@@ -2,8 +2,32 @@
 
 import { useState } from "react";
 import { Copy, CheckCircle, Terminal } from "lucide-react";
+import { track } from "@vercel/analytics";
 import { HOSTS, type FeedTypeSlug } from "@/lib/feedTypes";
 import { buildConnectRecipe, type ConnectItem } from "@/lib/connect";
+import { slugify } from "@/lib/slug";
+
+export function trackConnectCopy(
+  item: ConnectItem,
+  feedType: FeedTypeSlug,
+  snippet: "install" | "command" | "config",
+  hostSlug?: string,
+) {
+  const itemType = feedType === "skills" ? "skill" : feedType === "mcp-servers" ? "mcp" : "cli";
+  const itemSlug = item.slug || slugify(item.name);
+  const resolvedHost = hostSlug ?? (feedType === "skills" ? "universal" : HOSTS[0].slug);
+
+  try {
+    track("copy_install", {
+      item_slug: itemSlug,
+      item_type: itemType,
+      host_slug: resolvedHost,
+      snippet,
+    });
+  } catch {
+    // Analytics failure should never break copy interaction
+  }
+}
 
 // One-step install/connect component (R5/R6).
 // For skills, presents a direct, distilled "INSTALLATION: Code" block that works across
@@ -19,14 +43,14 @@ export default function ConnectBlock({
 }) {
   const [host, setHost] = useState<string>(HOSTS[0].slug);
   const [copied, setCopied] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const recipe = buildConnectRecipe(feedType, item, host, lang);
 
-  const copy = (text: string, key: string) => {
+  const copy = (text: string, snippet: "install" | "command" | "config", hostSlug: string = host) => {
     navigator.clipboard.writeText(text);
-    setCopied(key);
+    setCopied(snippet);
     setTimeout(() => setCopied(null), 2000);
+    trackConnectCopy(item, feedType, snippet, hostSlug);
   };
 
   // Pure, simple INSTALLATION block for skills: no terminal icon, no agent badges, just easy install (/distill)
@@ -49,7 +73,7 @@ export default function ConnectBlock({
               <span className="break-all pr-3 font-bold selection:bg-accent-light">{installCmd}</span>
               <button
                 type="button"
-                onClick={() => copy(installCmd, "install")}
+                onClick={() => copy(installCmd, "install", "universal")}
                 aria-label={copied === "install" ? (lang === "da" ? "Kommando kopieret" : "Command copied") : (lang === "da" ? "Kopiér installationskommando" : "Copy install command")}
                 className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition-all active:scale-90 cursor-pointer shrink-0"
               >
@@ -122,7 +146,7 @@ export default function ConnectBlock({
           <span className="break-all pr-4 font-bold">{recipe.command}</span>
           <button
             type="button"
-            onClick={() => copy(recipe.command!, "command")}
+            onClick={() => copy(recipe.command!, "command", host)}
             aria-label={lang === "da" ? "Kopiér kommando" : "Copy command"}
             className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer shrink-0"
           >
@@ -140,7 +164,7 @@ export default function ConnectBlock({
         <div className="relative rounded-xl bg-background border border-card-border p-4 shadow-inner">
           <button
             type="button"
-            onClick={() => copy(recipe.configSnippet!, "config")}
+            onClick={() => copy(recipe.configSnippet!, "config", host)}
             aria-label={lang === "da" ? "Kopiér konfiguration" : "Copy config"}
             className="absolute top-3 right-3 p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer"
           >

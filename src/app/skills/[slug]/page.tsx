@@ -269,7 +269,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
           <div id="connect" className="scroll-mt-24">
             <ConnectBlock
               feedType="skills"
-              item={{ name: skill.title, githubUrl: skill.githubUrl, source: skill.source }}
+              item={{ slug: skill.slug, name: skill.title, githubUrl: skill.githubUrl, source: skill.source }}
               lang="da"
             />
           </div>

@@ -19,6 +19,8 @@ import { HOST_SLUGS, getHost, type FeedTypeSlug, type HostSlug } from "./feedTyp
 export type Lang = "da" | "en";
 
 export interface ConnectItem {
+  /** URL slug for analytics and deep links, when known. */
+  slug?: string;
   name: string;
   /** Shell command that installs/launches the item, when known. */
   installCommand?: string;
