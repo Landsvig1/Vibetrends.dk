@@ -24,7 +24,7 @@ export default async function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-foreground">1. Platformens formål</h2>
           <p>
-            Vibetrends.dk fungerer som et uafhængigt udstillingsvindue (showcase), diskussionsforum og uforpligtende markedsplads for AI-udvikling og &quot;vibe coding&quot;. Formålet er at fremme deling af viden, prompts, eksempler og formidle kontakt mellem freelance AI-specialister og potentielle kunder.
+            Vibetrends.dk fungerer som et uafhængigt udstillingsvindue (showcase), diskussionsforum og samlingssted for AI-udvikling. Formålet er at fremme deling af viden, prompts og eksempler samt formidle kontakt mellem AI-specialister og relevante parter.
           </p>
         </section>
 

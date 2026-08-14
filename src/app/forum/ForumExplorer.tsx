@@ -400,7 +400,7 @@ export default function ForumExplorer({
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-foreground">About Community</h4>
               <p className="text-xs text-text-secondary leading-relaxed">
-                Velkommen til Danmarks AI-forum. Del din viden, stil spørgsmål og netværk med andre vibe coders.
+                Velkommen til Danmarks AI-forum. Del din viden, stil spørgsmål og spar med andre AI-byggere.
               </p>
             </div>
             <div className="pt-4 border-t border-card-border">

@@ -10,7 +10,7 @@ web
 
 Two audiences carry **equal weight**; neither may be degraded to serve the other.
 
-- **Danish human builders** — vibe-coders, prompt engineers, indie devs and
+- **Danish human builders**: AI builders, prompt engineers, indie devs and
   AI-curious developers. They arrive looking for something concrete: proof that
   a thing is buildable, a skill they can plug into their agent today, or an
   answer to a problem they're stuck on. They browse in Danish by default,

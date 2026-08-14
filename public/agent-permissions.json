@@ -53,7 +53,7 @@
           "success_status": 202
         },
         "/api/vibes": {
-          "description": "Submit a vibe-coded project",
+          "description": "Submit a project to the showcase",
           "method": "POST",
           "auth": "Authorization: Bearer <access_token>",
           "required_fields": ["title", "description", "demoUrl"],
