@@ -1,10 +1,10 @@
 "use client";
 
 import { memo } from "react";
-import Image from "next/image";
 import { Heart, Trash2, ExternalLink } from "lucide-react";
 import { ShowcaseProject } from "@/lib/db";
 import { ListCard } from "./ListCard";
+import { CardThumbnail } from "./CardThumbnail";
 
 interface ProjectCardProps {
   project: ShowcaseProject;
@@ -44,17 +44,13 @@ function ProjectCardComponent({
       ariaLabel={project.title}
       className="overflow-hidden flex flex-col h-full"
     >
-      <div className="h-44 relative bg-background overflow-hidden">
-        <Image
-          src={project.imageUrl}
-          alt={project.title}
-          fill
-          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-          priority={isPriority}
-          className="object-cover opacity-75 group-hover:scale-[1.03] transition duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/20 to-transparent"></div>
-
+      <CardThumbnail
+        src={project.imageUrl}
+        alt={project.title}
+        heightClass="h-44"
+        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+        priority={isPriority}
+      >
         {/* Delete button for author */}
         {canDelete && (
           <button
@@ -74,7 +70,7 @@ function ProjectCardComponent({
           <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
           <span className="text-xs font-bold font-mono">{project.upvotes}</span>
         </button>
-      </div>
+      </CardThumbnail>
 
       <div className="p-6 flex-1 flex flex-col gap-4">
         <div className="space-y-2 flex-1">
@@ -117,7 +113,7 @@ function ProjectCardComponent({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="relative z-20 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded btn-secondary text-foreground cursor-pointer"
+            className="relative z-20 flex items-center gap-1.5 text-xs btn-secondary cursor-pointer"
           >
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             {demoLabel}

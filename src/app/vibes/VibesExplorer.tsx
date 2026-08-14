@@ -15,16 +15,30 @@ const LoginModal = dynamic(() => import("../components/LoginModal"), { ssr: fals
 
 /**
  * Pure client-side search filter — extracted for unit testability.
- * Mirrors the server-side SQL ilike filter in getProjects() but operates on
- * the already-fetched client list without a network round-trip.
+ * Mirrors the server-side filter in getProjects() but operates on the
+ * already-fetched client list without a network round-trip.
+ *
+ * Author is matched because the search field promises it ("Søg i projekter,
+ * redskaber eller forfattere..."). It previously did not, so a visitor
+ * searching a builder's handle got the empty state — and with `tools` null on
+ * every live row, that left title/description as the only field of the three
+ * named that actually did anything. Keep this list and getProjects() in sync.
  */
 export function filterProjects(projects: ShowcaseProject[], query: string): ShowcaseProject[] {
-  if (!query) return projects;
-  const q = query.toLowerCase();
+  // Trimmed, so this agrees with the component's `searchActive` test
+  // (`search.trim() !== ""`). They used to disagree: a whitespace-only query
+  // was "not searching" to the component but a literal filter on spaces here,
+  // which matched nothing. The result was the empty state, with its suggestion
+  // list suppressed (it is gated on searchActive) and the board tab still lit
+  // as active — no results, no explanation, and no way back except deleting
+  // the invisible spaces.
+  const q = query.trim().toLowerCase();
+  if (!q) return projects;
   return projects.filter(
     (project) =>
       project.title.toLowerCase().includes(q) ||
       project.description.toLowerCase().includes(q) ||
+      project.author.toLowerCase().includes(q) ||
       project.tools.some((t) => t.toLowerCase().includes(q))
   );
 }
@@ -75,6 +89,96 @@ export async function executeUpvote(
   }
 }
 
+/**
+ * Which projects a board shows, and in what order. Exported so the ordering is
+ * testable: the board rules used to live inline in a useMemo, and the tests
+ * that covered them re-implemented the same sort in the test body, so they
+ * would have passed no matter what the component did.
+ *
+ * Search overrides the board entirely (same contract as /skills, /cli, /mcp).
+ *
+ * Every branch sorts explicitly. Hot used to return `projects` untouched,
+ * leaning on the server's initial sort=top order, which goes stale as soon as
+ * the client mutates the list: upvoting rewrites a count in place without
+ * reordering, and a submission is prepended, so a 1-upvote entry could sit
+ * above a 40-upvote one. That was unreachable while the Hot tab was disabled.
+ */
+export function selectBoardProjects(
+  projects: ShowcaseProject[],
+  view: string,
+  searchActive: boolean
+): ShowcaseProject[] {
+  if (searchActive) return projects;
+  if (view === "danish") {
+    return [...projects]
+      .filter((p) => p.isDanish)
+      .sort((a, b) => b.upvotes - a.upvotes);
+  }
+  if (view === "all") {
+    return [...projects].sort((a, b) => a.title.localeCompare(b.title));
+  }
+  return [...projects].sort((a, b) => b.upvotes - a.upvotes);
+}
+
+/** Mirrors projectSchema in src/lib/schemas.ts — change both together. */
+export const MAX_TOOLS = 10;
+export const MAX_TOOL_LENGTH = 50;
+export const MAX_PROMPTS = 20;
+export const MAX_PROMPT_LENGTH = 2000;
+
+/** Comma-separated tools input → the `tools` array. */
+export function parseToolsInput(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((tool) => tool.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Blank-line-separated prompts textarea → the `prompts` array.
+ *
+ * One block per prompt, which is what the detail page already renders as
+ * "Step 1..N". Blank-line splitting (rather than one line per prompt) is what
+ * lets a prompt be more than one line long, and prompts usually are.
+ */
+export function parsePromptsInput(raw: string): string[] {
+  return raw
+    .split(/\n\s*\n/)
+    .map((prompt) => prompt.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Danish message naming the first limit the submission breaks, or null.
+ *
+ * These parsers used to clamp to projectSchema's limits with `.slice()`, on
+ * the reasoning that a silently trimmed submission beats a 400 the visitor has
+ * to diagnose. That was the wrong trade once the form gained an error surface:
+ * truncating a 2,500-character prompt to 2,000 loses the submitter's work
+ * without telling them, and a mangled prompt on the detail page is worse than
+ * a message asking them to shorten it. Report, don't mangle.
+ */
+export function validateSubmissionLimits(
+  tools: string[],
+  prompts: string[]
+): string | null {
+  if (tools.length > MAX_TOOLS) {
+    return `Højst ${MAX_TOOLS} værktøjer. Fjern ${tools.length - MAX_TOOLS}.`;
+  }
+  const longTool = tools.find((tool) => tool.length > MAX_TOOL_LENGTH);
+  if (longTool) {
+    return `Værktøjsnavne må højst være ${MAX_TOOL_LENGTH} tegn. "${longTool.slice(0, 20)}..." er for langt.`;
+  }
+  if (prompts.length > MAX_PROMPTS) {
+    return `Højst ${MAX_PROMPTS} prompts. Fjern ${prompts.length - MAX_PROMPTS}.`;
+  }
+  const longIndex = prompts.findIndex((p) => p.length > MAX_PROMPT_LENGTH);
+  if (longIndex !== -1) {
+    return `Prompt ${longIndex + 1} er ${prompts[longIndex].length} tegn. Maks. er ${MAX_PROMPT_LENGTH}.`;
+  }
+  return null;
+}
+
 interface VibesExplorerProps {
   initialProjects: ShowcaseProject[];
 }
@@ -102,7 +206,13 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   const [subDesc, setSubDesc] = useState("");
   const [subDemo, setSubDemo] = useState("");
   const [subGithub, setSubGithub] = useState("");
+  const [subTools, setSubTools] = useState("");
+  const [subPrompts, setSubPrompts] = useState("");
   const [subSuccess, setSubSuccess] = useState(false);
+  // A failed POST used to do nothing at all: `if (res.ok)` had no else, so a
+  // validation error or a dropped request left the form sitting there looking
+  // untouched and the visitor clicking submit again.
+  const [subError, setSubError] = useState<string | null>(null);
   const [githubFetching, setGithubFetching] = useState(false);
   const subGithubRef = useRef(subGithub);
   const lastFetchedGithubUrl = useRef<string | null>(null);
@@ -113,6 +223,18 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   // Tracks item IDs with an in-flight upvote request. Prevents a second click
   // from firing a duplicate request before the first one resolves.
   const pendingUpvoteIds = useRef(new Set<string>());
+
+  // Every open and close routes through these so the error can't outlive the
+  // attempt that produced it. Closing on a failed submit and reopening used to
+  // show the previous red alert above a form the visitor hadn't touched yet.
+  const openSubmitModal = useCallback(() => {
+    setSubError(null);
+    setSubmitOpen(true);
+  }, []);
+  const closeSubmitModal = useCallback(() => {
+    setSubError(null);
+    setSubmitOpen(false);
+  }, []);
 
   // Best-effort prefill: pull title + description from GitHub's public repo
   // API via our own /api/github-meta proxy (CSP only allows same-origin +
@@ -150,43 +272,31 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   useEffect(() => {
     if (submitParam === "1") {
       queueMicrotask(() => {
-        setSubmitOpen(true);
+        openSubmitModal();
         setSubmitParam(null);
       });
     }
-  }, [submitParam, setSubmitParam]);
+    // openSubmitModal is a useCallback with no deps, so listing it is free —
+    // it never changes identity and cannot re-fire this effect.
+  }, [submitParam, setSubmitParam, openSubmitModal]);
 
   const searchActive = search.trim() !== "";
 
-  // Search overrides the view (same contract as the /skills, /cli, and /mcp
-  // tabs). The base fetch is already upvotes-desc (sort=top), which
-  // IS the Hot order; Dansk filters to Danish contributors, ranked by
-  // upvotes; Alle is the full catalog alphabetically.
-  // ⚡ Optimization: Memoize the filtered and sorted projects list to prevent redundant
-  // recreation, sorting, and filtering on every single render/keystroke.
-  const filteredProjects = useMemo(() => {
-    const viewProjects = searchActive
-      ? projects
-      : view === "danish"
-        ? [...projects]
-            .filter((p) => p.isDanish)
-            .sort((a, b) => b.upvotes - a.upvotes)
-        : view === "all"
-          ? [...projects].sort((a, b) => a.title.localeCompare(b.title))
-          : projects;
-
-    return filterProjects(viewProjects, search);
-  }, [projects, view, search, searchActive]);
+  // Board rules live in selectBoardProjects (exported, tested). Memoized to
+  // avoid re-filtering and re-sorting on every keystroke.
+  const filteredProjects = useMemo(
+    () => filterProjects(selectBoardProjects(projects, view, searchActive), search),
+    [projects, view, search, searchActive]
+  );
 
   const viewTabs: {
     value: string;
     label: string;
     icon: typeof Flag | typeof Flame | null;
-    disabled?: boolean;
   }[] = [
     { value: "danish", label: "Dansk", icon: Flag },
-    { value: "all", label: "Alle", icon: null, disabled: true },
-    { value: "hot", label: "Hot", icon: Flame, disabled: true },
+    { value: "all", label: "Alle", icon: null },
+    { value: "hot", label: "Hot", icon: Flame },
   ];
 
   // Handle upvoting via API — delegates to executeUpvote (exported above) which
@@ -222,6 +332,15 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subTitle || !subDesc) return;
+    setSubError(null);
+
+    const tools = parseToolsInput(subTools);
+    const prompts = parsePromptsInput(subPrompts);
+    const limitError = validateSubmissionLimits(tools, prompts);
+    if (limitError) {
+      setSubError(limitError);
+      return;
+    }
 
     const finalAuthor = user ? user.username : undefined;
 
@@ -233,30 +352,49 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           title: subTitle,
           author: finalAuthor,
           description: subDesc,
-          tools: [],
-          prompts: [],
+          tools,
+          prompts,
           demoUrl: subDemo || "https://vibetrends.dk",
           githubUrl: subGithub || undefined,
         }),
       });
 
-      if (res.ok) {
-        const newProj = await res.json();
-        setProjects((prev) => [newProj, ...prev]);
-        setSubSuccess(true);
-
-        setTimeout(() => {
-          setSubSuccess(false);
-          setSubmitOpen(false);
-          setSubTitle("");
-          setSubDesc("");
-          setSubDemo("");
-          setSubGithub("");
-          lastFetchedGithubUrl.current = null;
-        }, 2500);
+      if (!res.ok) {
+        setSubError(
+          res.status === 401
+            ? "Du skal være logget ind for at udgive et projekt."
+            : "Projektet kunne ikke udgives. Tjek felterne og prøv igen."
+        );
+        return;
       }
+
+      const newProj = await res.json();
+      setProjects((prev) => [newProj, ...prev]);
+      // Land the submitter somewhere their entry is actually visible, so the
+      // confirmation ("Andre kan se og stemme på dit projekt med det samme")
+      // is true on screen. Clearing the search is half of that: an active
+      // ?q= makes searchActive win over the board entirely, and submitting
+      // mid-search is the common path, not the exotic one — the empty state's
+      // own "Indsend dit projekt" button is how you get here after a search
+      // returned nothing.
+      setSearch("");
+      setView("all");
+      setSubSuccess(true);
+
+      setTimeout(() => {
+        setSubSuccess(false);
+        setSubmitOpen(false);
+        setSubTitle("");
+        setSubDesc("");
+        setSubDemo("");
+        setSubGithub("");
+        setSubTools("");
+        setSubPrompts("");
+        lastFetchedGithubUrl.current = null;
+      }, 2500);
     } catch (err) {
       console.error("Error submitting project:", err);
+      setSubError("Projektet kunne ikke udgives. Prøv igen.");
     }
   };
 
@@ -291,9 +429,19 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
             Se hvad andre bygger med AI. Bliv inspireret, og vis dit eget frem.
           </p>
         </div>
+        {/* `.btn-primary` is declared unlayered in globals.css while Tailwind's
+            utilities live in `@layer utilities`, so unlayered wins: the
+            px-5/py-3/rounded-lg/text-foreground/font-bold/transition this
+            carried were all inert, and editing them to change the button did
+            nothing. Only text-sm, the flex box and the margins survive the
+            cascade, so only those are kept. shadow-sm and hover:scale-[1.02]
+            DID apply and are dropped on purpose: DESIGN.md gives primary
+            buttons no shadow and defines their hover as opacity 0.9, and the
+            scale was an unguarded transform sitting outside the
+            prefers-reduced-motion override. */}
         <button
-          onClick={() => setSubmitOpen(true)}
-          className="mx-auto md:mx-0 flex items-center justify-center px-5 py-3 rounded-lg btn-primary text-foreground font-bold text-sm shadow-sm hover:scale-[1.02] transition cursor-pointer"
+          onClick={openSubmitModal}
+          className="mx-auto md:mx-0 flex items-center justify-center btn-primary text-sm cursor-pointer"
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Indsend dit projekt
@@ -317,7 +465,6 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
         <div className="flex gap-2 justify-center md:justify-end">
           {viewTabs.map((tab) => {
             const Icon = tab.icon;
-            const isDisabled = tab.disabled;
             return (
               /* aria-pressed, 44px and no shadow: same board-tab contract as
                  /skills and /cli. The active board used to be marked by fill
@@ -326,20 +473,12 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
               <button
                 key={tab.value}
                 type="button"
-                disabled={isDisabled}
-                aria-disabled={isDisabled}
                 aria-pressed={view === tab.value && !searchActive}
-                onClick={() => {
-                  if (!isDisabled) {
-                    setView(tab.value);
-                  }
-                }}
-                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${
-                  isDisabled
-                    ? "bg-background border border-card-border/40 text-text-secondary/40 cursor-not-allowed select-none opacity-50"
-                    : view === tab.value && !searchActive
-                      ? "bg-accent-primary text-white font-extrabold cursor-pointer"
-                      : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground cursor-pointer"
+                onClick={() => setView(tab.value)}
+                className={`flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  view === tab.value && !searchActive
+                    ? "bg-accent-primary text-white font-extrabold"
+                    : "bg-background border border-card-border text-text-secondary hover:bg-accent-light hover:text-foreground"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -374,7 +513,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           title="Ingen projekter fundet."
           description="Søg efter et andet emne eller tilføj dit eget projekt."
           actionLabel="Indsend dit projekt"
-          onAction={() => setSubmitOpen(true)}
+          onAction={openSubmitModal}
           suggestions={
             searchActive && initialProjects.length > 0
               ? {
@@ -396,7 +535,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
           <div className="relative w-full max-w-xl rounded-xl border border-card-border bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain panel-in">
             {/* Close */}
             <button
-              onClick={() => setSubmitOpen(false)}
+              onClick={closeSubmitModal}
               aria-label="Luk"
               className="absolute top-4 right-4 p-1.5 text-text-secondary hover:text-foreground hover:bg-accent-light rounded-lg transition-colors cursor-pointer"
             >
@@ -432,12 +571,18 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   <h3 className="text-lg font-bold text-foreground mt-1">Udgiv dit vibe-kodede produkt</h3>
                 </div>
 
+                {/* Every label here carries htmlFor against an id, matching the
+                    /skills submit form. They were bare <label>s wrapping
+                    nothing, so none of them was associated with its field:
+                    clicking a label did not focus the input and a screen
+                    reader announced the inputs unnamed. */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">
+                  <label htmlFor="vibe-github" className="text-xs font-semibold text-text-secondary">
                     GitHub URL (valgfri: udfylder navn/beskrivelse automatisk)
                     {githubFetching && <span className="ml-2 text-text-secondary normal-case font-normal">Henter repo-info...</span>}
                   </label>
                   <input
+                    id="vibe-github"
                     type="url"
                     value={subGithub}
                     onChange={(e) => setSubGithub(e.target.value)}
@@ -448,8 +593,9 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Projekt Navn</label>
+                  <label htmlFor="vibe-title" className="text-xs font-semibold text-text-secondary">Projekt Navn</label>
                   <input
+                    id="vibe-title"
                     type="text"
                     required
                     value={subTitle}
@@ -460,8 +606,9 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
+                  <label htmlFor="vibe-desc" className="text-xs font-semibold text-text-secondary">Beskrivelse</label>
                   <textarea
+                    id="vibe-desc"
                     required
                     rows={3}
                     value={subDesc}
@@ -472,8 +619,9 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-text-secondary">Demo Link</label>
+                  <label htmlFor="vibe-demo" className="text-xs font-semibold text-text-secondary">Demo Link</label>
                   <input
+                    id="vibe-demo"
                     type="url"
                     value={subDemo}
                     onChange={(e) => setSubDemo(e.target.value)}
@@ -482,9 +630,65 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
                   />
                 </div>
 
+                {/* Tools and prompts are the two fields the detail page is
+                    built around — "Teknologier & Værktøjer" and "Core Prompts
+                    Anvendt" — and this form used to post `tools: []` and
+                    `prompts: []` hardcoded with no input for either. Every one
+                    of the 15 live rows therefore has both null, so both
+                    sections render on no project and the detail page collapses
+                    to a screenshot and one paragraph. The prompts in
+                    particular are the actual evidence of vibe coding, which is
+                    the thing this catalog exists to show. */}
+                <div className="space-y-1">
+                  <label htmlFor="vibe-tools" className="text-xs font-semibold text-text-secondary">
+                    Værktøjer (valgfri, kommasepareret)
+                  </label>
+                  <input
+                    id="vibe-tools"
+                    type="text"
+                    value={subTools}
+                    onChange={(e) => setSubTools(e.target.value)}
+                    placeholder="Fx Claude Code, Next.js, Supabase"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="vibe-prompts" className="text-xs font-semibold text-text-secondary">
+                    Prompts (valgfri)
+                  </label>
+                  <textarea
+                    id="vibe-prompts"
+                    rows={5}
+                    value={subPrompts}
+                    onChange={(e) => setSubPrompts(e.target.value)}
+                    placeholder={"De prompts du byggede projektet med. Adskil hver prompt med en tom linje.\n\nByg en dashboard-side der viser...\n\nTilføj en filterrække øverst som..."}
+                    aria-describedby="vibe-prompts-hint"
+                    className="w-full px-3.5 py-2 rounded-lg bg-background border border-card-border text-foreground placeholder-text-secondary focus:outline-none focus:border-accent-primary/20 text-sm font-mono resize-none"
+                  />
+                  <p id="vibe-prompts-hint" className="text-xs text-text-secondary">
+                    Én prompt pr. afsnit. De vises som Step 1, 2, 3 på projektets side.
+                  </p>
+                </div>
+
+                {/* Tinted block, same shape as LoginModal's message and as the
+                    success state above. Red is used because the meaning here
+                    is genuinely semantic, which is the one exception
+                    DESIGN.md's Single Ink Rule allows. red-700 rather than
+                    LoginModal's red-500: red-500 on warm paper is about 3.5:1,
+                    under the 4.5:1 body-text floor. */}
+                {subError && (
+                  <p
+                    role="alert"
+                    className="p-3 rounded-lg bg-red-700/10 text-red-700 text-xs font-medium text-center"
+                  >
+                    {subError}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center py-2.5 rounded-lg btn-primary text-sm"
+                  className="w-full flex items-center justify-center btn-primary text-sm cursor-pointer"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   Udgiv til Showcase

@@ -1,6 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { slugify } from "@/lib/slug";
-import { filterProjects, executeUpvote } from "../VibesExplorer";
+import {
+  filterProjects,
+  executeUpvote,
+  parseToolsInput,
+  parsePromptsInput,
+  validateSubmissionLimits,
+  selectBoardProjects,
+  MAX_TOOLS,
+  MAX_TOOL_LENGTH,
+  MAX_PROMPTS,
+  MAX_PROMPT_LENGTH,
+} from "../VibesExplorer";
 import type { ShowcaseProject } from "@/lib/db";
 
 /**
@@ -55,11 +66,16 @@ describe("filterProjects — client-side search, no network request", () => {
   });
 
   it("returns all projects for a whitespace-only query", () => {
-    // The filter uses query.toLowerCase() — whitespace is falsy after trim()
-    // but the function uses `if (!query) return projects` so whitespace IS a
-    // query. This documents actual behavior (whitespace = filter on whitespace).
-    // Nothing contains a space-only string, so all fail the includes() check.
-    expect(filterProjects(projects, "   ")).toHaveLength(0);
+    // A whitespace-only query is not a search. The component agrees
+    // (`searchActive` is `search.trim() !== ""`), so this filter has to as
+    // well: when the two disagreed, three spaces produced the empty state with
+    // its suggestions suppressed and the board tab still lit — no results and
+    // no visible cause.
+    expect(filterProjects(projects, "   ")).toHaveLength(3);
+  });
+
+  it("ignores surrounding whitespace on a real query", () => {
+    expect(filterProjects(projects, "  react  ").map((p) => p.id)).toEqual(["p1"]);
   });
 
   it("matches on title case-insensitively", () => {
@@ -85,6 +101,26 @@ describe("filterProjects — client-side search, no network request", () => {
 
   it("returns empty array when nothing matches", () => {
     expect(filterProjects(projects, "xyzzy-no-match-99")).toEqual([]);
+  });
+
+  // The search field promises "forfattere". Author matching was missing, so a
+  // visitor searching a builder's handle got the empty state — and since every
+  // live row has tools = null, title/description were the only fields of the
+  // three named that did anything. These fail if author matching regresses.
+  it("matches on author, which the placeholder promises ('forfattere')", () => {
+    const byAuthor = [
+      ...projects,
+      { ...makeProject("p4", "Unrelated Title", "unrelated description"), author: "webdev82_vibe" },
+    ];
+    const results = filterProjects(byAuthor, "webdev82");
+    expect(results.map((p) => p.id)).toEqual(["p4"]);
+  });
+
+  it("matches author case-insensitively and on a partial handle", () => {
+    const byAuthor = [
+      { ...makeProject("p5", "Nothing Relevant", "nothing relevant"), author: "OCUPIE ApS" },
+    ];
+    expect(filterProjects(byAuthor, "ocupie").map((p) => p.id)).toEqual(["p5"]);
   });
 
   it("returns empty array for an empty project list regardless of query", () => {
@@ -339,27 +375,184 @@ describe("delete flow — project removed from list", () => {
 // Dansk/Alle/Hot view-tab contract — client-side only, no per-tab refetch
 // ---------------------------------------------------------------------------
 
-describe("view-tab switching contract (Dansk/Alle/Hot)", () => {
-  const danishProject = makeProject("p1", "Dansk Vibe", "Dansk description", []);
-  const foreignProject = makeProject("p2", "Foreign Vibe", "Foreign description", []);
-  const all = [
-    { ...danishProject, isDanish: true, denmarkSpecific: false, upvotes: 1 },
-    { ...foreignProject, isDanish: false, denmarkSpecific: false, upvotes: 10 },
+describe("selectBoardProjects — board membership and ordering", () => {
+  const board = [
+    { ...makeProject("dk-low", "Bravo", "d"), isDanish: true, upvotes: 1 },
+    { ...makeProject("dk-high", "Zulu", "d"), isDanish: true, upvotes: 40 },
+    { ...makeProject("foreign", "Alfa", "d"), isDanish: false, upvotes: 10 },
   ];
 
-  it("Dansk view filters to isDanish projects only", () => {
-    const danishOnly = all.filter((p) => p.isDanish);
-    expect(danishOnly.map((p) => p.id)).toEqual(["p1"]);
+  it("Dansk filters to isDanish and orders by upvotes", () => {
+    expect(selectBoardProjects(board, "danish", false).map((p) => p.id)).toEqual([
+      "dk-high",
+      "dk-low",
+    ]);
   });
 
-  it("Dansk view sorts by upvotes, ignoring denmarkSpecific", () => {
-    const withDenmarkSpecific = [
-      { ...danishProject, isDanish: true, denmarkSpecific: false, upvotes: 10 },
-      { ...danishProject, id: "p3", isDanish: true, denmarkSpecific: true, upvotes: 1 },
+  it("Alle keeps everything and orders alphabetically by title", () => {
+    expect(selectBoardProjects(board, "all", false).map((p) => p.title)).toEqual([
+      "Alfa",
+      "Bravo",
+      "Zulu",
+    ]);
+  });
+
+  it("Hot keeps everything and orders by upvotes", () => {
+    expect(selectBoardProjects(board, "hot", false).map((p) => p.id)).toEqual([
+      "dk-high",
+      "foreign",
+      "dk-low",
+    ]);
+  });
+
+  // The two regressions that re-enabling the Hot tab exposed. Hot used to
+  // return the array untouched, trusting the server's initial sort=top order.
+  it("Hot re-sorts after a submission is prepended", () => {
+    // upvotes 0 rather than 1 so it can't tie with dk-low: a stable sort keeps
+    // ties in insertion order, which would make the assertion pass for the
+    // wrong reason.
+    const afterSubmit = [
+      { ...makeProject("new", "Ny", "d"), isDanish: true, upvotes: 0 },
+      ...board,
     ];
-    const sorted = withDenmarkSpecific
-      .filter((p) => p.isDanish)
-      .sort((a, b) => b.upvotes - a.upvotes);
-    expect(sorted[0].id).toBe("p1");
+    const hot = selectBoardProjects(afterSubmit, "hot", false);
+    expect(hot[0].id).toBe("dk-high");
+    expect(hot[hot.length - 1].id).toBe("new");
+  });
+
+  it("Hot re-sorts after an upvote rewrites a count in place", () => {
+    const afterUpvote = board.map((p) =>
+      p.id === "dk-low" ? { ...p, upvotes: 99 } : p
+    );
+    expect(selectBoardProjects(afterUpvote, "hot", false)[0].id).toBe("dk-low");
+  });
+
+  it("an active search overrides the board and preserves the incoming order", () => {
+    expect(selectBoardProjects(board, "danish", true).map((p) => p.id)).toEqual(
+      board.map((p) => p.id)
+    );
+  });
+
+  it("does not mutate the array it is given", () => {
+    const before = board.map((p) => p.id);
+    selectBoardProjects(board, "hot", false);
+    selectBoardProjects(board, "all", false);
+    expect(board.map((p) => p.id)).toEqual(before);
+  });
+});
+
+// parseToolsInput / parsePromptsInput — the submit form's two new fields
+// ---------------------------------------------------------------------------
+//
+// Before these existed the form posted `tools: []` and `prompts: []` hardcoded,
+// so the detail page's "Teknologier & Værktøjer" and "Core Prompts Anvendt"
+// sections could never render for anything submitted through the UI. Both
+// parsers split only; validateSubmissionLimits reports anything over
+// projectSchema's limits rather than silently truncating it.
+
+describe("parseToolsInput — comma-separated tools field", () => {
+  it("splits on commas and trims each entry", () => {
+    expect(parseToolsInput("Claude Code, Next.js ,  Supabase")).toEqual([
+      "Claude Code",
+      "Next.js",
+      "Supabase",
+    ]);
+  });
+
+  it("drops empty entries from trailing or doubled commas", () => {
+    expect(parseToolsInput("Cursor,,Vercel,")).toEqual(["Cursor", "Vercel"]);
+  });
+
+  it("returns an empty array for an empty or whitespace-only field", () => {
+    expect(parseToolsInput("")).toEqual([]);
+    expect(parseToolsInput("   ")).toEqual([]);
+    expect(parseToolsInput(" , , ")).toEqual([]);
+  });
+
+  it("preserves everything the visitor typed — limits are reported, not applied here", () => {
+    // These used to .slice() to projectSchema's limits. Truncating silently
+    // loses the submitter's work; validateSubmissionLimits reports instead.
+    const many = Array.from({ length: MAX_TOOLS + 5 }, (_, i) => `tool${i}`).join(",");
+    expect(parseToolsInput(many)).toHaveLength(MAX_TOOLS + 5);
+
+    const [tool] = parseToolsInput("x".repeat(MAX_TOOL_LENGTH + 20));
+    expect(tool).toHaveLength(MAX_TOOL_LENGTH + 20);
+  });
+});
+
+describe("parsePromptsInput — blank-line-separated prompts field", () => {
+  it("splits on blank lines, one prompt per block", () => {
+    expect(parsePromptsInput("Byg en dashboard-side\n\nTilføj et filter")).toEqual([
+      "Byg en dashboard-side",
+      "Tilføj et filter",
+    ]);
+  });
+
+  it("keeps a multi-line prompt as ONE prompt", () => {
+    // The reason for splitting on blank lines rather than newlines: prompts
+    // are usually more than one line long.
+    expect(parsePromptsInput("line one\nline two\nline three")).toEqual([
+      "line one\nline two\nline three",
+    ]);
+  });
+
+  it("tolerates blank lines that carry whitespace", () => {
+    expect(parsePromptsInput("first\n   \nsecond")).toEqual(["first", "second"]);
+  });
+
+  it("returns an empty array for an empty or whitespace-only field", () => {
+    expect(parsePromptsInput("")).toEqual([]);
+    expect(parsePromptsInput("\n\n  \n\n")).toEqual([]);
+  });
+
+  it("preserves an over-long or over-count prompt rather than truncating it", () => {
+    const many = Array.from({ length: MAX_PROMPTS + 3 }, (_, i) => `p${i}`).join("\n\n");
+    expect(parsePromptsInput(many)).toHaveLength(MAX_PROMPTS + 3);
+
+    const [prompt] = parsePromptsInput("y".repeat(MAX_PROMPT_LENGTH + 100));
+    expect(prompt).toHaveLength(MAX_PROMPT_LENGTH + 100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateSubmissionLimits — report, don't mangle
+// ---------------------------------------------------------------------------
+
+describe("validateSubmissionLimits — surfaces the limit instead of truncating", () => {
+  it("returns null when both fields are within projectSchema's limits", () => {
+    expect(validateSubmissionLimits([], [])).toBeNull();
+    expect(validateSubmissionLimits(["Cursor"], ["byg noget"])).toBeNull();
+  });
+
+  it("accepts exactly the limits (boundary, not off-by-one)", () => {
+    const tools = Array.from({ length: MAX_TOOLS }, (_, i) => `t${i}`);
+    const prompts = Array.from({ length: MAX_PROMPTS }, (_, i) => `p${i}`);
+    expect(validateSubmissionLimits(tools, prompts)).toBeNull();
+    expect(validateSubmissionLimits(["x".repeat(MAX_TOOL_LENGTH)], [])).toBeNull();
+    expect(validateSubmissionLimits([], ["y".repeat(MAX_PROMPT_LENGTH)])).toBeNull();
+  });
+
+  it("reports too many tools, naming how many to remove", () => {
+    const tools = Array.from({ length: MAX_TOOLS + 3 }, (_, i) => `t${i}`);
+    expect(validateSubmissionLimits(tools, [])).toContain("Fjern 3");
+  });
+
+  it("reports an over-long tool name", () => {
+    const msg = validateSubmissionLimits(["x".repeat(MAX_TOOL_LENGTH + 1)], []);
+    expect(msg).toContain(String(MAX_TOOL_LENGTH));
+  });
+
+  it("reports too many prompts", () => {
+    const prompts = Array.from({ length: MAX_PROMPTS + 1 }, (_, i) => `p${i}`);
+    expect(validateSubmissionLimits([], prompts)).toContain("Fjern 1");
+  });
+
+  it("reports WHICH prompt is too long, 1-indexed to match the Step N labels", () => {
+    const prompts = ["kort", "y".repeat(MAX_PROMPT_LENGTH + 100)];
+    const msg = validateSubmissionLimits([], prompts);
+    // The detail page renders these as "Step 1", "Step 2" — the message has to
+    // point at the same one the submitter is looking at.
+    expect(msg).toContain("Prompt 2");
+    expect(msg).toContain(String(MAX_PROMPT_LENGTH + 100));
   });
 });

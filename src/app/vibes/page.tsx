@@ -49,12 +49,27 @@ export async function VibesPageContent({
   const resolvedParams = await searchParams;
   const search = resolvedParams?.q || undefined;
 
-  // Cached read — getProjects() is wrapped with "use cache" + cacheTag in db.ts
-  // (U1/U2). On cache-hit this is free; on cache-miss it queries Supabase and
-  // stores the result. The Suspense fallback (loading.tsx) covers the miss.
-  // When ?q= is present (human search box or ?format=json agent call), pass it
-  // through so the server-rendered result and JSON-LD reflect the filtered list.
-  const projects = await getProjects(search, 'da', "top");
+  // Cached reads — getProjects() is wrapped with "use cache" + cacheTag in
+  // db.ts (U1/U2). On cache-hit these are free; on cache-miss they query
+  // Supabase and store the result. The Suspense fallback (loading.tsx) covers
+  // the miss.
+  //
+  // The catalog and the search result are two separate fetches on purpose,
+  // matching SkillsPageContent. Passing `search` into the island's own fetch
+  // meant `initialProjects` WAS the filtered set, and because nuqs updates
+  // ?q= shallowly (no server round-trip), clearing the search box left the
+  // client filtering a list that had only ever held the matches. Landing on
+  // /vibes?q=cvr and clearing the box gave you a two-item catalog until a hard
+  // reload. The island always gets the whole catalog now; ?q= only narrows the
+  // JSON-LD.
+  const [projects, searchedProjects] = await Promise.all([
+    getProjects(undefined, 'da', "top"),
+    // JSON-LD only. When ?q= is present (human search box or ?format=json
+    // agent call) the page lists the filtered result, so the structured data
+    // has to say so rather than describing the whole catalog.
+    search ? getProjects(search, 'da', "top") : Promise.resolve(null),
+  ]);
+  const listedProjects = searchedProjects ?? projects;
 
   // Build the JSON-LD server-side from real data so crawlers see it in the
   // initial response. Previously this was built from filteredProjects client
@@ -67,8 +82,8 @@ export async function VibesPageContent({
     "name": "Vibes fra fællesskabet",
     "description":
       "Showcase af innovative softwareprojekter og værktøjer bygget ved hjælp af AI.",
-    "numberOfItems": projects.length,
-    "itemListElement": projects.map((project, index) => ({
+    "numberOfItems": listedProjects.length,
+    "itemListElement": listedProjects.map((project, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "item": {

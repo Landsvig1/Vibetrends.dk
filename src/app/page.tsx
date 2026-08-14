@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Suspense } from "react";
+import { CardThumbnail } from "./components/CardThumbnail";
 import {
   ArrowRight, Heart, PlusCircle,
   Cpu, Layers, Briefcase, Sparkles,
@@ -118,20 +118,14 @@ async function HomeContent() {
                   aria-label={spotlightVibe.title}
                   className="absolute inset-0 z-10 rounded-xl"
                 />
-                <div className="h-40 relative overflow-hidden bg-card-border">
-                  <Image
-                    src={spotlightVibe.imageUrl}
-                    alt={spotlightVibe.title}
-                    fill
-                    sizes="(max-width: 767px) 100vw, 33vw"
-                    priority
-                    className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded text-xs font-semibold bg-background text-text-secondary border border-card-border">
-                    Showcase
-                  </span>
-                </div>
+                <CardThumbnail
+                  src={spotlightVibe.imageUrl}
+                  alt={spotlightVibe.title}
+                  heightClass="h-40"
+                  sizes="(max-width: 767px) 100vw, 33vw"
+                  priority
+                  badge="Showcase"
+                />
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-3 min-w-0">
                   <div className="space-y-1.5 min-w-0">
                     <h3 className="text-base font-bold leading-tight [text-wrap:balance]">
@@ -242,21 +236,13 @@ async function HomeContent() {
                 aria-label={project.title}
                 className="absolute inset-0 z-10 rounded-xl"
               />
-              <div className="h-48 relative overflow-hidden bg-card-border">
-                <Image
-                  src={project.imageUrl}
-                  alt={project.title}
-                  fill
-                  sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 25vw"
-                  className="object-cover opacity-80 group-hover:scale-105 transition duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-                <div className="absolute bottom-4 left-4 flex items-center space-x-2">
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-background text-text-secondary border border-card-border">
-                    Highlight
-                  </span>
-                </div>
-              </div>
+              <CardThumbnail
+                src={project.imageUrl}
+                alt={project.title}
+                heightClass="h-48"
+                sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 25vw"
+                badge="Highlight"
+              />
               <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-lg font-bold leading-tight">

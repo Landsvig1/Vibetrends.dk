@@ -177,7 +177,11 @@ async function ShowcaseProjectContent({ params }: { params: Promise<{ slug: stri
                       href={project.demoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg btn-primary text-foreground font-bold transition shadow-sm"
+                      /* See VibesExplorer's CTA: everything but the flex box
+                         was inert against unlayered `.btn-primary`, and the
+                         shadow that did apply is not in DESIGN.md's button
+                         spec. */
+                      className="flex-1 flex items-center justify-center gap-2 btn-primary"
                     >
                       <ExternalLink className="h-4 w-4" />
                       Besøg Live Demo
