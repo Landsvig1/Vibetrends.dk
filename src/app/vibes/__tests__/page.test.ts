@@ -138,6 +138,31 @@ describe("VibesPageContent — passes real project data to client island", () =>
     );
   });
 
+  it("fetches the unfiltered catalog ALONGSIDE the ?q= search, never instead of it", async () => {
+    // Regression guard. The search term used to be passed into the single
+    // fetch that also seeded the client island, so initialProjects WAS the
+    // filtered set. nuqs clears ?q= shallowly (no server round-trip), so
+    // clearing the box left the island filtering a list that had only ever
+    // held the matches — /vibes?q=cvr then "clear" showed a two-item catalog
+    // until a hard reload. Both calls must happen.
+    getProjectsMock.mockResolvedValue([]);
+
+    await VibesPageContent({ searchParams: Promise.resolve({ q: "react" }) });
+
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "da", "top");
+    expect(getProjectsMock).toHaveBeenCalledWith("react", "da", "top");
+    expect(getProjectsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("issues only the catalog fetch when there is no ?q=", async () => {
+    getProjectsMock.mockResolvedValue([]);
+
+    await VibesPageContent({ searchParams: Promise.resolve({}) });
+
+    expect(getProjectsMock).toHaveBeenCalledTimes(1);
+    expect(getProjectsMock).toHaveBeenCalledWith(undefined, "da", "top");
+  });
+
   it("passes undefined search when q is empty string", async () => {
     getProjectsMock.mockResolvedValue([]);
 
@@ -237,6 +262,31 @@ describe("VibesPageContent — VibesExplorer receives the fetched project list",
     expect(explorerEl.props.initialProjects).toHaveLength(2);
     expect(explorerEl.props.initialProjects[0].title).toBe("Alpha Project");
     expect(explorerEl.props.initialProjects[1].title).toBe("Beta Project");
+  });
+
+  it("gives the island the FULL catalog under ?q=, while JSON-LD gets the filtered list", async () => {
+    // The two halves of the fix in one assertion: the crawler-facing structured
+    // data narrows to the search result, the interactive island does not.
+    const full = [
+      makeProject("p1", "React Vibe App", "A project that uses React"),
+      makeProject("p2", "Rentemester", "Noget helt andet"),
+      makeProject("p3", "Koalafilm", "Endnu et projekt"),
+    ];
+    const filtered = [full[0]];
+    getProjectsMock.mockImplementation(async (search?: string) =>
+      search ? filtered : full
+    );
+
+    const result = await VibesPageContent({
+      searchParams: Promise.resolve({ q: "react" }),
+    });
+
+    const explorerEl = getElementWithProp(result, "initialProjects");
+    expect(explorerEl.props.initialProjects).toHaveLength(3);
+
+    const jsonLd = getJsonLd(result);
+    expect(jsonLd.numberOfItems).toBe(1);
+    expect(jsonLd.itemListElement[0].item.name).toBe("React Vibe App");
   });
 
   it("passes an empty array when there are no projects (not undefined)", async () => {
