@@ -3,26 +3,57 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Briefcase, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Bot, Menu, X, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import { Sparkles, Layers, MessageSquare, BookOpen, Cpu, TerminalSquare, Bot, Menu, X, ChevronDown, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import dynamic from "next/dynamic";
 import KoalaIcon from "./KoalaIcon";
+import { FEED_TYPES } from "@/lib/feedTypes";
 
 const LoginModal = dynamic(() => import("./LoginModal"), { ssr: false });
 
-interface NavSubItem {
+export interface NavSubItem {
   name: string;
   href: string;
   icon: LucideIcon;
 }
 
-interface NavItem {
+export interface NavItem {
   name: string;
   href?: string;
   icon: LucideIcon;
   isDropdown?: boolean;
   items?: NavSubItem[];
+}
+
+export const FEED_TYPE_ICONS: Record<string, LucideIcon> = {
+  Sparkles,
+  Cpu,
+  TerminalSquare,
+};
+
+export function buildNavItems(hiddenHrefs: string[] = []): NavItem[] {
+  return [
+    { name: "Forum", href: "/forum", icon: MessageSquare },
+    { name: "Vibes", href: "/vibes", icon: Layers },
+    {
+      name: "Tools",
+      icon: Cpu,
+      isDropdown: true,
+      items: FEED_TYPES.map((feed) => ({
+        name: feed.labelDa,
+        href: feed.href,
+        icon: FEED_TYPE_ICONS[feed.icon] ?? Sparkles,
+      })),
+    },
+    { name: "Blog", href: "/blog", icon: BookOpen },
+    // The site's second audience (PRODUCT.md gives it equal weight) had no
+    // entry point in the nav at all: /agent-guide was reachable only from the
+    // footer and from one 14px link on the homepage that vanished on every
+    // hub. A top-level item is the point — it tells a *human* that the machine
+    // surface exists, on every page.
+    { name: "For agenter", href: "/agent-guide", icon: Bot },
+  ].filter((item) => !item.href || !hiddenHrefs.includes(item.href));
 }
 
 /**
@@ -46,27 +77,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
     return item.href ? (pathname === item.href || pathname.startsWith(item.href)) : false;
   };
 
-  const navItems: NavItem[] = [
-    { name: "Forum", href: "/forum", icon: MessageSquare },
-    { name: "Vibes", href: "/vibes", icon: Layers },
-    {
-      name: "Tools",
-      icon: Cpu,
-      isDropdown: true,
-      items: [
-        { name: "MCP", href: "/mcp", icon: Cpu },
-        { name: "CLI", href: "/cli", icon: TerminalSquare },
-        { name: "Skills", href: "/skills", icon: Briefcase },
-      ],
-    },
-    { name: "Blog", href: "/blog", icon: BookOpen },
-    // The site's second audience (PRODUCT.md gives it equal weight) had no
-    // entry point in the nav at all: /agent-guide was reachable only from the
-    // footer and from one 14px link on the homepage that vanished on every
-    // hub. A top-level item is the point — it tells a *human* that the machine
-    // surface exists, on every page.
-    { name: "For agenter", href: "/agent-guide", icon: Bot },
-  ].filter((item) => !item.href || !hiddenHrefs.includes(item.href));
+  const navItems = buildNavItems(hiddenHrefs);
 
   return (
     <>
