@@ -175,11 +175,26 @@ reversible, because nothing tracks applied state.
 
 Backfill the existing collections in the same migration:
 
+Verified against the live DB on 2026-08-15 (99 skills total, 64 of them in
+a collection):
+
 ```
-dev-skills   33 rows    superpowers        7 rows
-skills       10 rows    vercel-labs         5 rows
-marketingskills 8 rows  expo, anthropics    4 rows each
+dev-skills       33 rows   vercel-labs        5 rows
+skills           10 rows   expo, anthropics   4 rows each
+marketingskills   8 rows
 ```
+
+**`superpowers` is not in the catalog.** An earlier draft listed it at 7
+rows; zero rows match `superpower` in `source`, `github_url` or `title_en`.
+Importing it is separate work. Re-verify these counts before trusting them
+again: this block has already been wrong once.
+
+Repos contributing 2 rows each (`computerlovetech/skills`,
+`supabase/agent-skills`, `wshobson/agents`, `vercel/next.js`) are
+deliberately left uncollected. Grouping by repo mechanically would mint
+junk collections like "Next.js (2)" off a framework repo that is not a
+skills collection at all. A collection is a curation call, not a `find`
+result.
 
 ## Step 4: curation for Trender
 

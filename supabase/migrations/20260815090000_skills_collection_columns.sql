@@ -42,9 +42,11 @@ update public.skills set collection_slug = 'mikkelkrogsholm-skills', collection_
     and github_url not ilike '%dev-skills%'
     and collection_slug is distinct from 'mikkelkrogsholm-skills';
 
-update public.skills set collection_slug = 'superpowers', collection_title = 'Superpowers'
-  where (source ilike '%obra/superpowers%' or github_url ilike '%obra/superpowers%')
-    and collection_slug is distinct from 'superpowers';
+-- No `superpowers` statement. The plan doc lists obra/superpowers as a
+-- 7-row collection, but verified against the live DB on 2026-08-15 the
+-- catalog holds zero rows matching 'superpower' in source, github_url or
+-- title. Importing it is separate work; a backfill for absent rows would
+-- just be an untested no-op asserting something false.
 
 update public.skills set collection_slug = 'vercel-agent-skills', collection_title = 'Vercel Agent Skills'
   where (source ilike '%vercel-labs/agent-skills%' or github_url ilike '%vercel-labs/agent-skills%')
