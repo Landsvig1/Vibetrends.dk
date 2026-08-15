@@ -14,6 +14,9 @@ const state = vi.hoisted(() => ({
   // Overridable per test: /blog and /forum are only listed once they have rows.
   posts: [] as { id: string; publishedAt: string }[],
   threads: [] as { id: string; createdAt: string }[],
+  // getCollections already drops one-member collections, so whatever it
+  // returns is exactly what should be listed.
+  collections: [] as { slug: string; title: string; count: number }[],
   // Set to make the hub count reads reject, simulating a Supabase failure.
   countsFail: false,
 }));
@@ -54,6 +57,7 @@ vi.mock("@/lib/db", () => ({
   getCli: vi.fn(async () => mockClis),
   getBlogPosts: vi.fn(async () => state.posts),
   getThreads: vi.fn(async () => state.threads),
+  getCollections: vi.fn(async () => state.collections),
   // Real implementation, not a stub: the sitemap and the hub layouts must agree
   // on which rows count, and a mocked-away filter would hide a disagreement.
   isE2eFixtureId: (id: string) => id.startsWith("e2e-fixture-"),
@@ -84,6 +88,7 @@ beforeEach(() => {
   state.cacheLifeCalls = [];
   state.posts = [...mockPosts];
   state.threads = [...mockThreads];
+  state.collections = [{ slug: "dev-skills", title: "Dev Skills", count: 33 }];
   state.countsFail = false;
 });
 
@@ -166,6 +171,17 @@ describe("sitemap()", () => {
         expect(url.endsWith(`/${id}`)).toBe(false);
       }
     }
+  });
+
+  // A collection URL in the sitemap must always have a page behind it.
+  // getCollection refuses to render below two members and getCollections
+  // applies the same threshold, so the sitemap lists exactly what it returns.
+  it("includes collection pages, and lists none when there are no collections", async () => {
+    expect((await sitemap()).map((e) => e.url)).toContain(`${baseUrl}/skills/samling/dev-skills`);
+
+    state.collections = [];
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls.some((u) => u.includes("/skills/samling/"))).toBe(false);
   });
 
   it("includes skill topic/category pages", async () => {

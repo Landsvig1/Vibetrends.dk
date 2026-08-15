@@ -716,6 +716,77 @@ export async function getSkillBySlug(slug: string, lang: 'da' | 'en' = 'da') {
  * cannot run before the migration that adds the column: pre-migration rows
  * carry no `collectionSlug` and the caller short-circuits.
  */
+/** A collection's identity plus its members, alphabetical. */
+export interface SkillCollection {
+  slug: string;
+  title: string;
+  skills: Skill[];
+}
+
+/**
+ * One collection and its members, sorted by title. Returns null for an unknown
+ * slug and for a one-member collection: a lone import gets no page, so the
+ * grouping never renders as a one-item folder. Callers `notFound()` on null.
+ *
+ * Sorted in JS, not SQL: the sort must match the Danish titles users actually
+ * read, and `title_da`/`title_en` selection happens in mapSkill.
+ */
+export async function getCollection(
+  collectionSlug: string,
+  lang: 'da' | 'en' = 'da'
+): Promise<SkillCollection | null> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`collection-${collectionSlug}`, `collection-${collectionSlug}:${lang}`)
+
+  const { data, error } = await visibleOnly(
+    supabasePublic.from('skills').select('*'),
+    'skills'
+  ).eq('collection_slug', collectionSlug);
+  if (error || !data || data.length < 2) return null;
+
+  const skills = data
+    .map((row) => mapSkill(row, lang))
+    .sort((a, b) => a.title.localeCompare(b.title, 'da'));
+
+  return {
+    slug: collectionSlug,
+    // Every member carries the title; take it off the first row.
+    title: data[0].collection_title || collectionSlug,
+    skills,
+  };
+}
+
+/**
+ * Every collection with more than one member, for the sitemap. Mirrors
+ * getCollection's threshold so a slug can never be listed without a page
+ * behind it.
+ */
+export async function getCollections(): Promise<{ slug: string; title: string; count: number }[]> {
+  'use cache'
+  cacheLife('max')
+  cacheTag('collections')
+
+  const { data, error } = await visibleOnly(
+    supabasePublic.from('skills').select('collection_slug, collection_title'),
+    'skills'
+  ).not('collection_slug', 'is', null);
+  if (error || !data) return [];
+
+  const bySlug = new Map<string, { slug: string; title: string; count: number }>();
+  for (const row of data as { collection_slug: string | null; collection_title: string | null }[]) {
+    if (!row.collection_slug) continue;
+    const existing = bySlug.get(row.collection_slug);
+    if (existing) existing.count += 1;
+    else bySlug.set(row.collection_slug, {
+      slug: row.collection_slug,
+      title: row.collection_title || row.collection_slug,
+      count: 1,
+    });
+  }
+  return [...bySlug.values()].filter((c) => c.count > 1);
+}
+
 export async function getCollectionSize(collectionSlug: string): Promise<number> {
   'use cache'
   cacheLife('max')
