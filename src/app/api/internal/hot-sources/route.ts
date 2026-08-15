@@ -33,8 +33,24 @@ import { normalizeRepo } from "@/lib/hotMerge";
  * fallback for the first run, when no baseline exists yet.
  */
 
-/** Cap per page: the API allows 500, and one page covers the leaderboard we care about. */
+/** The API's documented maximum. */
 const PER_PAGE = 500;
+
+/**
+ * How many pages deep to read the leaderboard.
+ *
+ * One page was not enough. skills.sh ranks thousands of skills; the first 500
+ * matched only 7 of this catalog's ~99 entries, which capped the board at 7
+ * regardless of what MAX_BOARD_SIZE said. Most of what vibetrends curates sits
+ * below the global top 500, so the depth of this read — not the board cap — is
+ * what actually decides how many rows the board can hold.
+ *
+ * Four pages is a deliberate stopping point rather than "read everything":
+ * deeper entries have weekly deltas near zero, so they add candidates whose
+ * ordering is mostly noise. Reading further would inflate the matched count
+ * without making the ranking any more meaningful.
+ */
+const MAX_PAGES = 4;
 
 /** Give up rather than hang a scheduled job on a slow upstream. */
 const UPSTREAM_TIMEOUT_MS = 15_000;
@@ -62,8 +78,12 @@ export interface HotSourceEntry {
   url?: string;
 }
 
-async function fetchView(view: "all-time" | "hot", token: string): Promise<SkillsShItem[]> {
-  const url = `https://skills.sh/api/v1/skills?view=${view}&per_page=${PER_PAGE}&page=0`;
+async function fetchPage(
+  view: "all-time" | "hot",
+  token: string,
+  page: number
+): Promise<{ items: SkillsShItem[]; hasMore: boolean }> {
+  const url = `https://skills.sh/api/v1/skills?view=${view}&per_page=${PER_PAGE}&page=${page}`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
@@ -77,18 +97,39 @@ async function fetchView(view: "all-time" | "hot", token: string): Promise<Skill
     // actionable instead of "upstream said no".
     const retry = response.headers.get("retry-after");
     throw new Error(
-      `skills.sh ${view} responded ${response.status}${retry ? ` (retry-after ${retry})` : ""}`
+      `skills.sh ${view} page ${page} responded ${response.status}${
+        retry ? ` (retry-after ${retry})` : ""
+      }`
     );
   }
 
-  const body = (await response.json()) as { data?: unknown };
+  const body = (await response.json()) as { data?: unknown; pagination?: { hasMore?: boolean } };
   if (!Array.isArray(body?.data)) {
     // Shape drift is a real risk on someone else's API. Fail loudly here so the
     // scan drops this source and says so in the PR, rather than proposing a
     // ranking built from nothing.
-    throw new Error(`skills.sh ${view} returned no data array`);
+    throw new Error(`skills.sh ${view} page ${page} returned no data array`);
   }
-  return body.data as SkillsShItem[];
+  return { items: body.data as SkillsShItem[], hasMore: body.pagination?.hasMore === true };
+}
+
+/**
+ * Read a view down to MAX_PAGES, stopping early when the API says there is no
+ * more or hands back a short page.
+ *
+ * Sequential rather than parallel: pages are cheap (four requests against a
+ * 600/min budget) and a burst of parallel reads is the kind of thing that earns
+ * a 429 on someone else's API for no gain.
+ */
+async function fetchView(view: "all-time" | "hot", token: string): Promise<SkillsShItem[]> {
+  const all: SkillsShItem[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { items, hasMore } = await fetchPage(view, token, page);
+    all.push(...items);
+    // A short page means the end even if `hasMore` is absent or lying.
+    if (!hasMore || items.length < PER_PAGE) break;
+  }
+  return all;
 }
 
 /**
