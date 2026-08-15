@@ -72,10 +72,28 @@ jobs:
       - name: Publish the ranking
         run: node scripts/publish-hot-ranking.mjs --paths-from /tmp/paths.txt
 
-      # The scan checks for this branch before proposing a week, so leaving it
-      # behind would block a re-run if publishing ever needed to happen twice.
+  # Branch cleanup is its OWN job, gated only on the label, so it runs whether
+  # the PR was merged or closed.
+  #
+  # It used to be a step inside `publish`, which is gated on merged == true.
+  # That left every closed week's branch behind forever, and the scan skips a
+  # week whose branch already exists — so discarding a bad ranking would have
+  # silently blocked re-proposing that same week.
+  cleanup:
+    needs: [publish]
+    # always() is load-bearing: `publish` is SKIPPED on a close, and a needs-
+    # dependent job is skipped along with its dependency unless the condition
+    # short-circuits that. Without it this job would never run in the exact case
+    # it exists for.
+    if: >-
+      always() &&
+      contains(github.event.pull_request.labels.*.name, 'hot-ranking')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
       - name: Delete the ranking branch
-        if: always()
         run: |
           branch="${{ github.event.pull_request.head.ref }}"
           case "$branch" in
