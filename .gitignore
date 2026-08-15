@@ -63,3 +63,6 @@ next-env.d.ts
 # locally, but they accumulate and describe a moment rather than the design
 # system, so they don't belong in history.
 .impeccable/critique/
+
+# Scratch PR body written by scripts/scan-hot-skills.mjs; never committed.
+rankings/skills-hot/.pr-body.md
