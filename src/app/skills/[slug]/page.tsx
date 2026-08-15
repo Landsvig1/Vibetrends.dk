@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, User, Sparkles } from "lucide-react";
-import { getSkillBySlug } from "@/lib/db";
+import { getSkillBySlug, getCollectionSize } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
@@ -97,6 +97,15 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
   }
 
   const repo = parseGithubRepo(skill.githubUrl || skill.source);
+
+  // Provenance for multi-skill imports. Suppressed below 2 members so a lone
+  // import never reads as a one-item folder. Plain text, not a link: the
+  // collection page is deliberately not built yet, and a link to a route that
+  // does not exist is worse than no affordance.
+  const collectionSize = skill.collectionSlug
+    ? await getCollectionSize(skill.collectionSlug)
+    : 0;
+  const showCollection = Boolean(skill.collectionTitle) && collectionSize > 1;
 
   return (
     <div className="space-y-10">
@@ -198,6 +207,13 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
               <p className="text-text-secondary text-lg leading-relaxed">
                 {skill.description}
               </p>
+              {showCollection && (
+                <p className="text-xs text-text-secondary">
+                  Del af{" "}
+                  <span className="font-semibold text-foreground">{skill.collectionTitle}</span>{" "}
+                  <span className="font-mono tabular-nums">({collectionSize} skills)</span>
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">

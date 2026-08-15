@@ -115,7 +115,10 @@ test.describe('VibeTrends.dk Core Flows', () => {
     const toolsTrigger = page.locator('nav').getByRole('button', { name: 'Tools' });
     await expect(toolsTrigger).toBeVisible();
     await toolsTrigger.hover();
-    for (const item of ['Skills', 'MCP', 'CLI']) {
+    // These are FEED_TYPES' labelDa values, which is what #135 made the
+    // dropdown render. Hardcoded rather than imported so the test still fails
+    // if someone renames a hub without meaning to; update it deliberately.
+    for (const item of ['Skills', 'MCP-servere', "CLI'er"]) {
       await expect(page.locator('nav').getByText(item, { exact: true })).toBeVisible();
     }
 

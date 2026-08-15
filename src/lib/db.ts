@@ -131,6 +131,14 @@ export interface Skill {
    * both absent and null mean the same thing to the sitemap — omit lastmod.
    */
   contentUpdatedAt?: string | null;
+  /**
+   * The repo a multi-skill import came from, or undefined for a standalone
+   * skill. Provenance only: collections are never a board object, so nothing
+   * groups on `collectionSlug`. It surfaces on the detail page and in the
+   * agent-facing payloads so both audiences see the same catalog structure.
+   */
+  collectionSlug?: string;
+  collectionTitle?: string;
 }
 
 export type SkillView = "danish" | "hot" | "trending";
@@ -344,6 +352,14 @@ interface SkillRow {
   denmark_specific?: boolean;
   /** See Skill.contentUpdatedAt. Absent on rows selected with a narrowed column list. */
   content_updated_at?: string | null;
+  /**
+   * Provenance for skills imported from a multi-skill repo. Both optional so
+   * this file reads correctly both before and after the migration that adds
+   * the columns: skill reads use `select('*')`, so pre-migration rows simply
+   * lack the keys and map to undefined.
+   */
+  collection_slug?: string | null;
+  collection_title?: string | null;
 }
 
 interface ShowcaseRow {
@@ -468,6 +484,8 @@ function mapSkill(s: SkillRow, lang: 'da' | 'en'): Skill {
     githubUrl: s.github_url || undefined,
     source: s.source || undefined,
     contentUpdatedAt: s.content_updated_at ?? null,
+    collectionSlug: s.collection_slug || undefined,
+    collectionTitle: s.collection_title || undefined,
   };
 }
 
@@ -687,6 +705,28 @@ export async function getSkillBySlug(slug: string, lang: 'da' | 'en' = 'da') {
   if (error || !data) return null;
   cacheTag(`skill-${data.id}`, `skill-${data.id}:${lang}`)
   return mapSkill(data, lang);
+}
+
+/**
+ * How many visible skills share a collection. Drives the "Del af X (33)" line
+ * on the detail page, which is suppressed for a one-member collection so a
+ * lone import never renders as a one-item folder.
+ *
+ * Only ever called with a non-empty slug taken off a mapped Skill, so it
+ * cannot run before the migration that adds the column: pre-migration rows
+ * carry no `collectionSlug` and the caller short-circuits.
+ */
+export async function getCollectionSize(collectionSlug: string): Promise<number> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`collection-${collectionSlug}`)
+
+  const { count, error } = await visibleOnly(
+    supabasePublic.from('skills').select('id', { count: 'exact', head: true }),
+    'skills'
+  ).eq('collection_slug', collectionSlug);
+  if (error) return 0;
+  return count ?? 0;
 }
 
 /** The stored SKILL.md/README.md snapshot rendered on /skills/{id}. */
