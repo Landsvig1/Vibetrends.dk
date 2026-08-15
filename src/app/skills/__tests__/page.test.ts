@@ -66,6 +66,7 @@ import { cookies } from "next/headers";
 import { getSkills } from "@/lib/db";
 import { SkillsPageContent, getValidView } from "../page";
 import { SKILL_BOARDS, DEFAULT_SKILL_BOARD } from "@/lib/skillViews";
+import { resolveView } from "@/lib/boardTabs";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
@@ -126,23 +127,60 @@ describe("getValidView", () => {
   it("returns 'danish' when given 'danish'", () => {
     expect(getValidView("danish")).toBe("danish");
   });
-  it("returns 'trending' when given 'trending'", () => {
-    expect(getValidView("trending")).toBe("trending");
+  it("resolves the deprecated 'trending' alias to the hot board", () => {
+    expect(getValidView("trending")).toBe("hot");
   });
   it("returns 'all' when given 'all'", () => {
     expect(getValidView("all")).toBe("all");
   });
-  // 'hot' is a real getSkills board and stays on /api/skills and the MCP tool,
-  // but no tab on this page surfaces it: ?view=hot used to render rows with
-  // every tab reading inactive and no control to get back out of it.
-  it("folds the tab-less 'hot' board to the default", () => {
-    expect(getValidView("hot")).toBe("danish");
+  // `hot` is now the real third board: one key, one label, one query. It used
+  // to be folded away because the tab was keyed `trending`, so ?view=hot
+  // rendered rows with every tab reading inactive and no control to get back.
+  it("returns 'hot' when given 'hot'", () => {
+    expect(getValidView("hot")).toBe("hot");
+  });
+});
+
+/**
+ * The explorer resolves ?view= in two steps, and dropping either one
+ * reintroduces a shipped bug. This is the contract those two steps form
+ * together; SkillsExplorer composes exactly this.
+ */
+describe("?view= resolution — getValidView composed with resolveView", () => {
+  const tabsFor = (values: string[]) =>
+    values.map((value) => ({ value, items: [], showCount: true }));
+
+  const resolve = (raw: string | undefined, tabs: string[]) =>
+    resolveView(getValidView(raw), tabsFor(tabs), DEFAULT_SKILL_BOARD);
+
+  it("keeps ?view=hot when the hot board has a tab", () => {
+    expect(resolve("hot", ["danish", "all", "hot"])).toBe("hot");
+  });
+
+  it("falls back to the default when the hot board has no tab", () => {
+    // The interim state before the first merged weekly ranking, and any week
+    // the ranking goes stale. Without this, ?view=hot rendered an empty grid
+    // with every tab inactive and no control to get back out.
+    expect(resolve("hot", ["danish", "all"])).toBe("danish");
+  });
+
+  it("maps the deprecated ?view=trending onto hot, then falls back if hot has no tab", () => {
+    expect(resolve("trending", ["danish", "all", "hot"])).toBe("hot");
+    expect(resolve("trending", ["danish", "all"])).toBe("danish");
+  });
+
+  it("falls back to the first surviving tab when the default board itself was dropped", () => {
+    expect(resolve(undefined, ["all", "hot"])).toBe("all");
+  });
+
+  it("returns the hub default when no board earned a tab at all", () => {
+    expect(resolve("hot", [])).toBe("danish");
   });
 });
 
 describe("SKILL_BOARDS — cross-hub consistency", () => {
   it("orders the tabs Dansk first, then Alle, like /vibes and /cli", () => {
-    expect([...SKILL_BOARDS]).toEqual(["danish", "all", "trending"]);
+    expect([...SKILL_BOARDS]).toEqual(["danish", "all", "hot"]);
     expect(DEFAULT_SKILL_BOARD).toBe("danish");
     expect(SKILL_BOARDS[0]).toBe(DEFAULT_SKILL_BOARD);
   });
@@ -162,7 +200,7 @@ describe("SkillsPageContent — data-fetch call contract", () => {
 
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da");
     expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da", "danish");
-    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da", "trending");
+    expect(getSkillsMock).toHaveBeenCalledWith(undefined, undefined, "da", "hot");
     expect(getSkillsMock).toHaveBeenCalledTimes(3);
   });
 
@@ -321,12 +359,12 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
    */
   it("passes each board as its own prop", async () => {
     const danish = [makeSkill("s1", "Danish Skill", "A danish skill here")];
-    const trending = [makeSkill("s2", "Trending Skill", "A trending skill")];
-    const catalog = [...danish, ...trending, makeSkill("s3", "Other", "desc")];
+    const hot = [makeSkill("s2", "Hot Skill", "A globally hot skill")];
+    const catalog = [...danish, ...hot, makeSkill("s3", "Other", "desc")];
 
     getSkillsMock.mockImplementation(
       async (_search?: string, _cat?: string, _lang?: string, view?: string) =>
-        view === "danish" ? danish : view === "trending" ? trending : catalog,
+        view === "danish" ? danish : view === "hot" ? hot : catalog,
     );
 
     const result = await SkillsPageContent({
@@ -338,8 +376,8 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
     expect(explorerEl.props.initialAllSkills).toHaveLength(3);
     expect(explorerEl.props.initialDanishSkills).toHaveLength(1);
     expect(explorerEl.props.initialDanishSkills[0].title).toBe("Danish Skill");
-    expect(explorerEl.props.initialTrendingSkills).toHaveLength(1);
-    expect(explorerEl.props.initialTrendingSkills[0].title).toBe("Trending Skill");
+    expect(explorerEl.props.initialHotSkills).toHaveLength(1);
+    expect(explorerEl.props.initialHotSkills[0].title).toBe("Hot Skill");
   });
 
   it("hands the client the whole catalog even when ?q= is set", async () => {
@@ -375,7 +413,7 @@ describe("SkillsPageContent — SkillsExplorer receives the fetched skill lists"
     expect(Array.isArray(explorerEl.props.initialAllSkills)).toBe(true);
     expect(explorerEl.props.initialAllSkills).toHaveLength(0);
     expect(Array.isArray(explorerEl.props.initialDanishSkills)).toBe(true);
-    expect(Array.isArray(explorerEl.props.initialTrendingSkills)).toBe(true);
+    expect(Array.isArray(explorerEl.props.initialHotSkills)).toBe(true);
   });
 
 });

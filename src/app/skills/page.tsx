@@ -39,8 +39,8 @@ export default async function SkillsPage({
  *   1. Full catalog, unfiltered — the "Alle" board, the search corpus, the
  *      per-topic counts, and the empty-state fallbacks.
  *   2. The Dansk board.
- *   3. The Hot board (the `trending` view — see SkillsExplorer's BOARD_LABELS
- *      for why the label and the key differ).
+ *   3. The Hot board (the `hot` view): the current weekly ranking, or an
+ *      empty list when none is fresh, in which case the tab does not render.
  *   4. The search-filtered catalog, only when ?q= is set, and only to keep the
  *      JSON-LD honest about what the page is actually listing.
  *
@@ -72,11 +72,11 @@ export async function SkillsPageContent({
   // the client island validates the param with the same getValidView().
   const search = resolvedParams?.q || undefined;
 
-  const [allSkills, danishSkills, trendingSkills, searchedSkills] =
+  const [allSkills, danishSkills, hotSkills, searchedSkills] =
     await Promise.all([
       getSkills(undefined, undefined, 'da'),
       getSkills(undefined, undefined, 'da', 'danish' satisfies SkillView),
-      getSkills(undefined, undefined, 'da', 'trending' satisfies SkillView),
+      getSkills(undefined, undefined, 'da', 'hot' satisfies SkillView),
       // JSON-LD only. When ?q= is present (human search box or ?format=json
       // agent call) the page lists the filtered result, so the structured data
       // has to say so rather than describing the whole catalog.
@@ -104,7 +104,7 @@ export async function SkillsPageContent({
         <SkillsExplorer
           initialAllSkills={allSkills}
           initialDanishSkills={danishSkills}
-          initialTrendingSkills={trendingSkills}
+          initialHotSkills={hotSkills}
         />
         <SkillTopicIndex counts={topicCounts} />
         <AgentSurfaceStrip hub="skills" />

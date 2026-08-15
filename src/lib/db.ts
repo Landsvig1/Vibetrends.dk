@@ -141,13 +141,20 @@ export interface Skill {
   collectionTitle?: string;
 }
 
-export type SkillView = "danish" | "hot" | "trending";
+export type SkillView = "danish" | "hot";
 
 /** Coerce an untrusted value to a valid SkillView, or undefined. Shared by the
  * REST route, the MCP tool, and the topic landing page so the whitelist lives
- * in one place. */
+ * in one place.
+ *
+ * `trending` is a deprecated alias for `hot`. The two used to be separate
+ * views over two hand-curated launch snapshots; there is now one weekly
+ * ranking. PRODUCT.md commits to stable taxonomies for the agent audience, so
+ * the old value keeps resolving rather than 400ing or falling through to the
+ * whole catalog. */
 export function parseSkillView(v: unknown): SkillView | undefined {
-  return v === "danish" || v === "hot" || v === "trending" ? v : undefined;
+  if (v === "trending") return "hot";
+  return v === "danish" || v === "hot" ? v : undefined;
 }
 
 export interface ShowcaseProject {
@@ -344,7 +351,11 @@ interface SkillRow {
   tags: string[] | null;
   github_url: string | null;
   source?: string | null;
+  /** @deprecated Frozen June 2026 launch snapshot. Nothing reads these any
+   * more — the Hot board comes from `skill_hot_rankings`. Kept until a
+   * follow-up migration drops the columns. */
   hot_rank?: number | null;
+  /** @deprecated See hot_rank. */
   trending_rank?: number | null;
   /** Skill comes from a Danish contributor (drives the Dansk view). */
   is_danish?: boolean;
@@ -603,6 +614,51 @@ export function sanitizeSearchTerm(raw: string): string {
   return truncated.replace(/[,.()*%_\\\\]/g, '');
 }
 
+/**
+ * How old the newest approved ranking may be before the Hot board stops
+ * rendering. Two missed weekly scans.
+ *
+ * The board this replaced had no such rule, which is exactly why it sat on a
+ * June 2026 hand-curated snapshot for two months while reading as current. A
+ * ranking that stops being produced must take its board down with it, so a
+ * dead cron is visible on the site instead of silently serving frozen content.
+ */
+const HOT_RANKING_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * The current week's Hot ranking as an id -> position map, or null when there
+ * is none fresh enough to show.
+ *
+ * Null is returned rather than thrown for every failure mode, including the
+ * table not existing yet: this read path ships BEFORE the migration that
+ * creates `skill_hot_rankings` (see the ordering rule in AGENTS.md and the
+ * header of 20260813000000_review_state.sql). Between those two deploys the
+ * Hot board is simply absent, which is the intended interim state.
+ */
+async function getCurrentHotRanking(): Promise<Map<string, number> | null> {
+  const { data, error } = await supabasePublic
+    .from('skill_hot_rankings')
+    .select('skill_id, position, published_at')
+    .order('published_at', { ascending: false })
+    .order('position', { ascending: true })
+    .limit(50);
+
+  if (error || !data || data.length === 0) return null;
+
+  // Rows come back newest-week first; keep only that week.
+  const newestWeek = data[0].published_at;
+  const published = Date.parse(newestWeek);
+  if (Number.isNaN(published)) return null;
+  if (Date.now() - published > HOT_RANKING_MAX_AGE_MS) return null;
+
+  const order = new Map<string, number>();
+  for (const row of data) {
+    if (row.published_at !== newestWeek) continue;
+    if (!order.has(row.skill_id)) order.set(row.skill_id, row.position);
+  }
+  return order.size > 0 ? order : null;
+}
+
 export async function getSkills(search?: string, category?: string, lang: 'da' | 'en' = 'da', view?: SkillView) {
   'use cache'
   cacheLife('max')
@@ -626,13 +682,22 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
       .order('upvotes', { ascending: false });
   }
 
-  // Snapshot Hot/Trending boards: restrict to ranked rows and order by the rank.
-  // This is the seam the own-signal engine replaces later (plan Phase 4) — the
-  // signature and callers stay identical when the body swaps to computed ranks.
+  // Hot board: the current week's externally-sourced ranking, restricted to the
+  // skills it names and ordered by its positions rather than by a column.
+  //
+  // The ordering has to happen in JS because the ranking lives in another table
+  // and PostgREST cannot order a selection by an arbitrary id list. The set is
+  // capped at 10 entries, so this is a sort of ten items, not a scan.
+  //
+  // hot_rank / trending_rank are no longer read by anything. They remain as
+  // dead columns until a follow-up migration drops them, so rolling this deploy
+  // back does not require a reverse migration.
+  let hotOrder: Map<string, number> | null = null;
   if (view === 'hot') {
-    query = query.not('hot_rank', 'is', null).order('hot_rank', { ascending: true });
-  } else if (view === 'trending') {
-    query = query.not('trending_rank', 'is', null).order('trending_rank', { ascending: true });
+    hotOrder = await getCurrentHotRanking();
+    // No fresh ranking means no board, not a board full of fallback content.
+    if (!hotOrder) return [];
+    query = query.in('id', [...hotOrder.keys()]);
   }
 
   // Full catalog (no view): most upvoted first, same as the agents feeds.
@@ -656,9 +721,19 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
 
   const { data, error } = await query;
   if (error || !data) return [];
+
+  // Rows the ranking names but that are no longer publicly visible (deleted, or
+  // moved back to review_state='pending') simply never come back from the query
+  // above, so the board renders the remainder rather than a gap or a null row.
+  const rows = hotOrder
+    ? [...data].sort(
+        (a, b) => (hotOrder.get(a.id) ?? Infinity) - (hotOrder.get(b.id) ?? Infinity)
+      )
+    : data;
+
   if (searchTerm) {
     const q = searchTerm;
-    return data
+    return rows
       .filter(s =>
         s.title_da.toLowerCase().includes(q) ||
         s.title_en.toLowerCase().includes(q) ||
@@ -669,7 +744,7 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
       .map(s => mapSkill(s, lang));
   }
 
-  return data.map(s => mapSkill(s, lang));
+  return rows.map(s => mapSkill(s, lang));
 }
 
 export async function getSkillById(id: string, lang: 'da' | 'en' = 'da') {
