@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
+import { isBearerAuthorized } from "@/lib/bearerAuth";
 import { revalidateTag as _revalidateTag } from "next/cache";
 
 /**
@@ -31,23 +31,8 @@ const revalidateTag = (tag: string): void => _revalidateTag(tag);
 /** Cap on tags per call — bounds the work a single request can trigger. */
 const MAX_TAGS = 100;
 
-function isAuthorized(request: Request): boolean {
-  const secret = process.env.REVALIDATE_SECRET;
-  // No secret configured means no caller can ever be authorized. Failing
-  // closed matters more than a clear error: a misconfigured deploy that
-  // accepted every request would be an open cache-buster.
-  if (!secret) return false;
-
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return false;
-
-  const provided = Buffer.from(header.slice("Bearer ".length).trim());
-  const expected = Buffer.from(secret);
-  // timingSafeEqual throws on length mismatch, which would itself leak length
-  // through the error path — check it first and return the same false.
-  if (provided.length !== expected.length) return false;
-  return timingSafeEqual(provided, expected);
-}
+const isAuthorized = (request: Request): boolean =>
+  isBearerAuthorized(request, process.env.REVALIDATE_SECRET);
 
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
