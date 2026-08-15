@@ -54,7 +54,8 @@ const PROTOCOL_VERSION = "2025-06-18";
 const TOOLS = [
   {
     name: "search_skills",
-    description: "Søg i biblioteket af AI-skills, workflows og scripts.",
+    description:
+      "Søg i biblioteket af AI-skills, workflows og scripts. Skills fra et repo med flere skills bærer collectionSlug og collectionTitle; det er herkomst, ikke en gruppering, så hver skill er stadig sin egen installerbare post.",
     inputSchema: {
       type: "object",
       properties: {
