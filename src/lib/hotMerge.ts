@@ -264,8 +264,18 @@ export function matchToCatalog(ranked: MergedEntry[], catalog: CatalogEntry[]): 
 
 /** Fewer matched entries than this and no ranking is proposed at all. */
 export const MIN_BOARD_SIZE = 5;
-/** More than this and the tail is cut. A board is a shortlist, not a catalog. */
-export const MAX_BOARD_SIZE = 10;
+/**
+ * More than this and the tail is cut.
+ *
+ * Raised from 10 to 20 deliberately. Note the tension it creates: against a
+ * ~99-entry catalog, a full board is a fifth of everything on the site, and the
+ * further down the leaderboard an entry sits the smaller its weekly delta, so
+ * the bottom of a 20-row board is separated from the unranked by very little.
+ * The floor stays at 5 so a thin week still proposes nothing rather than
+ * padding itself, and the per-row source columns in the manifest show exactly
+ * how much signal each position actually has before anyone merges it.
+ */
+export const MAX_BOARD_SIZE = 20;
 
 export interface BoardResult {
   /** The board, or null when the floor was not met. */

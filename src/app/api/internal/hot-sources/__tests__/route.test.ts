@@ -33,15 +33,26 @@ const item = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** Respond per view, so the two upstream calls can differ or fail apart. */
-function mockUpstream(
-  byView: Record<string, { status?: number; body?: unknown; headers?: Record<string, string> }>
-) {
+type Spec = { status?: number; body?: unknown; headers?: Record<string, string> };
+
+/**
+ * Respond per view, so the two upstream calls can differ or fail apart.
+ *
+ * A view may be given an array of specs, one per page, to exercise pagination.
+ * A single spec answers page 0 and reports no further pages.
+ */
+function mockUpstream(byView: Record<string, Spec | Spec[]>) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const view = new URL(url).searchParams.get("view") ?? "";
-      const spec = byView[view] ?? { status: 404, body: {} };
+      const params = new URL(url).searchParams;
+      const view = params.get("view") ?? "";
+      const page = Number(params.get("page") ?? 0);
+      const entry = byView[view];
+      const spec = (Array.isArray(entry) ? entry[page] : page === 0 ? entry : undefined) ?? {
+        status: 404,
+        body: {},
+      };
       return {
         ok: (spec.status ?? 200) < 400,
         status: spec.status ?? 200,
@@ -51,6 +62,12 @@ function mockUpstream(
     })
   );
 }
+
+/** A full page of distinct items, so `hasMore` is what decides continuation. */
+const fullPage = (prefix: string) =>
+  Array.from({ length: 500 }, (_, i) =>
+    item({ slug: `${prefix}-${i}`, name: `${prefix}-${i}` })
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -186,6 +203,78 @@ describe("fetching and normalizing", () => {
     });
     const body = await (await GET(request(`Bearer ${SECRET}`))).json();
     expect(body.entries[0].installs).toBe(0);
+  });
+});
+
+describe("pagination", () => {
+  const pageSpec = (prefix: string, hasMore: boolean) => ({
+    body: { data: fullPage(prefix), pagination: { hasMore } },
+  });
+
+  it("reads past the first page when the API says there is more", async () => {
+    mockUpstream({
+      "all-time": [pageSpec("a", true), pageSpec("b", false)],
+      hot: { body: { data: [] } },
+    });
+    const body = await (await GET(request(`Bearer ${SECRET}`))).json();
+    expect(body.entries).toHaveLength(1000);
+  });
+
+  it("stops as soon as hasMore is false", async () => {
+    mockUpstream({
+      "all-time": [pageSpec("a", false), pageSpec("b", true)],
+      hot: { body: { data: [] } },
+    });
+    const body = await (await GET(request(`Bearer ${SECRET}`))).json();
+    expect(body.entries).toHaveLength(500);
+  });
+
+  it("stops on a short page even when hasMore claims otherwise", async () => {
+    // Trusting a lying hasMore would loop to the page cap fetching nothing.
+    mockUpstream({
+      "all-time": [
+        { body: { data: [item()], pagination: { hasMore: true } } },
+        pageSpec("b", true),
+      ],
+      hot: { body: { data: [] } },
+    });
+    const body = await (await GET(request(`Bearer ${SECRET}`))).json();
+    expect(body.entries).toHaveLength(1);
+  });
+
+  it("never reads more than the page cap, however much the API offers", async () => {
+    mockUpstream({
+      "all-time": Array.from({ length: 20 }, (_, i) => pageSpec(`p${i}`, true)),
+      hot: { body: { data: [] } },
+    });
+    await GET(request(`Bearer ${SECRET}`));
+    const allTimeCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter((c) => String(c[0]).includes("view=all-time"));
+    expect(allTimeCalls).toHaveLength(4);
+  });
+
+  it("requests pages in order starting at 0", async () => {
+    mockUpstream({
+      "all-time": [pageSpec("a", true), pageSpec("b", false)],
+      hot: { body: { data: [] } },
+    });
+    await GET(request(`Bearer ${SECRET}`));
+    const pages = vi
+      .mocked(fetch)
+      .mock.calls.map((c) => String(c[0]))
+      .filter((u) => u.includes("view=all-time"))
+      .map((u) => new URL(u).searchParams.get("page"));
+    expect(pages).toEqual(["0", "1"]);
+  });
+
+  it("names the failing page in the error", async () => {
+    mockUpstream({
+      "all-time": [pageSpec("a", true), { status: 500 }],
+      hot: { body: { data: [] } },
+    });
+    const body = await (await GET(request(`Bearer ${SECRET}`))).json();
+    expect(body.message).toContain("page 1");
   });
 });
 
