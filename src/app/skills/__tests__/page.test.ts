@@ -66,6 +66,7 @@ import { cookies } from "next/headers";
 import { getSkills } from "@/lib/db";
 import { SkillsPageContent, getValidView } from "../page";
 import { SKILL_BOARDS, DEFAULT_SKILL_BOARD } from "@/lib/skillViews";
+import { resolveView } from "@/lib/boardTabs";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getElementWithProp, getJsonLd } from "@/test-utils/reactTree";
 
@@ -137,6 +138,43 @@ describe("getValidView", () => {
   // rendered rows with every tab reading inactive and no control to get back.
   it("returns 'hot' when given 'hot'", () => {
     expect(getValidView("hot")).toBe("hot");
+  });
+});
+
+/**
+ * The explorer resolves ?view= in two steps, and dropping either one
+ * reintroduces a shipped bug. This is the contract those two steps form
+ * together; SkillsExplorer composes exactly this.
+ */
+describe("?view= resolution — getValidView composed with resolveView", () => {
+  const tabsFor = (values: string[]) =>
+    values.map((value) => ({ value, items: [], showCount: true }));
+
+  const resolve = (raw: string | undefined, tabs: string[]) =>
+    resolveView(getValidView(raw), tabsFor(tabs), DEFAULT_SKILL_BOARD);
+
+  it("keeps ?view=hot when the hot board has a tab", () => {
+    expect(resolve("hot", ["danish", "all", "hot"])).toBe("hot");
+  });
+
+  it("falls back to the default when the hot board has no tab", () => {
+    // The interim state before the first merged weekly ranking, and any week
+    // the ranking goes stale. Without this, ?view=hot rendered an empty grid
+    // with every tab inactive and no control to get back out.
+    expect(resolve("hot", ["danish", "all"])).toBe("danish");
+  });
+
+  it("maps the deprecated ?view=trending onto hot, then falls back if hot has no tab", () => {
+    expect(resolve("trending", ["danish", "all", "hot"])).toBe("hot");
+    expect(resolve("trending", ["danish", "all"])).toBe("danish");
+  });
+
+  it("falls back to the first surviving tab when the default board itself was dropped", () => {
+    expect(resolve(undefined, ["all", "hot"])).toBe("all");
+  });
+
+  it("returns the hub default when no board earned a tab at all", () => {
+    expect(resolve("hot", [])).toBe("danish");
   });
 });
 

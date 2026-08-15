@@ -16,7 +16,7 @@ import {
 import { Skill } from "@/lib/db";
 import { SKILL_CATEGORIES, SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { getValidView, DEFAULT_SKILL_BOARD, type SkillBoard } from "@/lib/skillViews";
-import { visibleBoards } from "@/lib/boardTabs";
+import { visibleBoards, resolveView } from "@/lib/boardTabs";
 import { SkillCard } from "../components/SkillCard";
 import { useAuth } from "../components/AuthProvider";
 import dynamic from "next/dynamic";
@@ -123,9 +123,37 @@ export default function SkillsExplorer({
     "view",
     parseAsString.withDefault(DEFAULT_SKILL_BOARD)
   );
-  // Same validator the route uses, so an unknown value, or the deprecated
-  // ?view=trending, lands on a board that actually has a tab.
-  const view = getValidView(rawView);
+  // The same shared rule the other hubs use (lib/boardTabs). Dansk and Alle are
+  // disjoint here (45 of 99), so the row earns its place on those two alone.
+  // The Hot board joins them only while a fresh weekly ranking exists: when
+  // there is none, getSkills returns no rows and rule 0 drops the tab. That is
+  // the intended state between this deploy and the first merged ranking.
+  const viewTabs = useMemo(
+    () =>
+      visibleBoards(
+        [
+          { value: "danish", items: danishSkills },
+          { value: "all", items: allSkills },
+          { value: "hot", items: hotSkills },
+        ],
+        (skill) => skill.id
+      ),
+    [danishSkills, allSkills, hotSkills]
+  );
+
+  // Two-step, and both steps are load-bearing. getValidView rejects garbage and
+  // maps the deprecated ?view=trending onto the hot board. resolveView then
+  // drops a view whose board has no tab this render — which is the whole
+  // interim state for Hot, and any week the ranking goes stale.
+  //
+  // Without the second step, ?view=hot renders an empty grid with every tab
+  // reading inactive and no control to get back out. That exact failure is why
+  // the hot board used to be folded away entirely instead of being fixed.
+  const view = resolveView(
+    getValidView(rawView),
+    viewTabs,
+    DEFAULT_SKILL_BOARD
+  ) as SkillBoard;
   const { user } = useAuth();
 
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -203,24 +231,6 @@ export default function SkillsExplorer({
     all: { label: "Alle", icon: Library },
     hot: { label: "Hotteste globalt", icon: Flame },
   };
-
-  // The same shared rule the other hubs use (lib/boardTabs). Dansk and Alle are
-  // disjoint here (45 of 99), so the row earns its place on those two alone.
-  // The Hot board joins them only while a fresh weekly ranking exists: when
-  // there is none, getSkills returns no rows and rule 0 drops the tab. That is
-  // the intended state between this deploy and the first merged ranking.
-  const viewTabs = useMemo(
-    () =>
-      visibleBoards(
-        [
-          { value: "danish", items: danishSkills },
-          { value: "all", items: allSkills },
-          { value: "hot", items: hotSkills },
-        ],
-        (skill) => skill.id
-      ),
-    [danishSkills, allSkills, hotSkills]
-  );
 
   const boardHeading =
     view === "danish"
