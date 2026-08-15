@@ -114,10 +114,11 @@ async function loadBaseline(client, source, week) {
       `select entry_key, value
          from public.hot_source_snapshots
         where source = $1
-          and week <> $2
-          and captured_at = (
-            select max(captured_at) from public.hot_source_snapshots
+          and week = (
+            select week from public.hot_source_snapshots
              where source = $1 and week <> $2
+             order by captured_at desc
+             limit 1
           )`,
       [source, week]
     );
