@@ -260,6 +260,11 @@ it is the kind nobody notices because nothing on screen shows it. So:
   `/api/skills`.
 - Update `/api/openapi.json` and add one sentence to the `search_skills` tool
   description saying what a collection is.
+
+### Design system constraints
+
+These apply to anything you render, on any of the surfaces above.
+
 - Forest Ink is the only chromatic colour. No second hue, no `dark:`
   variants, no raw `slate-*`/`gray-*`/`zinc-*`, no shadows for hierarchy.
 - Icons are lucide, inheriting `currentColor`. **No emoji**; a literal emoji
@@ -287,7 +292,7 @@ it is the kind nobody notices because nothing on screen shows it. So:
 ```
 npx tsc --noEmit
 npx eslint src/          # 3 pre-existing warnings are expected
-npx vitest run           # 940 passing in 43 files before your change (~1.2s)
+npx vitest run           # 950 passing in 45 files at 411c95a (~1.2s)
 npm run build
 ```
 
