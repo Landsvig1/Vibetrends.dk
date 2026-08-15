@@ -1,0 +1,96 @@
+name: Scan hot skills
+
+# Proposes the week's "Hotteste globalt" board for /skills by merging the
+# external sources that publish an order, then opening ONE pull request for a
+# human to merge (see scripts/scan-hot-skills.mjs).
+#
+# ONE PR PER WEEK, not one per entry — deliberately breaking from
+# submission-review.yml's per-submission rule. That rule exists because
+# "4 good and 1 spam" needs three outcomes, which a batch cannot express. A
+# ranking is not a batch: it is a single ordered artifact, and approving 7 of
+# its 10 rows produces an ordering whose order no longer means anything. Merge
+# and close are the only two sensible outcomes, so one PR is correct here.
+#
+# The scan NEVER writes the ranking itself. Merging the PR does, via
+# resolve-hot-ranking.yml. Nothing reaches the board without a human.
+
+on:
+  schedule:
+    # Mondays 06:23 UTC. Deliberately offset from refresh-skill-docs.yml
+    # (Mondays 04:17): both spend GitHub API calls against the same repos, and
+    # two hours is more than enough for a ~150-call refresh to finish. Also
+    # off-the-hour, for the same reason that workflow documents — GitHub delays
+    # jobs scheduled exactly on the hour.
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Merge the sources and print the manifest without writing snapshots or opening a PR"
+        type: boolean
+        default: false
+
+# One scan at a time. Two concurrent runs would write conflicting snapshot rows
+# for the same week and could open two PRs for it.
+concurrency:
+  group: scan-hot-skills
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Lets the scan reach skills.sh through /api/internal/hot-sources, which
+      # is where the Vercel OIDC token can actually be minted. See that route's
+      # header comment for why this indirection is not optional.
+      HOT_SCAN_SECRET: ${{ secrets.HOT_SCAN_SECRET }}
+      SITE_URL: https://vibetrends.dk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Merge the sources
+        id: scan
+        run: |
+          node scripts/scan-hot-skills.mjs \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # No manifest means the run deliberately proposed nothing: every source
+      # failed, or too few ranked entries matched the catalog to clear the
+      # floor. Both are normal outcomes and neither should open an empty PR.
+      - name: Open the ranking PR
+        if: steps.scan.outputs.manifest != ''
+        run: |
+          set -euo pipefail
+          week="${{ steps.scan.outputs.week }}"
+          branch="hot-ranking/${week}"
+
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "A PR branch for $week already exists — leaving it alone."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add "${{ steps.scan.outputs.manifest }}"
+          git commit -m "chore: propose the hot ranking for ${week}"
+          git push origin "$branch"
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "Hotteste globalt — ${week}" \
+            --body-file rankings/skills-hot/.pr-body.md \
+            --label hot-ranking

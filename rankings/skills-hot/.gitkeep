@@ -1,0 +1,8 @@
+Weekly "Hotteste globalt" manifests land here, one per ISO week
+(<YYYY-Www>.md), proposed by .github/workflows/scan-hot-skills.yml and
+published by .github/workflows/resolve-hot-ranking.yml when the PR is merged.
+
+Merged manifests are the curation ledger, the same role submission-review.yml
+gives merged submission manifests: PRODUCT.md bets the positioning on
+"curated, never scraped", and a git history of every accepted ranking with a
+reviewer and a timestamp is that claim made auditable. Do not delete them.

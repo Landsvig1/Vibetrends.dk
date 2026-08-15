@@ -1,0 +1,84 @@
+name: Resolve hot ranking
+
+# The other half of .github/workflows/scan-hot-skills.yml: turns the outcome of
+# a weekly ranking PR into a database change.
+#
+#   merged          -> publish: write skill_hot_rankings for that week, then
+#                      revalidate the caches so the board actually appears (the
+#                      app caches lists at cacheLife('max') = 30 days, and an
+#                      Action cannot call revalidateTag — hence POST
+#                      /api/revalidate).
+#   closed unmerged -> nothing at all. The manifest never reached main, so
+#                      there is no state to undo. The board simply expires.
+#
+# Runs on `pull_request_target` rather than `pull_request` because a
+# `pull_request` job on a closed PR gets no secrets and cannot reach the
+# database. `pull_request_target` runs in the context of the base repo, with
+# secrets, which is safe here for one specific reason, identical to
+# submission-resolve.yml: this workflow NEVER checks out or executes the PR
+# branch. It checks out main, and the only thing it reads from the PR is the
+# list of changed file paths, matched against a strict
+# `rankings/skills-hot/<YYYY-Www>.md` pattern and validated again in
+# scripts/publish-hot-ranking.mjs. Do not add a
+# `ref: ${{ github.event.pull_request.head.sha }}` to the checkout below.
+
+on:
+  pull_request_target:
+    types: [closed]
+
+# Serialize per PR — a merge fires once, but a re-run must not race itself.
+concurrency:
+  group: resolve-hot-ranking-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only PRs this system opened. The label is applied at creation time by
+    # scan-hot-skills.yml; anything else closing is none of this job's business.
+    # Nothing happens on a close, so this job only needs to run on a merge.
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'hot-ranking')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+      SITE_URL: https://vibetrends.dk
+    steps:
+      # Base repo only — see the pull_request_target note above. Post-merge,
+      # main already contains the manifest this PR added.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Collect the ranking manifests this PR touched
+        run: |
+          set -euo pipefail
+          gh pr view "${{ github.event.pull_request.number }}" \
+            --json files --jq '.files[].path' \
+            | grep -E '^rankings/skills-hot/[0-9]{4}-W[0-9]{2}\.md$' > /tmp/paths.txt || true
+          echo "Manifest paths in this PR:"
+          cat /tmp/paths.txt || echo "(none)"
+
+      - name: Publish the ranking
+        run: node scripts/publish-hot-ranking.mjs --paths-from /tmp/paths.txt
+
+      # The scan checks for this branch before proposing a week, so leaving it
+      # behind would block a re-run if publishing ever needed to happen twice.
+      - name: Delete the ranking branch
+        if: always()
+        run: |
+          branch="${{ github.event.pull_request.head.ref }}"
+          case "$branch" in
+            hot-ranking/*) git push origin --delete "$branch" || true ;;
+            *) echo "Not a ranking branch ($branch) — leaving it alone." ;;
+          esac
