@@ -98,10 +98,9 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
 
   const repo = parseGithubRepo(skill.githubUrl || skill.source);
 
-  // Provenance for multi-skill imports. Suppressed below 2 members so a lone
-  // import never reads as a one-item folder. Plain text, not a link: the
-  // collection page is deliberately not built yet, and a link to a route that
-  // does not exist is worse than no affordance.
+  // Provenance for multi-skill imports. Suppressed below 2 members, which is
+  // the same threshold getCollection applies, so this never links to a page
+  // that refuses to render.
   const collectionSize = skill.collectionSlug
     ? await getCollectionSize(skill.collectionSlug)
     : 0;
@@ -210,7 +209,12 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
               {showCollection && (
                 <p className="text-xs text-text-secondary">
                   Del af{" "}
-                  <span className="font-semibold text-foreground">{skill.collectionTitle}</span>{" "}
+                  <Link
+                    href={`/skills/samling/${skill.collectionSlug}`}
+                    className="font-semibold text-accent-primary hover:underline"
+                  >
+                    {skill.collectionTitle}
+                  </Link>{" "}
                   <span className="font-mono tabular-nums">({collectionSize} skills)</span>
                 </p>
               )}

@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 import { cacheLife } from "next/cache";
-import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, isE2eFixtureId } from "@/lib/db";
+import { getSkills, getProjects, getAgents, getCli, getBlogPosts, getThreads, getCollections, isE2eFixtureId } from "@/lib/db";
 import { SKILL_CATEGORY_SLUGS } from "@/lib/skillCategories";
 import { hasBlogContent, hasForumContent } from "@/lib/hubContent";
 
@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // section is retired, so every `agents` row is crawled under its feed type:
   // CLIs at /cli, MCP servers at /mcp. Host rows are excluded by the
   // data layer and intentionally not surfaced.
-  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw, forumHasContent, blogHasContent] =
+  const [skills, projects, clisRaw, mcpServersRaw, postsRaw, threadsRaw, forumHasContent, blogHasContent, collections] =
     await Promise.all([
       getSkills(),
       getProjects(),
@@ -52,6 +52,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // sitemap. These two fail open instead (lib/hubContent.ts).
       hasForumContent(),
       hasBlogContent(),
+      // Only collections with more than one member; getCollections applies the
+      // same threshold the page does, so a slug is never listed without a
+      // page behind it.
+      getCollections(),
     ]);
 
   // Exclude e2e fixture rows (scripts/seed-e2e-fixtures.mjs) — they're
@@ -112,6 +116,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // source alongside skills.content_updated_at.
   const noDateDetails: MetadataRoute.Sitemap = [
     ...SKILL_CATEGORY_SLUGS.map((slug) => entry(`/skills/topic/${slug}`)),
+    ...collections.map((c) => entry(`/skills/samling/${c.slug}`)),
     ...clis.map((a) => entry(`/cli/${a.slug}`)),
     ...mcpServers.map((a) => entry(`/mcp/${a.slug}`)),
   ];

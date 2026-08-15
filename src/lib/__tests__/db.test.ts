@@ -2650,3 +2650,74 @@ describe("review gate — writes record the right state", () => {
     expect(state.revalidateTagCalls.flat()).toContain("hub-emptiness");
   });
 });
+
+describe("collections (provenance, never a grouping)", () => {
+  const inCollection = (over: Record<string, unknown> = {}) => ({
+    ...skillRow,
+    collection_slug: "dev-skills",
+    collection_title: "Dev Skills",
+    ...over,
+  });
+
+  it("getCollection returns members sorted by the localized title", async () => {
+    state.publicHandler = () => ({
+      data: [
+        inCollection({ id: "b", title_da: "Zulu" }),
+        inCollection({ id: "a", title_da: "Alfa" }),
+        inCollection({ id: "c", title_da: "Midt" }),
+      ],
+      error: null,
+    });
+    const collection = await db.getCollection("dev-skills", "da");
+    expect(collection?.skills.map((s) => s.title)).toEqual(["Alfa", "Midt", "Zulu"]);
+    expect(collection?.title).toBe("Dev Skills");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["eq", "collection_slug", "dev-skills"]);
+  });
+
+  it("getCollection returns null for a one-member collection so no one-item folder renders", async () => {
+    state.publicHandler = () => ({ data: [inCollection()], error: null });
+    expect(await db.getCollection("dev-skills", "da")).toBeNull();
+  });
+
+  it("getCollection returns null for an unknown slug and on a query error", async () => {
+    state.publicHandler = () => ({ data: [], error: null });
+    expect(await db.getCollection("nope", "da")).toBeNull();
+    state.publicHandler = () => ({ data: null, error: { message: "boom" } });
+    expect(await db.getCollection("dev-skills", "da")).toBeNull();
+  });
+
+  it("getCollections counts members and drops one-member collections", async () => {
+    state.publicHandler = () => ({
+      data: [
+        { collection_slug: "dev-skills", collection_title: "Dev Skills" },
+        { collection_slug: "dev-skills", collection_title: "Dev Skills" },
+        { collection_slug: "solo", collection_title: "Solo" },
+        { collection_slug: null, collection_title: null },
+      ],
+      error: null,
+    });
+    const collections = await db.getCollections();
+    expect(collections).toEqual([{ slug: "dev-skills", title: "Dev Skills", count: 2 }]);
+  });
+
+  it("mapSkill exposes collection fields, and omits them when absent", async () => {
+    state.publicHandler = () => ({ data: [inCollection()], error: null });
+    const [withCollection] = await db.getSkills();
+    expect(withCollection.collectionSlug).toBe("dev-skills");
+    expect(withCollection.collectionTitle).toBe("Dev Skills");
+
+    // Pre-migration rows carry no such keys at all; the read path must tolerate it.
+    state.publicHandler = () => ({ data: [skillRow], error: null });
+    const [standalone] = await db.getSkills();
+    expect(standalone.collectionSlug).toBeUndefined();
+    expect(standalone.collectionTitle).toBeUndefined();
+  });
+
+  it("getCollectionSize counts members without fetching rows", async () => {
+    state.publicHandler = () => ({ data: null, error: null, count: 33 });
+    expect(await db.getCollectionSize("dev-skills")).toBe(33);
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.selectOpts).toMatchObject({ count: "exact", head: true });
+  });
+});
