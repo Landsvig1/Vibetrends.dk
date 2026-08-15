@@ -283,24 +283,119 @@ describe("mappers (language + null coalescing)", () => {
   });
 });
 
-describe("Hot/Trending view seam (snapshot ranks)", () => {
-  it("view=hot restricts to non-null hot_rank and orders by it ascending", async () => {
-    state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, undefined, "da", "hot");
+/**
+ * The Hot board reads the current week's ranking from `skill_hot_rankings` and
+ * orders the skills by its positions. It replaced two frozen launch-snapshot
+ * columns (hot_rank / trending_rank), so the tests that mattered changed shape:
+ * the interesting behavior is no longer "which column does it order by" but
+ * "when does the board refuse to render at all".
+ */
+describe("Hot board (weekly external ranking)", () => {
+  const freshRanking = (rows: Array<{ skill_id: string; position: number }>) => {
+    const published_at = new Date().toISOString();
+    return rows.map((r) => ({ ...r, published_at }));
+  };
+
+  /** Route skill_hot_rankings and skills reads to two separate fixtures. */
+  const withRanking = (
+    ranking: { data?: unknown; error: unknown },
+    skills: { data?: unknown; error: unknown }
+  ) => {
+    state.publicHandler = (ops) =>
+      ops.table === "skill_hot_rankings" ? ranking : skills;
+  };
+
+  it("restricts the catalog to the ranked ids and orders by ranking position", async () => {
+    withRanking(
+      { data: freshRanking([{ skill_id: "b", position: 1 }, { skill_id: "a", position: 2 }]), error: null },
+      // Deliberately returned in the opposite order to the ranking.
+      { data: [{ ...skillRow, id: "a" }, { ...skillRow, id: "b" }], error: null }
+    );
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
-    expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
+    expect(call.filters).toContainEqual(["in", "id", ["b", "a"]]);
+    expect(results.map((s) => s.id)).toEqual(["b", "a"]);
   });
 
-  it("view=trending restricts to non-null trending_rank and orders by it ascending", async () => {
-    state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "fullstack-devops", "da", "trending");
+  it("returns an empty board when there is no ranking at all", async () => {
+    withRanking({ data: [], error: null }, { data: [skillRow], error: null });
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
+    expect(results).toEqual([]);
+    // It must not fall back to the whole catalog.
+    expect(state.publicCalls.some((c) => c.table === "skills")).toBe(false);
+  });
+
+  it("returns an empty board when the rankings table does not exist yet", async () => {
+    // This read path deploys BEFORE the migration that creates the table.
+    withRanking(
+      { data: null, error: { code: "42P01", message: "relation does not exist" } },
+      { data: [skillRow], error: null }
+    );
+    expect(await db.getSkills(undefined, undefined, "da", "hot")).toEqual([]);
+  });
+
+  it("returns an empty board when the newest ranking is older than the staleness horizon", async () => {
+    const stale = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+    withRanking(
+      { data: [{ skill_id: "a", position: 1, published_at: stale }], error: null },
+      { data: [{ ...skillRow, id: "a" }], error: null }
+    );
+    expect(await db.getSkills(undefined, undefined, "da", "hot")).toEqual([]);
+  });
+
+  it("keeps a ranking that is just inside the staleness horizon", async () => {
+    const almost = new Date(Date.now() - 13 * 24 * 60 * 60 * 1000).toISOString();
+    withRanking(
+      { data: [{ skill_id: "a", position: 1, published_at: almost }], error: null },
+      { data: [{ ...skillRow, id: "a" }], error: null }
+    );
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
+    expect(results.map((s) => s.id)).toEqual(["a"]);
+  });
+
+  it("ignores rows from older weeks when a newer ranking exists", async () => {
+    const now = new Date().toISOString();
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    withRanking(
+      {
+        data: [
+          { skill_id: "new", position: 1, published_at: now },
+          { skill_id: "old", position: 1, published_at: lastWeek },
+        ],
+        error: null,
+      },
+      { data: [{ ...skillRow, id: "new" }], error: null }
+    );
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
+    const call = state.publicCalls.find((c) => c.table === "skills")!;
+    expect(call.filters).toContainEqual(["in", "id", ["new"]]);
+    expect(results.map((s) => s.id)).toEqual(["new"]);
+  });
+
+  it("renders the remainder when the ranking names a skill that is no longer visible", async () => {
+    // 'gone' was deleted or moved back to review_state='pending', so visibleOnly
+    // never returns it. The board should not show a gap or a null row.
+    withRanking(
+      { data: freshRanking([{ skill_id: "gone", position: 1 }, { skill_id: "here", position: 2 }]), error: null },
+      { data: [{ ...skillRow, id: "here" }], error: null }
+    );
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
+    expect(results.map((s) => s.id)).toEqual(["here"]);
+  });
+
+  it("combines with a category filter", async () => {
+    withRanking(
+      { data: freshRanking([{ skill_id: "a", position: 1 }]), error: null },
+      { data: [{ ...skillRow, id: "a" }], error: null }
+    );
+    await db.getSkills(undefined, "fullstack-devops", "da", "hot");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
     expect(call.filters).toContainEqual(["eq", "category", "fullstack-devops"]);
-    expect(call.filters).toContainEqual(["not", "trending_rank", "is", null]);
-    expect(call.filters).toContainEqual(["order", "trending_rank", { ascending: true }]);
+    expect(call.filters).toContainEqual(["in", "id", ["a"]]);
   });
+});
 
+describe("other skill views", () => {
   it("view=danish filters to is_danish=true, sorts by upvotes", async () => {
     state.publicHandler = () => ({ data: [skillRow], error: null });
     await db.getSkills(undefined, undefined, "da", "danish");
@@ -322,36 +417,41 @@ describe("Hot/Trending view seam (snapshot ranks)", () => {
     ]);
   });
 
-  it("view=hot combined with a category filters by both (symmetric with trending)", async () => {
-    state.publicHandler = () => ({ data: [skillRow], error: null });
-    await db.getSkills(undefined, "fullstack-devops", "da", "hot");
-    const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["eq", "category", "fullstack-devops"]);
-    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]);
-    expect(call.filters).toContainEqual(["order", "hot_rank", { ascending: true }]);
-  });
-
   it("search post-filters in JS on top of the view query (search + view combined)", async () => {
     const rows = [
       { ...skillRow, id: "a", title_da: "React patterns", title_en: "React patterns" },
       { ...skillRow, id: "b", title_da: "Andet", title_en: "Other", description_da: "x", description_en: "x", tags: [] },
     ];
-    state.publicHandler = () => ({ data: rows, error: null });
+    state.publicHandler = (ops) =>
+      ops.table === "skill_hot_rankings"
+        ? {
+            data: [
+              { skill_id: "a", position: 1, published_at: new Date().toISOString() },
+              { skill_id: "b", position: 2, published_at: new Date().toISOString() },
+            ],
+            error: null,
+          }
+        : { data: rows, error: null };
     const results = await db.getSkills("react", undefined, "da", "hot");
     const call = state.publicCalls.find((c) => c.table === "skills")!;
-    expect(call.filters).toContainEqual(["not", "hot_rank", "is", null]); // view at query time
+    expect(call.filters).toContainEqual(["in", "id", ["a", "b"]]); // view at query time
     expect(results.map((r) => r.id)).toEqual(["a"]); // search in JS after
   });
 });
 
 describe("parseSkillView", () => {
-  it("accepts danish/hot/trending, rejects everything else", () => {
+  it("accepts danish and hot, rejects everything else", () => {
     expect(db.parseSkillView("danish")).toBe("danish");
     expect(db.parseSkillView("hot")).toBe("hot");
-    expect(db.parseSkillView("trending")).toBe("trending");
     expect(db.parseSkillView("popular")).toBeUndefined();
     expect(db.parseSkillView(undefined)).toBeUndefined();
     expect(db.parseSkillView(["hot"])).toBeUndefined();
+  });
+
+  it("resolves the deprecated 'trending' alias to 'hot' so agent callers keep working", () => {
+    // PRODUCT.md commits to stable taxonomies for the agent audience: the MCP
+    // tool and /api/skills still advertise and accept `trending`.
+    expect(db.parseSkillView("trending")).toBe("hot");
   });
 });
 

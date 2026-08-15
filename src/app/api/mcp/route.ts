@@ -68,7 +68,7 @@ const TOOLS = [
         view: {
           type: "string",
           enum: ["danish", "hot", "trending"],
-          description: "Valgfri visning: danish (skills fra danske bidragydere), hot (seneste momentum) eller trending. Udelad for hele kataloget.",
+          description: "Valgfri visning: danish (skills fra danske bidragydere) eller hot (ugens rangering samlet fra eksterne kilder, der selv publicerer en rækkefølge). trending er et forældet alias for hot. Udelad for hele kataloget.",
         },
         lang: { type: "string", enum: ["da", "en"], description: "Sprog for resultater (standard: da)" },
       },

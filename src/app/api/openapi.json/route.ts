@@ -214,7 +214,7 @@ const OPENAPI_DOCUMENT = {
       },
     },
     "/api/skills": {
-      get: { summary: "List skills", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "category", in: "query", schema: { type: "string" } }, { name: "view", in: "query", schema: { type: "string", enum: ["danish", "hot", "trending"] } }], responses: { "200": { description: "OK. Skills imported from a repo holding several skills also carry collectionSlug and collectionTitle. That is provenance, not grouping: each skill remains its own independently installable entry, and no view groups by collection." } } },
+      get: { summary: "List skills", parameters: [{ name: "search", in: "query", schema: { type: "string" } }, { name: "category", in: "query", schema: { type: "string" } }, { name: "view", in: "query", schema: { type: "string", enum: ["danish", "hot", "trending"] }, description: "danish, or hot (the current weekly ranking merged from external sources that publish an order). trending is a deprecated alias for hot." }], responses: { "200": { description: "OK. Skills imported from a repo holding several skills also carry collectionSlug and collectionTitle. That is provenance, not grouping: each skill remains its own independently installable entry, and no view groups by collection." } } },
       post: {
         summary: "Submit a skill",
         description: REVIEW_DOC,

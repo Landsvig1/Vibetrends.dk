@@ -93,13 +93,13 @@ export async function executeUpvote(
 interface SkillsExplorerProps {
   initialAllSkills: Skill[];
   initialDanishSkills: Skill[];
-  initialTrendingSkills: Skill[];
+  initialHotSkills: Skill[];
 }
 
 export default function SkillsExplorer({
   initialAllSkills,
   initialDanishSkills,
-  initialTrendingSkills,
+  initialHotSkills,
 }: SkillsExplorerProps) {
   // Every board arrives from the server. Switching tabs is a state read, not a
   // fetch: the page used to hit /api/skills on each tab click, whose only
@@ -107,8 +107,8 @@ export default function SkillsExplorer({
   // request looked exactly like a tab that had loaded.
   const [allSkills, setAllSkills] = useState<Skill[]>(initialAllSkills);
   const [danishSkills, setDanishSkills] = useState<Skill[]>(initialDanishSkills);
-  const [trendingSkills, setTrendingSkills] =
-    useState<Skill[]>(initialTrendingSkills);
+  const [hotSkills, setHotSkills] =
+    useState<Skill[]>(initialHotSkills);
 
   // Mirrors the lists so handleUpvote can read them without depending on them —
   // keeps handleUpvote's identity stable across upvotes so memoized SkillCard
@@ -123,8 +123,8 @@ export default function SkillsExplorer({
     "view",
     parseAsString.withDefault(DEFAULT_SKILL_BOARD)
   );
-  // Same validator the route uses, so an unknown or retired ?view= (e.g. the
-  // old ?view=hot) lands on a board that actually has a tab.
+  // Same validator the route uses, so an unknown value, or the deprecated
+  // ?view=trending, lands on a board that actually has a tab.
   const view = getValidView(rawView);
   const { user } = useAuth();
 
@@ -144,8 +144,8 @@ export default function SkillsExplorer({
   const pendingUpvoteIds = useRef(new Set<string>());
 
   const boards: Record<SkillBoard, Skill[]> = useMemo(
-    () => ({ all: allSkills, danish: danishSkills, trending: trendingSkills }),
-    [allSkills, danishSkills, trendingSkills]
+    () => ({ all: allSkills, danish: danishSkills, hot: hotSkills }),
+    [allSkills, danishSkills, hotSkills]
   );
 
   const searchActive = search.trim() !== "";
@@ -187,47 +187,46 @@ export default function SkillsExplorer({
    * Each tab prints the size of the board behind it, which is the actual fix
    * for the old problem: three bare labels plus one unlabeled count chip beside
    * the heading (whose scope changed silently per tab) left no way to see that
-   * the default board holds 45 of a 98-entry library.
+   * the default board holds 45 of a 99-entry library.
    *
    * The old "Emner" tab is gone. It rendered topic tiles that duplicate the
    * SkillTopicIndex at the foot of this same page, and it put a taxonomy in a
    * row of boards; "Alle" takes its slot, which is also where /vibes and /cli
    * put theirs.
    */
-  /* The third board is called "Hot" on every hub. The board key stays
-     `trending` because that is the DB view behind it (`trending_rank`), and
-     because getSkills() also serves a genuinely different `hot` view — only
-     the label is shared, not the query. */
+  /* The third board names its own signal. It is a weekly ranking merged from
+     external sources that publish an order, not a measure of what this site's
+     visitors are doing — "Hot" alone would imply Danish community momentum the
+     board is not measuring. One key, one label, one query. */
   const BOARD_LABELS: Record<string, { label: string; icon: typeof Flag }> = {
     danish: { label: "Dansk", icon: Flag },
     all: { label: "Alle", icon: Library },
-    trending: { label: "Hot", icon: Flame },
+    hot: { label: "Hotteste globalt", icon: Flame },
   };
 
-  // The same shared rule the other hubs use (lib/boardTabs). /skills is the
-  // hub where the row unambiguously earns its place: 45 Danish, 98 total and
-  // 7 trending of which none are Danish, so all three boards are disjoint and
-  // all three carry a count. Routed through the shared helper anyway so the
-  // hubs cannot drift apart again, and so /skills degrades the same way if its
-  // catalog ever collapses to a single set.
+  // The same shared rule the other hubs use (lib/boardTabs). Dansk and Alle are
+  // disjoint here (45 of 99), so the row earns its place on those two alone.
+  // The Hot board joins them only while a fresh weekly ranking exists: when
+  // there is none, getSkills returns no rows and rule 0 drops the tab. That is
+  // the intended state between this deploy and the first merged ranking.
   const viewTabs = useMemo(
     () =>
       visibleBoards(
         [
           { value: "danish", items: danishSkills },
           { value: "all", items: allSkills },
-          { value: "trending", items: trendingSkills },
+          { value: "hot", items: hotSkills },
         ],
         (skill) => skill.id
       ),
-    [danishSkills, allSkills, trendingSkills]
+    [danishSkills, allSkills, hotSkills]
   );
 
   const boardHeading =
     view === "danish"
       ? "Danske skills"
-      : view === "trending"
-        ? "Hot skills"
+      : view === "hot"
+        ? "Hotteste globalt"
         : "Alle skills";
 
   const clearSearch = () => setSearch(null);
@@ -266,7 +265,7 @@ export default function SkillsExplorer({
     const applyToBoards = (fn: (list: Skill[]) => Skill[]) => {
       setAllSkills(fn);
       setDanishSkills(fn);
-      setTrendingSkills(fn);
+      setHotSkills(fn);
     };
     await executeUpvote(id, `/api/skills/${id}/upvote`, pendingUpvoteIds.current, fetch, {
       onOptimistic: () => applyToBoards(optimistic),
@@ -288,7 +287,7 @@ export default function SkillsExplorer({
         const drop = (prev: Skill[]) => prev.filter((s) => s.id !== id);
         setAllSkills(drop);
         setDanishSkills(drop);
-        setTrendingSkills(drop);
+        setHotSkills(drop);
       }
     } catch (err) {
       console.error("Error deleting skill:", err);
@@ -534,10 +533,10 @@ export default function SkillsExplorer({
                 : undefined
             }
             suggestions={
-              trendingSkills.length > 0
+              hotSkills.length > 0
                 ? {
-                    title: "Hot lige nu",
-                    items: trendingSkills.slice(0, 3).map((s) => ({
+                    title: "Hotteste globalt",
+                    items: hotSkills.slice(0, 3).map((s) => ({
                       id: s.id,
                       title: s.title,
                       href: `/skills/${s.slug}`,

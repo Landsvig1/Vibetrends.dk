@@ -83,15 +83,18 @@ async function TopicContent({
   const connectLabel = "Forbind";
 
   // `base` is the full topic catalog (view-independent) — it drives the hero
-  // count, the JSON-LD, and the default grid. When a view is active we fetch the
-  // ranked board too; otherwise we fetch the Hot board only to pick the featured
-  // card. This avoids the previous duplicate identical query when view === 'hot'.
+  // count, the JSON-LD, and the default grid. The Hot board is fetched
+  // unconditionally now: it decides both the featured card and whether the Hot
+  // tab renders at all, and it is a warm `use cache` read either way.
   type SkillList = Awaited<ReturnType<typeof getSkills>>;
-  const [base, viewList, hotList] = await Promise.all([
+  const [base, danishList, hotList] = await Promise.all([
     getSkills(undefined, slug, 'da'),
-    view ? getSkills(undefined, slug, 'da', view) : Promise.resolve<SkillList>([]),
-    view ? Promise.resolve<SkillList>([]) : getSkills(undefined, slug, 'da', "hot"),
+    view === 'danish'
+      ? getSkills(undefined, slug, 'da', 'danish')
+      : Promise.resolve<SkillList>([]),
+    getSkills(undefined, slug, 'da', 'hot'),
   ]);
+  const viewList = view === 'hot' ? hotList : danishList;
 
   const total = base.length;
   const featured = view ? undefined : hotList[0] ?? base[0];
@@ -101,10 +104,15 @@ async function TopicContent({
 
   const jsonLd = skillsListJsonLd(base, `${label} skills`, desc);
 
-  const tabs: { value: "all" | "danish" | "trending"; label: string; icon: typeof Flag | null; href: string }[] = [
+  // The Hot tab appears only when this topic actually has ranked entries in the
+  // current week's ranking. Same rule as the hub's board row (lib/boardTabs,
+  // rule 0): a tab that opens an empty grid teaches visitors the tabs are inert.
+  const tabs: { value: "all" | "danish" | "hot"; label: string; icon: typeof Flag | null; href: string }[] = [
     { value: "all", label: "Alle", icon: null, href: `/skills/topic/${slug}` },
     { value: "danish", label: "Dansk", icon: Flag, href: `/skills/topic/${slug}?view=danish` },
-    { value: "trending", label: "Hot", icon: Flame, href: `/skills/topic/${slug}?view=trending` },
+    ...(hotList.length > 0
+      ? [{ value: "hot" as const, label: "Hotteste globalt", icon: Flame, href: `/skills/topic/${slug}?view=hot` }]
+      : []),
   ];
   const activeTab = view ?? "all";
 
@@ -163,10 +171,9 @@ async function TopicContent({
       {/* Featured pick (default view only) */}
       {featured && (
         <div className="space-y-3">
-          {/* Star, not Flame. This pick comes from the `hot` view while the
-              tab above now wears the flame for the `trending` board — two
-              different queries. One flame per page, and it belongs to the
-              board the tab actually opens. */}
+          {/* Star, not Flame. The flame belongs to the Hot tab above. This pick
+              falls back to the most-upvoted entry whenever the weekly ranking
+              names nothing in this topic, so it is "most popular", not "hot". */}
           <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center">
             <Star className="h-4 w-4 mr-2 text-accent-primary" />
             Mest populære

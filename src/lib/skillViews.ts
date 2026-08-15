@@ -5,10 +5,16 @@
  * the server data layer into the client bundle.
  */
 /** Tab order, and it matches the other hubs: Dansk first, then Alle, then the
- * third board, which every hub labels "Hot". Here that board is keyed
- * `trending` because it is the `trending_rank` view — a real curated subset,
- * not the re-sort that /vibes and /cli put under the same label. */
-export const SKILL_BOARDS = ["danish", "all", "trending"] as const;
+ * third board. That board is keyed `hot` and labelled "Hotteste globalt": one
+ * key, one label, one query.
+ *
+ * It used to be keyed `trending` while reading "Hot" and querying neither the
+ * `hot` view nor anything measured — it showed a hand-curated `trending_rank`
+ * snapshot frozen at launch in June 2026. The board is now a weekly ranking
+ * merged from external sources that publish an order, and the label names that
+ * signal so nobody reads it as Danish community momentum.
+ */
+export const SKILL_BOARDS = ["danish", "all", "hot"] as const;
 
 export type SkillBoard = (typeof SKILL_BOARDS)[number];
 
@@ -21,20 +27,17 @@ export const DEFAULT_SKILL_BOARD: SkillBoard = "danish";
  * and /forum all open on the Danish board. Do not change this one hub away
  * from it in isolation.
  *
- * The problem that default caused — the board holds 45 of 98 and said so
+ * The problem that default caused — the board holds 45 of 99 and said so
  * nowhere, so a visitor could reasonably read the grid as the whole library —
  * is fixed by printing every board's size on its own tab instead of by
  * reordering the boards.
  *
- * "hot" is deliberately not a board here, and note that the third tab now
- * *reads* "Hot" while being keyed `trending`. The two are not the same query:
- * getSkills()'s `hot` view is a momentum sort over the whole catalog, while
- * `trending` is the curated `trending_rank` subset the tab actually shows.
- * `hot` stays available to agents through /api/skills and the MCP tool, but no
- * tab on this page has ever surfaced it: ?view=hot rendered rows with every tab
- * reading inactive and no control to get back. It folds to the default instead.
+ * `trending` is accepted as a deprecated alias for `hot` so links and agent
+ * integrations minted before the two collapsed keep resolving to a real board
+ * instead of silently falling back to the default one.
  */
 export function getValidView(view: string | undefined): SkillBoard {
+  if (view === "trending") return "hot";
   return SKILL_BOARDS.includes(view as SkillBoard)
     ? (view as SkillBoard)
     : DEFAULT_SKILL_BOARD;

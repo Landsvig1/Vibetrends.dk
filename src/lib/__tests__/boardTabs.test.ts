@@ -17,7 +17,7 @@ const row = (id: string, danish: boolean, upvotes: number, name = id): Row => ({
 });
 
 /** The three standard boards, built the way the explorers build them. */
-function boardsFor(items: Row[], third: "hot" | "trending" = "hot"): Board<Row>[] {
+function boardsFor(items: Row[], third: "hot" | "ranked" = "hot"): Board<Row>[] {
   const danish = [...items].filter((r) => r.danish).sort((a, b) => b.upvotes - a.upvotes);
   const all = [...items].sort((a, b) => a.name.localeCompare(b.name));
   const hot = [...items].sort((a, b) => b.upvotes - a.upvotes);
@@ -30,15 +30,56 @@ function boardsFor(items: Row[], third: "hot" | "trending" = "hot"): Board<Row>[
 
 const key = (r: Row) => r.id;
 
+describe("visibleBoards — rule 0: an empty board is never a tab", () => {
+  it("drops an empty third board and keeps the two that have content", () => {
+    // The /skills state between the read-path deploy and the first merged
+    // weekly ranking: Dansk and Alle are real, Hot has nothing to show.
+    const items = Array.from({ length: 99 }, (_, i) => row(`s${i}`, i < 45, i));
+    const boards: Board<Row>[] = [
+      { value: "danish", items: items.filter((r) => r.danish) },
+      { value: "all", items },
+      { value: "hot", items: [] },
+    ];
+    const visible = visibleBoards(boards, key);
+
+    expect(visible.map((b) => b.value)).toEqual(["danish", "all"]);
+  });
+
+  it("drops an empty default board and leaves the rest selectable", () => {
+    const items = Array.from({ length: 10 }, (_, i) => row(`s${i}`, false, i));
+    const boards: Board<Row>[] = [
+      { value: "danish", items: [] },
+      { value: "all", items },
+      // A real subset, so rule 2 does not collapse the row for being a
+      // sort control wearing a filter's clothing.
+      { value: "hot", items: items.slice(0, 3) },
+    ];
+    const visible = visibleBoards(boards, key);
+
+    expect(visible.map((b) => b.value)).toEqual(["all", "hot"]);
+    // resolveView must not strand a request for the board that was dropped.
+    expect(resolveView("danish", visible, "danish")).toBe("all");
+  });
+
+  it("still renders no row at all when every board is empty (/forum shape)", () => {
+    const boards: Board<Row>[] = [
+      { value: "danish", items: [] },
+      { value: "all", items: [] },
+      { value: "hot", items: [] },
+    ];
+    expect(visibleBoards(boards, key)).toEqual([]);
+  });
+});
+
 describe("visibleBoards — a board row only when the boards differ", () => {
   it("/skills shape: three disjoint sets keep all three tabs, all counted", () => {
-    // 98 entries, 45 Danish, 7 trending and none of them Danish.
+    // 98 entries, 45 Danish, 7 ranked and none of them Danish.
     const items = Array.from({ length: 98 }, (_, i) =>
       row(`s${i}`, i < 45, i >= 91 ? 99 : i, `skill-${String(i).padStart(2, "0")}`)
     );
-    const visible = visibleBoards(boardsFor(items, "trending"), key);
+    const visible = visibleBoards(boardsFor(items, "ranked"), key);
 
-    expect(visible.map((b) => b.value)).toEqual(["danish", "all", "trending"]);
+    expect(visible.map((b) => b.value)).toEqual(["danish", "all", "ranked"]);
     expect(visible.every((b) => b.showCount)).toBe(true);
   });
 
