@@ -122,8 +122,8 @@ describe("parseManifest — untrusted input", () => {
     }
   });
 
-  it("accepts the id shapes this catalog actually uses", () => {
-    for (const good of ["s_1785096155359", "seed_frontend-design", "a.b-c_d"]) {
+  it("accepts the id shapes this catalog actually uses, including new: prefix", () => {
+    for (const good of ["s_1785096155359", "seed_frontend-design", "a.b-c_d", "new:ai-music"]) {
       expect(parseManifest(row(good))).toHaveLength(1);
     }
   });
@@ -150,4 +150,32 @@ describe("parseManifest — untrusted input", () => {
   it("returns nothing for empty input", () => {
     expect(parseManifest("")).toEqual([]);
   });
+
+  it("parses new skills metadata when present in manifest", () => {
+    const newSkills = [
+      {
+        slug: "ai-music",
+        title: "AI Music",
+        category: "growth-content",
+        description: "Trending AI skill for AI Music.",
+        githubUrl: "https://github.com/genmedia-labs/skills",
+        source: "https://www.skills.sh/genmedia-labs/skills/ai-music",
+        vibeCoder: "genmedia-labs",
+        tags: ["ai-music", "growth-content", "hot"],
+      },
+    ];
+    const newBoard = [
+      boardRow(1, "new:ai-music", "AI Music", 0.05),
+      ...board.slice(0, 4),
+    ];
+    const rendered = renderManifest("2026-W33", newBoard, report, [], newSkills);
+    const parsed = parseManifest(rendered);
+
+    expect(parsed).toHaveLength(5);
+    expect(parsed[0].skillId).toBe("new:ai-music");
+    expect(parsed.newSkills).toHaveLength(1);
+    expect(parsed.newSkills[0].slug).toBe("ai-music");
+    expect(parsed.newSkills[0].category).toBe("growth-content");
+  });
 });
+

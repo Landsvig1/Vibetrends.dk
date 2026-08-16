@@ -6,6 +6,9 @@ import {
   mergeSources,
   matchToCatalog,
   buildBoard,
+  inferSkillCategory,
+  slugToTitle,
+  provisionNewSkill,
   MIN_BOARD_SIZE,
   MAX_BOARD_SIZE,
   type SourceResult,
@@ -288,4 +291,63 @@ describe("buildBoard", () => {
   it("proposes nothing at all from an empty match list", () => {
     expect(buildBoard([]).board).toBeNull();
   });
+
+  it("auto-provisions new skills when ranked entries are not in catalog", () => {
+    const ranked = Array.from({ length: 10 }, (_, i) => ({
+      key: `owner/repo#skill-${i}`,
+      slug: `skill-${i}`,
+      repo: "owner/repo",
+      score: 1 / (i + 1),
+      contributions: [],
+    }));
+    const catalog: CatalogEntry[] = [
+      { id: "s1", slug: "skill-0", title: "Skill 0", repo: "owner/repo" },
+    ];
+
+    const result = buildBoard(ranked, catalog);
+    expect(result.board).toHaveLength(10);
+    expect(result.board![0].catalog.id).toBe("s1");
+    expect(result.board![0].isNew).toBe(false);
+    expect(result.board![1].catalog.id).toBe("new:skill-1");
+    expect(result.board![1].isNew).toBe(true);
+    expect(result.newSkills).toHaveLength(9);
+  });
 });
+
+describe("inferSkillCategory & slugToTitle & provisionNewSkill", () => {
+  it("converts slugs into readable titles with acronym recognition", () => {
+    expect(slugToTitle("ai-music-generator")).toBe("AI Music Generator");
+    expect(slugToTitle("seo-audit-tool")).toBe("SEO Audit Tool");
+    expect(slugToTitle("neon-postgres-client")).toBe("Neon Postgres Client");
+  });
+
+  it("correctly infers taxonomy topics from keywords", () => {
+    expect(inferSkillCategory("gdpr-cookie-consent")).toBe("compliance");
+    expect(inferSkillCategory("tailwind-theme-generator")).toBe("design-ux");
+    expect(inferSkillCategory("react-flow-renderer")).toBe("frontend-ui");
+    expect(inferSkillCategory("supabase-postgres-admin")).toBe("backend-data");
+    expect(inferSkillCategory("ai-video-editor")).toBe("growth-content");
+    expect(inferSkillCategory("pubmed-research-fetcher")).toBe("domain-data");
+    expect(inferSkillCategory("zsh-command-runner")).toBe("cli");
+    expect(inferSkillCategory("turborepo-monorepo-build")).toBe("fullstack-devops");
+  });
+
+  it("provisions a complete new catalog entry structure", () => {
+    const entry = {
+      key: "genmedia-labs/skills#ai-music",
+      slug: "ai-music",
+      repo: "genmedia-labs/skills",
+      url: "https://www.skills.sh/genmedia-labs/skills/ai-music",
+      score: 0.05,
+      contributions: [],
+    };
+    const provisioned = provisionNewSkill(entry);
+    expect(provisioned.id).toBe("new:ai-music");
+    expect(provisioned.title).toBe("AI Music");
+    expect(provisioned.category).toBe("growth-content");
+    expect(provisioned.vibeCoder).toBe("genmedia-labs");
+    expect(provisioned.githubUrl).toBe("https://github.com/genmedia-labs/skills");
+    expect(provisioned.isNew).toBe(true);
+  });
+});
+
