@@ -81,6 +81,17 @@ jobs:
             exit 0
           fi
 
+          # The label is not decoration: resolve-hot-ranking.yml gates on it, so
+          # a PR without it merges and publishes nothing. `gh pr create --label`
+          # hard-fails on a label the repo does not have, which is exactly what
+          # broke the first live run — the branch pushed, the PR never opened,
+          # and the ranking was stranded. Create it every time so a fresh clone,
+          # a renamed label, or a deleted one all self-heal.
+          gh label create hot-ranking \
+            --color 0E8A16 \
+            --description "A weekly Hot ranking awaiting review. Merge = publish, close = discard the week." \
+            --force
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
