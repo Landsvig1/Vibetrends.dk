@@ -49,3 +49,24 @@ describe('extractGrowthOpportunities', () => {
     expect(opportunities[1].term).toBe('motion whiledrag');
   });
 });
+
+describe('fetch-user-analytics error resilience', () => {
+  it('returns structured error object on Supabase error without throwing ReferenceError', async () => {
+    const { getSupabaseData } = await import('../fetch-user-analytics.mjs');
+    const result = await getSupabaseData(30);
+    // In test environment without live DATABASE_URL, gracefully returns structured error object
+    expect(result).toHaveProperty('error');
+    expect(typeof result.error).toBe('string');
+    expect(result.error).toContain('Supabase error:');
+  });
+
+  it('returns structured error object on GSC error without throwing ReferenceError', async () => {
+    const { getGscData } = await import('../fetch-user-analytics.mjs');
+    const result = getGscData(30);
+    if (result.error) {
+      expect(result.error).toContain('GSC');
+    } else {
+      expect(result).toHaveProperty('summary');
+    }
+  });
+});

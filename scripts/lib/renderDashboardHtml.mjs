@@ -5,7 +5,7 @@
  */
 
 function escapeHtml(str) {
-  if (!str) return '';
+  if (str == null || str === '') return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

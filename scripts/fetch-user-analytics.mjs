@@ -100,7 +100,7 @@ export async function getSupabaseData(days = 30) {
       upvotes: upvotesStats.rows,
       apiActivity: rateLimitActivity.rows,
     };
-  } catch {
+  } catch (e) {
     return { error: `Supabase error: ${e.message}` };
   }
 }
@@ -171,7 +171,7 @@ export async function getVercelData(days = 30) {
       devices: devices?.data || [],
       os: os?.data || [],
     };
-  } catch {
+  } catch (e) {
     return { error: `Vercel Analytics error: ${e.message}` };
   }
 }
@@ -230,7 +230,7 @@ export function getGscData(days = 30) {
       dailyTrends: curDates,
       growthOpportunities: opportunities,
     };
-  } catch {
+  } catch (e) {
     return { error: `GSC error: ${e.message}` };
   }
 }
