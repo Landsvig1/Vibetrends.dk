@@ -184,18 +184,74 @@ export function mergeSources(results: SourceResult[]): MergeReport {
   };
 }
 
+/**
+ * Infer the best taxonomy topic from slug, description, and repo keywords.
+ */
+export function inferSkillCategory(
+  slug: string,
+  description: string = "",
+  repo: string = ""
+): string {
+  const text = `${slug} ${description} ${repo}`.toLowerCase();
+
+  if (/\b(gdpr|privacy|cookie|compliance|security|auth|governance|legal|policy|audit)\b/.test(text)) {
+    return "compliance";
+  }
+  if (/\b(design|ui[/-]ux|palette|theme|aesthetic|layout|tailwind|styling|figma|css|font|canvas)\b/.test(text)) {
+    return "design-ux";
+  }
+  if (/\b(frontend|react|vue|svelte|nextjs|component|animation|framer|browser|web-design)\b/.test(text)) {
+    return "frontend-ui";
+  }
+  if (/\b(db|database|sql|postgres|supabase|neon|redis|api|orm|query|storage|mongo|backend)\b/.test(text)) {
+    return "backend-data";
+  }
+  if (/\b(seo|marketing|growth|content|copy|copywriting|social|reddit|youtube|video|music|email|sales|outreach|media|brand)\b/.test(text)) {
+    return "growth-content";
+  }
+  if (/\b(research|scraper|scrape|crawl|search|finance|pubmed|property|weather|travel|news)\b/.test(text)) {
+    return "domain-data";
+  }
+  if (/\b(cli|terminal|shell|bash|git|command|tmux|zsh|prompt)\b/.test(text)) {
+    return "cli";
+  }
+  return "fullstack-devops";
+}
+
+/** Convert a kebab-case slug into a clean title. */
+export function slugToTitle(slug: string): string {
+  return slug
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLowerCase();
+      if (["ai", "ui", "ux", "seo", "geo", "db", "api", "cli", "pr", "tdd", "hn"].includes(lower)) {
+        return lower.toUpperCase();
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+}
+
 /** A catalog row, reduced to what matching needs. */
 export interface CatalogEntry {
   id: string;
   slug: string;
   title: string;
   repo: string | null;
+  isNew?: boolean;
+  category?: string;
+  description?: string;
+  githubUrl?: string;
+  source?: string;
+  vibeCoder?: string;
+  tags?: string[];
 }
 
 export interface MatchReport {
   /** Merged entries paired with the catalog row they name, in ranking order. */
   matched: Array<{ entry: MergedEntry; catalog: CatalogEntry }>;
-  /** Ranked entries the catalog does not carry. Reported, never inserted. */
+  /** Ranked entries the catalog does not carry. */
   unmatched: MergedEntry[];
 }
 
@@ -205,14 +261,6 @@ export interface MatchReport {
  * Two passes, strictest first:
  *   1. repo + slug — the only unambiguous key when a repo holds many skills.
  *   2. slug alone, and only when exactly one catalog row has that slug.
- *
- * There is deliberately no fuzzy third pass. A near-match here puts the wrong
- * skill on the board under another skill's momentum, and the board's whole
- * claim is that a visitor could check why each entry is there.
- *
- * Adding catalog rows is out of scope by design: discovery and submission
- * already exist end to end (Hermes -> /api/agentauth -> submission-review.yml).
- * Unmatched entries go in the PR body for that pipeline to pick up.
  */
 export function matchToCatalog(ranked: MergedEntry[], catalog: CatalogEntry[]): MatchReport {
   const byRepoSlug = new Map<string, CatalogEntry>();
@@ -262,48 +310,138 @@ export function matchToCatalog(ranked: MergedEntry[], catalog: CatalogEntry[]): 
   return { matched, unmatched };
 }
 
-/** Fewer matched entries than this and no ranking is proposed at all. */
+/**
+ * Auto-provision a new catalog entry structure for a trending skill not in the catalog.
+ */
+export function provisionNewSkill(entry: MergedEntry): CatalogEntry {
+  const title = slugToTitle(entry.slug);
+  const category = inferSkillCategory(entry.slug, "", entry.repo ?? undefined);
+  const repoOwner = entry.repo ? entry.repo.split("/")[0] : "Community";
+  const githubUrl = entry.repo ? `https://github.com/${entry.repo}` : entry.url;
+  const source = entry.url || (entry.repo ? `https://github.com/${entry.repo}` : "skills.sh");
+
+  return {
+    id: `new:${entry.slug}`,
+    slug: entry.slug,
+    title,
+    repo: entry.repo,
+    isNew: true,
+    category,
+    description: `Trending AI skill for ${title}.`,
+    githubUrl,
+    source,
+    vibeCoder: repoOwner,
+    tags: [entry.slug, category, "hot"],
+  };
+}
+
+/** Fewer ranked entries than this and no ranking is proposed at all. */
 export const MIN_BOARD_SIZE = 5;
 /**
  * More than this and the tail is cut.
- *
- * Raised from 10 to 20 deliberately. Note the tension it creates: against a
- * ~99-entry catalog, a full board is a fifth of everything on the site, and the
- * further down the leaderboard an entry sits the smaller its weekly delta, so
- * the bottom of a 20-row board is separated from the unranked by very little.
- * The floor stays at 5 so a thin week still proposes nothing rather than
- * padding itself, and the per-row source columns in the manifest show exactly
- * how much signal each position actually has before anyone merges it.
  */
 export const MAX_BOARD_SIZE = 20;
 
+export interface BoardItem {
+  position: number;
+  catalog: CatalogEntry;
+  entry: MergedEntry;
+  isNew: boolean;
+}
+
 export interface BoardResult {
   /** The board, or null when the floor was not met. */
-  board: Array<{ position: number; catalog: CatalogEntry; entry: MergedEntry }> | null;
+  board: BoardItem[] | null;
+  newSkills: CatalogEntry[];
   reason?: string;
 }
 
 /**
- * Cut the matched list to a board.
+ * Build the Hot board from the ranked entries and existing catalog.
  *
- * Returning null rather than a short board is the point: five entries is the
- * floor at which an ordering is worth publishing, and proposing a two-entry
- * "Hotteste globalt" would be the frozen-snapshot problem in a new costume.
- * The read path independently refuses to render a stale board, so a week that
- * produces nothing simply leaves the previous one to expire.
+ * Top ranked entries enter the board up to MAX_BOARD_SIZE. If an entry matches
+ * an existing catalog row, it links to it; if not, a new skill entry is
+ * provisioned so the weekly scan introduces new trending skills to the catalog.
  */
-export function buildBoard(matched: MatchReport["matched"]): BoardResult {
-  if (matched.length < MIN_BOARD_SIZE) {
-    return {
-      board: null,
-      reason: `only ${matched.length} matched catalog entries, floor is ${MIN_BOARD_SIZE}`,
-    };
-  }
-  return {
-    board: matched.slice(0, MAX_BOARD_SIZE).map((m, i) => ({
+export function buildBoard(
+  rankedOrMatched: MergedEntry[] | MatchReport["matched"],
+  catalog?: CatalogEntry[]
+): BoardResult {
+  // Backwards compatibility if called with matched report array
+  if (Array.isArray(rankedOrMatched) && rankedOrMatched.length > 0 && "catalog" in rankedOrMatched[0]) {
+    const matched = rankedOrMatched as MatchReport["matched"];
+    if (matched.length < MIN_BOARD_SIZE) {
+      return {
+        board: null,
+        newSkills: [],
+        reason: `only ${matched.length} entries, floor is ${MIN_BOARD_SIZE}`,
+      };
+    }
+    const board = matched.slice(0, MAX_BOARD_SIZE).map((m, i) => ({
       position: i + 1,
       catalog: m.catalog,
       entry: m.entry,
-    })),
-  };
+      isNew: Boolean(m.catalog.isNew),
+    }));
+    const newSkills = board.filter((b) => b.isNew).map((b) => b.catalog);
+    return { board, newSkills };
+  }
+
+  const ranked = rankedOrMatched as MergedEntry[];
+  if (!ranked || ranked.length < MIN_BOARD_SIZE) {
+    return {
+      board: null,
+      newSkills: [],
+      reason: `only ${ranked?.length ?? 0} ranked entries, floor is ${MIN_BOARD_SIZE}`,
+    };
+  }
+
+  const catalogList = catalog ?? [];
+  const matchReport = matchToCatalog(ranked, catalogList);
+  const matchedMap = new Map<string, CatalogEntry>();
+  for (const m of matchReport.matched) {
+    matchedMap.set(m.entry.key, m.catalog);
+  }
+
+  const boardItems: BoardItem[] = [];
+  const newSkills: CatalogEntry[] = [];
+  const claimed = new Set<string>();
+
+  for (const entry of ranked) {
+    if (boardItems.length >= MAX_BOARD_SIZE) break;
+
+    const existing = matchedMap.get(entry.key);
+    if (existing) {
+      if (claimed.has(existing.id)) continue;
+      claimed.add(existing.id);
+      boardItems.push({
+        position: boardItems.length + 1,
+        catalog: existing,
+        entry,
+        isNew: false,
+      });
+    } else {
+      const newEntry = provisionNewSkill(entry);
+      if (claimed.has(newEntry.slug)) continue;
+      claimed.add(newEntry.slug);
+      boardItems.push({
+        position: boardItems.length + 1,
+        catalog: newEntry,
+        entry,
+        isNew: true,
+      });
+      newSkills.push(newEntry);
+    }
+  }
+
+  if (boardItems.length < MIN_BOARD_SIZE) {
+    return {
+      board: null,
+      newSkills: [],
+      reason: `only ${boardItems.length} board entries, floor is ${MIN_BOARD_SIZE}`,
+    };
+  }
+
+  return { board: boardItems, newSkills };
 }
+

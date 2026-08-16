@@ -25,7 +25,6 @@ import { join } from 'node:path';
 import pg from 'pg';
 import {
   mergeSources,
-  matchToCatalog,
   buildBoard,
   normalizeRepo,
   entryKey,
@@ -293,7 +292,7 @@ async function fetchHackerNews(catalog) {
 
 // --- manifest --------------------------------------------------------------
 
-export function renderManifest(week, board, report, notes) {
+export function renderManifest(week, board, report, notes, newSkills = []) {
   const lines = [
     `# Hotteste globalt — ${week}`,
     '',
@@ -324,21 +323,39 @@ export function renderManifest(week, board, report, notes) {
     lines.push('', '## Notes', '');
     for (const n of notes) lines.push(`- ${n}`);
   }
+
+  if (newSkills && newSkills.length > 0) {
+    lines.push('', '## New Skills Metadata', '', '```json');
+    const payload = newSkills.map((s) => ({
+      slug: s.slug,
+      title: s.title,
+      category: s.category,
+      description_en: s.description,
+      github_url: s.githubUrl,
+      source: s.source,
+      vibe_coder: s.vibeCoder,
+      tags: s.tags,
+    }));
+    lines.push(JSON.stringify(payload, null, 2));
+    lines.push('```');
+  }
+
   return lines.join('\n') + '\n';
 }
 
-function renderPrBody(week, board, report, notes, unmatched) {
+function renderPrBody(week, board, report, notes, newSkills = []) {
   const lines = [
     `Weekly Hot ranking for **${week}**, proposed by \`scripts/scan-hot-skills.mjs\`.`,
     '',
-    '**Merge** publishes this ranking and revalidates the caches. **Close** discards the week; the board simply expires.',
+    '**Merge** publishes this ranking, provisions any new trending skills into the catalog, and revalidates the caches. **Close** discards the week; the board simply expires.',
     '',
-    '| # | Skill | Score | Sources |',
-    '| --: | --- | --: | --- |',
+    '| # | Skill | Status | Score | Sources |',
+    '| --: | --- | --- | --: | --- |',
   ];
   for (const row of board) {
+    const status = row.isNew ? '✨ New' : 'Existing';
     lines.push(
-      `| ${row.position} | ${row.catalog.title} | ${row.entry.score.toFixed(5)} | ${row.entry.contributions
+      `| ${row.position} | ${row.catalog.title} | ${status} | ${row.entry.score.toFixed(5)} | ${row.entry.contributions
         .map((c) => `${c.source} #${c.rank}`)
         .join(', ')} |`
     );
@@ -353,14 +370,13 @@ function renderPrBody(week, board, report, notes, unmatched) {
   }
   for (const n of notes) lines.push(`\n> Note: ${n}`);
 
-  if (unmatched.length) {
-    lines.push('', '## Ranked but not in the catalog', '');
-    lines.push('These are hot upstream and vibetrends does not carry them. This PR does **not** add them: submission goes through the existing pipeline.');
+  if (newSkills && newSkills.length > 0) {
+    lines.push('', '## ✨ New skills to be onboarded to the catalog', '');
+    lines.push('Merging this PR will automatically add the following skills to `public.skills`:');
     lines.push('');
-    for (const u of unmatched.slice(0, 15)) {
-      lines.push(`- \`${u.slug}\`${u.repo ? ` (${u.repo})` : ''}${u.url ? ` — ${u.url}` : ''}`);
+    for (const s of newSkills) {
+      lines.push(`- **${s.title}** (\`${s.slug}\`) — *${s.category}* — [Source/Repo](${s.githubUrl || s.source})`);
     }
-    if (unmatched.length > 15) lines.push(`- ...and ${unmatched.length - 15} more`);
   }
   return lines.join('\n') + '\n';
 }
@@ -441,19 +457,18 @@ async function main() {
       return;
     }
 
-    const { matched, unmatched } = matchToCatalog(report.ranked, catalog);
-    log(`Matched ${matched.length} to the catalog, ${unmatched.length} unmatched`);
-
-    const { board, reason } = buildBoard(matched);
+    const { board, newSkills, reason } = buildBoard(report.ranked, catalog);
     if (!board) {
       log(`No board proposed: ${reason}`);
       return;
     }
 
+    log(`Board proposed: ${board.length} entries (${newSkills.length} new skills to onboard)`);
+
     mkdirSync(outDir, { recursive: true });
     const manifestPath = join(outDir, `${week}.md`);
-    const manifest = renderManifest(week, board, report, notes);
-    const prBody = renderPrBody(week, board, report, notes, unmatched);
+    const manifest = renderManifest(week, board, report, notes, newSkills);
+    const prBody = renderPrBody(week, board, report, notes, newSkills);
 
     if (dryRun) {
       log(`\n--- ${manifestPath} ---\n${manifest}`);
@@ -485,3 +500,4 @@ if (import.meta.main) {
     process.exit(1);
   });
 }
+

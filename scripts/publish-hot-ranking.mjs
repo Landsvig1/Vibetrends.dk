@@ -37,7 +37,7 @@ const MANIFEST_PATTERN = /^rankings\/skills-hot\/(\d{4}-W\d{2})\.md$/;
  * rather than trusted: a manifest is a file in a pull request, and the row it
  * names is written into a public board.
  */
-const SKILL_ID_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/;
+const SKILL_ID_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 function clientConfig(databaseUrl) {
   const direct = databaseUrl.match(/@db\.([a-z0-9-]+)\.supabase\.co/);
@@ -54,15 +54,23 @@ function clientConfig(databaseUrl) {
 }
 
 /**
- * Pull (position, skillId, score) out of the manifest's table rows.
- *
- * Parsing the human-editable table rather than a machine-readable sidecar is
- * deliberate: a reviewer is expected to be able to delete a row or reorder the
- * table in the PR, and what they see must be exactly what gets published. A
- * second source of truth would let the two disagree silently.
+ * Pull (position, skillId, score) out of the manifest's table rows,
+ * and any new skills metadata defined under ## New Skills Metadata.
  */
 export function parseManifest(markdown) {
   const rows = [];
+  let newSkills = [];
+
+  const jsonMatch = /## New Skills Metadata\s*```json\s*([\s\S]*?)\s*```/.exec(markdown);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(parsed)) newSkills = parsed;
+    } catch (error) {
+      console.warn('Failed to parse new skills JSON in manifest:', error.message);
+    }
+  }
+
   for (const line of markdown.split('\n')) {
     const cells = line.split('|').map((c) => c.trim());
     // | # | Skill | Skill ID | Score | Sources |  -> 7 cells with the empty edges
@@ -75,12 +83,22 @@ export function parseManifest(markdown) {
     const score = Number(cells[4]);
     rows.push({ position, skillId: id, score: Number.isFinite(score) ? score : null });
   }
+
   // Renumber from the table's order rather than trusting the printed numbers:
   // a reviewer who deletes row 3 leaves a gap, and a ranking with a hole in it
   // would violate the (week, position) unique index.
-  return rows
+  const sorted = rows
     .sort((a, b) => a.position - b.position)
     .map((r, i) => ({ ...r, position: i + 1 }));
+
+  Object.defineProperty(sorted, 'newSkills', {
+    value: newSkills,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
+
+  return sorted;
 }
 
 async function revalidate() {
@@ -134,9 +152,9 @@ async function main() {
   try {
     for (const path of manifests) {
       const week = MANIFEST_PATTERN.exec(path)[1];
-      const rows = parseManifest(readFileSync(path, 'utf8'));
+      const parsed = parseManifest(readFileSync(path, 'utf8'));
 
-      if (rows.length === 0) {
+      if (parsed.length === 0) {
         console.log(`${week}: manifest has no usable rows — skipping.`);
         continue;
       }
@@ -145,22 +163,75 @@ async function main() {
       // with holes, which the read path would render as a real board.
       await client.query('begin');
       try {
+        const idMap = new Map();
+
+        // 1. Auto-provision any new skills into public.skills
+        if (parsed.newSkills && parsed.newSkills.length > 0) {
+          for (const skill of parsed.newSkills) {
+            const slug = skill.slug.trim().toLowerCase();
+            const { rows: existing } = await client.query(
+              `select id from public.skills where slug = $1 limit 1`,
+              [slug]
+            );
+            if (existing.length > 0) {
+              idMap.set(`new:${slug}`, existing[0].id);
+              idMap.set(slug, existing[0].id);
+              console.log(`${week}: skill ${slug} already exists in catalog as ${existing[0].id}`);
+            } else {
+              const newId = `s_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+              const title = skill.title || slug;
+              const category = skill.category || 'fullstack-devops';
+              const descriptionEn = skill.description_en || `Trending AI skill for ${title}.`;
+              const vibeCoder = skill.vibe_coder || 'Community';
+              const tags = Array.isArray(skill.tags) && skill.tags.length > 0 ? skill.tags : [slug, category, 'hot'];
+              const githubUrl = skill.github_url || null;
+              const source = skill.source || 'skills.sh';
+
+              const insertRes = await client.query(
+                `insert into public.skills (
+                   id, slug, title_da, title_en, vibe_coder, vibe_coder_title_da, vibe_coder_title_en,
+                   rating, reviews_count, description_da, description_en, category, tags,
+                   github_url, source, review_state, is_danish
+                 ) values (
+                   $1, $2, $3, $4, $5, 'Community-bidragyder', 'Community Contributor',
+                   5.0, 0, NULL, $6, $7, $8,
+                   $9, $10, 'approved', false
+                 ) returning id`,
+                [newId, slug, title, title, vibeCoder, descriptionEn, category, tags, githubUrl, source]
+              );
+              const createdId = insertRes.rows[0].id;
+              idMap.set(`new:${slug}`, createdId);
+              idMap.set(slug, createdId);
+              console.log(`${week}: onboarded new skill ${slug} -> ${createdId} (${title})`);
+            }
+          }
+        }
+
         // Replace rather than append. Re-running this (a re-merge, a retried
         // job) must converge on exactly what the manifest says.
         await client.query('delete from public.skill_hot_rankings where week = $1', [week]);
+
+        // Resolve skill IDs for any new: prefixed rows
+        const resolvedRows = parsed.map((r) => {
+          if (r.skillId.startsWith('new:') || idMap.has(r.skillId)) {
+            const mapped = idMap.get(r.skillId);
+            return mapped ? { ...r, skillId: mapped } : r;
+          }
+          return r;
+        });
 
         // Skills deleted between proposal and merge would violate the foreign
         // key and abort the whole week. Drop them instead: the read path
         // already renders the remainder when a ranked row goes missing.
         const { rows: live } = await client.query(
           `select id from public.skills where id = any($1::text[]) and review_state = 'approved'`,
-          [rows.map((r) => r.skillId)]
+          [resolvedRows.map((r) => r.skillId)]
         );
         const liveIds = new Set(live.map((r) => r.id));
-        const missing = rows.filter((r) => !liveIds.has(r.skillId));
+        const missing = resolvedRows.filter((r) => !liveIds.has(r.skillId));
         for (const m of missing) console.log(`${week}: skipping ${m.skillId} (not an approved skill)`);
 
-        const keep = rows.filter((r) => liveIds.has(r.skillId));
+        const keep = resolvedRows.filter((r) => liveIds.has(r.skillId));
         if (keep.length === 0) {
           console.log(`${week}: nothing left after dropping missing skills — publishing nothing.`);
           await client.query('rollback');
