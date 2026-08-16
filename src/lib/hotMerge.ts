@@ -335,12 +335,31 @@ export function provisionNewSkill(entry: MergedEntry): CatalogEntry {
   };
 }
 
+/**
+ * Known platform-locked repositories or patterns that require external/proprietary
+ * execution servers (such as RunComfy, ComfyUI instances) rather than working
+ * directly with standard LLMs (Claude Code, Gemini, ChatGPT, Cursor).
+ */
+export const PLATFORM_LOCKED_PATTERNS = [
+  /genmedia-labs/i,
+  /runcomfy/i,
+  /comfyui/i,
+];
+
+export function isPlatformLocked(entry: { slug?: string; repo?: string | null; url?: string }): boolean {
+  const text = `${entry.slug ?? ""} ${entry.repo ?? ""} ${entry.url ?? ""}`.toLowerCase();
+  return PLATFORM_LOCKED_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /** Fewer ranked entries than this and no ranking is proposed at all. */
 export const MIN_BOARD_SIZE = 5;
 /**
  * More than this and the tail is cut.
  */
 export const MAX_BOARD_SIZE = 20;
+
+/** Max skills from a single repo / creator on the board to guarantee creator diversity. */
+export const MAX_SKILLS_PER_AUTHOR = 3;
 
 export interface BoardItem {
   position: number;
@@ -362,6 +381,8 @@ export interface BoardResult {
  * Top ranked entries enter the board up to MAX_BOARD_SIZE. If an entry matches
  * an existing catalog row, it links to it; if not, a new skill entry is
  * provisioned so the weekly scan introduces new trending skills to the catalog.
+ *
+ * Excludes platform-locked tools and caps max skills per author/repo at MAX_SKILLS_PER_AUTHOR (3).
  */
 export function buildBoard(
   rankedOrMatched: MergedEntry[] | MatchReport["matched"],
@@ -370,14 +391,15 @@ export function buildBoard(
   // Backwards compatibility if called with matched report array
   if (Array.isArray(rankedOrMatched) && rankedOrMatched.length > 0 && "catalog" in rankedOrMatched[0]) {
     const matched = rankedOrMatched as MatchReport["matched"];
-    if (matched.length < MIN_BOARD_SIZE) {
+    const filtered = matched.filter((m) => !isPlatformLocked(m.entry));
+    if (filtered.length < MIN_BOARD_SIZE) {
       return {
         board: null,
         newSkills: [],
-        reason: `only ${matched.length} entries, floor is ${MIN_BOARD_SIZE}`,
+        reason: `only ${filtered.length} entries after filtering, floor is ${MIN_BOARD_SIZE}`,
       };
     }
-    const board = matched.slice(0, MAX_BOARD_SIZE).map((m, i) => ({
+    const board = filtered.slice(0, MAX_BOARD_SIZE).map((m, i) => ({
       position: i + 1,
       catalog: m.catalog,
       entry: m.entry,
@@ -405,15 +427,24 @@ export function buildBoard(
 
   const boardItems: BoardItem[] = [];
   const newSkills: CatalogEntry[] = [];
-  const claimed = new Set<string>();
+  const claimedIds = new Set<string>();
+  const authorCounts = new Map<string, number>();
 
   for (const entry of ranked) {
     if (boardItems.length >= MAX_BOARD_SIZE) break;
+    if (isPlatformLocked(entry)) continue;
 
     const existing = matchedMap.get(entry.key);
+    const authorKey = (entry.repo || existing?.repo || existing?.vibeCoder || entry.slug).toLowerCase();
+    const currentAuthorCount = authorCounts.get(authorKey) || 0;
+
+    // Enforce author diversity cap
+    if (currentAuthorCount >= MAX_SKILLS_PER_AUTHOR) continue;
+
     if (existing) {
-      if (claimed.has(existing.id)) continue;
-      claimed.add(existing.id);
+      if (claimedIds.has(existing.id)) continue;
+      claimedIds.add(existing.id);
+      authorCounts.set(authorKey, currentAuthorCount + 1);
       boardItems.push({
         position: boardItems.length + 1,
         catalog: existing,
@@ -422,8 +453,9 @@ export function buildBoard(
       });
     } else {
       const newEntry = provisionNewSkill(entry);
-      if (claimed.has(newEntry.slug)) continue;
-      claimed.add(newEntry.slug);
+      if (claimedIds.has(newEntry.slug)) continue;
+      claimedIds.add(newEntry.slug);
+      authorCounts.set(authorKey, currentAuthorCount + 1);
       boardItems.push({
         position: boardItems.length + 1,
         catalog: newEntry,
@@ -444,4 +476,5 @@ export function buildBoard(
 
   return { board: boardItems, newSkills };
 }
+
 

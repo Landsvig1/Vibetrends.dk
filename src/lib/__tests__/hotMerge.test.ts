@@ -9,8 +9,10 @@ import {
   inferSkillCategory,
   slugToTitle,
   provisionNewSkill,
+  isPlatformLocked,
   MIN_BOARD_SIZE,
   MAX_BOARD_SIZE,
+  MAX_SKILLS_PER_AUTHOR,
   type SourceResult,
   type SourceEntry,
   type CatalogEntry,
@@ -294,14 +296,14 @@ describe("buildBoard", () => {
 
   it("auto-provisions new skills when ranked entries are not in catalog", () => {
     const ranked = Array.from({ length: 10 }, (_, i) => ({
-      key: `owner/repo#skill-${i}`,
+      key: `owner-${i}/repo#skill-${i}`,
       slug: `skill-${i}`,
-      repo: "owner/repo",
+      repo: `owner-${i}/repo`,
       score: 1 / (i + 1),
       contributions: [],
     }));
     const catalog: CatalogEntry[] = [
-      { id: "s1", slug: "skill-0", title: "Skill 0", repo: "owner/repo" },
+      { id: "s1", slug: "skill-0", title: "Skill 0", repo: "owner-0/repo" },
     ];
 
     const result = buildBoard(ranked, catalog);
@@ -312,9 +314,55 @@ describe("buildBoard", () => {
     expect(result.board![1].isNew).toBe(true);
     expect(result.newSkills).toHaveLength(9);
   });
+
+  it("enforces MAX_SKILLS_PER_AUTHOR = 3 to guarantee creator diversity", () => {
+    const ranked = Array.from({ length: 10 }, (_, i) => ({
+      key: `same-creator/skills#tool-${i}`,
+      slug: `tool-${i}`,
+      repo: "same-creator/skills",
+      score: 1 / (i + 1),
+      contributions: [],
+    }));
+    // Add other creators to clear the floor
+    for (let i = 0; i < 5; i++) {
+      ranked.push({
+        key: `other-${i}/skills#other-tool-${i}`,
+        slug: `other-tool-${i}`,
+        repo: `other-${i}/skills`,
+        score: 0.01 / (i + 1),
+        contributions: [],
+      });
+    }
+
+    const result = buildBoard(ranked, []);
+    const sameCreatorCount = result.board!.filter(
+      (b) => b.entry.repo === "same-creator/skills"
+    ).length;
+    expect(sameCreatorCount).toBe(MAX_SKILLS_PER_AUTHOR);
+    expect(sameCreatorCount).toBe(3);
+  });
+
+  it("filters out platform-locked tools (e.g. genmedia-labs/runcomfy)", () => {
+    const ranked = [
+      { key: "genmedia-labs/skills#ai-music", slug: "ai-music", repo: "genmedia-labs/skills", score: 0.9, contributions: [] },
+      { key: "genmedia-labs/skills#video-edit", slug: "video-edit", repo: "genmedia-labs/skills", score: 0.8, contributions: [] },
+      ...Array.from({ length: 6 }, (_, i) => ({
+        key: `creator-${i}/skills#tool-${i}`,
+        slug: `tool-${i}`,
+        repo: `creator-${i}/skills`,
+        score: 0.5 - i * 0.05,
+        contributions: [],
+      })),
+    ];
+
+    const result = buildBoard(ranked, []);
+    expect(result.board).toHaveLength(6);
+    expect(result.board!.some((b) => b.entry.slug === "ai-music")).toBe(false);
+    expect(result.board!.some((b) => b.entry.slug === "video-edit")).toBe(false);
+  });
 });
 
-describe("inferSkillCategory & slugToTitle & provisionNewSkill", () => {
+describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPlatformLocked", () => {
   it("converts slugs into readable titles with acronym recognition", () => {
     expect(slugToTitle("ai-music-generator")).toBe("AI Music Generator");
     expect(slugToTitle("seo-audit-tool")).toBe("SEO Audit Tool");
@@ -332,22 +380,30 @@ describe("inferSkillCategory & slugToTitle & provisionNewSkill", () => {
     expect(inferSkillCategory("turborepo-monorepo-build")).toBe("fullstack-devops");
   });
 
+  it("identifies platform-locked dependencies correctly", () => {
+    expect(isPlatformLocked({ repo: "genmedia-labs/skills", slug: "ai-music" })).toBe(true);
+    expect(isPlatformLocked({ slug: "runcomfy-node" })).toBe(true);
+    expect(isPlatformLocked({ repo: "mattpocock/skills", slug: "tdd" })).toBe(false);
+    expect(isPlatformLocked({ repo: "heygen-com/hyperframes", slug: "product-launch-video" })).toBe(false);
+  });
+
   it("provisions a complete new catalog entry structure", () => {
     const entry = {
-      key: "genmedia-labs/skills#ai-music",
-      slug: "ai-music",
-      repo: "genmedia-labs/skills",
-      url: "https://www.skills.sh/genmedia-labs/skills/ai-music",
+      key: "heygen-com/hyperframes#product-launch-video",
+      slug: "product-launch-video",
+      repo: "heygen-com/hyperframes",
+      url: "https://github.com/heygen-com/hyperframes",
       score: 0.05,
       contributions: [],
     };
     const provisioned = provisionNewSkill(entry);
-    expect(provisioned.id).toBe("new:ai-music");
-    expect(provisioned.title).toBe("AI Music");
+    expect(provisioned.id).toBe("new:product-launch-video");
+    expect(provisioned.title).toBe("Product Launch Video");
     expect(provisioned.category).toBe("growth-content");
-    expect(provisioned.vibeCoder).toBe("genmedia-labs");
-    expect(provisioned.githubUrl).toBe("https://github.com/genmedia-labs/skills");
+    expect(provisioned.vibeCoder).toBe("heygen-com");
+    expect(provisioned.githubUrl).toBe("https://github.com/heygen-com/hyperframes");
     expect(provisioned.isNew).toBe(true);
   });
 });
+
 
