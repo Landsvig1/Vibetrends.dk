@@ -313,12 +313,15 @@ export function matchToCatalog(ranked: MergedEntry[], catalog: CatalogEntry[]): 
 /**
  * Auto-provision a new catalog entry structure for a trending skill not in the catalog.
  */
-export function provisionNewSkill(entry: MergedEntry): CatalogEntry {
+export function provisionNewSkill(entry: MergedEntry, customDescription?: string): CatalogEntry {
   const title = slugToTitle(entry.slug);
   const category = inferSkillCategory(entry.slug, "", entry.repo ?? undefined);
   const repoOwner = entry.repo ? entry.repo.split("/")[0] : "Community";
   const githubUrl = entry.repo ? `https://github.com/${entry.repo}` : entry.url;
   const source = entry.url || (entry.repo ? `https://github.com/${entry.repo}` : "skills.sh");
+  const description =
+    customDescription?.trim() ||
+    `${title} workflow and prompt instructions for Claude and AI coding agents.`;
 
   return {
     id: `new:${entry.slug}`,
@@ -327,7 +330,7 @@ export function provisionNewSkill(entry: MergedEntry): CatalogEntry {
     repo: entry.repo,
     isNew: true,
     category,
-    description: `Trending AI skill for ${title}.`,
+    description,
     githubUrl,
     source,
     vibeCoder: repoOwner,
@@ -336,19 +339,41 @@ export function provisionNewSkill(entry: MergedEntry): CatalogEntry {
 }
 
 /**
- * Known platform-locked repositories or patterns that require external/proprietary
- * execution servers (such as RunComfy, ComfyUI instances) rather than working
- * directly with standard LLMs (Claude Code, Gemini, ChatGPT, Cursor).
+ * Known tools and patterns that are NOT pure Claude/LLM prompt & workflow skills.
+ *
+ * Excludes:
+ * 1. Platform-locked tools requiring external compute or proprietary servers (RunComfy, ComfyUI, StablyAI).
+ * 2. Standalone OS CLI binaries, daemons, terminal apps (Orca CLI, Traceknot, Tmux).
+ * 3. Build systems, bundlers, compilers, infra toolchains (Turborepo, Webpack, Vite plugins).
+ * 4. Cloud provider / hosting deploy CLIs (Vercel Optimize/deploy CLI wrappers).
+ * 5. Proprietary enterprise office suites (Lark).
  */
-export const PLATFORM_LOCKED_PATTERNS = [
+export const NON_LLM_TOOL_PATTERNS = [
   /genmedia-labs/i,
   /runcomfy/i,
   /comfyui/i,
+  /stablyai/i,
+  /orca(-cli)?\b/i,
+  /traceknot/i,
+  /turborepo/i,
+  /vercel-optimize/i,
+  /\blark[-_]/i,
+  /\b(tmux|daemon|webpack|vite-plugin|rollup)\b/i,
 ];
 
+export const PLATFORM_LOCKED_PATTERNS = NON_LLM_TOOL_PATTERNS;
+
+/**
+ * Returns true if the entry is a pure LLM skill (prompts, markdown instructions,
+ * agent personas, workflow loops) workable directly by Claude without external CLI binaries.
+ */
+export function isPureLlmSkill(entry: { slug?: string; repo?: string | null; url?: string; title?: string }): boolean {
+  const text = `${entry.slug ?? ""} ${entry.repo ?? ""} ${entry.url ?? ""} ${entry.title ?? ""}`.toLowerCase();
+  return !NON_LLM_TOOL_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 export function isPlatformLocked(entry: { slug?: string; repo?: string | null; url?: string }): boolean {
-  const text = `${entry.slug ?? ""} ${entry.repo ?? ""} ${entry.url ?? ""}`.toLowerCase();
-  return PLATFORM_LOCKED_PATTERNS.some((pattern) => pattern.test(text));
+  return !isPureLlmSkill(entry);
 }
 
 /** Fewer ranked entries than this and no ranking is proposed at all. */
@@ -382,16 +407,17 @@ export interface BoardResult {
  * an existing catalog row, it links to it; if not, a new skill entry is
  * provisioned so the weekly scan introduces new trending skills to the catalog.
  *
- * Excludes platform-locked tools and caps max skills per author/repo at MAX_SKILLS_PER_AUTHOR (3).
+ * Excludes non-LLM tools and caps max skills per author/repo at MAX_SKILLS_PER_AUTHOR (3).
  */
 export function buildBoard(
   rankedOrMatched: MergedEntry[] | MatchReport["matched"],
-  catalog?: CatalogEntry[]
+  catalog?: CatalogEntry[],
+  descriptionsMap?: Map<string, string>
 ): BoardResult {
   // Backwards compatibility if called with matched report array
   if (Array.isArray(rankedOrMatched) && rankedOrMatched.length > 0 && "catalog" in rankedOrMatched[0]) {
     const matched = rankedOrMatched as MatchReport["matched"];
-    const filtered = matched.filter((m) => !isPlatformLocked(m.entry));
+    const filtered = matched.filter((m) => isPureLlmSkill(m.entry));
     if (filtered.length < MIN_BOARD_SIZE) {
       return {
         board: null,
@@ -432,7 +458,7 @@ export function buildBoard(
 
   for (const entry of ranked) {
     if (boardItems.length >= MAX_BOARD_SIZE) break;
-    if (isPlatformLocked(entry)) continue;
+    if (!isPureLlmSkill(entry)) continue;
 
     const existing = matchedMap.get(entry.key);
     const authorKey = (entry.repo || existing?.repo || existing?.vibeCoder || entry.slug).toLowerCase();
@@ -452,7 +478,8 @@ export function buildBoard(
         isNew: false,
       });
     } else {
-      const newEntry = provisionNewSkill(entry);
+      const customDesc = descriptionsMap?.get(entry.key) || descriptionsMap?.get(entry.slug);
+      const newEntry = provisionNewSkill(entry, customDesc);
       if (claimedIds.has(newEntry.slug)) continue;
       claimedIds.add(newEntry.slug);
       authorCounts.set(authorKey, currentAuthorCount + 1);

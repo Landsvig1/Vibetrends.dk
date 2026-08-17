@@ -381,6 +381,64 @@ function renderPrBody(week, board, report, notes, newSkills = []) {
   return lines.join('\n') + '\n';
 }
 
+/**
+ * Try fetching genuine SKILL.md description from GitHub raw content.
+ */
+export async function fetchUpstreamSkillDescription(repo, slug, fallbackTitle) {
+  if (!repo) {
+    return `${fallbackTitle} workflow and prompt instructions for Claude and AI coding agents.`;
+  }
+
+  const candidates = [
+    `https://raw.githubusercontent.com/${repo}/main/skills/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/skills/productivity/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/skills/engineering/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/skills/misc/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/skills/design/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/main/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/master/skills/${slug}/SKILL.md`,
+    `https://raw.githubusercontent.com/${repo}/master/SKILL.md`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      // Match frontmatter description: "..." or description: > \n ... or description: ...
+      const descMatch = /^description:\s*(?:>|\|)?\s*\n?([^\n\r]+)/m.exec(text);
+      if (descMatch && descMatch[1]) {
+        let desc = descMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+        if (desc.length > 5 && !desc.startsWith('http')) {
+          if (desc.length > 280) desc = desc.slice(0, 277) + '...';
+          return desc;
+        }
+      }
+    } catch {
+      // Ignore candidate timeouts
+    }
+  }
+
+  if (githubToken) {
+    try {
+      const repoData = await getJson(`https://api.github.com/repos/${repo}`, {
+        Authorization: `Bearer ${githubToken}`,
+        'User-Agent': 'vibetrends-dk-hot-scan',
+      });
+      if (repoData?.description && repoData.description.trim().length > 10) {
+        let repoDesc = repoData.description.trim();
+        if (repoDesc.length > 280) repoDesc = repoDesc.slice(0, 277) + '...';
+        return repoDesc;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  return `${fallbackTitle} workflow and prompt instructions for Claude and AI coding agents.`;
+}
+
 // --- main ------------------------------------------------------------------
 
 async function main() {
@@ -457,7 +515,30 @@ async function main() {
       return;
     }
 
-    const { board, newSkills, reason } = buildBoard(report.ranked, catalog);
+    // Fetch upstream descriptions for top candidate entries that aren't yet in the catalog
+    const catalogSlugs = new Set(catalog.map((c) => c.slug.toLowerCase()));
+    const descriptionsMap = new Map();
+    const candidateUncataloged = report.ranked
+      .filter((r) => !catalogSlugs.has(r.slug.toLowerCase()))
+      .slice(0, 30);
+
+    await Promise.all(
+      candidateUncataloged.map(async (entry) => {
+        try {
+          const desc = await fetchUpstreamSkillDescription(
+            entry.repo,
+            entry.slug,
+            entry.slug.replace(/[-_]/g, ' ')
+          );
+          descriptionsMap.set(entry.key, desc);
+          descriptionsMap.set(entry.slug, desc);
+        } catch {
+          // Ignore failure
+        }
+      })
+    );
+
+    const { board, newSkills, reason } = buildBoard(report.ranked, catalog, descriptionsMap);
     if (!board) {
       log(`No board proposed: ${reason}`);
       return;
