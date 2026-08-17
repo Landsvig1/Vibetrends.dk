@@ -9,7 +9,7 @@ import {
   inferSkillCategory,
   slugToTitle,
   provisionNewSkill,
-  isPlatformLocked,
+  isPureLlmSkill,
   MIN_BOARD_SIZE,
   MAX_BOARD_SIZE,
   MAX_SKILLS_PER_AUTHOR,
@@ -342,10 +342,13 @@ describe("buildBoard", () => {
     expect(sameCreatorCount).toBe(3);
   });
 
-  it("filters out platform-locked tools (e.g. genmedia-labs/runcomfy)", () => {
+  it("filters out non-LLM tools (e.g. orca-cli, traceknot, turborepo, genmedia-labs)", () => {
     const ranked = [
-      { key: "genmedia-labs/skills#ai-music", slug: "ai-music", repo: "genmedia-labs/skills", score: 0.9, contributions: [] },
-      { key: "genmedia-labs/skills#video-edit", slug: "video-edit", repo: "genmedia-labs/skills", score: 0.8, contributions: [] },
+      { key: "genmedia-labs/skills#ai-music", slug: "ai-music", repo: "genmedia-labs/skills", score: 0.95, contributions: [] },
+      { key: "stablyai/orca#orca-cli", slug: "orca-cli", repo: "stablyai/orca", score: 0.90, contributions: [] },
+      { key: "jin-doh/traceknot#traceknot", slug: "traceknot", repo: "jin-doh/traceknot", score: 0.85, contributions: [] },
+      { key: "vercel/turborepo#turborepo", slug: "turborepo", repo: "vercel/turborepo", score: 0.80, contributions: [] },
+      { key: "vercel-labs/agent-skills#vercel-optimize", slug: "vercel-optimize", repo: "vercel-labs/agent-skills", score: 0.75, contributions: [] },
       ...Array.from({ length: 6 }, (_, i) => ({
         key: `creator-${i}/skills#tool-${i}`,
         slug: `tool-${i}`,
@@ -357,12 +360,33 @@ describe("buildBoard", () => {
 
     const result = buildBoard(ranked, []);
     expect(result.board).toHaveLength(6);
-    expect(result.board!.some((b) => b.entry.slug === "ai-music")).toBe(false);
-    expect(result.board!.some((b) => b.entry.slug === "video-edit")).toBe(false);
+    expect(result.board!.some((b) => b.entry.slug === "orca-cli")).toBe(false);
+    expect(result.board!.some((b) => b.entry.slug === "traceknot")).toBe(false);
+    expect(result.board!.some((b) => b.entry.slug === "turborepo")).toBe(false);
+    expect(result.board!.some((b) => b.entry.slug === "vercel-optimize")).toBe(false);
+  });
+
+  it("attaches authentic custom descriptions when descriptionsMap is provided", () => {
+    const ranked = Array.from({ length: 6 }, (_, i) => ({
+      key: `creator-${i}/skills#skill-${i}`,
+      slug: `skill-${i}`,
+      repo: `creator-${i}/skills`,
+      score: 1 / (i + 1),
+      contributions: [],
+    }));
+    const descriptionsMap = new Map([
+      ["creator-0/skills#skill-0", "A relentless interview to sharpen a plan or design."],
+      ["creator-1/skills#skill-1", "Test-driven development loop for building robust features."],
+    ]);
+
+    const result = buildBoard(ranked, [], descriptionsMap);
+    expect(result.board![0].catalog.description).toBe("A relentless interview to sharpen a plan or design.");
+    expect(result.board![1].catalog.description).toBe("Test-driven development loop for building robust features.");
+    expect(result.board![2].catalog.description).toContain("Skill 2 workflow and prompt instructions");
   });
 });
 
-describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPlatformLocked", () => {
+describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPureLlmSkill", () => {
   it("converts slugs into readable titles with acronym recognition", () => {
     expect(slugToTitle("ai-music-generator")).toBe("AI Music Generator");
     expect(slugToTitle("seo-audit-tool")).toBe("SEO Audit Tool");
@@ -380,14 +404,25 @@ describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPlatformLocke
     expect(inferSkillCategory("turborepo-monorepo-build")).toBe("fullstack-devops");
   });
 
-  it("identifies platform-locked dependencies correctly", () => {
-    expect(isPlatformLocked({ repo: "genmedia-labs/skills", slug: "ai-music" })).toBe(true);
-    expect(isPlatformLocked({ slug: "runcomfy-node" })).toBe(true);
-    expect(isPlatformLocked({ repo: "mattpocock/skills", slug: "tdd" })).toBe(false);
-    expect(isPlatformLocked({ repo: "heygen-com/hyperframes", slug: "product-launch-video" })).toBe(false);
+  it("identifies non-LLM tools and pure LLM skills correctly", () => {
+    // Non-LLM tools
+    expect(isPureLlmSkill({ repo: "genmedia-labs/skills", slug: "ai-music" })).toBe(false);
+    expect(isPureLlmSkill({ slug: "orca-cli" })).toBe(false);
+    expect(isPureLlmSkill({ repo: "jin-doh/traceknot", slug: "traceknot" })).toBe(false);
+    expect(isPureLlmSkill({ slug: "turborepo" })).toBe(false);
+    expect(isPureLlmSkill({ slug: "vercel-optimize" })).toBe(false);
+    expect(isPureLlmSkill({ slug: "lark-im" })).toBe(false);
+
+    // Pure Claude/LLM skills
+    expect(isPureLlmSkill({ repo: "mattpocock/skills", slug: "grill-me" })).toBe(true);
+    expect(isPureLlmSkill({ repo: "mattpocock/skills", slug: "tdd" })).toBe(true);
+    expect(isPureLlmSkill({ repo: "mattpocock/skills", slug: "ponytail" })).toBe(true);
+    expect(isPureLlmSkill({ repo: "heygen-com/hyperframes", slug: "product-launch-video" })).toBe(true);
+    expect(isPureLlmSkill({ repo: "jakubkrehel/skills", slug: "better-typography" })).toBe(true);
+    expect(isPureLlmSkill({ repo: "juliusbrussee/caveman", slug: "cavecrew" })).toBe(true);
   });
 
-  it("provisions a complete new catalog entry structure", () => {
+  it("provisions a complete new catalog entry structure with custom description", () => {
     const entry = {
       key: "heygen-com/hyperframes#product-launch-video",
       slug: "product-launch-video",
@@ -396,12 +431,13 @@ describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPlatformLocke
       score: 0.05,
       contributions: [],
     };
-    const provisioned = provisionNewSkill(entry);
+    const provisioned = provisionNewSkill(entry, "Turn a product URL into a launch promo video.");
     expect(provisioned.id).toBe("new:product-launch-video");
     expect(provisioned.title).toBe("Product Launch Video");
     expect(provisioned.category).toBe("growth-content");
     expect(provisioned.vibeCoder).toBe("heygen-com");
     expect(provisioned.githubUrl).toBe("https://github.com/heygen-com/hyperframes");
+    expect(provisioned.description).toBe("Turn a product URL into a launch promo video.");
     expect(provisioned.isNew).toBe(true);
   });
 });
