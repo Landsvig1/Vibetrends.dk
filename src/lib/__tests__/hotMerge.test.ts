@@ -407,6 +407,7 @@ describe("inferSkillCategory & slugToTitle & provisionNewSkill & isPureLlmSkill"
   it("identifies non-LLM tools and pure LLM skills correctly", () => {
     // Non-LLM tools
     expect(isPureLlmSkill({ repo: "genmedia-labs/skills", slug: "ai-music" })).toBe(false);
+    expect(isPureLlmSkill({ repo: "skills-101/superpowers", slug: "ai-video-generation" })).toBe(false);
     expect(isPureLlmSkill({ slug: "orca-cli" })).toBe(false);
     expect(isPureLlmSkill({ repo: "jin-doh/traceknot", slug: "traceknot" })).toBe(false);
     expect(isPureLlmSkill({ slug: "turborepo" })).toBe(false);
