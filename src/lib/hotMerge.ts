@@ -387,7 +387,7 @@ export const MIN_BOARD_SIZE = 5;
 export const MAX_BOARD_SIZE = 20;
 
 /** Max skills from a single repo / creator on the board to guarantee creator diversity. */
-export const MAX_SKILLS_PER_AUTHOR = 3;
+export const MAX_SKILLS_PER_AUTHOR = 6;
 
 export interface BoardItem {
   position: number;
@@ -410,7 +410,7 @@ export interface BoardResult {
  * an existing catalog row, it links to it; if not, a new skill entry is
  * provisioned so the weekly scan introduces new trending skills to the catalog.
  *
- * Excludes non-LLM tools and caps max skills per author/repo at MAX_SKILLS_PER_AUTHOR (3).
+ * Excludes non-LLM tools and caps max skills per author/repo at MAX_SKILLS_PER_AUTHOR (6).
  */
 export function buildBoard(
   rankedOrMatched: MergedEntry[] | MatchReport["matched"],
