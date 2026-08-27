@@ -315,7 +315,7 @@ describe("buildBoard", () => {
     expect(result.newSkills).toHaveLength(9);
   });
 
-  it("enforces MAX_SKILLS_PER_AUTHOR = 3 to guarantee creator diversity", () => {
+  it("enforces MAX_SKILLS_PER_AUTHOR = 6 to guarantee creator diversity", () => {
     const ranked = Array.from({ length: 10 }, (_, i) => ({
       key: `same-creator/skills#tool-${i}`,
       slug: `tool-${i}`,
@@ -339,7 +339,7 @@ describe("buildBoard", () => {
       (b) => b.entry.repo === "same-creator/skills"
     ).length;
     expect(sameCreatorCount).toBe(MAX_SKILLS_PER_AUTHOR);
-    expect(sameCreatorCount).toBe(3);
+    expect(sameCreatorCount).toBe(6);
   });
 
   it("filters out non-LLM tools (e.g. orca-cli, traceknot, turborepo, genmedia-labs)", () => {
