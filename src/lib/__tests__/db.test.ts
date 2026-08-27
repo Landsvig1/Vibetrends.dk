@@ -317,6 +317,29 @@ describe("Hot board (weekly external ranking)", () => {
     expect(results.map((s) => s.id)).toEqual(["b", "a"]);
   });
 
+  it("ranks internally by upvotes first, using weekly ranking position as tiebreaker", async () => {
+    withRanking(
+      {
+        data: freshRanking([
+          { skill_id: "pos1", position: 1 },
+          { skill_id: "pos2", position: 2 },
+          { skill_id: "pos3", position: 3 },
+        ]),
+        error: null,
+      },
+      {
+        data: [
+          { ...skillRow, id: "pos1", upvotes: 1 },
+          { ...skillRow, id: "pos2", upvotes: 4 }, // higher upvotes -> should rank top
+          { ...skillRow, id: "pos3", upvotes: 1 },
+        ],
+        error: null,
+      }
+    );
+    const results = await db.getSkills(undefined, undefined, "da", "hot");
+    expect(results.map((s) => s.id)).toEqual(["pos2", "pos1", "pos3"]);
+  });
+
   it("returns an empty board when there is no ranking at all", async () => {
     withRanking({ data: [], error: null }, { data: [skillRow], error: null });
     const results = await db.getSkills(undefined, undefined, "da", "hot");

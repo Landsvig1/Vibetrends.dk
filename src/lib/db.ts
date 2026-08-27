@@ -725,10 +725,15 @@ export async function getSkills(search?: string, category?: string, lang: 'da' |
   // Rows the ranking names but that are no longer publicly visible (deleted, or
   // moved back to review_state='pending') simply never come back from the query
   // above, so the board renders the remainder rather than a gap or a null row.
+  //
+  // The Hot board ranks internally by upvotes (likes) first, falling back to
+  // the external weekly ranking position as a deterministic tiebreaker.
   const rows = hotOrder
-    ? [...data].sort(
-        (a, b) => (hotOrder.get(a.id) ?? Infinity) - (hotOrder.get(b.id) ?? Infinity)
-      )
+    ? [...data].sort((a, b) => {
+        const diff = (b.upvotes ?? 0) - (a.upvotes ?? 0);
+        if (diff !== 0) return diff;
+        return (hotOrder.get(a.id) ?? Infinity) - (hotOrder.get(b.id) ?? Infinity);
+      })
     : data;
 
   if (searchTerm) {
