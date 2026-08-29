@@ -66,29 +66,54 @@ export function isGateEnabled(table: ReviewedTable): boolean {
   return GATE_ENABLED[table];
 }
 
+import { isTrustedBotEmail } from "@/lib/permissions";
+
+export type ReviewCaller =
+  | boolean
+  | {
+      isBearerCaller?: boolean;
+      user?: { id?: string; username?: string; email?: string | null; isAnonymous?: boolean };
+      email?: string | null;
+      isAnonymous?: boolean;
+    }
+  | null
+  | undefined;
+
+/**
+ * Check if the caller is the trusted curator bot or admin account.
+ */
+export function isTrustedCuratorBot(caller: ReviewCaller): boolean {
+  if (!caller || typeof caller === "boolean") return false;
+  const email =
+    ("user" in caller && caller.user?.email) ||
+    ("email" in caller && caller.email) ||
+    null;
+  return isTrustedBotEmail(email);
+}
+
 /**
  * The `review_state` a new row should be written with.
  *
- * `isBearerCaller` is true exactly when the request authenticated with an
- * `Authorization: Bearer` header rather than a session cookie — i.e. when
- * `resolveRequestIdentity()` returned a `botAuth`. That is the seam because
- * `getAuthUser()` is tried first and rejects anonymous sessions, so a cookie
- * caller is always a real, magic-link-authenticated human.
+ * Logged-in humans (cookie callers) and the owner's trusted curator bot
+ * (authenticated as BOT_ACCOUNT_EMAIL or ADMIN_EMAIL) publish directly as 'approved'.
  *
- * Note this holds ALL bearer callers, including a human running a script with
- * their own session token — not just the anonymous identities /api/agentauth
- * mints. That is deliberate: the bearer path has no honeypot and no human at
- * the keyboard, which is what review is for. The database-level backstop in
- * the RLS policy is narrower (it can only see `is_anonymous` in the JWT, not
- * which header carried the token) — see the migration for why the two
- * boundaries differ and why that is still sound.
+ * Untrusted / public agent submissions (bearer token callers from /api/agentauth or
+ * unverified third-party bots) land as 'pending' and are held in the review queue.
  */
 export function reviewStateForWrite(
   table: ReviewedTable,
-  isBearerCaller: boolean,
+  caller: ReviewCaller,
 ): ReviewState {
   if (!isGateEnabled(table)) return "approved";
-  return isBearerCaller ? "pending" : "approved";
+  const isBearer = typeof caller === "boolean" ? caller : Boolean(caller);
+  if (!isBearer) return "approved";
+
+  // Curator / admin bot bypasses review queue and publishes immediately
+  if (isTrustedCuratorBot(caller)) {
+    return "approved";
+  }
+
+  return "pending";
 }
 
 /**

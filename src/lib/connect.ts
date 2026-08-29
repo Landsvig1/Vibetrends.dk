@@ -67,16 +67,132 @@ function toKey(name: string): string {
 
 const pick = (lang: Lang, da: string, en: string) => (lang === "en" ? en : da);
 
+interface ParsedMcp {
+  key: string;
+  transport: "http" | "sse" | "stdio";
+  url?: string;
+  command?: string;
+}
+
+function parseMcpCommand(rawCmd: string, itemName: string): ParsedMcp {
+  const cmd = rawCmd.trim();
+  const defaultKey = toKey(itemName);
+
+  // 1. Pure HTTP/HTTPS URL (e.g. "https://mcp.dinero.dk")
+  if (/^https?:\/\//i.test(cmd)) {
+    return {
+      key: defaultKey,
+      transport: "http",
+      url: cmd,
+    };
+  }
+
+  // 2. "claude mcp add --transport (http|sse) <key> <url>"
+  const httpMatch = cmd.match(/^claude\s+mcp\s+add\s+--transport\s+(http|sse)\s+([^\s]+)\s+([^\s]+)$/i);
+  if (httpMatch) {
+    return {
+      key: httpMatch[2],
+      transport: httpMatch[1].toLowerCase() as "http" | "sse",
+      url: httpMatch[3],
+    };
+  }
+
+  // 3. "claude mcp add <key> -- <command...>"
+  const claudeDoubleDashMatch = cmd.match(/^claude\s+mcp\s+add\s+([^\s]+)\s+--\s+(.+)$/i);
+  if (claudeDoubleDashMatch) {
+    return {
+      key: claudeDoubleDashMatch[1],
+      transport: "stdio",
+      command: claudeDoubleDashMatch[2].trim(),
+    };
+  }
+
+  // 4. "claude mcp add <key> <command...>"
+  const claudeSimpleMatch = cmd.match(/^claude\s+mcp\s+add\s+([^\s]+)\s+(.+)$/i);
+  if (claudeSimpleMatch) {
+    return {
+      key: claudeSimpleMatch[1],
+      transport: "stdio",
+      command: claudeSimpleMatch[2].trim(),
+    };
+  }
+
+  // 5. Raw command (e.g. "npx -y @mcp/postgres", "git clone ...")
+  return {
+    key: defaultKey,
+    transport: "stdio",
+    command: cmd,
+  };
+}
+
 function mcpRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: Lang): ConnectRecipe {
   const cmd = item.installCommand?.trim();
-  const key = toKey(item.name);
   if (!cmd) return fallbackRecipe(item, host, hostName, lang);
+
+  const parsed = parseMcpCommand(cmd, item.name);
+
+  if (parsed.transport === "http" || parsed.transport === "sse") {
+    const transport = parsed.transport;
+    const url = parsed.url!;
+    const key = parsed.key;
+
+    if (host === "claude-code") {
+      return {
+        host,
+        hostName,
+        command: `claude mcp add --transport ${transport} ${key} ${url}`,
+        steps: [
+          pick(
+            lang,
+            `Kør denne kommando i din terminal for at registrere ${item.name} i Claude Code.`,
+            `Run this in your terminal to register ${item.name} with Claude Code.`,
+          ),
+        ],
+      };
+    }
+
+    const configFile = host === "cursor" ? "~/.cursor/mcp.json" : "~/.gemini/settings.json";
+    const configSnippet = JSON.stringify(
+      {
+        mcpServers: {
+          [key]: {
+            type: transport,
+            url,
+          },
+        },
+      },
+      null,
+      2,
+    );
+
+    return {
+      host,
+      hostName,
+      configSnippet,
+      steps: [
+        pick(
+          lang,
+          `Tilføj denne post til ${configFile} under "mcpServers".`,
+          `Add this entry to ${configFile} under "mcpServers".`,
+        ),
+        pick(
+          lang,
+          `Genstart ${hostName} for at indlæse ${item.name}.`,
+          `Restart ${hostName} to load ${item.name}.`,
+        ),
+      ],
+    };
+  }
+
+  // stdio transport
+  const key = parsed.key;
+  const command = parsed.command!;
 
   if (host === "claude-code") {
     return {
       host,
       hostName,
-      command: `claude mcp add ${key} -- ${cmd}`,
+      command: `claude mcp add ${key} -- ${command}`,
       steps: [
         pick(
           lang,
@@ -89,7 +205,17 @@ function mcpRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: La
 
   // Cursor and Gemini CLI both consume an mcpServers JSON map.
   const configFile = host === "cursor" ? "~/.cursor/mcp.json" : "~/.gemini/settings.json";
-  const configSnippet = JSON.stringify({ mcpServers: { [key]: { command: cmd } } }, null, 2);
+  const configSnippet = JSON.stringify(
+    {
+      mcpServers: {
+        [key]: {
+          command,
+        },
+      },
+    },
+    null,
+    2,
+  );
   return {
     host,
     hostName,

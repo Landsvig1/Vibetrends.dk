@@ -26,6 +26,43 @@ describe("buildConnectRecipe", () => {
     expect(cursor.command).toBeUndefined();
   });
 
+  it("handles HTTP MCP servers: claude command with --transport http, type/url in JSON config for Cursor/Gemini", () => {
+    const item = { name: "Dinero MCP", installCommand: "https://mcp.dinero.dk" };
+    const claude = buildConnectRecipe("mcp-servers", item, "claude-code");
+    expect(claude.command).toBe("claude mcp add --transport http dinero-mcp https://mcp.dinero.dk");
+
+    const cursor = buildConnectRecipe("mcp-servers", item, "cursor");
+    expect(cursor.configSnippet).toContain('"type": "http"');
+    expect(cursor.configSnippet).toContain('"url": "https://mcp.dinero.dk"');
+
+    const gemini = buildConnectRecipe("mcp-servers", item, "gemini-cli");
+    expect(gemini.configSnippet).toContain('"type": "http"');
+    expect(gemini.configSnippet).toContain('"url": "https://mcp.dinero.dk"');
+  });
+
+  it("avoids double-wrapping claude mcp add commands with transport or stdio", () => {
+    const httpItem = {
+      name: "Dinero MCP",
+      installCommand: "claude mcp add --transport http dinero https://mcp.dinero.dk",
+    };
+    const claudeHttp = buildConnectRecipe("mcp-servers", httpItem, "claude-code");
+    expect(claudeHttp.command).toBe("claude mcp add --transport http dinero https://mcp.dinero.dk");
+
+    const cursorHttp = buildConnectRecipe("mcp-servers", httpItem, "cursor");
+    expect(cursorHttp.configSnippet).toContain('"type": "http"');
+    expect(cursorHttp.configSnippet).toContain('"url": "https://mcp.dinero.dk"');
+
+    const stdioItem = {
+      name: "Nordic Registry MCP",
+      installCommand: "claude mcp add nordic-registry ./nordic-registry-mcp-server",
+    };
+    const claudeStdio = buildConnectRecipe("mcp-servers", stdioItem, "claude-code");
+    expect(claudeStdio.command).toBe("claude mcp add nordic-registry -- ./nordic-registry-mcp-server");
+
+    const cursorStdio = buildConnectRecipe("mcp-servers", stdioItem, "cursor");
+    expect(cursorStdio.configSnippet).toContain('"command": "./nordic-registry-mcp-server"');
+  });
+
   it("wraps a CLI's install command for the chosen host", () => {
     const r = buildConnectRecipe(
       "cli",

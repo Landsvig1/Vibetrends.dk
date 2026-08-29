@@ -86,12 +86,29 @@ function deriveUsername(user: { email?: string | null; user_metadata?: Record<st
  * resolve them here first — leaving `botAuth` unset and every rate-limit
  * guard (`if (actingAs && ...)`) skipped entirely.
  */
-export async function getAuthUser(): Promise<{ id: string; username: string } | null> {
+export interface ServerAuthUser {
+  id: string;
+  username: string;
+  email?: string;
+  isAnonymous?: boolean;
+}
+
+export interface BotAuthIdentity {
+  user: ServerAuthUser;
+  supabase: SupabaseClient;
+}
+
+export async function getAuthUser(): Promise<ServerAuthUser | null> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || user.is_anonymous) return null;
 
-  return { id: user.id, username: deriveUsername(user) };
+  return {
+    id: user.id,
+    username: deriveUsername(user),
+    email: user.email,
+    isAnonymous: false,
+  };
 }
 
 /**
@@ -100,7 +117,7 @@ export async function getAuthUser(): Promise<{ id: string; username: string } | 
  */
 export async function resolveBotTokenAuth(
   token: string
-): Promise<{ user: { id: string; username: string }; supabase: SupabaseClient } | null> {
+): Promise<BotAuthIdentity | null> {
   const cleanToken = token.trim();
   if (!cleanToken) return null;
 
@@ -113,7 +130,15 @@ export async function resolveBotTokenAuth(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  return { user: { id: user.id, username: deriveUsername(user) }, supabase };
+  return {
+    user: {
+      id: user.id,
+      username: deriveUsername(user),
+      email: user.email,
+      isAnonymous: Boolean(user.is_anonymous),
+    },
+    supabase,
+  };
 }
 
 /**
@@ -129,7 +154,7 @@ export async function resolveBotTokenAuth(
  */
 export async function resolveBotRequestAuth(
   request: Request
-): Promise<{ user: { id: string; username: string }; supabase: SupabaseClient } | null> {
+): Promise<BotAuthIdentity | null> {
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
 
@@ -147,8 +172,8 @@ export async function resolveRequestIdentity(
   request: Request,
   explicitToken?: string
 ): Promise<{
-  user: { id: string; username: string };
-  botAuth?: { user: { id: string; username: string }; supabase: SupabaseClient };
+  user: ServerAuthUser;
+  botAuth?: BotAuthIdentity;
 } | null> {
   const user = await getAuthUser();
   if (user) return { user };

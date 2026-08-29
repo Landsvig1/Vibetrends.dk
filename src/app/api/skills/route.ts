@@ -67,11 +67,7 @@ export async function POST(request: Request) {
       actingAs
     );
 
-    // 202 + a pending body rather than 201 + the entry when the submission was
-    // held: the row exists but is invisible to every public read, so echoing it
-    // back as though it were live would be a false statement to a caller that
-    // has no other way to find out. See pendingSubmissionBody.
-    if (reviewStateForWrite('skills', Boolean(actingAs)) === 'pending') {
+    if (reviewStateForWrite('skills', actingAs) === 'pending') {
       return NextResponse.json(pendingSubmissionBody(newSkill.id), { status: 202 });
     }
 

@@ -38,8 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    // Inert today — see POST /api/forum for why this branch exists anyway.
-    if (reviewStateForWrite('forum_replies', Boolean(actingAs)) === 'pending') {
+    if (reviewStateForWrite('forum_replies', actingAs) === 'pending') {
       return NextResponse.json(pendingSubmissionBody(added.replyId), { status: 202 });
     }
 

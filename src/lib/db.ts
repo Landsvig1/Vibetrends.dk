@@ -26,7 +26,7 @@ const revalidateTag = (tag: string): void => _revalidateTag(tag);
  * runs on this client instead of a freshly-built cookie client, so RLS sees the
  * bearer token's `authenticated` role rather than falling back to `anon`. */
 export interface ActingAs {
-  user: { id: string; username: string };
+  user: { id: string; username: string; email?: string; isAnonymous?: boolean };
   supabase: SupabaseClient;
 }
 
@@ -1305,7 +1305,7 @@ export async function createThread(title: string, author: string, category: Foru
   // Always 'approved' today: the forum's gate ships off (FORUM_GATE_ENABLED in
   // lib/reviewGate.ts explains why). The column and this call are here so that
   // turning the gate on is a one-line change with no schema work.
-  const reviewState = reviewStateForWrite('forum_threads', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('forum_threads', actingAs);
 
   const newId = 't_' + Date.now();
   const { data, error } = await supabase.from('forum_threads').insert({
@@ -1340,7 +1340,7 @@ export async function addReply(threadId: string, author: string, content: string
   const { supabase, userId } = await resolveActor(actingAs);
 
   // Always 'approved' today — see createThread.
-  const reviewState = reviewStateForWrite('forum_replies', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('forum_replies', actingAs);
 
   const newId = 'r_' + Date.now();
   const { error } = await supabase.from('forum_replies').insert({
@@ -1531,7 +1531,7 @@ export async function upvoteAgent(id: string, actingAs?: ActingAs) {
 
 export async function createProject(title: string, author: string, description: string, tools: string[], prompts: string[], demoUrl: string, githubUrl?: string, imageUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
-  const reviewState = reviewStateForWrite('vibes', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('vibes', actingAs);
 
   const newId = 'p_' + Date.now();
   const { data, error } = await insertWithUniqueSlug<ShowcaseRow>(slugify(title), (slug) =>
@@ -1561,7 +1561,7 @@ export async function createProject(title: string, author: string, description: 
       // are held at review_state 'pending' regardless, so a human still sees
       // them before they are public.
       is_danish: true,
-      // See createSkill: bearer callers are held for review.
+      // See createSkill: bearer callers are held for review unless trusted curator bot.
       review_state: reviewState,
     }).select().single()
   );
@@ -1579,7 +1579,7 @@ export async function createProject(title: string, author: string, description: 
 
 export async function createSkill(title: string, vibeCoder: string, description: string, category: Skill["category"], tags: string[], githubUrl?: string, source?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
-  const reviewState = reviewStateForWrite('skills', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('skills', actingAs);
 
   const newId = 's_' + Date.now();
   const { data, error } = await insertWithUniqueSlug<SkillRow>(slugify(title), (slug) =>
@@ -1601,7 +1601,7 @@ export async function createSkill(title: string, vibeCoder: string, description:
       github_url: githubUrl,
       source,
       user_id: userId,
-      // Bearer-token callers are held for review; cookie sessions publish
+      // Bearer-token callers are held for review (unless trusted curator); cookie sessions publish
       // directly. `actingAs` is set only on the bearer path — see
       // reviewStateForWrite and resolveRequestIdentity.
       review_state: reviewState,
@@ -1679,7 +1679,7 @@ export async function deleteReply(threadId: string, replyId: string) {
 
 export async function createAgent(name: string, developer: string, category: Agent["category"], description: string, installCommand: string, systemPrompt: string, tags: string[], sourceUrl?: string, descriptionDa?: string, actingAs?: ActingAs) {
   const { supabase, userId } = await resolveActor(actingAs);
-  const reviewState = reviewStateForWrite('agents', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('agents', actingAs);
 
   const newId = 'a_' + Date.now();
   // Slugged from `name` — agents have no bilingual title column.
@@ -1700,7 +1700,7 @@ export async function createAgent(name: string, developer: string, category: Age
       tags,
       source_url: sourceUrl || null,
       user_id: userId,
-      // See createSkill: bearer callers are held for review.
+      // See createSkill: bearer callers are held for review unless trusted curator.
       review_state: reviewState,
     }).select().single()
   );
@@ -1728,7 +1728,7 @@ export async function createBlogPost(
   actingAs?: ActingAs
 ) {
   const { supabase, userId } = await resolveActor(actingAs);
-  const reviewState = reviewStateForWrite('blog_posts', Boolean(actingAs));
+  const reviewState = reviewStateForWrite('blog_posts', actingAs);
 
   const newId = 'b_' + Date.now();
   const { data, error } = await supabase.from('blog_posts').insert({

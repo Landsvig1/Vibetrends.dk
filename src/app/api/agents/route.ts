@@ -69,9 +69,7 @@ export async function POST(request: Request) {
       actingAs
     );
 
-    // See /api/skills: a held submission returns 202 + a pending body, never
-    // the entry, because the entry is not publicly readable yet.
-    if (reviewStateForWrite('agents', Boolean(actingAs)) === 'pending') {
+    if (reviewStateForWrite('agents', actingAs) === 'pending') {
       return NextResponse.json(pendingSubmissionBody(agent.id), { status: 202 });
     }
 

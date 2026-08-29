@@ -493,7 +493,7 @@ async function callTool(
       const { title, category, content } = parsed.data;
       const submitterUsername = username ?? "agent";
       const thread = await createThread(title, submitterUsername, category, content, actingAs);
-      if (reviewStateForWrite("forum_threads", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("forum_threads", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(thread.id));
       }
       return textContent(thread);
@@ -511,7 +511,7 @@ async function callTool(
       const submitterUsername = username ?? "agent";
       const added = await addReply(threadId, submitterUsername, content, actingAs);
       if (!added) return { error: "NOT_FOUND", message: `Thread not found: ${threadId}` };
-      if (reviewStateForWrite("forum_replies", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("forum_replies", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(added.replyId));
       }
       return textContent(added.thread);
@@ -534,7 +534,7 @@ async function callTool(
         descriptionDa || undefined,
         actingAs
       );
-      if (reviewStateForWrite("skills", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("skills", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(skill.id));
       }
       return textContent(skill);
@@ -558,7 +558,7 @@ async function callTool(
         descriptionDa || undefined,
         actingAs
       );
-      if (reviewStateForWrite("vibes", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("vibes", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(project.id));
       }
       return textContent(project);
@@ -582,7 +582,7 @@ async function callTool(
         descriptionDa || undefined,
         actingAs
       );
-      if (reviewStateForWrite("agents", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("agents", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(agent.id));
       }
       return textContent(agent);
@@ -605,7 +605,7 @@ async function callTool(
         category,
         actingAs
       );
-      if (reviewStateForWrite("blog_posts", Boolean(actingAs)) === "pending") {
+      if (reviewStateForWrite("blog_posts", actingAs) === "pending") {
         return textContent(pendingSubmissionBody(post.id));
       }
       return textContent(post);

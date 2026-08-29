@@ -132,23 +132,25 @@ export default function AgentDetailView({
             </div>
           </div>
 
-          {/* System Prompt Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-               <h3 className="text-lg font-bold text-foreground flex items-center">
-                 <Terminal className="h-5 w-5 mr-2 text-accent-primary" />
-                 System Prompt
-               </h3>
-               <span className="text-[10px] text-text-secondary font-mono uppercase tracking-widest bg-background px-2 py-1 rounded border border-card-border">
-                 Raw Output
-               </span>
+          {/* System Prompt / Instructions Section */}
+          {agent.systemPrompt && agent.systemPrompt.trim().length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                 <h3 className="text-lg font-bold text-foreground flex items-center">
+                   <Terminal className="h-5 w-5 mr-2 text-accent-primary" />
+                   {agent.category === "MCP Server" ? "Instruktioner & Kontekst" : "System Prompt"}
+                 </h3>
+                 <span className="text-[10px] text-text-secondary font-mono uppercase tracking-widest bg-background px-2 py-1 rounded border border-card-border">
+                   Raw Output
+                 </span>
+              </div>
+              <div className="relative group">
+                 <div className="relative p-6 rounded-2xl bg-background border border-card-border font-mono text-sm text-text-secondary leading-relaxed whitespace-pre-wrap overflow-x-auto shadow-inner">
+                    {agent.systemPrompt}
+                 </div>
+              </div>
             </div>
-            <div className="relative group">
-               <div className="relative p-6 rounded-2xl bg-background border border-card-border font-mono text-sm text-text-secondary leading-relaxed whitespace-pre-wrap overflow-x-auto shadow-inner">
-                  {agent.systemPrompt}
-               </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right: Actions & Stats. min-w-0 because a grid item defaults to

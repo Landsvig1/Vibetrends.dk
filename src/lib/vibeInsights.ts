@@ -31,8 +31,8 @@ function pick(lang: Lang, da: string, en: string): string {
 
 const CATEGORY_INSIGHTS: Record<InsightAgent["category"], { da: string; en: string }> = {
   "MCP Server": {
-    da: "MCP Server — forbind via Claude Code, Cursor eller en anden MCP-kompatibel host.",
-    en: "MCP Server — connect via Claude Code, Cursor, or another MCP-compatible host.",
+    da: "MCP Server — forbindes direkte i enhver MCP-klient.",
+    en: "MCP Server — connects directly in any MCP client.",
   },
   CLI: {
     da: "Kommandolinjeværktøj — kør direkte i din terminal.",

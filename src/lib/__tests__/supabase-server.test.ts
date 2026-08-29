@@ -68,7 +68,7 @@ describe("getAuthUser", () => {
 
     const result = await getAuthUser();
 
-    expect(result).toEqual({ id: "human-1", username: "person_vibe" });
+    expect(result).toEqual({ id: "human-1", username: "person_vibe", email: "person@example.com", isAnonymous: false });
   });
 
   it("rejects an anonymous session presented via cookie, even though the cookie itself is valid", async () => {
@@ -100,6 +100,7 @@ describe("resolveBotRequestAuth", () => {
 
     expect(result).not.toBeNull();
     expect(result?.user.id).toBe("user-1");
+    expect(result?.user.email).toBe("vibes-bot@vibetrends.dk");
     expect(result?.supabase).toBeDefined();
     // The token must be forwarded as a global header so subsequent table
     // writes on this same client carry it too (this is what makes RLS see
@@ -147,7 +148,7 @@ describe("resolveRequestIdentity", () => {
 
     const result = await resolveRequestIdentity(makeRequest({}));
 
-    expect(result).toEqual({ user: { id: "human-1", username: "person_vibe" } });
+    expect(result).toEqual({ user: { id: "human-1", username: "person_vibe", email: "person@example.com", isAnonymous: false } });
   });
 
   it("resolves a bearer token as botAuth when no cookie session is present (agent write path, rate-limited)", async () => {

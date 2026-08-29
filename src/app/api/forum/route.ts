@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     // (FORUM_GATE_ENABLED in lib/reviewGate.ts). Present so that turning the
     // gate on flips the API contract with it, instead of leaving the forum
     // returning 201 + the thread for a submission nobody can see.
-    if (reviewStateForWrite('forum_threads', Boolean(actingAs)) === 'pending') {
+    if (reviewStateForWrite('forum_threads', actingAs) === 'pending') {
       return NextResponse.json(pendingSubmissionBody(thread.id), { status: 202 });
     }
 

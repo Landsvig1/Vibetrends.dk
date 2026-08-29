@@ -6,6 +6,18 @@
 // SQL function — there's no single source of truth across the two languages.
 export const ADMIN_EMAIL = "kasper@landsvig.com";
 export const ADMIN_GITHUB_USERNAME = "landsvig1";
+export const BOT_ACCOUNT_EMAIL = "vibes-bot@vibetrends.dk";
+
+/**
+ * Check if an email matches the trusted curator bot or admin account.
+ */
+export function isTrustedBotEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const botEmail = (process.env.BOT_ACCOUNT_EMAIL || BOT_ACCOUNT_EMAIL).toLowerCase();
+  const adminEmail = ADMIN_EMAIL.toLowerCase();
+  const lower = email.toLowerCase();
+  return lower === botEmail || lower === adminEmail;
+}
 
 /**
  * Whether a signed-in user may see a delete affordance for an item — true for

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, CheckCircle, Terminal } from "lucide-react";
+import { Copy, CheckCircle, Terminal, Cpu } from "lucide-react";
 import { track } from "@vercel/analytics";
 import { HOSTS, type FeedTypeSlug } from "@/lib/feedTypes";
 import { buildConnectRecipe, type ConnectItem } from "@/lib/connect";
@@ -15,7 +15,7 @@ export function trackConnectCopy(
 ) {
   const itemType = feedType === "skills" ? "skill" : feedType === "mcp-servers" ? "mcp" : "cli";
   const itemSlug = item.slug || slugify(item.name);
-  const resolvedHost = hostSlug ?? (feedType === "skills" ? "universal" : HOSTS[0].slug);
+  const resolvedHost = hostSlug ?? (feedType === "skills" || feedType === "mcp-servers" ? "universal" : HOSTS[0].slug);
 
   try {
     track("copy_install", {
@@ -55,8 +55,9 @@ export default function ConnectBlock({
 
   // Pure, simple INSTALLATION block for skills: no terminal icon, no agent badges, just easy install (/distill)
   if (feedType === "skills") {
-    const cloneUrl = item.githubUrl && /^https:\/\/github\.com\//i.test(item.githubUrl) ? item.githubUrl : undefined;
-    const installCmd = item.installCommand?.trim() || (cloneUrl ? `git clone ${cloneUrl}` : item.source ? `git clone ${item.source}` : null);
+    const cloneUrl = (item.githubUrl && /^https:\/\/github\.com\//i.test(item.githubUrl) ? item.githubUrl : undefined)
+      ?? (item.source && /^https:\/\/github\.com\//i.test(item.source) ? item.source : undefined);
+    const installCmd = item.installCommand?.trim() || (cloneUrl ? `git clone ${cloneUrl}` : null);
 
     return (
       <div
@@ -101,6 +102,86 @@ export default function ConnectBlock({
               : "No direct install command. Open source code for instructions."}
           </p>
         )}
+      </div>
+    );
+  }
+
+  // Pure, universal CONFIGURATION block for MCP servers: no host tabs, works in any MCP client
+  if (feedType === "mcp-servers") {
+    const defaultRecipe = buildConnectRecipe("mcp-servers", item, "cursor", lang);
+    const claudeRecipe = buildConnectRecipe("mcp-servers", item, "claude-code", lang);
+    const configSnippet = defaultRecipe.configSnippet;
+    const command = claudeRecipe.command;
+
+    return (
+      <div
+        data-testid="connect-block"
+        className="p-6 rounded-2xl glass-panel border border-card-border space-y-4 shadow-xl relative"
+      >
+        <div className="flex items-center gap-2">
+          <Cpu className="h-4 w-4 text-accent-primary" aria-hidden="true" />
+          <h4 className="text-xs font-bold text-foreground uppercase tracking-widest font-mono">
+            {lang === "da" ? "MCP-konfiguration" : "MCP Configuration"}
+          </h4>
+        </div>
+
+        {configSnippet ? (
+          <div className="relative rounded-xl bg-background border border-card-border p-4 shadow-inner">
+            <button
+              type="button"
+              onClick={() => copy(configSnippet, "config", "universal")}
+              aria-label={lang === "da" ? "Kopiér konfiguration" : "Copy configuration"}
+              className="absolute top-3 right-3 p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer"
+            >
+              {copied === "config" ? (
+                <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
+              ) : (
+                <Copy className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
+            <pre className="overflow-x-auto font-mono text-xs text-accent-primary pr-10 whitespace-pre">
+              {configSnippet}
+            </pre>
+            {copied === "config" && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="absolute -top-3 right-3 text-[10px] font-mono font-bold bg-accent-primary text-white px-2 py-0.5 rounded-full shadow-md"
+              >
+                {lang === "da" ? "Kopieret!" : "Copied!"}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {command && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest font-mono">
+              {lang === "da" ? "Eller via CLI" : "Or via CLI"}
+            </span>
+            <div className="flex items-center justify-between rounded-xl bg-background border border-card-border p-3.5 font-mono text-xs text-accent-primary shadow-inner">
+              <span className="break-all pr-3 font-bold">{command}</span>
+              <button
+                type="button"
+                onClick={() => copy(command, "command", "universal")}
+                aria-label={lang === "da" ? "Kopiér kommando" : "Copy command"}
+                className="p-2 rounded-lg bg-background border border-card-border text-text-secondary hover:text-foreground hover:bg-accent-light transition active:scale-95 cursor-pointer shrink-0"
+              >
+                {copied === "command" ? (
+                  <CheckCircle className="h-4 w-4 text-accent-primary" aria-hidden="true" />
+                ) : (
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-text-secondary leading-relaxed">
+          {lang === "da"
+            ? "Tilføj posten under mcpServers i din MCP-klient."
+            : "Add this entry under mcpServers in your MCP client."}
+        </p>
       </div>
     );
   }
