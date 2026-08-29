@@ -5,7 +5,6 @@ export const metadata: Metadata = entityMetadata({
   title: "Vibes",
   description: "Se hvad Danmark bygger med AI. Bliv inspireret, og vis dit eget frem.",
   path: "/vibes",
-  image: "/images/og-default.jpg",
 });
 
 export default function ShowcaseLayout({ children }: { children: React.ReactNode }) {

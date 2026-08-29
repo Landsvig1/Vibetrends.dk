@@ -9,7 +9,6 @@ export const metadata: Metadata = entityMetadata({
   title: "MCP Servere",
   description: "MCP-servere, udvalgt og testet. Fra Aula og CVR til verdens bedste agent-tools. Connect-opskrift følger med.",
   path: "/mcp",
-  image: "/images/og-default.jpg",
 });
 
 /**

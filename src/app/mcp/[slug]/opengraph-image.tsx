@@ -8,5 +8,5 @@ export const alt = "vibetrends.dk MCP server";
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const agent = await getAgentBySlug(slug, "da");
-  return renderOgImage("MCP Server", agent?.name ?? "vibetrends.dk");
+  return renderOgImage("MCP Server", agent?.name ?? "vibetrends.dk", agent?.description);
 }

@@ -10,7 +10,6 @@ export const metadata: Metadata = entityMetadata({
   title: "CLI-værktøjer",
   description: "CLI-tools din agent kan kalde direkte. Kuraterede og testede.",
   path: "/cli",
-  image: "/images/og-default.jpg",
 });
 
 /**

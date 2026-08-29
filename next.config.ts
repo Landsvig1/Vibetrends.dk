@@ -71,6 +71,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // The OG cards read Instrument Serif off disk (src/lib/ogImage.tsx). A
+  // process.cwd() read is invisible to the build tracer, so the .ttf files have
+  // to be pulled into the traced bundle explicitly or the cards 500 in prod.
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./assets/fonts/*.ttf'],
+    '/**/opengraph-image': ['./assets/fonts/*.ttf'],
+  },
   experimental: {
     viewTransition: true,
     instantNavigationDevToolsToggle: true,

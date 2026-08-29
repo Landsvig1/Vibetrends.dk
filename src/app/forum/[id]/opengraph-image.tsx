@@ -8,5 +8,5 @@ export const alt = "vibetrends.dk forum thread";
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const thread = await getThreadById(id, "da");
-  return renderOgImage("Forum", thread?.title ?? "vibetrends.dk");
+  return renderOgImage("Forum", thread?.title ?? "vibetrends.dk", thread?.content);
 }

@@ -36,20 +36,13 @@ export const metadata: Metadata = {
     siteName: "vibetrends.dk",
     locale: "da_DK",
     type: "website",
-    images: [
-      {
-        url: "/images/og-default.jpg",
-        width: 1200,
-        height: 630,
-        alt: "vibetrends.dk: AI tools for you and your agents",
-      },
-    ],
+    // No `images` here on purpose: app/opengraph-image.tsx is the source of
+    // truth for the card, and an explicit entry would win over it.
   },
   twitter: {
     card: "summary_large_image",
     title: "vibetrends.dk: AI-tools til dig og dine agenter",
     description: "AI-tools og viden, udvalgt til Danmark. Også læsbar for agenter.",
-    images: ["/images/og-default.jpg"],
   },
 };
 

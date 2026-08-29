@@ -68,7 +68,7 @@ async function ForumThreadContent({ params }: { params: Promise<{ id: string }> 
               title: thread.title,
               author: thread.author,
               url: `https://vibetrends.dk/forum/${id}`,
-              image: "https://vibetrends.dk/images/og-default.jpg",
+              image: `https://vibetrends.dk/forum/${id}/opengraph-image`,
               datePublished: thread.createdAt,
             })
           ),

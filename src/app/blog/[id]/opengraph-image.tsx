@@ -8,5 +8,5 @@ export const alt = "vibetrends.dk blog article";
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const post = await getBlogPostById(id);
-  return renderOgImage("Blog", post?.title ?? "vibetrends.dk");
+  return renderOgImage("Blog", post?.title ?? "vibetrends.dk", post?.excerpt);
 }

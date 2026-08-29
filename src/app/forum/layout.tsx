@@ -19,7 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Forum",
     description: "Spørg om AI. Få svar fra folk der bygger.",
     path: "/forum",
-    image: "/images/og-default.jpg",
     ...(hasThreads ? {} : { robots: { index: false, follow: true } }),
   });
 }
