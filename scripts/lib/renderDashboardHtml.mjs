@@ -31,6 +31,7 @@ export function renderDashboardHtml(analyticsData) {
   const gsc = data.gsc || {};
   const supabase = data.supabase || {};
   const seo = data.seo || null;
+  const funnel = supabase.funnel || null;
   const windowDays = data.windowDays || 30;
   const genDate = data.generatedAt ? new Date(data.generatedAt).toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' }) : 'Nu';
 
@@ -645,6 +646,56 @@ export function renderDashboardHtml(analyticsData) {
 
     <!-- TAB 3: TRAFFIC & PAGES -->
     <div id="tab-traffic" class="tab-pane">
+      <div class="card">
+        <div class="card-title">Aktiveringsfunnel</div>
+        ${!funnel ? `
+          <p style="font-size:13px;color:var(--muted);">Ikke tilgængelig i denne kørsel.</p>
+        ` : funnel.error ? `
+          <p style="font-size:13px;color:var(--muted);">${escapeHtml(funnel.error)}</p>
+        ` : `
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Besøgende</div>
+              <div class="kpi-value-row"><div class="kpi-value">${visitors}</div></div>
+              <div class="kpi-label">Vercel Analytics</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Sessioner der kopierede</div>
+              <div class="kpi-value-row"><div class="kpi-value">${funnel.copySessions}</div>${renderDeltaBadge(funnel.copySessionsDelta)}</div>
+              <div class="kpi-label">${visitors ? Math.round((funnel.copySessions / visitors) * 1000) / 10 : 0}% af besøgende</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Nye konti</div>
+              <div class="kpi-value-row"><div class="kpi-value">${supabase.users?.current || 0}</div></div>
+              <div class="kpi-label">i perioden</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Kopieringer i alt</div>
+              <div class="kpi-value-row"><div class="kpi-value">${funnel.copyEvents}</div></div>
+              <div class="kpi-label">${funnel.itemsCopied} forskellige emner, ${funnel.copiesBySignedIn} fra indloggede</div>
+            </div>
+          </div>
+          ${funnel.topItems?.length ? `
+            <div class="table-container" style="margin-top:16px;">
+              <table>
+                <thead><tr><th>Emne</th><th>Type</th><th>Kopieringer</th><th>Sessioner</th></tr></thead>
+                <tbody>
+                  ${funnel.topItems.map(it => `
+                    <tr>
+                      <td><strong>${escapeHtml(it.item_slug || '')}</strong></td>
+                      <td>${escapeHtml(it.item_type || '')}</td>
+                      <td>${it.copies}</td>
+                      <td>${it.sessions}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `<p style="font-size:12px;color:var(--muted);margin-top:10px;">Ingen kopieringshændelser registreret endnu. Hændelserne begynder at tikke ind, når ConnectBlock-ændringen er deployet.</p>`}
+        `}
+      </div>
+
+
       <div class="card">
         <div class="card-title">Mest Besøgte Sider (Vercel Analytics)</div>
         <input type="text" id="trafficSearch" class="search-bar" placeholder="Søg i stier (f.eks. /skills, /cli)..." onkeyup="filterTable('trafficSearch', 'trafficTable')">

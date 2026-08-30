@@ -152,4 +152,40 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('tab-indexing');
     expect(html).toContain('--no-seo');
   });
+
+  it('renders the activation funnel with copy counts and top items', () => {
+    const html = renderDashboardHtml({
+      windowDays: 30,
+      vercel: { totals: { visitors: 200 } },
+      supabase: {
+        users: { current: 15 },
+        funnel: {
+          copyEvents: 40, copySessions: 20, itemsCopied: 8, copiesBySignedIn: 3,
+          copySessionsDelta: { diff: 5, percent: 33, direction: 'up' },
+          topItems: [{ item_type: 'skill', item_slug: 'jobnet-search', copies: 12, sessions: 9 }],
+        },
+      },
+    });
+    expect(html).toContain('Aktiveringsfunnel');
+    expect(html).toContain('jobnet-search');
+    // 20 of 200 visitors = 10%
+    expect(html).toContain('10% af besøgende');
+  });
+
+  it('explains the empty funnel instead of rendering a bare zero table', () => {
+    const html = renderDashboardHtml({
+      windowDays: 30,
+      supabase: { funnel: { copyEvents: 0, copySessions: 0, itemsCopied: 0, copiesBySignedIn: 0, copySessionsDelta: {}, topItems: [] } },
+    });
+    expect(html).toContain('Ingen kopieringshændelser registreret endnu');
+  });
+
+  it('surfaces a funnel error without breaking the dashboard', () => {
+    const html = renderDashboardHtml({
+      windowDays: 30,
+      supabase: { funnel: { error: 'analytics_events utilgængelig' } },
+    });
+    expect(html).toContain('analytics_events utilgængelig');
+    expect(html).toContain('<!DOCTYPE html>');
+  });
 });

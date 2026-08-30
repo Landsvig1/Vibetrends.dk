@@ -192,6 +192,54 @@ export async function getSupabaseData(days = 30) {
       });
     }
 
+    // Activation funnel. analytics_events is the first-party mirror of the
+    // copy/connect events; Vercel's own custom-event API is 402 on this plan.
+    let funnel = null;
+    try {
+      const copyStats = (await q(`
+        SELECT count(*) as events,
+               count(distinct session_id) as sessions,
+               count(distinct item_slug) as items,
+               count(*) filter (where user_id is not null) as by_signed_in
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days} days'
+      `)).rows[0];
+
+      const prevCopy = (await q(`
+        SELECT count(distinct session_id) as sessions
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days * 2} days'
+          AND occurred_at < NOW() - INTERVAL '${days} days'
+      `)).rows[0];
+
+      const topItems = (await q(`
+        SELECT item_type, item_slug, count(*) as copies,
+               count(distinct session_id) as sessions
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days} days'
+          AND item_slug IS NOT NULL
+        GROUP BY 1, 2
+        ORDER BY copies DESC
+        LIMIT 20
+      `)).rows;
+
+      funnel = {
+        copyEvents: Number(copyStats.events),
+        copySessions: Number(copyStats.sessions),
+        itemsCopied: Number(copyStats.items),
+        copiesBySignedIn: Number(copyStats.by_signed_in),
+        copySessionsDelta: calculateDelta(copyStats.sessions, prevCopy.sessions),
+        topItems,
+      };
+    } catch (e) {
+      // The table only exists after its migration is applied; a report run
+      // against an older database should still produce everything else.
+      funnel = { error: `analytics_events utilgængelig: ${e.message}` };
+    }
+
     await client.end();
 
     const u = userStats.rows[0];
@@ -215,6 +263,7 @@ export async function getSupabaseData(days = 30) {
       upvotes: upvotesStats.rows,
       apiActivity: rateLimitActivity.rows,
       userProfiles,
+      funnel,
     };
   } catch (e) {
     return { error: `Supabase error: ${e.message}` };

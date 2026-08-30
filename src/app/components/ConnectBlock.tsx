@@ -6,6 +6,7 @@ import { track } from "@vercel/analytics";
 import { HOSTS, type FeedTypeSlug } from "@/lib/feedTypes";
 import { buildConnectRecipe, type ConnectItem } from "@/lib/connect";
 import { slugify } from "@/lib/slug";
+import { recordAnalyticsEvent } from "@/lib/analyticsEvents";
 
 export function trackConnectCopy(
   item: ConnectItem,
@@ -27,6 +28,15 @@ export function trackConnectCopy(
   } catch {
     // Analytics failure should never break copy interaction
   }
+
+  // Mirrored to Supabase because Vercel custom events are not readable on this
+  // project's plan; this is the copy that the analytics report actually reads.
+  recordAnalyticsEvent("copy_install", {
+    itemType,
+    itemSlug,
+    hostSlug: resolvedHost,
+    snippet,
+  });
 }
 
 // One-step install/connect component (R5/R6).
