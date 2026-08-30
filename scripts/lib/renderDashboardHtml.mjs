@@ -30,6 +30,7 @@ export function renderDashboardHtml(analyticsData) {
   const vercel = data.vercel || {};
   const gsc = data.gsc || {};
   const supabase = data.supabase || {};
+  const seo = data.seo || null;
   const windowDays = data.windowDays || 30;
   const genDate = data.generatedAt ? new Date(data.generatedAt).toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' }) : 'Nu';
 
@@ -469,6 +470,7 @@ export function renderDashboardHtml(analyticsData) {
       <button class="tab-btn" onclick="switchTab('traffic')">Trafik & Sider</button>
       <button class="tab-btn" onclick="switchTab('search')">Google Søgning & SEO</button>
       <button class="tab-btn" onclick="switchTab('users')">Agent Auth & Telemetri</button>
+      <button class="tab-btn" onclick="switchTab('indexing')">Indeksering & Teknisk SEO</button>
       <button class="tab-btn" onclick="switchTab('opportunities')">Vækstmuligheder</button>
     </div>
 
@@ -864,6 +866,99 @@ export function renderDashboardHtml(analyticsData) {
     </div>
 
     <!-- TAB 6: OPPORTUNITIES -->
+    <div id="tab-indexing" class="tab-pane">
+      ${!seo ? `
+        <div class="card">
+          <div class="card-title">Indeksering</div>
+          <p>Ikke indsamlet i denne kørsel (kørt med <code>--no-seo</code>).</p>
+        </div>
+      ` : seo.error ? `
+        <div class="card">
+          <div class="card-title">Indeksering — utilgængelig</div>
+          <p>${escapeHtml(seo.error)}</p>
+        </div>
+      ` : `
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Indekseret</div>
+            <div class="kpi-value-row"><div class="kpi-value">${seo.indexing.indexed}/${seo.indexing.inspected}</div></div>
+            <div class="kpi-label">af de inspicerede sider</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ikke indekseret</div>
+            <div class="kpi-value-row"><div class="kpi-value">${seo.indexing.notIndexed}</div></div>
+            <div class="kpi-label">kræver handling</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Canonical-konflikter</div>
+            <div class="kpi-value-row"><div class="kpi-value">${seo.indexing.canonicalMismatches}</div></div>
+            <div class="kpi-label">Google valgte en anden URL</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Structured data</div>
+            <div class="kpi-value-row"><div class="kpi-value">${seo.indexing.withStructuredData}</div></div>
+            <div class="kpi-label">sider med rich results</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Sitemap</div>
+          ${seo.sitemap.registered ? `
+            <table>
+              <tbody>
+                <tr><th>Sti</th><td>${escapeHtml(seo.sitemap.path || '')}</td></tr>
+                <tr><th>URL'er i live sitemap</th><td>${seo.sitemap.liveUrlCount}</td></tr>
+                <tr><th>Registreret i GSC</th><td>${seo.sitemap.submitted}${seo.sitemap.drift ? ` <strong>(afvigelse: ${seo.sitemap.drift > 0 ? '+' : ''}${seo.sitemap.drift})</strong>` : ''}</td></tr>
+                <tr><th>Fejl / advarsler</th><td>${seo.sitemap.errors} / ${seo.sitemap.warnings}</td></tr>
+                <tr><th>Sidst hentet af Google</th><td>${seo.sitemap.lastDownloaded ? new Date(seo.sitemap.lastDownloaded).toLocaleString('da-DK') : '—'}${seo.sitemap.stale ? ' <strong>(forældet)</strong>' : ''}</td></tr>
+              </tbody>
+            </table>
+            <p style="font-size:12px;color:var(--muted);margin-top:10px;">GSC's „indexed“-felt er udgået og returnerer altid 0. Det vises derfor ikke her — brug tabellen nedenfor i stedet.</p>
+          ` : `<p>${escapeHtml(seo.sitemap.note || 'Sitemap ikke registreret')}</p>`}
+        </div>
+
+        ${seo.indexing.problems.length ? `
+        <div class="card">
+          <div class="card-title">Sider der kræver handling (${seo.indexing.problems.length})</div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>URL</th><th>Status</th><th>Hvorfor inspiceret</th><th>Google canonical</th></tr></thead>
+              <tbody>
+                ${seo.indexing.problems.map(pg => `
+                  <tr>
+                    <td><strong>${escapeHtml(String(pg.url || '').replace('https://vibetrends.dk', ''))}</strong></td>
+                    <td>${escapeHtml(pg.coverageState)}</td>
+                    <td>${escapeHtml(pg.reason || '')}</td>
+                    <td>${pg.canonicalMismatch ? escapeHtml(String(pg.googleCanonical || '').replace('https://vibetrends.dk', '')) : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <div class="card">
+          <div class="card-title">Alle inspicerede sider</div>
+          <input type="text" id="indexFilter" class="search-bar" placeholder="Søg i URL'er..." onkeyup="filterTable('indexFilter', 'indexTable')">
+          <div class="table-container">
+            <table id="indexTable">
+              <thead><tr><th>URL</th><th>Status</th><th>Rich results</th><th>Sidst crawlet</th></tr></thead>
+              <tbody>
+                ${seo.pages.map(pg => `
+                  <tr>
+                    <td><strong>${escapeHtml(String(pg.url || '').replace('https://vibetrends.dk', ''))}</strong></td>
+                    <td>${pg.indexed ? '✓ ' : '⚠ '}${escapeHtml(pg.coverageState)}</td>
+                    <td>${escapeHtml((pg.richResultTypes || []).join(', ') || '—')}</td>
+                    <td>${pg.lastCrawlTime ? new Date(pg.lastCrawlTime).toLocaleDateString('da-DK') : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `}
+    </div>
+
     <div id="tab-opportunities" class="tab-pane">
       <div class="card">
         <div class="card-title">Identificerede Vækstmuligheder (Høj Visning / Lav CTR)</div>

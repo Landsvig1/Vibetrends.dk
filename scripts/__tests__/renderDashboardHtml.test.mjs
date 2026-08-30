@@ -96,4 +96,60 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('tab-overview');
     expect(html).toContain('tab-user-types');
   });
+
+  it('renders the indexing tab with sitemap drift and problem pages', () => {
+    const html = renderDashboardHtml({
+      windowDays: 30,
+      seo: {
+        sitemap: {
+          registered: true,
+          path: 'https://vibetrends.dk/sitemap.xml',
+          submitted: 176,
+          liveUrlCount: 177,
+          drift: 1,
+          errors: 0,
+          warnings: 0,
+          lastDownloaded: '2026-08-29T07:02:17.905Z',
+          stale: false,
+        },
+        indexing: {
+          inspected: 12, indexed: 11, notIndexed: 1,
+          canonicalMismatches: 0, withStructuredData: 6,
+          byCoverage: { 'Submitted and indexed': 11 },
+          problems: [{
+            url: 'https://vibetrends.dk/mcp/a_1783085673265',
+            coverageState: 'Page with redirect',
+            reason: 'earning impressions',
+            canonicalMismatch: false,
+          }],
+        },
+        pages: [{
+          url: 'https://vibetrends.dk/skills',
+          coverageState: 'Submitted and indexed',
+          indexed: true,
+          richResultTypes: ['Breadcrumbs'],
+          lastCrawlTime: '2026-08-28T03:26:27Z',
+        }],
+      },
+    });
+
+    expect(html).toContain('tab-indexing');
+    expect(html).toContain('/mcp/a_1783085673265');
+    expect(html).toContain('Page with redirect');
+    expect(html).toContain('Breadcrumbs');
+    // Sitemap drift must be visible, not silently swallowed.
+    expect(html).toContain('afvigelse');
+  });
+
+  it('renders the indexing tab as unavailable instead of throwing when seo errored', () => {
+    const html = renderDashboardHtml({ windowDays: 30, seo: { error: 'GSC admin skill mangler' } });
+    expect(html).toContain('tab-indexing');
+    expect(html).toContain('GSC admin skill mangler');
+  });
+
+  it('renders without a seo key at all (--no-seo run)', () => {
+    const html = renderDashboardHtml({ windowDays: 30 });
+    expect(html).toContain('tab-indexing');
+    expect(html).toContain('--no-seo');
+  });
 });

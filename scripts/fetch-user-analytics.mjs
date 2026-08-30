@@ -11,6 +11,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import pg from 'pg';
 import { calculateDelta, extractGrowthOpportunities } from './lib/analyticsDelta.mjs';
+import { getSeoData } from './lib/seoTelemetry.mjs';
 
 const { Client } = pg;
 
@@ -373,12 +374,19 @@ export function getGscData(days = 30) {
   }
 }
 
-export async function fetchAllUserAnalytics(days = 30) {
+export async function fetchAllUserAnalytics(days = 30, { seo = true, seoLimit = 20 } = {}) {
   const [supabase, vercel, gsc] = await Promise.all([
     getSupabaseData(days),
     getVercelData(days),
     Promise.resolve(getGscData(days)),
   ]);
+
+  // Runs after GSC because it prioritises inspecting the pages that are
+  // actually earning impressions. Each inspection costs ~2s, so the caller can
+  // skip this step for a fast report.
+  const seoData = seo
+    ? await getSeoData({ gscTopPages: gsc?.topPages || [], limit: seoLimit })
+    : null;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -386,12 +394,14 @@ export async function fetchAllUserAnalytics(days = 30) {
     supabase,
     vercel,
     gsc,
+    ...(seoData ? { seo: seoData } : {}),
   };
 }
 
 if (process.argv[1] && process.argv[1].endsWith('fetch-user-analytics.mjs')) {
   const days = Number(process.argv[2]) || 30;
-  fetchAllUserAnalytics(days)
+  const seo = !process.argv.includes('--no-seo');
+  fetchAllUserAnalytics(days, { seo })
     .then(data => console.log(JSON.stringify(data, null, 2)))
     .catch(console.error);
 }
