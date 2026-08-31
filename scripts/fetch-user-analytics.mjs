@@ -9,26 +9,13 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import pg from 'pg';
+import { connect } from './lib/db.mjs';
 import { calculateDelta, extractGrowthOpportunities } from './lib/analyticsDelta.mjs';
 import { getSeoData } from './lib/seoTelemetry.mjs';
 
-const { Client } = pg;
-
 export async function getSupabaseData(days = 30) {
   try {
-    const url = new URL(process.env.DATABASE_URL);
-    const projectRef = url.hostname.split('.')[1];
-    const client = new Client({
-      host: 'aws-0-eu-west-1.pooler.supabase.com',
-      port: 5432,
-      user: `postgres.${projectRef}`,
-      password: url.password,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false },
-    });
-
-    await client.connect();
+    const client = await connect();
 
     const userStats = await client.query(`
       SELECT 
