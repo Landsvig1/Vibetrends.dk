@@ -1,7 +1,7 @@
 /**
  * Comprehensive Multi-Source Telemetry Extractor for vibetrends.dk
  * Pulls current and previous period from:
- * 1. Supabase Database (Users, Auth, Submissions, Upvotes, API/Agent Activity)
+ * 1. Supabase Database (Users, User Types, Content Added, Upvotes, API/Agent Activity)
  * 2. Vercel Web Analytics API (Visitors, Pageviews, Top Pages, Referrers, Geographies, Devices)
  * 3. Google Search Console API (Clicks, Impressions, Queries, Pages)
  */
@@ -11,6 +11,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import pg from 'pg';
 import { calculateDelta, extractGrowthOpportunities } from './lib/analyticsDelta.mjs';
+import { getSeoData } from './lib/seoTelemetry.mjs';
 
 const { Client } = pg;
 
@@ -82,6 +83,163 @@ export async function getSupabaseData(days = 30) {
       GROUP BY 1
     `);
 
+    // Detailed user profiles. Six aggregate queries, not five per user: the
+    // previous per-user loop issued five round-trips each and was already slow
+    // enough at 26 users to need a raised test timeout.
+    //
+    // Sequential, not Promise.all: a single pg Client serializes concurrent
+    // queries anyway and warns that doing so is removed in pg@9.
+    const q = (sql) => client.query(sql);
+
+    const allUsersRes = await q(`
+      SELECT id, email, created_at, last_sign_in_at, is_anonymous,
+             raw_app_meta_data->>'provider' as provider, raw_user_meta_data
+      FROM auth.users
+      ORDER BY created_at DESC
+    `);
+    const skillsByUser = await q(`
+      SELECT user_id, count(*) as total,
+             count(*) filter (where review_state = 'pending') as pending,
+             array_agg(title_en || ' (' || review_state || ')') as samples
+      FROM skills WHERE user_id IS NOT NULL GROUP BY user_id
+    `);
+    const vibesByUser = await q(`
+      SELECT user_id, count(*) as total,
+             array_agg(coalesce(title_en, title_da, slug)) as samples
+      FROM vibes WHERE user_id IS NOT NULL GROUP BY user_id
+    `);
+    const agentsByUser = await q(`
+      SELECT user_id, count(*) as total,
+             array_agg(coalesce(name, slug)) as samples
+      FROM agents WHERE user_id IS NOT NULL GROUP BY user_id
+    `);
+    const upvotesByUser = await q(`
+      SELECT user_id, count(*) as total FROM (
+        SELECT user_id FROM skill_upvotes
+        UNION ALL SELECT user_id FROM vibes_upvotes
+        UNION ALL SELECT user_id FROM agent_upvotes
+      ) u WHERE user_id IS NOT NULL GROUP BY user_id
+    `);
+    // rate_limits keys embed the user id; extract it rather than running a
+    // LIKE '%<id>%' scan per user.
+    const apiByUser = await q(`
+      SELECT substring(key from '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') as user_id,
+             sum(count) as total
+      FROM rate_limits
+      WHERE key ~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      GROUP BY 1
+    `);
+
+    const byUser = (rows) => new Map(rows.map((r) => [r.user_id, r]));
+    const skillsMap = byUser(skillsByUser.rows);
+    const vibesMap = byUser(vibesByUser.rows);
+    const agentsMap = byUser(agentsByUser.rows);
+    const upvotesMap = byUser(upvotesByUser.rows);
+    const apiMap = byUser(apiByUser.rows);
+
+    const userProfiles = [];
+    let humanCount = 0;
+    let agentCount = 0;
+    let curatorCount = 0;
+
+    for (const u of allUsersRes.rows) {
+      let userType = 'human';
+      if (u.is_anonymous || (!u.email && u.raw_user_meta_data?.full_name?.startsWith('agent_'))) {
+        userType = 'agent';
+        agentCount++;
+      } else if (u.email === 'vibes-bot@vibetrends.dk') {
+        userType = 'curator_bot';
+        curatorCount++;
+      } else {
+        humanCount++;
+      }
+
+      const skills = skillsMap.get(u.id);
+      const vibes = vibesMap.get(u.id);
+      const agents = agentsMap.get(u.id);
+
+      // Origin / domain parsing
+      let origin = 'Ukendt';
+      if (userType === 'human' && u.email) {
+        const domain = u.email.split('@')[1] || '';
+        origin = domain.endsWith('.dk') ? `Danmark (.${domain})` : domain.endsWith('.com') ? `International (${domain})` : domain;
+      } else if (userType === 'agent') {
+        origin = 'Headless API Client (CLI/Agent)';
+      } else if (userType === 'curator_bot') {
+        origin = 'VibeTrends Platform (Intern)';
+      }
+
+      userProfiles.push({
+        id: u.id,
+        userType,
+        displayName: u.raw_user_meta_data?.full_name || u.raw_user_meta_data?.name || (u.email ? u.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : 'Anonym'),
+        emailMasked: u.email ? u.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null,
+        provider: u.provider || (userType === 'agent' ? 'Agent Auth' : 'email'),
+        origin,
+        created_at: u.created_at,
+        last_sign_in: u.last_sign_in_at,
+        skillsCount: Number(skills?.total || 0),
+        skillsPending: Number(skills?.pending || 0),
+        vibesCount: Number(vibes?.total || 0),
+        agentsCount: Number(agents?.total || 0),
+        upvotesCount: Number(upvotesMap.get(u.id)?.total || 0),
+        apiEventsCount: Number(apiMap.get(u.id)?.total || 0),
+        contentSamples: [
+          ...(skills?.samples || []).map((s) => `Skill: ${s}`),
+          ...(vibes?.samples || []).map((v) => `Vibe: ${v}`),
+          ...(agents?.samples || []).map((a) => `Agent: ${a}`),
+        ],
+      });
+    }
+
+    // Activation funnel. analytics_events is the first-party mirror of the
+    // copy/connect events; Vercel's own custom-event API is 402 on this plan.
+    let funnel = null;
+    try {
+      const copyStats = (await q(`
+        SELECT count(*) as events,
+               count(distinct session_id) as sessions,
+               count(distinct item_slug) as items,
+               count(*) filter (where user_id is not null) as by_signed_in
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days} days'
+      `)).rows[0];
+
+      const prevCopy = (await q(`
+        SELECT count(distinct session_id) as sessions
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days * 2} days'
+          AND occurred_at < NOW() - INTERVAL '${days} days'
+      `)).rows[0];
+
+      const topItems = (await q(`
+        SELECT item_type, item_slug, count(*) as copies,
+               count(distinct session_id) as sessions
+        FROM public.analytics_events
+        WHERE event_name = 'copy_install'
+          AND occurred_at >= NOW() - INTERVAL '${days} days'
+          AND item_slug IS NOT NULL
+        GROUP BY 1, 2
+        ORDER BY copies DESC
+        LIMIT 20
+      `)).rows;
+
+      funnel = {
+        copyEvents: Number(copyStats.events),
+        copySessions: Number(copyStats.sessions),
+        itemsCopied: Number(copyStats.items),
+        copiesBySignedIn: Number(copyStats.by_signed_in),
+        copySessionsDelta: calculateDelta(copyStats.sessions, prevCopy.sessions),
+        topItems,
+      };
+    } catch (e) {
+      // The table only exists after its migration is applied; a report run
+      // against an older database should still produce everything else.
+      funnel = { error: `analytics_events utilgængelig: ${e.message}` };
+    }
+
     await client.end();
 
     const u = userStats.rows[0];
@@ -94,28 +252,42 @@ export async function getSupabaseData(days = 30) {
         previous: Number(u.users_previous_period),
         signedIn: Number(u.users_signed_in),
         delta: userDelta,
+        typesSummary: {
+          humans: humanCount,
+          agents: agentCount,
+          curatorBots: curatorCount,
+        }
       },
       signupsByDay: signupsByDay.rows,
       content: contentStats.rows,
       upvotes: upvotesStats.rows,
       apiActivity: rateLimitActivity.rows,
+      userProfiles,
+      funnel,
     };
   } catch (e) {
     return { error: `Supabase error: ${e.message}` };
   }
 }
 
+function getVercelToken() {
+  if (process.env.VERCEL_TOKEN) return process.env.VERCEL_TOKEN;
+  const authPath = path.join(
+    process.env.HOME || '',
+    'Library/Application Support/com.vercel.cli/auth.json'
+  );
+  if (!fs.existsSync(authPath)) return null;
+  try {
+    const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+    return auth.token || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getVercelData(days = 30) {
   try {
-    const authPath = path.join(
-      process.env.HOME || '',
-      'Library/Application Support/com.vercel.cli/auth.json'
-    );
-    if (!fs.existsSync(authPath)) {
-      return { error: 'Vercel auth.json not found' };
-    }
-    const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
-    const token = auth.token;
+    let token = getVercelToken();
     const projectId = 'prj_Y7fpTHFk02cCLVSxnC8XKFODsflz';
     const teamId = 'team_ripjlZeFprqucLRTvMbc07fo';
     
@@ -127,7 +299,8 @@ export async function getVercelData(days = 30) {
     const prevSince = new Date(Date.now() - (days * 2) * 86400000).toISOString();
     const prevUntil = curSince;
 
-    async function query(endpoint, since, until, params = {}) {
+    async function query(endpoint, since, until, params = {}, retry = true) {
+      if (!token) return null;
       const q = new URLSearchParams({
         projectId,
         teamId,
@@ -136,9 +309,24 @@ export async function getVercelData(days = 30) {
         environment: 'production',
         ...params,
       });
-      const res = await fetch(`https://api.vercel.com/v1/query/web-analytics/${endpoint}?${q}`, {
+      let res = await fetch(`https://api.vercel.com/v1/query/web-analytics/${endpoint}?${q}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if ((res.status === 401 || res.status === 403) && retry) {
+        try {
+          execSync('npx --yes vercel whoami', { stdio: 'ignore' });
+          token = getVercelToken();
+          if (token) {
+            res = await fetch(`https://api.vercel.com/v1/query/web-analytics/${endpoint}?${q}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          }
+        } catch {
+          // Ignore refresh failure
+        }
+      }
+
       if (!res.ok) return null;
       return await res.json();
     }
@@ -235,12 +423,19 @@ export function getGscData(days = 30) {
   }
 }
 
-export async function fetchAllUserAnalytics(days = 30) {
+export async function fetchAllUserAnalytics(days = 30, { seo = true, seoLimit = 20 } = {}) {
   const [supabase, vercel, gsc] = await Promise.all([
     getSupabaseData(days),
     getVercelData(days),
     Promise.resolve(getGscData(days)),
   ]);
+
+  // Runs after GSC because it prioritises inspecting the pages that are
+  // actually earning impressions. Each inspection costs ~2s, so the caller can
+  // skip this step for a fast report.
+  const seoData = seo
+    ? await getSeoData({ gscTopPages: gsc?.topPages || [], limit: seoLimit })
+    : null;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -248,12 +443,14 @@ export async function fetchAllUserAnalytics(days = 30) {
     supabase,
     vercel,
     gsc,
+    ...(seoData ? { seo: seoData } : {}),
   };
 }
 
 if (process.argv[1] && process.argv[1].endsWith('fetch-user-analytics.mjs')) {
   const days = Number(process.argv[2]) || 30;
-  fetchAllUserAnalytics(days)
+  const seo = !process.argv.includes('--no-seo');
+  fetchAllUserAnalytics(days, { seo })
     .then(data => console.log(JSON.stringify(data, null, 2)))
     .catch(console.error);
 }

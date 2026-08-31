@@ -23,7 +23,8 @@ async function main() {
 
   console.log(`\n🐨 VibeTrends Analytics — Indsamler telemetri for de seneste ${days} dage...`);
   
-  const data = await fetchAllUserAnalytics(days);
+  const seo = !args.includes('--no-seo');
+  const data = await fetchAllUserAnalytics(days, { seo });
   const html = renderDashboardHtml(data);
 
   // 1. Save to project output directory
@@ -69,6 +70,20 @@ async function main() {
   console.log(`  Google Visninger:${g.impressions || 0} (${g.impressionsDelta?.percent >= 0 ? '+' : ''}${g.impressionsDelta?.percent || 0}%)`);
   console.log(`  Nye Brugere:     ${u.current || 0} (Totalt: ${u.total || 0})`);
   console.log(`  Vækstmuligheder: ${opps.length} identificerede søgeord`);
+
+  const s = data.seo;
+  if (s?.indexing) {
+    console.log(`  Indeksering:     ${s.indexing.indexed}/${s.indexing.inspected} sider indekseret` +
+      (s.indexing.notIndexed ? ` — ${s.indexing.notIndexed} kræver handling` : ''));
+    if (s.sitemap?.registered && s.sitemap.drift) {
+      console.log(`  Sitemap-afvig.:  ${s.sitemap.drift > 0 ? '+' : ''}${s.sitemap.drift} (live ${s.sitemap.liveUrlCount} vs GSC ${s.sitemap.submitted})`);
+    }
+    for (const pr of s.indexing.problems.slice(0, 5)) {
+      console.log(`    ⚠ ${String(pr.url).replace('https://vibetrends.dk', '')} — ${pr.coverageState}`);
+    }
+  } else if (s?.error) {
+    console.log(`  Indeksering:     utilgængelig (${s.error})`);
+  }
   console.log(`------------------------------------------------------`);
   console.log(`  Interaktiv HTML-rapport genereret:`);
   console.log(`  file://${outPath}`);
