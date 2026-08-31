@@ -1,4 +1,4 @@
-import { getAgentBySlug } from "@/lib/db";
+import { getAgentBySlug, getLatestSecurityScan } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
@@ -48,6 +48,8 @@ async function CliDetailContent({ params }: { params: Promise<{ slug: string }> 
     notFound();
   }
 
+  const securityScan = await getLatestSecurityScan('agent', slug);
+
   return (
     <>
       <script
@@ -74,7 +76,7 @@ async function CliDetailContent({ params }: { params: Promise<{ slug: string }> 
           ),
         }}
       />
-      <AgentDetailView agent={agent} backHref="/cli" />
+      <AgentDetailView agent={agent} backHref="/cli" scan={securityScan} />
     </>
   );
 }

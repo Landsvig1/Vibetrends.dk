@@ -1,4 +1,4 @@
-import { getAgentBySlug } from "@/lib/db";
+import { getAgentBySlug, getLatestSecurityScan } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { entityMetadata } from "@/lib/seo";
 import { jsonLdScript, softwareAppJsonLd, breadcrumbJsonLd } from "@/lib/jsonLd";
@@ -57,6 +57,8 @@ async function McpDetailContent({ params }: { params: Promise<{ slug: string }> 
     notFound();
   }
 
+  const securityScan = await getLatestSecurityScan('agent', slug);
+
   return (
     <>
       <script
@@ -83,7 +85,7 @@ async function McpDetailContent({ params }: { params: Promise<{ slug: string }> 
           ),
         }}
       />
-      <AgentDetailView agent={agent} backHref="/mcp" />
+      <AgentDetailView agent={agent} backHref="/mcp" scan={securityScan} />
     </>
   );
 }
