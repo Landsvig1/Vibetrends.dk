@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  urls:
+  submission-urls:
     runs-on: ubuntu-latest
     permissions:
       contents: read
