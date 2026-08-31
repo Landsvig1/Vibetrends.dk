@@ -1,0 +1,64 @@
+name: Submission URLs
+
+# Fails a submission PR whose manifest points at a URL that does not resolve.
+#
+# WHY THIS IS MACHINERY AND NOT A REVIEW GUIDELINE. On 2026-08-30 three entries
+# with fabricated source URLs were merged into the public catalog in a 12-second
+# scripted batch (PRs #152, #160, #161). The reviewing routine already had
+# "source URL must actually resolve, fetch it every time" as a written reject
+# criterion. It never ran, because an earlier fast path in the same routine
+# short-circuited to a merge before the criteria were reached. A check that
+# depends on a reviewer reaching it is a check that can be skipped; this one
+# cannot be, whoever or whatever is doing the merging.
+#
+# NO paths: filter, deliberately. This job is meant to be a required status
+# check on main, and a required check that is skipped by a paths filter leaves
+# the PR permanently pending rather than passing. So it runs on every PR and
+# exits early and green when the diff touches no manifests.
+
+on:
+  pull_request:
+
+# A PR that gets pushed twice does not need the first run's network probes.
+concurrency:
+  group: submission-urls-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  urls:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the base commit to diff against; a shallow clone has neither.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Collect submission manifests changed by this PR
+        id: changed
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+
+          # ACMR, not the default: a manifest DELETED by a PR has no URLs left
+          # to verify, and failing on it would block a legitimate revert.
+          git diff --name-only --diff-filter=ACMR "$base" "$head" -- 'submissions/**/*.md' > /tmp/changed.txt || true
+
+          count=$(wc -l < /tmp/changed.txt | tr -d ' ')
+          echo "Changed submission manifests: $count"
+          cat /tmp/changed.txt
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Verify every source URL resolves
+        if: steps.changed.outputs.count != '0'
+        run: xargs -a /tmp/changed.txt node scripts/check-submission-urls.mjs
+
+      - name: Nothing to verify
+        if: steps.changed.outputs.count == '0'
+        run: echo "This PR changes no submission manifests — nothing to verify."
