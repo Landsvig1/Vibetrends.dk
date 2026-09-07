@@ -17,6 +17,17 @@ name: Submission review
 # of every accepted entry with a reviewer and a timestamp is that claim made
 # auditable. Rejected submissions leave no file.
 #
+# TOKEN: opened with SUBMISSION_PR_TOKEN (a PAT), NOT the default GITHUB_TOKEN.
+# This is load-bearing for review, not a preference. GitHub deliberately does not
+# trigger `pull_request` workflows on events authored by GITHUB_TOKEN, so a PR
+# opened with it gets no `quality`, no `e2e`, and no `Submission URLs` run — it
+# sits permanently BLOCKED against branch protection with zero checks ever
+# reporting. That is what made merging these PRs require `gh pr merge --admin`,
+# and an --admin merge is a merge with every check bypassed. Three entries with
+# fabricated source URLs reached the public catalog that way on 2026-08-30 (PRs
+# #152, #160, #161). With a PAT the checks actually run, so the URL validator can
+# block the merge on its own and no bypass is needed anywhere.
+#
 # NOTIFICATION: opening the PR *is* the alert. GitHub already emails and pushes
 # on pull_request opened, which is why this runs on a short interval instead of
 # the app firing a webhook — that would put a GitHub token in the Vercel
@@ -44,7 +55,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.SUBMISSION_PR_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Bounds the burst case. An agent that hits its hourly ceiling could queue
       # 20 submissions; opening 20 PRs in one tick would bury everything else in
@@ -52,7 +63,13 @@ jobs:
       # dropped, and the count is logged below so the backlog is never silent.
       MAX_PRS_PER_RUN: 5
     steps:
+      # persist-credentials with the PAT: `git push` below must authenticate as
+      # the PAT too. If the branch is pushed by GITHUB_TOKEN and only `gh pr
+      # create` uses the PAT, the resulting pull_request event is still
+      # attributed to the bot and the checks stay suppressed.
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMISSION_PR_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -63,6 +80,17 @@ jobs:
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "::error::DATABASE_URL secret is not set — add it in repo Settings > Secrets."
+            exit 1
+          fi
+
+      # Fails closed on purpose. Falling back to GITHUB_TOKEN here would keep the
+      # pipeline running while silently producing PRs that no check can ever run
+      # on — which is exactly the failure being fixed, restored invisibly. A
+      # stopped queue is loud and recoverable; an unverifiable queue is neither.
+      - name: Check SUBMISSION_PR_TOKEN is configured
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SUBMISSION_PR_TOKEN is not set. Submission PRs must be opened with a PAT so that quality/e2e/Submission URLs actually run on them; GITHUB_TOKEN-authored PRs get no checks at all. Add a fine-grained PAT with Contents: read+write and Pull requests: read+write on this repo, as the SUBMISSION_PR_TOKEN secret."
             exit 1
           fi
 
@@ -87,8 +115,11 @@ jobs:
           echo "Pending submissions: $total"
           if [ "$total" -eq 0 ]; then exit 0; fi
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Not github-actions[bot] any more: these commits are pushed with a
+          # personal token, and attributing them to the Actions bot would make
+          # the curation ledger name an actor that did not make the commit.
+          git config user.name  "vibetrends submission bot"
+          git config user.email "submissions@vibetrends.dk"
 
           opened=0
           skipped=0
