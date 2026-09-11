@@ -68,5 +68,6 @@ describe('fetch-user-analytics error resilience', () => {
     } else {
       expect(result).toHaveProperty('summary');
     }
-  });
+    // Touches the network via the gcloud CLI; the 5s default flaked in CI.
+  }, 15000);
 });

@@ -67,3 +67,8 @@ next-env.d.ts
 
 # Scratch PR body written by scripts/scan-hot-skills.mjs; never committed.
 rankings/skills-hot/.pr-body.md
+
+# Machine-local symlink into Kasper's global skills dir; the path is absolute
+# and resolves nowhere else. The other .agents/skills/* entries are real
+# tracked files, so this is ignored by name rather than ignoring the dir.
+.agents/skills/vibe-analytics
