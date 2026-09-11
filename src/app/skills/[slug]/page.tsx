@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, User, Sparkles } from "lucide-react";
-import { getSkillBySlug, getCollectionSize } from "@/lib/db";
+import { getSkillBySlug, getCollectionSize, getLatestSecurityScan } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { jsonLdScript, breadcrumbJsonLd } from "@/lib/jsonLd";
 import { entityMetadata } from "@/lib/seo";
 import { Suspense } from "react";
 import ConnectBlock from "@/app/components/ConnectBlock";
 import ShareButton from "@/app/components/ShareButton";
+import { SecurityAuditBox } from "@/app/components/SecurityAuditBox";
 import SkillDocSection from "./SkillDocSection";
 
 const GithubIcon = ({ className }: { className?: string }) => (
@@ -105,6 +106,7 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
     ? await getCollectionSize(skill.collectionSlug)
     : 0;
   const showCollection = Boolean(skill.collectionTitle) && collectionSize > 1;
+  const securityScan = await getLatestSecurityScan('skill', slug);
 
   return (
     <div className="space-y-10">
@@ -279,6 +281,9 @@ export async function SkillDetailContent({ params }: { params: Promise<{ slug: s
               )}
             </div>
           </div>
+
+          {/* Security Audit Telemetry */}
+          <SecurityAuditBox scan={securityScan} />
 
           {/* Renders nothing when the skill has no stored SKILL.md/README.md. */}
           <SkillDocSection id={skill.id} />

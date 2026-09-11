@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft, Heart, Cpu, Terminal, User, Sparkles, Globe, ShieldCheck } from "lucide-react";
-import { Agent } from "@/lib/db";
+import { Agent, SecurityScan } from "@/lib/db";
 import AgentActionSection from "./AgentActionSection";
 import ConnectBlock from "./ConnectBlock";
+import { SecurityAuditBox } from "./SecurityAuditBox";
 import { jsonLdScript } from "@/lib/jsonLd";
 import { deriveVibeInsights } from "@/lib/vibeInsights";
 
@@ -21,9 +22,11 @@ const INSIGHT_DOT_COLORS = [
 export default function AgentDetailView({
   agent,
   backHref,
+  scan,
 }: {
   agent: Agent;
   backHref: string;
+  scan?: SecurityScan | null;
 }) {
   const categoryIcons = {
     "CLI": <Terminal className="h-5 w-5" />,
@@ -35,6 +38,7 @@ export default function AgentDetailView({
   // category to its feed type so the connect recipe is host-appropriate.
   const feedType = agent.category === "MCP Server" ? "mcp-servers" : "cli";
   const insights = deriveVibeInsights(agent, "da");
+  const securityScan = scan ?? agent.securityScan;
 
   return (
     <div className="space-y-10">
@@ -131,6 +135,9 @@ export default function AgentDetailView({
                )}
             </div>
           </div>
+
+          {/* Security Audit Telemetry */}
+          <SecurityAuditBox scan={securityScan} />
 
           {/* System Prompt / Instructions Section */}
           {agent.systemPrompt && agent.systemPrompt.trim().length > 0 && (

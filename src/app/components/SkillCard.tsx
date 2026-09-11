@@ -6,6 +6,7 @@ import { Heart, Plug, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skill } from "@/lib/db";
 import { ListCard } from "./ListCard";
+import { SecurityBadge } from "./SecurityBadge";
 
 const GithubIcon = ({ className }: { className?: string }) => (
   <svg
@@ -57,9 +58,12 @@ function SkillCardComponent({
         <div className="space-y-4">
           <div className="flex justify-between items-start">
             <div className="space-y-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
-                {skill.categoryLabel}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-accent-light text-accent-primary border border-accent-primary/20 uppercase font-mono">
+                  {skill.categoryLabel}
+                </span>
+                <SecurityBadge scan={skill.securityScan} />
+              </div>
               <h3 className="text-lg font-bold text-foreground mt-1 leading-tight group-hover:text-accent-primary transition-colors">
                 {skill.title}
               </h3>

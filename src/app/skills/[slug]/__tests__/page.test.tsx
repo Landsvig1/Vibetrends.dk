@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock dependencies
 vi.mock("@/lib/db", () => ({
   getSkillBySlug: vi.fn(),
+  getCollectionSize: vi.fn().mockResolvedValue(0),
+  getLatestSecurityScan: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("next/navigation", () => ({

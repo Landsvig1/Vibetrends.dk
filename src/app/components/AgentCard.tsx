@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Agent } from "@/lib/db";
 import { ListCard } from "./ListCard";
+import { SecurityBadge } from "./SecurityBadge";
 
 interface AgentCardProps {
   agent: Agent;
@@ -76,6 +77,7 @@ function AgentCardComponent({
                   {categoryIcons[agent.category as keyof typeof categoryIcons]}
                   {agent.category}
                 </div>
+                <SecurityBadge scan={agent.securityScan} />
                 {canDelete && onDelete && (
                   <motion.button
                     whileHover={{ scale: 1.1 }}

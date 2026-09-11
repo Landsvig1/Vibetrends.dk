@@ -139,6 +139,8 @@ export interface Skill {
    */
   collectionSlug?: string;
   collectionTitle?: string;
+  /** Security scan metadata if available. */
+  securityScan?: SecurityScan | null;
 }
 
 export type SkillView = "danish" | "hot";
@@ -324,6 +326,8 @@ export interface Agent {
   denmarkSpecific: boolean;
   /** Canonical repo/site for the tool (like skills' githubUrl), when known. */
   sourceUrl?: string;
+  /** Security scan metadata if available. */
+  securityScan?: SecurityScan | null;
 }
 
 // Database row shapes (snake_case, bilingual columns)
@@ -2066,3 +2070,138 @@ export async function getFeedItems(opts: {
     publishedAt: createdAt ?? new Date(publishedAtMs).toISOString(),
   }));
 }
+
+export interface SecurityFinding {
+  category: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  title?: string;
+  description: string;
+  file?: string;
+  line?: number;
+  confidence?: string;
+}
+
+export interface SecurityScan {
+  id: string;
+  entityType: "skill" | "agent" | "vibe";
+  entityId?: string | null;
+  entitySlug: string;
+  scannerVersion: string;
+  riskScore: number;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  verdict: "SAFE" | "CAUTION" | "DO_NOT_INSTALL";
+  findingsCount: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+  cveCount: number;
+  rawReport?: {
+    issues?: SecurityFinding[];
+    summary?: string;
+    target?: string;
+  } | null;
+  scannedAt: string;
+}
+
+interface SecurityScanRow {
+  id: string;
+  entity_type: string;
+  entity_id: string | null;
+  entity_slug: string;
+  scanner_version: string;
+  risk_score: number | string;
+  severity: string;
+  verdict: string;
+  findings_count: Record<string, unknown> | null;
+  cve_count: number;
+  raw_report: { issues?: SecurityFinding[]; summary?: string; target?: string } | null;
+  scanned_at: string;
+}
+
+function mapSecurityScan(row: SecurityScanRow): SecurityScan {
+  const counts = (typeof row.findings_count === 'object' && row.findings_count !== null
+    ? row.findings_count
+    : { low: 0, medium: 0, high: 0, critical: 0 }) as Record<string, number>;
+
+  return {
+    id: row.id,
+    entityType: row.entity_type as SecurityScan["entityType"],
+    entityId: row.entity_id,
+    entitySlug: row.entity_slug,
+    scannerVersion: row.scanner_version,
+    riskScore: Number(row.risk_score),
+    severity: (row.severity as SecurityScan["severity"]) || 'LOW',
+    verdict: (row.verdict as SecurityScan["verdict"]) || 'SAFE',
+    findingsCount: {
+      low: Number(counts.low) || 0,
+      medium: Number(counts.medium) || 0,
+      high: Number(counts.high) || 0,
+      critical: Number(counts.critical) || 0,
+    },
+    cveCount: Number(row.cve_count) || 0,
+    rawReport: row.raw_report || null,
+    scannedAt: row.scanned_at,
+  };
+}
+
+export async function getLatestSecurityScan(
+  entityType: "skill" | "agent" | "vibe",
+  slug: string
+): Promise<SecurityScan | null> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`security-scan-${entityType}-${slug}`)
+
+  try {
+    const { data, error } = await supabasePublic
+      .from('security_scans')
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_slug', slug)
+      .order('scanned_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapSecurityScan(data as SecurityScanRow);
+  } catch {
+    // Fail open if table does not exist or network fails
+    return null;
+  }
+}
+
+export async function getSecurityScansBySlugs(
+  entityType: "skill" | "agent" | "vibe",
+  slugs: string[]
+): Promise<Map<string, SecurityScan>> {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`security-scans-${entityType}`)
+
+  const result = new Map<string, SecurityScan>();
+  if (slugs.length === 0) return result;
+
+  try {
+    const { data, error } = await supabasePublic
+      .from('security_scans')
+      .select('*')
+      .eq('entity_type', entityType)
+      .in('entity_slug', slugs)
+      .order('scanned_at', { ascending: false });
+
+    if (error || !data) return result;
+
+    for (const row of data as SecurityScanRow[]) {
+      if (!result.has(row.entity_slug)) {
+        result.set(row.entity_slug, mapSecurityScan(row));
+      }
+    }
+  } catch {
+    // Fail open
+  }
+
+  return result;
+}
+
