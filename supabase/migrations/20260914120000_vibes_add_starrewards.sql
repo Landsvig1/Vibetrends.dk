@@ -41,7 +41,7 @@ SELECT
   'StarRewards',
   'Martin Jeppesen',
   'Et simpelt, gaming-inspireret belønningssystem til familier. Som forælder opretter du aktiviteter, opgaver og belønninger, og barnet kan selv følge med, optjene points og vælge, hvad det vil spare op til. Det startede som et værktøj til udviklerens egen dreng, der har det svært, og er siden vokset, fordi det virkede: det har hjulpet med at bryde vaner, prøve nye ting og få hverdagens opgaver til at glide.',
-  'A simple, gaming-inspired reward system for families. Parents set up activities, chores and rewards; the child tracks their own progress, earns points and chooses what to save up for. Built for the maker''s own son, who finds everyday routines hard, and grown from there after it started working — breaking habits, trying new things and getting ordinary tasks done.',
+  'A simple, gaming-inspired reward system for families. Parents set up activities, chores and rewards; the child tracks their own progress, earns points and chooses what to save up for. Built for the maker''s own son, who finds everyday routines hard, and grown from there after it started working: breaking habits, trying new things and getting ordinary tasks done.',
   '{}',
   '{}',
   1,
