@@ -42,7 +42,16 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # GH_TOKEN drives `git push` and `gh pr create`, so it must be the PAT:
+      # GitHub does not trigger `pull_request` workflows on GITHUB_TOKEN-authored
+      # events, which left every weekly hot-ranking PR with its CI runs parked in
+      # `action_required` waiting on a manual approval click (#195, 2026-09-24).
+      # Same defect that was fixed for submission-review.yml in #177; this is the
+      # other workflow that opens PRs. The secret name is historical — it is the
+      # repo's "open a PR that can actually be checked" token, not submission-only.
+      GH_TOKEN: ${{ secrets.SUBMISSION_PR_TOKEN }}
+      # Stays the default token on purpose: scan-hot-skills.mjs only READS public
+      # repo metadata from the API, so it does not need the PAT's write scope.
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Lets the scan reach skills.sh through /api/internal/hot-sources, which
@@ -51,7 +60,12 @@ jobs:
       HOT_SCAN_SECRET: ${{ secrets.HOT_SCAN_SECRET }}
       SITE_URL: https://vibetrends.dk
     steps:
+      # The PAT must own the push too. If the branch is pushed by the default
+      # credential and only `gh pr create` uses the PAT, the pull_request event
+      # is still attributed to the bot and the checks stay suppressed.
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMISSION_PR_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -59,6 +73,16 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Fails closed, same as submission-review.yml. Falling back to
+      # GITHUB_TOKEN would keep opening PRs that no check can ever run on —
+      # which is the failure being fixed, restored silently.
+      - name: Check SUBMISSION_PR_TOKEN is configured
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SUBMISSION_PR_TOKEN is not set. Hot-ranking PRs must be opened with a PAT so quality/e2e actually run on them; GITHUB_TOKEN-authored PRs get their runs parked in action_required instead. Add the secret in repo Settings > Secrets."
+            exit 1
+          fi
 
       - name: Merge the sources
         id: scan
@@ -92,8 +116,11 @@ jobs:
             --description "A weekly Hot ranking awaiting review. Merge = publish, close = discard the week." \
             --force
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Not github-actions[bot]: these commits are pushed with a personal
+          # token, and naming the Actions bot would attribute them to an actor
+          # that did not make them.
+          git config user.name "vibetrends ranking bot"
+          git config user.email "rankings@vibetrends.dk"
           git checkout -b "$branch"
           git add "${{ steps.scan.outputs.manifest }}"
           git commit -m "chore: propose the hot ranking for ${week}"

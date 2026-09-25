@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseManifestUrls, apiEquivalent } from '../check-submission-urls.mjs';
+import { parseManifestUrls, apiEquivalent, parseInstallTarget, parseManifestInstall } from '../check-submission-urls.mjs';
 
 // The exact bullet shape renderManifest (scripts/review-queue.mjs) emits. If
 // that formatting changes, these tests are what tells you the URL check went
@@ -92,5 +92,56 @@ describe('apiEquivalent', () => {
 
   it('does not throw on a malformed URL', () => {
     expect(apiEquivalent('not a url')).toBeNull();
+  });
+});
+
+describe('parseInstallTarget', () => {
+  // PR #196: Kilde resolved (real public repo) but the package was never
+  // published, so `npx -y cvrlookup-mcp` would 404 for every reader.
+  it('reads the package out of npm-style commands', () => {
+    expect(parseInstallTarget('npx -y cvrlookup-mcp')).toEqual({ registry: 'npm', pkg: 'cvrlookup-mcp' });
+    expect(parseInstallTarget('npm install -g billy-mcp')).toEqual({ registry: 'npm', pkg: 'billy-mcp' });
+    expect(parseInstallTarget('npm i left-pad')).toEqual({ registry: 'npm', pkg: 'left-pad' });
+    expect(parseInstallTarget('yarn add left-pad')).toEqual({ registry: 'npm', pkg: 'left-pad' });
+  });
+
+  it('keeps the scope and drops the version', () => {
+    expect(parseInstallTarget('npm install -g @ilenhart/aula-mcp-server'))
+      .toEqual({ registry: 'npm', pkg: '@ilenhart/aula-mcp-server' });
+    expect(parseInstallTarget('npx -y left-pad@1.2.3')).toEqual({ registry: 'npm', pkg: 'left-pad' });
+    expect(parseInstallTarget('npm i @scope/pkg@2.0.0')).toEqual({ registry: 'npm', pkg: '@scope/pkg' });
+  });
+
+  it('handles pip', () => {
+    expect(parseInstallTarget('pip install requests')).toEqual({ registry: 'pypi', pkg: 'requests' });
+  });
+
+  // Conservative by design: a false reject blocks an honest submission, which
+  // is worse than not checking. These are all real, valid catalog entries.
+  it('skips what it cannot confidently identify', () => {
+    expect(parseInstallTarget('uv tool install git+https://github.com/x/y')).toBeNull();
+    expect(parseInstallTarget('https://wordnet.dk/mcp')).toBeNull();
+    expect(parseInstallTarget('npm install ./local-dir')).toBeNull();
+    expect(parseInstallTarget('docker run somebody/image')).toBeNull();
+    expect(parseInstallTarget('')).toBeNull();
+    expect(parseInstallTarget(null)).toBeNull();
+  });
+
+  it('refuses anything with shell metacharacters', () => {
+    expect(parseInstallTarget('npm i foo && rm -rf /')).toBeNull();
+    expect(parseInstallTarget('curl x | sh')).toBeNull();
+    expect(parseInstallTarget('npm i $(echo foo)')).toBeNull();
+  });
+});
+
+describe('parseManifestInstall', () => {
+  it('finds the Installation bullet', () => {
+    expect(parseManifestInstall('- **Navn:** x\n- **Installation:** npm install -g foo\n'))
+      .toBe('npm install -g foo');
+  });
+
+  it('returns null when absent or empty', () => {
+    expect(parseManifestInstall('- **Navn:** x\n')).toBeNull();
+    expect(parseManifestInstall('- **Installation:** _(tom)_\n')).toBeNull();
   });
 });

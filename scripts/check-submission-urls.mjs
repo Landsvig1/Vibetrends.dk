@@ -22,6 +22,9 @@
 // class of defect. Keep in sync with the TABLES field lists there.
 const URL_LABELS = new Set(['Kilde', 'GitHub', 'Demo', 'Billede']);
 
+// renderManifest's label for install_command on the `agents` table.
+const INSTALL_LABEL = 'Installation';
+
 // renderManifest emits `_(tom)_` for null/empty. A missing optional URL is not
 // a defect — a *wrong* one is.
 const EMPTY = '_(tom)_';
@@ -73,6 +76,86 @@ export function apiEquivalent(url) {
 }
 
 /** Pull `- **Label:** value` bullets out of a manifest body. */
+/**
+ * Install commands the manifest claims, reduced to a registry + package name we
+ * can verify actually exists.
+ *
+ * PR #196 (cvrlookup-mcp) is why this exists: its `Kilde` resolved (a real,
+ * public GitHub repo), so the URL check passed, but its install command was
+ * `npx -y cvrlookup-mcp` for a package that was never published — 404 on the
+ * registry. Anyone following the catalog entry would get an E404. A broken
+ * install is the same class of defect as a dead source link for a catalog whose
+ * pitch is curation.
+ *
+ * Deliberately conservative: anything not matched here returns null and is
+ * skipped rather than guessed at. A false reject blocks an honest submission,
+ * which is worse than not checking. `uv tool install git+https://...` and bare
+ * connector URLs (DanNet's https://wordnet.dk/mcp) are both real, valid entries
+ * in this catalog and both correctly fall through.
+ */
+export function parseInstallTarget(command) {
+  if (!command || typeof command !== 'string') return null;
+  const cmd = command.trim();
+
+  // Anything with a shell pipe, redirect, or chained command is out of scope —
+  // too many ways to be wrong about what it installs.
+  if (/[|;&><]|\$\(|`/.test(cmd)) return null;
+
+  const tokens = cmd.split(/\s+/);
+  if (tokens.length < 2) return null;
+
+  const isFlag = (t) => t.startsWith('-');
+  // A package spec, not a path, a URL, or a git ref.
+  const isPlainPackage = (t) =>
+    !!t &&
+    !isFlag(t) &&
+    !t.includes('://') &&
+    !t.startsWith('git+') &&
+    !t.startsWith('.') &&
+    !t.startsWith('/') &&
+    !t.includes('\\');
+
+  const [bin, ...rest] = tokens;
+  const args = rest.filter((t) => !isFlag(t));
+
+  if (bin === 'npm' || bin === 'pnpm' || bin === 'yarn') {
+    // npm install -g <pkg> / npm i <pkg> / yarn add <pkg>
+    const verb = args[0];
+    if (!['install', 'i', 'add'].includes(verb)) return null;
+    const pkg = args[1];
+    if (!isPlainPackage(pkg)) return null;
+    return { registry: 'npm', pkg: stripVersion(pkg) };
+  }
+
+  if (bin === 'npx' || bin === 'pnpx') {
+    const pkg = args[0];
+    if (!isPlainPackage(pkg)) return null;
+    return { registry: 'npm', pkg: stripVersion(pkg) };
+  }
+
+  if (bin === 'pip' || bin === 'pip3') {
+    if (args[0] !== 'install') return null;
+    const pkg = args[1];
+    if (!isPlainPackage(pkg)) return null;
+    return { registry: 'pypi', pkg: stripVersion(pkg) };
+  }
+
+  return null;
+}
+
+/** left-pad@1.2.3 -> left-pad; @scope/pkg@1.0.0 -> @scope/pkg */
+function stripVersion(pkg) {
+  const at = pkg.lastIndexOf('@');
+  return at > 0 ? pkg.slice(0, at) : pkg;
+}
+
+/** Where to ask whether a package exists. */
+function registryUrl({ registry, pkg }) {
+  if (registry === 'npm') return `https://registry.npmjs.org/${pkg}`;
+  if (registry === 'pypi') return `https://pypi.org/pypi/${pkg}/json`;
+  return null;
+}
+
 export function parseManifestUrls(markdown) {
   const found = [];
   for (const line of markdown.split('\n')) {
@@ -85,6 +168,20 @@ export function parseManifestUrls(markdown) {
     found.push({ label, url: value });
   }
   return found;
+}
+
+/** The manifest's `Installation` bullet, if it has one. */
+export function parseManifestInstall(markdown) {
+  for (const line of markdown.split('\n')) {
+    const m = /^- \*\*([^:*]+):\*\* (.+)$/.exec(line.trim());
+    if (!m) continue;
+    const [, label, rawValue] = m;
+    if (label !== INSTALL_LABEL) continue;
+    const value = rawValue.trim();
+    if (value === EMPTY || value === '') return null;
+    return value;
+  }
+  return null;
 }
 
 /**
@@ -204,14 +301,38 @@ async function main() {
         console.log(`::error file=${file}::${label} URL does not resolve: ${url} (${detail})`);
       }
     }
+
+    // The install command is a claim too: "run this and you get the tool".
+    const install = parseManifestInstall(body);
+    if (install) {
+      const target = parseInstallTarget(install);
+      if (!target) {
+        console.log(`  · install: ${install} — not a recognised registry command, skipped`);
+      } else {
+        const api = registryUrl(target);
+        const res = await rawProbe(api);
+        checked++;
+        if (res.ok) {
+          console.log(`  ✓ install: ${target.pkg} exists on ${target.registry}`);
+        } else if (res.status === 404) {
+          failures++;
+          console.log(`  ✗ install: ${install} — ${target.pkg} is not published on ${target.registry} (404)`);
+          console.log(`::error file=${file}::Install command refers to a package that does not exist: ${target.pkg} is not on ${target.registry}. Following this entry would fail.`);
+        } else {
+          warnings++;
+          console.log(`  ? install: ${target.pkg} — ${target.registry} unreachable (${res.detail})`);
+          console.log(`::warning file=${file}::Could not verify the install command automatically: ${res.detail}. Check it by hand before approving.`);
+        }
+      }
+    }
   }
 
-  console.log(`\nChecked ${checked} URL(s); ${failures} did not resolve, ${warnings} could not be verified.`);
+  console.log(`\nChecked ${checked} claim(s); ${failures} did not resolve, ${warnings} could not be verified.`);
   if (warnings > 0 && failures === 0) {
     console.log('::notice::Some URLs answered 403 (blocked, not proven dead). The check passes, but open them by hand before approving.');
   }
   if (failures > 0) {
-    console.log('::error::A submission manifest points at a URL that does not resolve. A catalog whose pitch is curation cannot carry fabricated source links — reject the submission, or correct the URL at the source row.');
+    console.log('::error::A submission manifest makes a claim that does not hold. A catalog whose pitch is curation cannot carry fabricated source links — reject the submission, or correct the URL at the source row.');
     return 1;
   }
   return 0;
