@@ -78,10 +78,6 @@ const nextConfig: NextConfig = {
     '/opengraph-image': ['./assets/fonts/*.ttf'],
     '/**/opengraph-image': ['./assets/fonts/*.ttf'],
   },
-  experimental: {
-    viewTransition: true,
-    instantNavigationDevToolsToggle: true,
-  },
   images: {
     remotePatterns: allowedImageHostnames.map((hostname) => ({
       protocol: "https" as const,
