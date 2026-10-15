@@ -203,32 +203,38 @@ function mcpRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: La
     };
   }
 
-  // Cursor and Gemini CLI both consume an mcpServers JSON map.
+  // Cursor and Gemini CLI both consume an mcpServers JSON map. They spawn
+  // `command` directly (no shell), so the program and its arguments must be
+  // split, and `~` is not expanded.
   const configFile = host === "cursor" ? "~/.cursor/mcp.json" : "~/.gemini/settings.json";
+  const [program, ...args] = command.split(/\s+/);
   const configSnippet = JSON.stringify(
     {
       mcpServers: {
-        [key]: {
-          command,
-        },
+        [key]: args.length ? { command: program, args } : { command: program },
       },
     },
     null,
     2,
   );
-  return {
-    host,
-    hostName,
-    configSnippet,
-    steps: [
+  const steps = [
+    pick(
+      lang,
+      `Tilføj denne post til ${configFile} under "mcpServers".`,
+      `Add this entry to ${configFile} under "mcpServers".`,
+    ),
+  ];
+  if (/(^|\s)~/.test(command)) {
+    steps.push(
       pick(
         lang,
-        `Tilføj denne post til ${configFile} under "mcpServers".`,
-        `Add this entry to ${configFile} under "mcpServers".`,
+        `Erstat ~ med den absolutte sti til din hjemmemappe; ${hostName} udvider den ikke.`,
+        `Replace ~ with the absolute path to your home directory; ${hostName} does not expand it.`,
       ),
-      pick(lang, `Genstart ${hostName} for at indlæse ${item.name}.`, `Restart ${hostName} to load ${item.name}.`),
-    ],
-  };
+    );
+  }
+  steps.push(pick(lang, `Genstart ${hostName} for at indlæse ${item.name}.`, `Restart ${hostName} to load ${item.name}.`));
+  return { host, hostName, configSnippet, steps };
 }
 
 function cliRecipe(item: ConnectItem, host: HostSlug, hostName: string, lang: Lang): ConnectRecipe {
