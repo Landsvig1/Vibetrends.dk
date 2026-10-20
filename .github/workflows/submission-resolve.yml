@@ -58,10 +58,14 @@ jobs:
 
       - run: npm ci
 
+      # Event fields reach the shell through env, never through ${{ }} inside
+      # run:, so a value is always data and never script text.
       - name: Collect the submission manifests this PR touched
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          gh pr view "${{ github.event.pull_request.number }}" \
+          gh pr view "$PR_NUMBER" \
             --json files --jq '.files[].path' \
             | grep -E '^submissions/[a-z_]+/.+\.md$' > /tmp/paths.txt || true
           echo "Manifest paths in this PR:"
@@ -80,8 +84,10 @@ jobs:
       # never get a second PR; deleted, the system self-heals on the next tick.
       - name: Delete the submission branch
         if: always()
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          branch="${{ github.event.pull_request.head.ref }}"
+          branch="$HEAD_REF"
           case "$branch" in
             submission/*) git push origin --delete "$branch" || true ;;
             *) echo "Not a submission branch ($branch) — leaving it alone." ;;
