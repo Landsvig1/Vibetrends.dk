@@ -9,6 +9,11 @@ import { FORUM_CATEGORY_KEYS } from "./forumCategories";
  * ensuring input validation parity across standard HTTP/REST and JSON-RPC.
  */
 
+// Every URL field goes through this. z.url() alone accepts any scheme
+// (javascript:, data:, ...), and these values are rendered as links and copied
+// into JSON-LD, MCP output and submission manifests.
+const httpUrl = (max: number) => z.url({ protocol: /^https?$/ }).max(max);
+
 export const skillSchema = z.object({
   title: z.string().min(1).max(100),
   category: z.enum(SKILL_CATEGORY_SLUGS),
@@ -21,11 +26,11 @@ export const skillSchema = z.object({
   descriptionDa: z.string().max(1000).optional().or(z.literal("")),
   // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
   tags: z.array(z.string().max(50)).max(10).optional(),
-  githubUrl: z.string().url().max(200),
+  githubUrl: httpUrl(200),
   // Attribution for bot-imported skills (e.g. the source repo URL). Optional —
   // human submissions via the web form don't set this. Mirrors githubUrl's
   // sibling fields (demoUrl/imageUrl) in accepting "" as "not provided".
-  source: z.string().url().max(300).optional().or(z.literal("")),
+  source: httpUrl(300).optional().or(z.literal("")),
 });
 
 export const projectSchema = z.object({
@@ -39,13 +44,13 @@ export const projectSchema = z.object({
   // Max 20 prompts, and each individual prompt string is limited to 2000 characters to prevent DoS.
   prompts: z.array(z.string().max(2000)).max(20).optional(),
   // demoUrl is optional in both REST and MCP tool schemas.
-  demoUrl: z.string().url().max(200).optional().or(z.literal("")),
-  githubUrl: z.string().url().max(200).optional(),
+  demoUrl: httpUrl(200).optional().or(z.literal("")),
+  githubUrl: httpUrl(200).optional(),
   // Restricted to the same hosts next.config.ts's remotePatterns/CSP allow —
-  // an imageUrl that passes .url() but isn't on that allowlist would pass
+  // an imageUrl that passes httpUrl but isn't on that allowlist would pass
   // validation here and then throw at render time for every visitor viewing
   // the card (next/image rejects unconfigured hostnames).
-  imageUrl: z.string().url().max(300).refine(isAllowedImageUrl, {
+  imageUrl: httpUrl(300).refine(isAllowedImageUrl, {
     message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
   }).optional().or(z.literal("")),
 });
@@ -75,7 +80,7 @@ export const agentSchema = z.object({
   // Max 10 tags, and each individual tag string is limited to 50 characters to mitigate DoS/bloat.
   tags: z.array(z.string().max(50)).max(10).optional(),
   // Canonical repo/site for the tool (rendered as an outbound link).
-  sourceUrl: z.string().url().max(300).optional().or(z.literal("")),
+  sourceUrl: httpUrl(300).optional().or(z.literal("")),
 });
 
 export const threadSchema = z.object({
@@ -92,7 +97,7 @@ export const blogPostSchema = z.object({
   // request body — mirrors how createProject/createSkill work.
   readTime: z.string().min(1).max(50),
   publishedAt: z.string().min(1).max(50),
-  imageUrl: z.string().url().max(500).refine(isAllowedImageUrl, {
+  imageUrl: httpUrl(500).refine(isAllowedImageUrl, {
     message: "imageUrl host is not allowed (must match next.config.ts's image remotePatterns)",
   }),
   category: z.enum(BLOG_CATEGORIES),
