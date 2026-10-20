@@ -1,12 +1,21 @@
-// Client-side admin identity — mirrors public.is_admin()
-// (supabase/migrations/20260706000000_admin_multi_upvote.sql). Used only to
-// decide whether to show admin-only UI; the server re-checks via RLS on every
-// mutation, so this is a display convenience, not a security boundary. If the
-// admin's email or GitHub handle ever changes, update both this file and the
-// SQL function — there's no single source of truth across the two languages.
+// Client-side admin identity, mirrors public.is_admin()
+// (supabase/migrations/20261020100000_is_admin_server_identity.sql). Used only
+// to decide whether to show admin-only UI; the server re-checks via RLS on
+// every mutation, so this is a display convenience, not a security boundary.
+// Admins are keyed by auth.users.id, which Supabase Auth assigns and the user
+// cannot change. Never key on user_metadata (client-writable) or email. If the
+// admin list changes, update both this file and the SQL function; there's no
+// single source of truth across the two languages.
+export const ADMIN_USER_IDS: readonly string[] = [
+  "6d158da1-84e7-4c3a-8687-89167b16ceae", // kasper@landsvig.com
+];
+// Review-gate trust only (isTrustedBotEmail below), not the admin check.
 export const ADMIN_EMAIL = "kasper@landsvig.com";
-export const ADMIN_GITHUB_USERNAME = "landsvig1";
 export const BOT_ACCOUNT_EMAIL = "vibes-bot@vibetrends.dk";
+
+export function isAdminUser(user: { id: string } | null | undefined): boolean {
+  return !!user && ADMIN_USER_IDS.includes(user.id);
+}
 
 /**
  * Check if an email matches the trusted curator bot or admin account.
