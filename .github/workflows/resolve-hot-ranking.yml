@@ -60,10 +60,14 @@ jobs:
 
       - run: npm ci
 
+      # Event fields reach the shell through env, never through ${{ }} inside
+      # run:, so a value is always data and never script text.
       - name: Collect the ranking manifests this PR touched
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          gh pr view "${{ github.event.pull_request.number }}" \
+          gh pr view "$PR_NUMBER" \
             --json files --jq '.files[].path' \
             | grep -E '^rankings/skills-hot/[0-9]{4}-W[0-9]{2}\.md$' > /tmp/paths.txt || true
           echo "Manifest paths in this PR:"
@@ -94,8 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Delete the ranking branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          branch="${{ github.event.pull_request.head.ref }}"
+          branch="$HEAD_REF"
           case "$branch" in
             hot-ranking/*) git push origin --delete "$branch" || true ;;
             *) echo "Not a ranking branch ($branch) — leaving it alone." ;;
