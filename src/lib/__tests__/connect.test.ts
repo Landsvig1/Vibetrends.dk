@@ -22,7 +22,10 @@ describe("buildConnectRecipe", () => {
     const cursor = buildConnectRecipe("mcp-servers", item, "cursor");
     expect(cursor.configSnippet).toBeTruthy();
     expect(cursor.configSnippet).toContain("mcpServers");
-    expect(cursor.configSnippet).toContain("npx -y @mcp/postgres");
+    expect(JSON.parse(cursor.configSnippet!).mcpServers["postgres-mcp"]).toEqual({
+      command: "npx",
+      args: ["-y", "@mcp/postgres"],
+    });
     expect(cursor.command).toBeUndefined();
   });
 
@@ -61,6 +64,25 @@ describe("buildConnectRecipe", () => {
 
     const cursorStdio = buildConnectRecipe("mcp-servers", stdioItem, "cursor");
     expect(cursorStdio.configSnippet).toContain('"command": "./nordic-registry-mcp-server"');
+  });
+
+  it("splits stdio args for JSON hosts and flags ~ paths they will not expand", () => {
+    const item = {
+      name: "nemlig-mcp",
+      installCommand: "claude mcp add nemlig -- uv --directory ~/code/nemlig-mcp run nemlig-mcp",
+    };
+    const claude = buildConnectRecipe("mcp-servers", item, "claude-code");
+    expect(claude.command).toBe("claude mcp add nemlig -- uv --directory ~/code/nemlig-mcp run nemlig-mcp");
+
+    const gemini = buildConnectRecipe("mcp-servers", item, "gemini-cli", "en");
+    expect(JSON.parse(gemini.configSnippet!).mcpServers.nemlig).toEqual({
+      command: "uv",
+      args: ["--directory", "~/code/nemlig-mcp", "run", "nemlig-mcp"],
+    });
+    expect(gemini.steps.some((s) => s.includes("absolute path"))).toBe(true);
+
+    const npx = buildConnectRecipe("mcp-servers", { name: "x", installCommand: "npx -y x-mcp" }, "cursor", "en");
+    expect(npx.steps.some((s) => s.includes("absolute path"))).toBe(false);
   });
 
   it("wraps a CLI's install command for the chosen host", () => {
