@@ -9,6 +9,12 @@ import path from 'path';
 import { fetchAllUserAnalytics } from './fetch-user-analytics.mjs';
 import { renderDashboardHtml } from './lib/renderDashboardHtml.mjs';
 
+// null means the previous period was unavailable (Vercel Hobby: 31 days).
+function fmtDelta(d) {
+  if (!d) return 'n/a';
+  return `${d.percent >= 0 ? '+' : ''}${d.percent}%`;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   let days = 30;
@@ -64,11 +70,20 @@ async function main() {
   console.log(`\n======================================================`);
   console.log(`  VibeTrends.dk Analytics — Resume (${days} dage)`);
   console.log(`======================================================`);
-  console.log(`  Besøgende:       ${v.visitors || 0} (${v.visitorsDelta?.percent >= 0 ? '+' : ''}${v.visitorsDelta?.percent || 0}%)`);
-  console.log(`  Sidevisninger:   ${v.pageviews || 0} (${v.pageviewsDelta?.percent >= 0 ? '+' : ''}${v.pageviewsDelta?.percent || 0}%)`);
-  console.log(`  Google Søge-Klik:${g.clicks || 0} (${g.clicksDelta?.percent >= 0 ? '+' : ''}${g.clicksDelta?.percent || 0}%)`);
-  console.log(`  Google Visninger:${g.impressions || 0} (${g.impressionsDelta?.percent >= 0 ? '+' : ''}${g.impressionsDelta?.percent || 0}%)`);
-  console.log(`  Nye Brugere:     ${u.current || 0} (Totalt: ${u.total || 0})`);
+  const users = u.byClass || {};
+  const f = data.supabase?.funnel || {};
+  console.log(`  Besøgende:       ${v.visitors || 0} (${fmtDelta(v.visitorsDelta)})`);
+  console.log(`  Sidevisninger:   ${v.pageviews || 0} (${fmtDelta(v.pageviewsDelta)})`);
+  console.log(`  Google Søge-Klik:${g.clicks || 0} (${fmtDelta(g.clicksDelta)})`);
+  console.log(`  Google Visninger:${g.impressions || 0} (${fmtDelta(g.impressionsDelta)})`);
+  console.log(`  Mennesker:       ${u.total || 0} eksterne (${u.current || 0} nye, ${u.returned || 0} vendt tilbage, aktive 7d/30d: ${u.active7d || 0}/${u.active30d || 0})`);
+  console.log(`    agenter ${users.agent?.total || 0} (${users.agent?.current || 0} nye), ejer ${users.owner?.total || 0}`);
+  if (!f.error && f.copySessions != null) {
+    console.log(`  Kopi-sessioner:  ${f.copySessions} (${fmtDelta(f.copySessionsDelta)}), ${f.siteCopyRate == null ? 'n/a' : `${f.siteCopyRate}%`} af besøgende`);
+    for (const r of (f.copyRateByPath || []).filter(r => r.copySessions > 0)) {
+      console.log(`    ${r.path}: ${r.copySessions}/${r.visitors} (${r.rate == null ? 'n/a' : `${r.rate}%`})`);
+    }
+  }
   console.log(`  Vækstmuligheder: ${opps.length} identificerede søgeord`);
 
   const s = data.seo;
