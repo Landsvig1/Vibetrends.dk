@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
 import { getAllowedImageHostnames } from "./src/lib/allowedImageHosts";
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -71,6 +72,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // Googlebot is not on Next's default HTML-limited list, so it was served the
+  // streamed variant of every dynamic detail page, and on those the <title>,
+  // description and canonical never reached its HTML at all, only the RSC
+  // payload. GSC reported /mcp/aula-mcp as having no user-selected canonical.
+  // Google-InspectionTool is on the default list, which is why URL
+  // Inspection's live test looked fine. Setting this replaces the default
+  // list, so extend it rather than write a new one.
+  htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|Googlebot`, HTML_LIMITED_BOT_UA_RE.flags),
   // The OG cards read Instrument Serif off disk (src/lib/ogImage.tsx). A
   // process.cwd() read is invisible to the build tracer, so the .ttf files have
   // to be pulled into the traced bundle explicitly or the cards 500 in prod.
