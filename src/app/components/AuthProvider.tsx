@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { isAdminUser } from "@/lib/permissions";
+import { deriveUsername } from "@/lib/username";
 
 export interface User {
   id: string;
@@ -24,8 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function mapSupabaseUser(u: SupabaseUser): User {
   const email = u.email || '';
-  const baseName = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_");
-  const username = u.user_metadata?.full_name || `${baseName}_vibe`;
+  const username = deriveUsername(u);
   
   let provider: "email" | "google" | "github" = "email";
   const rawProvider = u.app_metadata?.provider;

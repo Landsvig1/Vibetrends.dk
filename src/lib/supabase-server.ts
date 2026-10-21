@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { deriveUsername } from '@/lib/username';
 
 /** Supabase's client has no request timeout by default — a stalled TCP
  * connection (seen intermittently on CI runners) would otherwise hang the
@@ -60,14 +61,6 @@ export function getSupabaseServiceRole(): SupabaseClient {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return serviceRoleClient;
-}
-
-/** Shared by getAuthUser() and resolveBotRequestAuth() so the fallback-username
- * rule (sanitize local-part, suffix "_vibe") only lives in one place. */
-function deriveUsername(user: { email?: string | null; user_metadata?: Record<string, unknown> }): string {
-  const email = user.email || '';
-  const baseName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
-  return (user.user_metadata?.full_name as string | undefined) || `${baseName}_vibe`;
 }
 
 /**
