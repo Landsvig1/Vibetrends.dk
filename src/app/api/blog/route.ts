@@ -3,6 +3,8 @@ import { getBlogPosts, getBlogPostById, createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { reservedAuthorResponse } from "@/lib/reservedNames";
+import { contentWriteErrorResponse } from "@/lib/contentWriteErrors";
 import { validateHoneypot } from "@/lib/honeypot";
 import { blogPostSchema } from "@/lib/schemas";
 export { blogPostSchema };
@@ -34,6 +36,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { user, botAuth: actingAs } = identity;
+
+    const reserved = reservedAuthorResponse(user);
+    if (reserved) return reserved;
 
     if (actingAs) {
       const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
@@ -72,7 +77,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(post, { status: 201 });
-  } catch {
+  } catch (error) {
+    const refused = contentWriteErrorResponse(error);
+    if (refused) return refused;
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 }

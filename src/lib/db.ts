@@ -42,6 +42,7 @@ async function resolveActor(actingAs?: ActingAs): Promise<{ supabase: SupabaseCl
 }
 
 import { visibleOnly, reviewStateForWrite } from "./reviewGate";
+import { contentWriteErrorFrom } from "./contentWriteErrors";
 import { skillCategoryLabel, type SkillCategorySlug } from "./skillCategories";
 import { type ForumCategoryKey } from "./forumCategories";
 import { slugify, RESERVED_SLUGS } from "./slug";
@@ -1323,7 +1324,7 @@ export async function createThread(title: string, author: string, category: Foru
 
   if (error || !data) {
     console.error('Failed to create thread:', error);
-    throw new Error('Kunne ikke oprette tråd');
+    throw contentWriteErrorFrom(error) ?? new Error('Kunne ikke oprette tråd');
   }
 
   if (reviewState === 'approved') {
@@ -1355,6 +1356,8 @@ export async function addReply(threadId: string, author: string, content: string
 
   if (error) {
     console.error('Failed to create reply:', error);
+    const refused = contentWriteErrorFrom(error);
+    if (refused) throw refused;
     return null;
   }
 
@@ -1568,7 +1571,7 @@ export async function createProject(title: string, author: string, description: 
 
   if (error || !data) {
     console.error('Failed to create project:', error);
-    throw new Error('Kunne ikke oprette projekt');
+    throw contentWriteErrorFrom(error) ?? new Error('Kunne ikke oprette projekt');
   }
 
   // Keyed on the written state, not on `actingAs` — see createSkill.
@@ -1610,7 +1613,7 @@ export async function createSkill(title: string, vibeCoder: string, description:
 
   if (error || !data) {
     console.error('Failed to create skill:', error);
-    throw new Error('Kunne ikke oprette skill');
+    throw contentWriteErrorFrom(error) ?? new Error('Kunne ikke oprette skill');
   }
 
   // Keyed on the written state, NOT on `actingAs`. A pending row is invisible
@@ -1707,7 +1710,7 @@ export async function createAgent(name: string, developer: string, category: Age
 
   if (error || !data) {
     console.error('Failed to create agent:', error);
-    throw new Error('Kunne ikke oprette agent');
+    throw contentWriteErrorFrom(error) ?? new Error('Kunne ikke oprette agent');
   }
 
   // Keyed on the written state, not on `actingAs` — see createSkill.
@@ -1751,7 +1754,7 @@ export async function createBlogPost(
 
   if (error || !data) {
     console.error('Failed to create blog post:', error);
-    throw new Error('Kunne ikke oprette blogindlæg');
+    throw contentWriteErrorFrom(error) ?? new Error('Kunne ikke oprette blogindlæg');
   }
 
   // Both tags are skipped for a pending post, and HUB_EMPTINESS_TAG especially:

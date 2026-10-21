@@ -54,6 +54,7 @@ import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { checkRateLimit, resolveAgentWriteLimit } from "@/lib/rate-limit";
+import { ContentWriteError } from "@/lib/contentWriteErrors";
 
 const MOCK_IDENTITY = {
   user: { id: "user-1", username: "agent_abc123" },
@@ -647,5 +648,49 @@ describe("POST /api/mcp — rate limiting", () => {
     expect(res.status).toBe(429);
     const body = await res.json();
     expect(body.error).toBe("Too many requests");
+  });
+});
+
+describe("reserved authors and DB write refusals", () => {
+  const threadCall = (id: number) =>
+    rpc({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: {
+        name: "create_forum_thread",
+        arguments: { title: "Discussion Title", category: "General", content: "This is a meaningful question or discussion prompt." },
+      },
+    });
+
+  it("refuses an authored write under a reserved name with INVALID_PARAMS before calling the DB", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+      user: { id: "u-res", username: "Admin ", email: "x@example.com" },
+    } as never);
+    const body = await (await POST(threadCall(90))).json();
+    expect(body.error).toEqual({ code: -32602, message: "This author name is reserved" });
+    expect(db.createThread).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the reserved check to upvotes", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({ user: { id: "u-res", username: "admin" } } as never);
+    const body = await (
+      await POST(rpc({ jsonrpc: "2.0", id: 91, method: "tools/call", params: { name: "upvote_skill", arguments: { skillId: "s1" } } }))
+    ).json();
+    expect(body.error).toBeUndefined();
+  });
+
+  it("maps a DB reserved_author refusal to INVALID_PARAMS", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.createThread).mockRejectedValueOnce(new ContentWriteError("reserved_author"));
+    const body = await (await POST(threadCall(92))).json();
+    expect(body.error.code).toBe(-32602);
+  });
+
+  it("maps a DB rate_limited refusal to the rate-limited error", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
+    vi.mocked(db.createThread).mockRejectedValueOnce(new ContentWriteError("rate_limited"));
+    const body = await (await POST(threadCall(93))).json();
+    expect(body.error.code).toBe(-32003);
   });
 });

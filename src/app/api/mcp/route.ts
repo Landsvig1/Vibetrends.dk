@@ -24,6 +24,8 @@ import {
 import { resolveRequestIdentity, supabasePublic } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { resolveAgentWriteLimit, checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
+import { isReservedAuthor, mayUseReservedAuthor, RESERVED_AUTHOR_MESSAGE } from "@/lib/reservedNames";
+import { ContentWriteError } from "@/lib/contentWriteErrors";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
 import { FEED_TYPES } from "@/lib/feedTypes";
 import { BLOG_CATEGORIES } from "@/lib/blogCategories";
@@ -370,6 +372,17 @@ const WRITE_TOOLS = new Set([
   "submit_agent",
   "submit_blog_post",
 ]);
+
+// Write tools that publish a row under the caller's username.
+const AUTHORED_WRITE_TOOLS = new Set([
+  "create_forum_thread",
+  "reply_to_thread",
+  "submit_skill",
+  "submit_project",
+  "submit_agent",
+  "submit_blog_post",
+]);
+
 
 // JSON-RPC 2.0 error codes
 const PARSE_ERROR = -32700;
@@ -753,6 +766,10 @@ export async function POST(request: Request) {
         actingAs = identity.botAuth;
         username = identity.user.username;
 
+        if (AUTHORED_WRITE_TOOLS.has(name) && isReservedAuthor(username) && !mayUseReservedAuthor(identity.user)) {
+          return rpcError(id, INVALID_PARAMS, RESERVED_AUTHOR_MESSAGE);
+        }
+
         if (actingAs) {
           const outcome = await resolveAgentWriteLimit(actingAs.user.id);
           if (outcome === "service_unavailable") {
@@ -781,7 +798,12 @@ export async function POST(request: Request) {
     }
 
     return rpcError(id, METHOD_NOT_FOUND, `Method not found: ${method ?? "(none)"}`);
-  } catch {
+  } catch (error) {
+    if (error instanceof ContentWriteError) {
+      return error.kind === "reserved_author"
+        ? rpcError(id, INVALID_PARAMS, RESERVED_AUTHOR_MESSAGE)
+        : rpcError(id, RATE_LIMITED_ERROR, "Write rate limit exceeded");
+    }
     return rpcError(id, INTERNAL_ERROR, "Internal error");
   }
 }

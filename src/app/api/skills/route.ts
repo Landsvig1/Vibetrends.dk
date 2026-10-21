@@ -4,6 +4,8 @@ import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { reservedAuthorResponse } from "@/lib/reservedNames";
+import { contentWriteErrorResponse } from "@/lib/contentWriteErrors";
 import { skillSchema } from "@/lib/schemas";
 export { skillSchema };
 
@@ -34,6 +36,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { user, botAuth: actingAs } = identity;
+
+    const reserved = reservedAuthorResponse(user);
+    if (reserved) return reserved;
 
     if (actingAs) {
       const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
@@ -73,6 +78,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(newSkill, { status: 201 });
   } catch (error) {
+    const refused = contentWriteErrorResponse(error);
+    if (refused) return refused;
     console.error('Failed to create skill API:', error);
     return NextResponse.json({ error: "Invalid JSON payload or creation failed" }, { status: 400 });
   }
