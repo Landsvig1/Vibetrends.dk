@@ -17,6 +17,22 @@ const GOOGLEBOT_UAS = [
   "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/141.0.0.0 Safari/537.36",
 ];
 
+/**
+ * Next hands Vercel only `.source`, as the user-agent `has` value that decides
+ * whether a request bypasses the PPR cache. The edge applies it as
+ * `^<value>$` with no group around the alternation, case-insensitively
+ * (probed on prod: bare "Googlebot" and "x Googlebot" bypassed, the real
+ * Googlebot UA and "Googlebot x" were served the cached shell, "x a-Google"
+ * missed while "a-Google x" bypassed). Next's own renderer instead compiles the
+ * same string unanchored with `i`. The value has to work under both.
+ */
+function edgeMatches(source: string, ua: string): boolean {
+  return new RegExp(`^${source}$`, "i").test(ua);
+}
+function runtimeMatches(source: string, ua: string): boolean {
+  return new RegExp(source, "i").test(ua);
+}
+
 describe("htmlLimitedBots", () => {
   const re = nextConfig.htmlLimitedBots;
 
@@ -35,9 +51,20 @@ describe("htmlLimitedBots", () => {
     }
   });
 
+  it.each([...GOOGLEBOT_UAS, "Mozilla/5.0 (compatible; Mediapartners-Google/2.1)", "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"])(
+    "bypasses the Vercel cache and renders blocking under both compiles: %s",
+    (ua) => {
+      expect(edgeMatches(re!.source, ua)).toBe(true);
+      expect(runtimeMatches(re!.source, ua)).toBe(true);
+    },
+  );
+
   it("still streams metadata to ordinary browsers", () => {
     expect(
       re!.test("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
     ).toBe(false);
+    const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+    expect(edgeMatches(re!.source, chrome)).toBe(false);
+    expect(runtimeMatches(re!.source, chrome)).toBe(false);
   });
 });

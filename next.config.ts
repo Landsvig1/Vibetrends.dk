@@ -79,7 +79,13 @@ const nextConfig: NextConfig = {
   // Google-InspectionTool is on the default list, which is why URL
   // Inspection's live test looked fine. Setting this replaces the default
   // list, so extend it rather than write a new one.
-  htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|Googlebot`, HTML_LIMITED_BOT_UA_RE.flags),
+  // Only `.source` reaches Vercel, which matches it as `^<source>$` with no
+  // group around the alternation, so a bare `A|B|Googlebot` anchors its first
+  // and last branches and Googlebot only bypassed the PPR cache when the UA
+  // ended in "Googlebot" (#222 shipped that way). The `.*(?:...).*` wrapper is
+  // a contains-match under that anchoring and under Next's own unanchored
+  // compile alike.
+  htmlLimitedBots: new RegExp(`.*(?:${HTML_LIMITED_BOT_UA_RE.source}|Googlebot).*`, HTML_LIMITED_BOT_UA_RE.flags),
   // The OG cards read Instrument Serif off disk (src/lib/ogImage.tsx). A
   // process.cwd() read is invisible to the build tracer, so the .ttf files have
   // to be pulled into the traced bundle explicitly or the cards 500 in prod.
