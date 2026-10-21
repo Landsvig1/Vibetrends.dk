@@ -9,6 +9,7 @@ export const RESERVED_AUTHOR_NAMES: ReadonlySet<string> = new Set([
   "kasper",
   "kasperlandsvig",
   "kasper_landsvig",
+  "kasper landsvig",
   "admin",
   "administrator",
   "moderator",

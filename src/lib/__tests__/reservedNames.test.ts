@@ -32,6 +32,7 @@ describe("isReservedAuthor", () => {
     expect(isReservedAuthor("Kasper ")).toBe(true);
     expect(isReservedAuthor("  LANDSVIG1")).toBe(true);
     expect(isReservedAuthor("Vibetrends Bot")).toBe(true);
+    expect(isReservedAuthor("Kasper Landsvig")).toBe(true);
     expect(isReservedAuthor("vibes-bot")).toBe(true);
   });
 
