@@ -75,7 +75,7 @@ begin
       '^[\s   -     　﻿]+|[\s   -     　﻿]+$',
       '', 'g'));
     if author_name = any (array[
-      'landsvig1', 'kasper', 'kasperlandsvig', 'kasper_landsvig',
+      'landsvig1', 'kasper', 'kasperlandsvig', 'kasper_landsvig', 'kasper landsvig',
       'admin', 'administrator', 'moderator',
       'vibetrends', 'vibetrends_dk', 'vibes-bot', 'vibes_bot', 'system',
       'vibetrends bot' -- the curator bot's display name on existing rows
