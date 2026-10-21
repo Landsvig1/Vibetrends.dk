@@ -14,8 +14,13 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-function renderDeltaBadge(delta) {
-  if (!delta || delta.direction === 'flat') {
+// A null delta means the previous period could not be fetched. Showing 0% or
+// +100% there would be a made-up number.
+function renderDeltaBadge(delta, unavailable = 'n/a') {
+  if (!delta) {
+    return `<span class="badge badge-neutral">${unavailable}</span>`;
+  }
+  if (delta.direction === 'flat') {
     return `<span class="badge badge-neutral">0%</span>`;
   }
   const isUp = delta.direction === 'up';
@@ -46,10 +51,15 @@ export function renderDashboardHtml(analyticsData) {
   const gscImpressions = gsc.summary?.impressions || 0;
   const gscImpressionsDelta = gsc.summary?.impressionsDelta;
 
-  const totalUsers = supabase.users?.total || 0;
+  // users.* is humans only; agents and owners are in byClass.
   const currentSignups = supabase.users?.current || 0;
   const signupsDelta = supabase.users?.delta;
-  const typesSummary = supabase.users?.typesSummary || { humans: 0, agents: 0, curatorBots: 0 };
+  const emptyClass = { total: 0, current: 0, signedIn: 0, active7d: 0, active30d: 0, returned: 0 };
+  const byClass = supabase.users?.byClass || {};
+  const humans = { ...emptyClass, ...byClass.human };
+  const agents = { ...emptyClass, ...byClass.agent };
+  const owners = { ...emptyClass, ...byClass.owner };
+  const copyRates = funnel?.copyRateByPath || [];
 
   const topPages = vercel.topPages || [];
   const referrers = vercel.referrers || [];
@@ -431,14 +441,14 @@ export function renderDashboardHtml(analyticsData) {
         <div class="kpi-label">Unikke Besøgende (Vercel)</div>
         <div class="kpi-value-row">
           <div class="kpi-value">${visitors}</div>
-          ${renderDeltaBadge(visitorsDelta)}
+          ${renderDeltaBadge(visitorsDelta, 'n/a (Hobby: 31 dage)')}
         </div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Sidevisninger (Vercel)</div>
         <div class="kpi-value-row">
           <div class="kpi-value">${pageviews}</div>
-          ${renderDeltaBadge(pageviewsDelta)}
+          ${renderDeltaBadge(pageviewsDelta, 'n/a (Hobby: 31 dage)')}
         </div>
       </div>
       <div class="kpi-card">
@@ -456,7 +466,7 @@ export function renderDashboardHtml(analyticsData) {
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Nye Tilmeldinger (Supabase)</div>
+        <div class="kpi-label">Nye Menneskelige Brugere (Supabase)</div>
         <div class="kpi-value-row">
           <div class="kpi-value">${currentSignups}</div>
           ${renderDeltaBadge(signupsDelta)}
@@ -488,7 +498,8 @@ export function renderDashboardHtml(analyticsData) {
               <strong>📈 Stærk Søgevisningsvækst:</strong> Google Search Console registrerede 556 visninger (+755%) i de seneste 30 dage.
             </p>
             <p style="margin-bottom: 10px;">
-              <strong>👥 Brugere & Agenter:</strong> ${totalUsers} registrerede konti (${typesSummary.humans} mennesker, ${typesSummary.agents} AI-agenter, ${typesSummary.curatorBots} intern curator bot).
+              <strong>👥 Brugere:</strong> ${humans.total} eksterne mennesker, ${humans.returned} vendt tilbage efter dag ét, ${humans.active7d} aktive de seneste 7 dage.
+              <span style="color: var(--muted);">Derudover ${agents.total} anonyme agentkonti og ${owners.total} ejerkonti, som ikke tæller med.</span>
             </p>
             <p>
               <strong>💡 Næste Skridt:</strong> Optimer titler og meta descriptions på Side 1-nøgleord med 0% CTR (Boligsiden, Rejseplanen, Motion) for at konvertere visninger til klik.
@@ -527,19 +538,19 @@ export function renderDashboardHtml(analyticsData) {
     <div id="tab-user-types" class="tab-pane">
       <div class="grid-3">
         <div class="kpi-card" style="border-top: 3px solid #3730A3;">
-          <div class="kpi-label">🧑 Menneskelige Brugere</div>
-          <div class="kpi-value">${typesSummary.humans}</div>
-          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Google OAuth & Magic Link (f.eks. Relaite-skaber)</div>
+          <div class="kpi-label">🧑 Eksterne Mennesker</div>
+          <div class="kpi-value">${humans.total}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${humans.current} nye i perioden &bull; ${humans.signedIn} logget ind &bull; ${humans.returned} vendt tilbage &bull; aktive 7d/30d: ${humans.active7d}/${humans.active30d}</div>
         </div>
         <div class="kpi-card" style="border-top: 3px solid #D97706;">
           <div class="kpi-label">🤖 AI Coding Agenter</div>
-          <div class="kpi-value">${typesSummary.agents}</div>
-          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Anonyme API-sessioner (/api/agentauth)</div>
+          <div class="kpi-value" style="font-size: 22px;">${agents.total}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Anonyme API-sessioner (/api/agentauth) &bull; ${agents.current} nye i perioden</div>
         </div>
         <div class="kpi-card" style="border-top: 3px solid #6B21A8;">
-          <div class="kpi-label">⚙️ System Curator Bot</div>
-          <div class="kpi-value">${typesSummary.curatorBots}</div>
-          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">vibes-bot@vibetrends.dk (49 skills kurateret)</div>
+          <div class="kpi-label">⚙️ Ejerkonti</div>
+          <div class="kpi-value" style="font-size: 22px;">${owners.total}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Ejer, Hermes og curator bot (ANALYTICS_OWNER_USER_IDS)</div>
         </div>
       </div>
 
@@ -590,9 +601,9 @@ export function renderDashboardHtml(analyticsData) {
           <input type="text" id="userFilterInput" class="search-bar" placeholder="Søg i brugere, agenter, skills, upvotes..." onkeyup="filterUserTable()">
           <div class="filter-pills">
             <button class="filter-pill active" onclick="filterUserType('all', this)">Alle (${userProfiles.length})</button>
-            <button class="filter-pill" onclick="filterUserType('human', this)">Mennesker (${typesSummary.humans})</button>
-            <button class="filter-pill" onclick="filterUserType('agent', this)">Agenter (${typesSummary.agents})</button>
-            <button class="filter-pill" onclick="filterUserType('curator_bot', this)">System Bot (${typesSummary.curatorBots})</button>
+            <button class="filter-pill" onclick="filterUserType('human', this)">Mennesker (${humans.total})</button>
+            <button class="filter-pill" onclick="filterUserType('agent', this)">Agenter (${agents.total})</button>
+            <button class="filter-pill" onclick="filterUserType('owner', this)">Ejer (${owners.total})</button>
           </div>
         </div>
 
@@ -613,8 +624,8 @@ export function renderDashboardHtml(analyticsData) {
               ${userProfiles.map(u => {
                 const typeBadge = u.userType === 'human'
                   ? '<span class="badge badge-human">🧑 Menneske</span>'
-                  : u.userType === 'curator_bot'
-                  ? '<span class="badge badge-bot">⚙️ Curator Bot</span>'
+                  : u.userType === 'owner'
+                  ? '<span class="badge badge-bot">⚙️ Ejer</span>'
                   : '<span class="badge badge-agent">🤖 AI Agent</span>';
 
                 const contentBadge = (u.skillsCount + u.vibesCount + u.agentsCount) > 0
@@ -662,11 +673,11 @@ export function renderDashboardHtml(analyticsData) {
             <div class="kpi-card">
               <div class="kpi-label">Sessioner der kopierede</div>
               <div class="kpi-value-row"><div class="kpi-value">${funnel.copySessions}</div>${renderDeltaBadge(funnel.copySessionsDelta)}</div>
-              <div class="kpi-label">${visitors ? Math.round((funnel.copySessions / visitors) * 1000) / 10 : 0}% af besøgende</div>
+              <div class="kpi-label">${visitors ? `${Math.round((funnel.copySessions / visitors) * 1000) / 10}%` : 'n/a'} af besøgende (hele sitet)</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">Nye konti</div>
-              <div class="kpi-value-row"><div class="kpi-value">${supabase.users?.current || 0}</div></div>
+              <div class="kpi-label">Nye menneskelige konti</div>
+              <div class="kpi-value-row"><div class="kpi-value">${currentSignups}</div></div>
               <div class="kpi-label">i perioden</div>
             </div>
             <div class="kpi-card">
@@ -692,6 +703,24 @@ export function renderDashboardHtml(analyticsData) {
               </table>
             </div>
           ` : `<p style="font-size:12px;color:var(--muted);margin-top:10px;">Ingen kopieringshændelser registreret endnu. Hændelserne begynder at tikke ind, når ConnectBlock-ændringen er deployet.</p>`}
+          ${copyRates.length ? `
+            <div class="card-title" style="margin-top:20px;">Kopieringsrate per detaljeside</div>
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Sti</th><th>Besøgende</th><th>Sessioner der kopierede</th><th>Rate</th></tr></thead>
+                <tbody>
+                  ${copyRates.map(r => `
+                    <tr>
+                      <td><code>${escapeHtml(r.path)}</code></td>
+                      <td>${r.visitors}</td>
+                      <td>${r.copySessions}</td>
+                      <td>${r.rate == null ? 'n/a' : `${r.rate}%`}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
         `}
       </div>
 

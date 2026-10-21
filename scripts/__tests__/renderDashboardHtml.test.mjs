@@ -189,3 +189,54 @@ describe('renderDashboardHtml', () => {
     expect(html).toContain('<!DOCTYPE html>');
   });
 });
+
+describe('renderDashboardHtml honest measurement', () => {
+  it('shows n/a instead of a percentage when the Vercel previous period is unavailable', () => {
+    const html = renderDashboardHtml({
+      vercel: { totals: { visitors: 137, pageviews: 264, visitorsDelta: null, pageviewsDelta: null } },
+    });
+    expect(html).toContain('n/a (Hobby: 31 dage)');
+    expect(html).not.toContain('+100%');
+  });
+
+  it('headlines humans and lists agents and owners separately', () => {
+    const html = renderDashboardHtml({
+      supabase: {
+        users: {
+          total: 4, current: 1, delta: null,
+          byClass: {
+            human: { total: 4, current: 1, signedIn: 4, active7d: 0, active30d: 1, returned: 1 },
+            agent: { total: 58, current: 6 },
+            owner: { total: 3, current: 0 },
+          },
+        },
+        userProfiles: [{ id: 'fake-owner-0001', userType: 'owner', displayName: 'Test Owner', origin: 'x',
+          skillsCount: 0, skillsPending: 0, vibesCount: 0, agentsCount: 0, upvotesCount: 0, apiEventsCount: 0 }],
+      },
+    });
+    expect(html).toContain('4 eksterne mennesker');
+    expect(html).toContain('58 anonyme agentkonti og 3 ejerkonti');
+    expect(html).toContain('Ejer (3)');
+    expect(html).toContain('⚙️ Ejer</span>');
+  });
+
+  it('renders the per-page copy rate with n/a for pages without visitors', () => {
+    const html = renderDashboardHtml({
+      vercel: { totals: { visitors: 100 } },
+      supabase: {
+        funnel: {
+          copyEvents: 3, copySessions: 3, itemsCopied: 2, copiesBySignedIn: 0, copySessionsDelta: null,
+          siteCopyRate: 3, topItems: [],
+          copyRateByPath: [
+            { path: '/cli/aula-api-klient', visitors: 25, copySessions: 2, rate: 8 },
+            { path: '/mcp/only-copied', visitors: 0, copySessions: 1, rate: null },
+          ],
+        },
+      },
+    });
+    expect(html).toContain('Kopieringsrate per detaljeside');
+    expect(html).toContain('/cli/aula-api-klient');
+    expect(html).toContain('8%');
+    expect(html).toContain('3% af besøgende (hele sitet)');
+  });
+});

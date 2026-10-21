@@ -10,21 +10,19 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { connect } from './lib/db.mjs';
-import { calculateDelta, extractGrowthOpportunities } from './lib/analyticsDelta.mjs';
+import {
+  calculateDelta,
+  extractGrowthOpportunities,
+  parseOwnerIds,
+  classifyAccount,
+  summarizeAccounts,
+  copyRateByPath,
+} from './lib/analyticsDelta.mjs';
 import { getSeoData } from './lib/seoTelemetry.mjs';
 
 export async function getSupabaseData(days = 30) {
   try {
     const client = await connect();
-
-    const userStats = await client.query(`
-      SELECT 
-        count(*) as total_users,
-        count(*) filter (where created_at >= NOW() - INTERVAL '${days} days') as users_current_period,
-        count(*) filter (where created_at >= NOW() - INTERVAL '${days * 2} days' and created_at < NOW() - INTERVAL '${days} days') as users_previous_period,
-        count(*) filter (where last_sign_in_at is not null) as users_signed_in
-      FROM auth.users
-    `);
 
     const signupsByDay = await client.query(`
       SELECT 
@@ -124,22 +122,16 @@ export async function getSupabaseData(days = 30) {
     const upvotesMap = byUser(upvotesByUser.rows);
     const apiMap = byUser(apiByUser.rows);
 
+    // Every user count is split by class: 95% of auth.users are anonymous
+    // agent accounts and three are the owner's, so a single total says nothing
+    // about real people.
+    const ownerIds = parseOwnerIds(process.env.ANALYTICS_OWNER_USER_IDS);
+    const accounts = summarizeAccounts(allUsersRes.rows, ownerIds, days);
+
     const userProfiles = [];
-    let humanCount = 0;
-    let agentCount = 0;
-    let curatorCount = 0;
 
     for (const u of allUsersRes.rows) {
-      let userType = 'human';
-      if (u.is_anonymous || (!u.email && u.raw_user_meta_data?.full_name?.startsWith('agent_'))) {
-        userType = 'agent';
-        agentCount++;
-      } else if (u.email === 'vibes-bot@vibetrends.dk') {
-        userType = 'curator_bot';
-        curatorCount++;
-      } else {
-        humanCount++;
-      }
+      const userType = classifyAccount(u, ownerIds);
 
       const skills = skillsMap.get(u.id);
       const vibes = vibesMap.get(u.id);
@@ -152,8 +144,8 @@ export async function getSupabaseData(days = 30) {
         origin = domain.endsWith('.dk') ? `Danmark (.${domain})` : domain.endsWith('.com') ? `International (${domain})` : domain;
       } else if (userType === 'agent') {
         origin = 'Headless API Client (CLI/Agent)';
-      } else if (userType === 'curator_bot') {
-        origin = 'VibeTrends Platform (Intern)';
+      } else if (userType === 'owner') {
+        origin = 'VibeTrends Platform (Ejer)';
       }
 
       userProfiles.push({
@@ -193,13 +185,18 @@ export async function getSupabaseData(days = 30) {
           AND occurred_at >= NOW() - INTERVAL '${days} days'
       `)).rows[0];
 
-      const prevCopy = (await q(`
-        SELECT count(distinct session_id) as sessions
-        FROM public.analytics_events
-        WHERE event_name = 'copy_install'
-          AND occurred_at >= NOW() - INTERVAL '${days * 2} days'
-          AND occurred_at < NOW() - INTERVAL '${days} days'
-      `)).rows[0];
+      let prevCopySessions = null;
+      try {
+        prevCopySessions = (await q(`
+          SELECT count(distinct session_id) as sessions
+          FROM public.analytics_events
+          WHERE event_name = 'copy_install'
+            AND occurred_at >= NOW() - INTERVAL '${days * 2} days'
+            AND occurred_at < NOW() - INTERVAL '${days} days'
+        `)).rows[0].sessions;
+      } catch {
+        // A failed prior-period query must show as n/a, not as +100%.
+      }
 
       const topItems = (await q(`
         SELECT item_type, item_slug, count(*) as copies,
@@ -210,7 +207,6 @@ export async function getSupabaseData(days = 30) {
           AND item_slug IS NOT NULL
         GROUP BY 1, 2
         ORDER BY copies DESC
-        LIMIT 20
       `)).rows;
 
       funnel = {
@@ -218,7 +214,7 @@ export async function getSupabaseData(days = 30) {
         copySessions: Number(copyStats.sessions),
         itemsCopied: Number(copyStats.items),
         copiesBySignedIn: Number(copyStats.by_signed_in),
-        copySessionsDelta: calculateDelta(copyStats.sessions, prevCopy.sessions),
+        copySessionsDelta: calculateDelta(copyStats.sessions, prevCopySessions),
         topItems,
       };
     } catch (e) {
@@ -229,21 +225,14 @@ export async function getSupabaseData(days = 30) {
 
     await client.end();
 
-    const u = userStats.rows[0];
-    const userDelta = calculateDelta(u.users_current_period, u.users_previous_period);
+    const humans = accounts.human;
 
     return {
+      // Headline numbers are humans only; agents and owners ride along in byClass.
       users: {
-        total: Number(u.total_users),
-        current: Number(u.users_current_period),
-        previous: Number(u.users_previous_period),
-        signedIn: Number(u.users_signed_in),
-        delta: userDelta,
-        typesSummary: {
-          humans: humanCount,
-          agents: agentCount,
-          curatorBots: curatorCount,
-        }
+        ...humans,
+        delta: calculateDelta(humans.current, humans.previous),
+        byClass: accounts,
       },
       signupsByDay: signupsByDay.rows,
       content: contentStats.rows,
@@ -321,22 +310,26 @@ export async function getVercelData(days = 30) {
     const [curTotals, prevTotals, topPages, referrers, countries, devices, os] = await Promise.all([
       query('visits/count', curSince, curUntil),
       query('visits/count', prevSince, prevUntil),
-      query('visits/aggregate', curSince, curUntil, { by: 'requestPath', limit: '25' }),
+      // 100 is the API maximum; at 25 the detail pages the copy-rate join
+      // needs were cut off.
+      query('visits/aggregate', curSince, curUntil, { by: 'requestPath', limit: '100' }),
       query('visits/aggregate', curSince, curUntil, { by: 'referrerHostname', limit: '15' }),
       query('visits/aggregate', curSince, curUntil, { by: 'country', limit: '15' }),
       query('visits/aggregate', curSince, curUntil, { by: 'deviceType' }),
       query('visits/aggregate', curSince, curUntil, { by: 'osName', limit: '10' }),
     ]);
 
-    const curVisitors = curTotals?.data?.visitors || 0;
-    const prevVisitors = prevTotals?.data?.visitors || 0;
-    const curPageviews = curTotals?.data?.pageviews || 0;
-    const prevPageviews = prevTotals?.data?.pageviews || 0;
+    // Hobby only serves the latest 31 days, so prevTotals is a 400 (null)
+    // and the deltas become null instead of +100% against a fake 0.
+    const curVisitors = curTotals?.data?.visitors ?? null;
+    const prevVisitors = prevTotals?.data?.visitors ?? null;
+    const curPageviews = curTotals?.data?.pageviews ?? null;
+    const prevPageviews = prevTotals?.data?.pageviews ?? null;
 
     return {
       totals: {
-        visitors: curVisitors,
-        pageviews: curPageviews,
+        visitors: curVisitors || 0,
+        pageviews: curPageviews || 0,
         visitorsDelta: calculateDelta(curVisitors, prevVisitors),
         pageviewsDelta: calculateDelta(curPageviews, prevPageviews),
       },
@@ -377,26 +370,29 @@ export function getGscData(days = 30) {
         );
         return JSON.parse(out).rows || [];
       } catch {
-        return [];
+        // null, not []: an empty result is real data, a failed call is not.
+        return null;
       }
     }
 
-    const curQueries = runGsc('query', curStart, curEnd);
+    const curQueriesRes = runGsc('query', curStart, curEnd);
     const prevQueries = runGsc('query', prevStart, prevEnd);
-    const curPages = runGsc('page', curStart, curEnd);
-    const curDates = runGsc('date', curStart, curEnd);
+    const curPages = runGsc('page', curStart, curEnd) || [];
+    const curDates = runGsc('date', curStart, curEnd) || [];
+    const curQueries = curQueriesRes || [];
 
-    const curClicks = curQueries.reduce((sum, r) => sum + (r.clicks || 0), 0);
-    const prevClicks = prevQueries.reduce((sum, r) => sum + (r.clicks || 0), 0);
-    const curImpressions = curQueries.reduce((sum, r) => sum + (r.impressions || 0), 0);
-    const prevImpressions = prevQueries.reduce((sum, r) => sum + (r.impressions || 0), 0);
+    const sum = (rows, key) => (rows ? rows.reduce((acc, r) => acc + (r[key] || 0), 0) : null);
+    const curClicks = sum(curQueriesRes, 'clicks');
+    const prevClicks = sum(prevQueries, 'clicks');
+    const curImpressions = sum(curQueriesRes, 'impressions');
+    const prevImpressions = sum(prevQueries, 'impressions');
 
     const opportunities = extractGrowthOpportunities(curQueries);
 
     return {
       summary: {
-        clicks: curClicks,
-        impressions: curImpressions,
+        clicks: curClicks || 0,
+        impressions: curImpressions || 0,
         clicksDelta: calculateDelta(curClicks, prevClicks),
         impressionsDelta: calculateDelta(curImpressions, prevImpressions),
       },
@@ -416,6 +412,14 @@ export async function fetchAllUserAnalytics(days = 30, { seo = true, seoLimit = 
     getVercelData(days),
     Promise.resolve(getGscData(days)),
   ]);
+
+  if (supabase.funnel && !supabase.funnel.error) {
+    const visitors = vercel?.totals?.visitors || 0;
+    supabase.funnel.siteCopyRate = visitors
+      ? Math.round((supabase.funnel.copySessions / visitors) * 1000) / 10
+      : null;
+    supabase.funnel.copyRateByPath = copyRateByPath(supabase.funnel.topItems, vercel?.topPages || []);
+  }
 
   // Runs after GSC because it prioritises inspecting the pages that are
   // actually earning impressions. Each inspection costs ~2s, so the caller can
