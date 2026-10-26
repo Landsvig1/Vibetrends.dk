@@ -66,7 +66,9 @@ jobs:
   # e2e run outright, which leaves the required check unreported and the PR
   # unmergeable until it is re-run. Acceptable at today's PR volume.
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright does not support
+    # yet ("Playwright does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     # All e2e runs share one production DATABASE_URL for fixture seed/cleanup
     # (scripts/seed-e2e-fixtures.mjs) — a single global group (not per-ref)
     # guarantees at most one run ever executes seed/cleanup at a time, so two
