@@ -1841,6 +1841,22 @@ describe("U2 — revalidateTag: correct tags, no profile arg, on all mutation pa
     expect(state.revalidateTagCalls.length).toBe(0);
   });
 
+  it("createProject rethrows a DB reserved_author refusal as a ContentWriteError", async () => {
+    state.serverHandler = () => ({ data: null, error: { code: "22023", message: "reserved_author" } });
+    await expect(db.createProject("Title", "kasper", "Desc", [], [], "https://demo.com")).rejects.toMatchObject({
+      name: "ContentWriteError",
+      kind: "reserved_author",
+    });
+  });
+
+  it("addReply rethrows a DB rate_limited refusal instead of reporting the thread missing", async () => {
+    state.serverHandler = () => ({ data: null, error: { code: "P0001", message: "rate_limited" } });
+    await expect(db.addReply("t1", "author", "Some reply content.")).rejects.toMatchObject({
+      name: "ContentWriteError",
+      kind: "rate_limited",
+    });
+  });
+
   it("deleteProject calls revalidateTag('projects-list') and revalidateTag('project-{id}') when succeeded", async () => {
     state.serverHandler = () => ({ data: [{ id: "p1" }], error: null });
     await db.deleteProject("p1");

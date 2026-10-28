@@ -118,6 +118,18 @@ describe("resolveBotRequestAuth", () => {
     expect(result?.user.username).toBe("vibes_bot_vibe");
   });
 
+  it("derives an anonymous agent's username from its user id, ignoring a client-set full_name", async () => {
+    state.userResponse = {
+      data: { user: { id: "9f8e7d6c-0000-4000-8000-000000000000", email: "", is_anonymous: true, user_metadata: { full_name: "kasper" } } },
+      error: null,
+    };
+
+    const result = await resolveBotRequestAuth(makeRequest({ authorization: "Bearer tok" }));
+
+    expect(result?.user.username).toBe("agent_9f8e7d6c");
+    expect(result?.user.isAnonymous).toBe(true);
+  });
+
   it("returns null when no Authorization header is present", async () => {
     const result = await resolveBotRequestAuth(makeRequest({}));
     expect(result).toBeNull();

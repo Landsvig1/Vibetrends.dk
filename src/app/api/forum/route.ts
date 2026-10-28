@@ -4,6 +4,8 @@ import { getThreads, createThread } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
 import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { reservedAuthorResponse } from "@/lib/reservedNames";
+import { contentWriteErrorResponse } from "@/lib/contentWriteErrors";
 import { threadSchema } from "@/lib/schemas";
 
 export { threadSchema };
@@ -36,6 +38,9 @@ export async function POST(request: Request) {
     }
     const { user, botAuth: actingAs } = identity;
 
+    const reserved = reservedAuthorResponse(user);
+    if (reserved) return reserved;
+
     if (actingAs) {
       const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
       if (rateLimited) return rateLimited;
@@ -66,7 +71,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(thread, { status: 201 });
-  } catch {
+  } catch (error) {
+    const refused = contentWriteErrorResponse(error);
+    if (refused) return refused;
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 }
