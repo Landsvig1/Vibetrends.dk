@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { upvoteSkill } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { enforceWriteRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const identity = await resolveRequestIdentity(request);
@@ -10,10 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const { botAuth: actingAs } = identity;
 
-  if (actingAs) {
-    const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
-    if (rateLimited) return rateLimited;
-  }
+  const rateLimited = await enforceWriteRateLimit(identity);
+  if (rateLimited) return rateLimited;
 
   const { id } = await params;
   const upvotes = await upvoteSkill(id, actingAs);

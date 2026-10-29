@@ -26,7 +26,7 @@ vi.mock("@/lib/honeypot", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+  enforceWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 
 import * as dbMod from "@/lib/db";
