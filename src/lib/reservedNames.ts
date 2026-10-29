@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdminUser, isTrustedBotEmail } from "@/lib/permissions";
+import { isTrustedCurator } from "@/lib/permissions";
 
 // Author names only the admin and the curator bot may publish under. Mirrors
 // the list in the DB's content-integrity trigger; if it changes, update both.
@@ -27,7 +27,7 @@ export function isReservedAuthor(name: string): boolean {
 }
 
 export function mayUseReservedAuthor(user: { id: string; email?: string | null }): boolean {
-  return isAdminUser(user) || isTrustedBotEmail(user.email);
+  return isTrustedCurator(user);
 }
 
 export const RESERVED_AUTHOR_MESSAGE = "This author name is reserved";

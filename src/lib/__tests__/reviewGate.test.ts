@@ -7,6 +7,7 @@ import {
   pendingSubmissionBody,
   type ReviewedTable,
 } from "@/lib/reviewGate";
+import { ADMIN_USER_IDS, CURATOR_BOT_USER_ID } from "@/lib/permissions";
 
 /** Minimal stand-in for a PostgREST builder — records what visibleOnly did. */
 function fakeQuery() {
@@ -45,8 +46,14 @@ describe("reviewGate — what state a write lands in", () => {
   });
 
   it.each(GATED)("%s publishes a trusted curator bot's submission directly", (table) => {
-    expect(reviewStateForWrite(table, { user: { id: "bot", username: "bot", email: "vibes-bot@vibetrends.dk" } })).toBe("approved");
-    expect(reviewStateForWrite(table, { user: { id: "admin", username: "admin", email: "kasper@landsvig.com" } })).toBe("approved");
+    expect(reviewStateForWrite(table, { user: { id: CURATOR_BOT_USER_ID, username: "bot" } })).toBe("approved");
+    expect(reviewStateForWrite(table, { user: { id: ADMIN_USER_IDS[0], username: "admin" } })).toBe("approved");
+  });
+
+  it.each(GATED)("%s holds a bearer caller that only carries a trusted email", (table) => {
+    expect(reviewStateForWrite(table, { user: { id: "2", username: "bot", email: "vibes-bot@vibetrends.dk" } })).toBe("pending");
+    expect(reviewStateForWrite(table, { user: { id: "3", username: "admin", email: "kasper@landsvig.com" } })).toBe("pending");
+    expect(reviewStateForWrite(table, { email: "vibes-bot@vibetrends.dk" })).toBe("pending");
   });
 
   it.each(GATED)("%s publishes a cookie caller's submission directly", (table) => {
@@ -66,7 +73,7 @@ describe("reviewGate — what state a write lands in", () => {
         false,
         undefined,
         { user: { id: "1", username: "agent", isAnonymous: true } },
-        { user: { id: "bot", username: "bot", email: "vibes-bot@vibetrends.dk" } },
+        { user: { id: CURATOR_BOT_USER_ID, username: "bot" } },
       ]) {
         expect(REVIEW_STATES).toContain(reviewStateForWrite(table, caller));
       }
