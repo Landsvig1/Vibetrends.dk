@@ -137,10 +137,15 @@ async function catalogTarget(
   // tables have no such column and selecting it would 400 the request.
   const columns = table === 'agents' ? 'slug,category' : 'slug';
 
+  // Ids are guessable from their creation time, so only approved rows resolve:
+  // a submission still in review answers as absent, never with its slug. A
+  // cached miss can outlive the row's approval by up to LOOKUP_TTL_MS, which is
+  // harmless because nothing public links to an id that was never approved.
+
   let result: CatalogLookup;
   try {
     const res = await fetch(
-      `${base}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=${columns}&limit=1`,
+      `${base}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&review_state=eq.approved&select=${columns}&limit=1`,
       {
         headers: { apikey: key, Authorization: `Bearer ${key}` },
         // A slow lookup must not hold up the response.

@@ -357,7 +357,7 @@ describe("proxy — /agents/:id encodes the lookup filter exactly once", () => {
     await proxy(req("https://vibetrends.dk/agents/a_2%26select=*"));
 
     const requested = new URL(String(fetchMock.mock.calls[0][0]));
-    expect([...requested.searchParams.keys()]).toEqual(["id", "select", "limit"]);
+    expect([...requested.searchParams.keys()]).toEqual(["id", "review_state", "select", "limit"]);
     expect(requested.searchParams.get("id")).toBe("eq.a_2&select=*");
     expect(requested.searchParams.get("select")).toBe("slug,category");
   });
@@ -528,5 +528,52 @@ describe("proxy — /skills, /vibes, /cli, /mcp resolve an id to its slug", () =
 
     expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("id")).toBe("eq.s_1785096155360");
     expect(new URL(response.headers.get("location")!).pathname).toBe("/skills/encoded-skill");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Only approved rows resolve. An id is guessable from its creation time, so an
+// unfiltered lookup would hand out the slug of a submission still in review.
+// The stub plays PostgREST: it honours a review_state filter if one is sent.
+// ---------------------------------------------------------------------------
+
+describe("proxy: a pending row's id resolves as absent", () => {
+  function stubCatalog(rows: { id: string; slug: string; category?: string; review_state: string }[]) {
+    const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(async (url) => {
+      const params = new URL(String(url)).searchParams;
+      const state = params.get("review_state");
+      const matches = rows.filter(
+        (row) => `eq.${row.id}` === params.get("id") && (!state || `eq.${row.review_state}` === state)
+      );
+      return new Response(JSON.stringify(matches), { status: 200 });
+    });
+    stubSupabaseEnv();
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("falls through to a 404 for a pending skill instead of redirecting to its slug", async () => {
+    const fetchMock = stubCatalog([{ id: "s_1786000000001", slug: "pending-skill", review_state: "pending" }]);
+    const response = await proxy(req("https://vibetrends.dk/skills/s_1786000000001"));
+
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("review_state")).toBe("eq.approved");
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).not.toBe(503);
+  });
+
+  it("falls through to a 404 for a pending legacy /agents/:id", async () => {
+    stubCatalog([{ id: "a_1786000000002", slug: "pending-cli", category: "CLI", review_state: "pending" }]);
+    const response = await proxy(req("https://vibetrends.dk/agents/a_1786000000002"));
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).not.toBe(503);
+  });
+
+  it("still redirects an approved row", async () => {
+    stubCatalog([{ id: "p_1786000000003", slug: "approved-vibe", review_state: "approved" }]);
+    const response = await proxy(req("https://vibetrends.dk/vibes/p_1786000000003"));
+
+    expect(response.status).toBe(308);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/vibes/approved-vibe");
   });
 });
