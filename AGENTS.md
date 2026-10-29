@@ -127,9 +127,9 @@ off, and keep the TS and SQL copies in step when you change either.
 - **URL fields are http(s) only.** Every user-supplied URL goes through
   `httpUrl` in `src/lib/schemas.ts`. Don't accept a URL field with a bare
   `z.string()` or `z.url()`.
-- **Rate limits exist at both the app and the DB layer, and the DB one sits
-  above the app one.** Write routes call `enforceWriteRateLimit` (MCP:
-  `resolveWriteLimit`) from `src/lib/rate-limit.ts` for agents and humans
-  alike; don't hand-roll a per-route check or skip it for a caller type. The
-  DB insert ceiling (`limit_content_inserts`) catches direct PostgREST writes
-  and must stay looser than every app tier, so app traffic never hits it.
+- **Rate limits exist at both the app and the DB layer.** The app limit is the
+  primary one: write routes call `enforceWriteRateLimit` (MCP:
+  `resolveWriteLimit`) from `src/lib/rate-limit.ts` for every caller type;
+  don't hand-roll a per-route check or skip it for a caller type. The DB
+  insert ceiling (`limit_content_inserts`) is a backstop for direct PostgREST
+  writes. Don't remove or loosen it to make app traffic fit.
