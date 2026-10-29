@@ -104,9 +104,8 @@ Specifically:
 
 # Security invariants
 
-The repo is public and these rules close real holes. Don't relax one without
-the owner signing off, and keep the TS and SQL copies in step when you change
-either.
+These rules are load-bearing. Don't relax one without the owner signing
+off, and keep the TS and SQL copies in step when you change either.
 
 - **Admin and curator identity is server-owned only.** `public.is_admin()` and
   `ADMIN_USER_IDS` / `CURATOR_BOT_USER_ID` in `src/lib/permissions.ts` key on
