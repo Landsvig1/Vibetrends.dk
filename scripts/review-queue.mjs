@@ -13,6 +13,16 @@
  *   node scripts/review-queue.mjs approve  <table> <id> [...]
  *   node scripts/review-queue.mjs reject   <table> <id> [...]
  *
+ * Approve publishes only what was reviewed. Merging a submission PR approves a
+ * row only if re-rendering that row right now gives exactly the bytes of the
+ * merged `submissions/<table>/<id>.md` on main. If the row changed after the
+ * manifest was generated, or the manifest was edited in the PR, the row stays
+ * pending and the job fails. Editing a manifest in the PR therefore does not
+ * change what gets published: to correct a submission, edit the row and
+ * regenerate the manifest from it. A refused approve leaves the row pending and
+ * the resolve job deletes the branch, so the next submission-review run opens a
+ * fresh PR from the row as it is now.
+ *
  * Connection follows AGENTS.md and the refresh-skill-docs precedent: `pg` over
  * DATABASE_URL with TLS, falling back to the IPv4 pooler because
  * db.<ref>.supabase.co is IPv6-only and GitHub runners have no IPv6 egress.
@@ -23,6 +33,7 @@
 
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 /**
  * Per-table description of what a submission is.
@@ -215,7 +226,7 @@ function formatValue(value) {
  * unfenced it would reflow the manifest into whatever headings the submitter
  * chose. Fencing also means a diff shows the content verbatim.
  */
-function renderManifest(table, row) {
+export function renderManifest(table, row) {
   const spec = assertTable(table);
   const long = new Set(['description_en', 'description_da', 'content_da', 'excerpt_da', 'system_prompt_en', 'prompts']);
 
@@ -302,27 +313,58 @@ async function revalidate(tags) {
   }
 }
 
-async function approve(client, targets) {
+/**
+ * Approve each target, but only if its live row still renders to the merged
+ * manifest byte-for-byte. The row is locked for the compare-and-update so it
+ * cannot change between the two. A mismatch, or a missing manifest, leaves the
+ * row pending and is returned in `refused`; the caller exits non-zero on it.
+ */
+export async function approve(client, targets, { root = process.cwd() } = {}) {
   const tags = [];
+  const refused = [];
   for (const { table, id } of targets) {
     assertTable(table);
-    const { rows } = await client.query(
-      `update public."${table}"
-          set review_state = 'approved'
-        where id = $1 and review_state = 'pending'
-        returning *`,
-      [id],
-    );
-    if (!rows.length) {
-      // Not an error: re-running an approve job, or a row already handled by
-      // hand. Idempotent by construction.
-      console.log(`- ${table}/${id}: no pending row (already approved or deleted) — skipped`);
-      continue;
+    await client.query('begin');
+    try {
+      const { rows } = await client.query(
+        `select * from public."${table}" where id = $1 and review_state = 'pending' for update`,
+        [id],
+      );
+      if (!rows.length) {
+        // Not an error: re-running an approve job, or a row already handled by
+        // hand. Idempotent by construction.
+        await client.query('rollback');
+        console.log(`- ${table}/${id}: no pending row (already approved or deleted), skipped`);
+        continue;
+      }
+
+      let reviewed = null;
+      try {
+        reviewed = readFileSync(path.join(root, 'submissions', table, `${id}.md`));
+      } catch {
+        // Missing manifest: nothing was reviewed, so nothing matches.
+      }
+      if (!reviewed || !Buffer.from(renderManifest(table, rows[0]), 'utf8').equals(reviewed)) {
+        await client.query('rollback');
+        refused.push({ table, id });
+        console.error(`::error::${table}/${id}: the row no longer matches the merged manifest. Not approved; it stays pending. Edit the row and regenerate the manifest instead of editing the manifest.`);
+        continue;
+      }
+
+      await client.query(
+        `update public."${table}" set review_state = 'approved' where id = $1 and review_state = 'pending'`,
+        [id],
+      );
+      await client.query('commit');
+      tags.push(...tagsFor(table, rows[0]));
+      console.log(`- ${table}/${id}: approved`);
+    } catch (err) {
+      await client.query('rollback').catch(() => {});
+      throw err;
     }
-    tags.push(...tagsFor(table, rows[0]));
-    console.log(`- ${table}/${id}: approved`);
   }
   await revalidate(tags);
+  return { refused };
 }
 
 async function reject(client, targets) {
@@ -401,7 +443,14 @@ async function main() {
         console.log('No submission manifests in this change — nothing to do.');
         return;
       }
-      await (command === 'approve' ? approve(client, targets) : reject(client, targets));
+      if (command === 'reject') {
+        await reject(client, targets);
+        return;
+      }
+      const { refused } = await approve(client, targets);
+      // Non-zero so the resolve job goes red: the PR shows as merged, but the
+      // refused rows were not published and need a human.
+      if (refused.length) process.exitCode = 1;
       return;
     }
 
@@ -411,7 +460,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+}
