@@ -537,7 +537,7 @@ describe("proxy — /skills, /vibes, /cli, /mcp resolve an id to its slug", () =
 // The stub plays PostgREST: it honours a review_state filter if one is sent.
 // ---------------------------------------------------------------------------
 
-describe("proxy — a pending row's id resolves as absent", () => {
+describe("proxy: a pending row's id resolves as absent", () => {
   function stubCatalog(rows: { id: string; slug: string; category?: string; review_state: string }[]) {
     const fetchMock = vi.fn<(url: string | URL) => Promise<Response>>(async (url) => {
       const params = new URL(String(url)).searchParams;
