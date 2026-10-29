@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 import { recordAnalyticsEvent } from "../analyticsEvents";
 
-const sendBeacon = vi.fn((_url: string, _body: string) => true);
-const fetchMock = vi.fn((_url: string, _init: RequestInit) => Promise.resolve(new Response(null, { status: 204 })));
+const sendBeacon = vi.fn<(url: string, body: string) => boolean>(() => true);
+const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(() =>
+  Promise.resolve(new Response(null, { status: 204 })),
+);
 vi.stubGlobal("navigator", { sendBeacon });
 vi.stubGlobal("fetch", fetchMock);
 
