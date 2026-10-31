@@ -47,13 +47,13 @@ vi.mock("@/lib/rate-limit", () => ({
 
     return "unknown";
   }),
-  resolveAgentWriteLimit: vi.fn().mockResolvedValue("ok"),
+  resolveWriteLimit: vi.fn().mockResolvedValue("ok"),
 }));
 
 import { POST, GET } from "@/app/api/mcp/route";
 import * as db from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { checkRateLimit, resolveAgentWriteLimit } from "@/lib/rate-limit";
+import { checkRateLimit, resolveWriteLimit } from "@/lib/rate-limit";
 import { ContentWriteError } from "@/lib/contentWriteErrors";
 
 const MOCK_IDENTITY = {
@@ -603,7 +603,7 @@ describe("POST /api/mcp — write tools (auth & execution)", () => {
 
   it("rejects write tools when agent write budget is exhausted (-32003)", async () => {
     vi.mocked(resolveRequestIdentity).mockResolvedValue(MOCK_IDENTITY as never);
-    vi.mocked(resolveAgentWriteLimit).mockResolvedValueOnce("rate_limited");
+    vi.mocked(resolveWriteLimit).mockResolvedValueOnce("rate_limited");
 
     const res = await POST(
       rpc({
@@ -618,6 +618,20 @@ describe("POST /api/mcp — write tools (auth & execution)", () => {
     );
     const body = await res.json();
     expect(body.error.code).toBe(-32003);
+  });
+
+  it("applies the write limit to a cookie-authenticated human too (-32003)", async () => {
+    const humanIdentity = { user: { id: "human-1", username: "alice" } };
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(humanIdentity as never);
+    vi.mocked(resolveWriteLimit).mockResolvedValueOnce("rate_limited");
+
+    const res = await POST(
+      rpc({ jsonrpc: "2.0", id: 68, method: "tools/call", params: { name: "upvote_skill", arguments: { skillId: "s_1" } } })
+    );
+    const body = await res.json();
+    expect(body.error.code).toBe(-32003);
+    expect(vi.mocked(resolveWriteLimit)).toHaveBeenCalledWith(humanIdentity);
+    expect(db.upvoteSkill).not.toHaveBeenCalled();
   });
 });
 

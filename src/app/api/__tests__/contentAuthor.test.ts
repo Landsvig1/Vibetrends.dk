@@ -26,13 +26,13 @@ vi.mock("@/lib/honeypot", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+  enforceWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 
 import * as dbMod from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { ContentWriteError } from "@/lib/contentWriteErrors";
-import { ADMIN_USER_IDS } from "@/lib/permissions";
+import { ADMIN_USER_IDS, CURATOR_BOT_USER_ID } from "@/lib/permissions";
 import { POST as forumPost } from "@/app/api/forum/route";
 import { POST as repliesPost } from "@/app/api/forum/[id]/replies/route";
 import { POST as skillsPost } from "@/app/api/skills/route";
@@ -125,7 +125,7 @@ describe.each(routes)("$name", ({ post, dbFn, body }) => {
   });
 
   it("lets the curator bot publish under its own name", async () => {
-    asUser({ id: "bot", username: "Vibetrends Bot", email: "vibes-bot@vibetrends.dk" });
+    asUser({ id: CURATOR_BOT_USER_ID, username: "Vibetrends Bot" });
     dbMock().mockResolvedValue({ id: "x1", thread: { id: "t1" }, replyId: "r1" });
     const res = await post(makeRequest(body));
     expect(res.status).toBe(201);

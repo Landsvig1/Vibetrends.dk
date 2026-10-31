@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { deriveUsername } from "@/lib/username";
 import { isReservedAuthor, mayUseReservedAuthor, RESERVED_AUTHOR_NAMES } from "@/lib/reservedNames";
-import { ADMIN_USER_IDS } from "@/lib/permissions";
+import { ADMIN_USER_IDS, CURATOR_BOT_USER_ID } from "@/lib/permissions";
 import { contentWriteErrorFrom } from "@/lib/contentWriteErrors";
 
 describe("deriveUsername", () => {
@@ -52,8 +52,12 @@ describe("mayUseReservedAuthor", () => {
     expect(mayUseReservedAuthor({ id: ADMIN_USER_IDS[0], email: "other@example.com" })).toBe(true);
   });
 
-  it("allows the curator bot by email", () => {
-    expect(mayUseReservedAuthor({ id: "bot", email: "Vibes-Bot@vibetrends.dk" })).toBe(true);
+  it("allows the curator bot by user id", () => {
+    expect(mayUseReservedAuthor({ id: CURATOR_BOT_USER_ID })).toBe(true);
+  });
+
+  it("denies another account carrying the curator bot's email", () => {
+    expect(mayUseReservedAuthor({ id: "someone", email: "Vibes-Bot@vibetrends.dk" })).toBe(false);
   });
 
   it("denies everyone else", () => {

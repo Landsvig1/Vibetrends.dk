@@ -9,23 +9,21 @@
 export const ADMIN_USER_IDS: readonly string[] = [
   "6d158da1-84e7-4c3a-8687-89167b16ceae", // kasper@landsvig.com
 ];
-// Review-gate trust only (isTrustedBotEmail below), not the admin check.
-export const ADMIN_EMAIL = "kasper@landsvig.com";
-export const BOT_ACCOUNT_EMAIL = "vibes-bot@vibetrends.dk";
+// The curator bot account (vibes-bot@vibetrends.dk). Same id as the bot
+// exemption in supabase/migrations/20261021100000_content_column_integrity.sql.
+export const CURATOR_BOT_USER_ID = "fa9d9c1d-b101-4813-b6e4-8e886bbdc41e";
 
 export function isAdminUser(user: { id: string } | null | undefined): boolean {
   return !!user && ADMIN_USER_IDS.includes(user.id);
 }
 
 /**
- * Check if an email matches the trusted curator bot or admin account.
+ * Whether a user may skip the review gate and publish under reserved author
+ * names: the curator bot or an admin. Keyed by user id, never email.
  */
-export function isTrustedBotEmail(email?: string | null): boolean {
-  if (!email) return false;
-  const botEmail = (process.env.BOT_ACCOUNT_EMAIL || BOT_ACCOUNT_EMAIL).toLowerCase();
-  const adminEmail = ADMIN_EMAIL.toLowerCase();
-  const lower = email.toLowerCase();
-  return lower === botEmail || lower === adminEmail;
+export function isTrustedCurator(user: { id?: string } | null | undefined): boolean {
+  if (!user?.id) return false;
+  return user.id === CURATOR_BOT_USER_ID || ADMIN_USER_IDS.includes(user.id);
 }
 
 /**

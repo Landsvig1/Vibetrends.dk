@@ -101,3 +101,35 @@ Specifically:
   `20260804000000_description_da_nullable.sql` had to clean up across 118 rows.
   The submit schemas take an optional `descriptionDa`; omit it rather than
   filling it with English.
+
+# Security invariants
+
+These rules are load-bearing. Don't relax one without the owner signing
+off, and keep the TS and SQL copies in step when you change either.
+
+- **Admin and curator identity is server-owned only.** `public.is_admin()` and
+  `ADMIN_USER_IDS` / `CURATOR_BOT_USER_ID` in `src/lib/permissions.ts` key on
+  `auth.users.id`. Never decide admin, review bypass or reserved-author rights
+  from `user_metadata`, `app_metadata` set by a client, a username or an email.
+- **The content guard trigger owns `upvotes`, author, `user_id` and
+  `created_at`.** `guard_content_row` (migration
+  `20261021100000_content_column_integrity.sql`) resets or keeps them on
+  every PostgREST insert and update. Don't add a write path that sets them from
+  caller input, and don't drop the trigger to make a feature work.
+- **Pending rows are owner-only.** A row with `review_state = 'pending'` is
+  readable by its owner (and the service role), never the public. New read paths go
+  through `visibleOnly` in `src/lib/reviewGate.ts`; new SELECT policies keep
+  the approved-or-own shape of `20261022110000_pending_rows_owner_only_select.sql`.
+- **Approve compares against the reviewed manifest.** `scripts/review-queue.mjs`
+  approves a pending row only if its live columns still match the manifest
+  that was merged. Don't add an approve path that flips `review_state` without
+  that compare, and add new reviewable columns to it.
+- **URL fields are http(s) only.** Every user-supplied URL goes through
+  `httpUrl` in `src/lib/schemas.ts`. Don't accept a URL field with a bare
+  `z.string()` or `z.url()`.
+- **Rate limits exist at both the app and the DB layer.** The app limit is the
+  primary one: write routes call `enforceWriteRateLimit` (MCP:
+  `resolveWriteLimit`) from `src/lib/rate-limit.ts` for every caller type;
+  don't hand-roll a per-route check or skip it for a caller type. The DB
+  insert ceiling (`limit_content_inserts`) is a backstop for direct PostgREST
+  writes. Don't remove or loosen it to make app traffic fit.
