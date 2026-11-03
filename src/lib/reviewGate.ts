@@ -66,7 +66,7 @@ export function isGateEnabled(table: ReviewedTable): boolean {
   return GATE_ENABLED[table];
 }
 
-import { isTrustedBotEmail } from "@/lib/permissions";
+import { isTrustedCurator } from "@/lib/permissions";
 
 export type ReviewCaller =
   | boolean
@@ -84,18 +84,14 @@ export type ReviewCaller =
  */
 export function isTrustedCuratorBot(caller: ReviewCaller): boolean {
   if (!caller || typeof caller === "boolean") return false;
-  const email =
-    ("user" in caller && caller.user?.email) ||
-    ("email" in caller && caller.email) ||
-    null;
-  return isTrustedBotEmail(email);
+  return isTrustedCurator(caller.user);
 }
 
 /**
  * The `review_state` a new row should be written with.
  *
  * Logged-in humans (cookie callers) and the owner's trusted curator bot
- * (authenticated as BOT_ACCOUNT_EMAIL or ADMIN_EMAIL) publish directly as 'approved'.
+ * (CURATOR_BOT_USER_ID or an admin id) publish directly as 'approved'.
  *
  * Untrusted / public agent submissions (bearer token callers from /api/agentauth or
  * unverified third-party bots) land as 'pending' and are held in the review queue.

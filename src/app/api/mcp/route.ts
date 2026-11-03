@@ -23,7 +23,7 @@ import {
 } from "@/lib/db";
 import { resolveRequestIdentity, supabasePublic } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
-import { resolveAgentWriteLimit, checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
+import { resolveWriteLimit, checkRateLimit, getClientIp, hashIp } from "@/lib/rate-limit";
 import { isReservedAuthor, mayUseReservedAuthor, RESERVED_AUTHOR_MESSAGE } from "@/lib/reservedNames";
 import { ContentWriteError } from "@/lib/contentWriteErrors";
 import { SKILL_CATEGORY_SLUGS, SKILL_CATEGORIES } from "@/lib/skillCategories";
@@ -770,14 +770,12 @@ export async function POST(request: Request) {
           return rpcError(id, INVALID_PARAMS, RESERVED_AUTHOR_MESSAGE);
         }
 
-        if (actingAs) {
-          const outcome = await resolveAgentWriteLimit(actingAs.user.id);
-          if (outcome === "service_unavailable") {
-            return rpcError(id, SERVICE_UNAVAILABLE_ERROR, "Service unavailable");
-          }
-          if (outcome === "rate_limited") {
-            return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
-          }
+        const outcome = await resolveWriteLimit(identity);
+        if (outcome === "service_unavailable") {
+          return rpcError(id, SERVICE_UNAVAILABLE_ERROR, "Service unavailable");
+        }
+        if (outcome === "rate_limited") {
+          return rpcError(id, RATE_LIMITED_ERROR, `Write rate limit exceeded for tool: ${name}`);
         }
       }
 

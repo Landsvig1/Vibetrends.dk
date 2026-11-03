@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAdminUser, ADMIN_USER_IDS } from "../permissions";
+import { isAdminUser, isTrustedCurator, ADMIN_USER_IDS, CURATOR_BOT_USER_ID } from "../permissions";
 
 const ADMIN_ID = ADMIN_USER_IDS[0];
 const OTHER_ID = "00000000-0000-4000-8000-000000000001";
@@ -25,5 +25,22 @@ describe("isAdminUser", () => {
   it("is false for no user", () => {
     expect(isAdminUser(null)).toBe(false);
     expect(isAdminUser(undefined)).toBe(false);
+  });
+});
+
+describe("isTrustedCurator", () => {
+  it("is true for the curator bot and admin ids", () => {
+    expect(isTrustedCurator({ id: CURATOR_BOT_USER_ID })).toBe(true);
+    expect(isTrustedCurator({ id: ADMIN_ID })).toBe(true);
+  });
+
+  it("ignores a trusted email on another account", () => {
+    expect(isTrustedCurator({ id: OTHER_ID, email: "vibes-bot@vibetrends.dk" } as { id: string })).toBe(false);
+    expect(isTrustedCurator({ id: OTHER_ID, email: "kasper@landsvig.com" } as { id: string })).toBe(false);
+  });
+
+  it("is false for no user or a missing id", () => {
+    expect(isTrustedCurator(null)).toBe(false);
+    expect(isTrustedCurator({})).toBe(false);
   });
 });

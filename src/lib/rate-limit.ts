@@ -123,9 +123,7 @@ export async function checkRateLimit(
  * identities' congestion. The combined RPC only increments either counter
  * when BOTH are within budget.
  *
- * Deliberately NOT applied to cookie-authenticated humans — that path
- * already requires a real Supabase signup, a much higher friction barrier
- * than an anonymous bearer token. */
+ * Cookie-authenticated humans get their own tier below instead. */
 const AGENT_WRITE_LIMIT = 20;
 const GLOBAL_AGENT_WRITE_LIMIT = 200;
 const AGENT_WRITE_WINDOW_SECONDS = 60 * 60;
@@ -146,29 +144,49 @@ export async function checkAgentWriteAllowed(userId: string): Promise<boolean> {
   return data as boolean;
 }
 
-/** Shared classification every write surface (REST and MCP) needs, so the
- * 503-vs-429 mapping and error logging live in exactly one place instead of
- * being reimplemented per call site. */
-export type AgentWriteLimitOutcome = 'ok' | 'rate_limited' | 'service_unavailable';
+/** Write ceiling for cookie-authenticated humans: per user, 60/hour, no
+ * site-wide tier. A human account costs a real signup, so the global tier that
+ * bounds mass-provisioned agent identities isn't needed here; the per-user
+ * bound still stops one account from flooding the catalog, which publishes
+ * human writes without review. */
+const HUMAN_WRITE_LIMIT = 60;
 
-export async function resolveAgentWriteLimit(userId: string): Promise<AgentWriteLimitOutcome> {
+export async function checkHumanWriteAllowed(userId: string): Promise<boolean> {
+  return checkRateLimit(`humanwrite:${userId}`, HUMAN_WRITE_LIMIT, AGENT_WRITE_WINDOW_SECONDS);
+}
+
+/** Shared classification every write surface (REST and MCP) needs, so the
+ * tier choice, the 503-vs-429 mapping and error logging live in exactly one
+ * place instead of being reimplemented per call site. */
+export type WriteLimitOutcome = 'ok' | 'rate_limited' | 'service_unavailable';
+
+/** The shape `resolveRequestIdentity` returns: `botAuth` is set only for
+ * bearer (agent) callers. */
+export interface WriteIdentity {
+  user: { id: string };
+  botAuth?: { user: { id: string } };
+}
+
+export async function resolveWriteLimit(identity: WriteIdentity): Promise<WriteLimitOutcome> {
   try {
-    const withinLimit = await checkAgentWriteAllowed(userId);
+    const withinLimit = identity.botAuth
+      ? await checkAgentWriteAllowed(identity.botAuth.user.id)
+      : await checkHumanWriteAllowed(identity.user.id);
     return withinLimit ? 'ok' : 'rate_limited';
   } catch (error) {
-    console.error('Agent write rate-limit RPC failed:', error);
+    console.error('Write rate-limit RPC failed:', error);
     return 'service_unavailable';
   }
 }
 
-/** REST write routes' single entry point for the agent-write cost-control
- * ceiling: `if (actingAs) { const blocked = await enforceAgentWriteRateLimit(actingAs.user.id); if (blocked) return blocked; }`
+/** REST write routes' single entry point for the write rate limit, agent or
+ * human: `const blocked = await enforceWriteRateLimit(identity); if (blocked) return blocked;`
  *
  * @returns The `NextResponse` to return immediately if the caller is
  *          rate-limited or the check itself failed; `null` if the caller is
  *          within budget and the route should proceed. */
-export async function enforceAgentWriteRateLimit(userId: string): Promise<NextResponse | null> {
-  const outcome = await resolveAgentWriteLimit(userId);
+export async function enforceWriteRateLimit(identity: WriteIdentity): Promise<NextResponse | null> {
+  const outcome = await resolveWriteLimit(identity);
   if (outcome === 'service_unavailable') {
     return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }

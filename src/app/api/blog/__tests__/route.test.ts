@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase-server", () => ({
   resolveRequestIdentity: vi.fn(),
 }));
 vi.mock("@/lib/rate-limit", () => ({
-  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+  enforceWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) }),
@@ -23,7 +23,7 @@ vi.mock("next/headers", () => ({
 import { blogPostSchema, POST } from "@/app/api/blog/route";
 import { createBlogPost } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
-import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { enforceWriteRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -273,7 +273,7 @@ describe("POST /api/blog — cache invalidation", () => {
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
     });
-    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+    vi.mocked(enforceWriteRateLimit).mockResolvedValueOnce(
       NextResponse.json({ error: "Too many requests" }, { status: 429 })
     );
 
@@ -290,7 +290,7 @@ describe("POST /api/blog — cache invalidation", () => {
       user: MOCK_ACTING_AS.user,
       botAuth: MOCK_ACTING_AS,
     });
-    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+    vi.mocked(enforceWriteRateLimit).mockResolvedValueOnce(
       NextResponse.json({ error: "Service unavailable" }, { status: 503 })
     );
 
@@ -302,11 +302,12 @@ describe("POST /api/blog — cache invalidation", () => {
     expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
   });
 
-  it("does not rate-limit cookie-authenticated (non-bot) writes", async () => {
-    vi.mocked(resolveRequestIdentity).mockResolvedValue({
+  it("rate-limits cookie-authenticated (non-bot) writes through the same entry point", async () => {
+    const humanIdentity = {
       user: MOCK_ACTING_AS.user,
       // no botAuth — a real human session
-    });
+    };
+    vi.mocked(resolveRequestIdentity).mockResolvedValue(humanIdentity);
     vi.mocked(createBlogPost).mockResolvedValue({
       id: "b_998",
       ...VALID_BODY,
@@ -316,6 +317,18 @@ describe("POST /api/blog — cache invalidation", () => {
     const response = await POST(makeRequest(VALID_BODY));
 
     expect(response.status).toBe(201);
-    expect(vi.mocked(enforceAgentWriteRateLimit)).not.toHaveBeenCalled();
+    expect(vi.mocked(enforceWriteRateLimit)).toHaveBeenCalledWith(humanIdentity);
+  });
+
+  it("returns 429 and skips the write when a human exhausts their budget", async () => {
+    vi.mocked(resolveRequestIdentity).mockResolvedValue({ user: MOCK_ACTING_AS.user });
+    vi.mocked(enforceWriteRateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    );
+
+    const response = await POST(makeRequest(VALID_BODY));
+
+    expect(response.status).toBe(429);
+    expect(vi.mocked(createBlogPost)).not.toHaveBeenCalled();
   });
 });

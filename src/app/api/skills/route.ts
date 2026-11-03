@@ -3,7 +3,7 @@ import { validateHoneypot } from "@/lib/honeypot";
 import { getSkills, createSkill, parseSkillView } from "@/lib/db";
 import { resolveRequestIdentity } from "@/lib/supabase-server";
 import { pendingSubmissionBody, reviewStateForWrite } from "@/lib/reviewGate";
-import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { enforceWriteRateLimit } from "@/lib/rate-limit";
 import { reservedAuthorResponse } from "@/lib/reservedNames";
 import { contentWriteErrorResponse } from "@/lib/contentWriteErrors";
 import { skillSchema } from "@/lib/schemas";
@@ -40,10 +40,8 @@ export async function POST(request: Request) {
     const reserved = reservedAuthorResponse(user);
     if (reserved) return reserved;
 
-    if (actingAs) {
-      const rateLimited = await enforceAgentWriteRateLimit(actingAs.user.id);
-      if (rateLimited) return rateLimited;
-    }
+    const rateLimited = await enforceWriteRateLimit(identity);
+    if (rateLimited) return rateLimited;
 
     const body = await request.json();
     if (!validateHoneypot(body)) {

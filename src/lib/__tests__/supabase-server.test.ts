@@ -153,7 +153,7 @@ describe("resolveBotRequestAuth", () => {
 });
 
 describe("resolveRequestIdentity", () => {
-  it("resolves a real cookie session with no botAuth (human write path, not rate-limited)", async () => {
+  it("resolves a real cookie session with no botAuth (human write path, human rate-limit tier)", async () => {
     cookieState.authUserResponse = {
       data: { user: { id: "human-1", email: "person@example.com", user_metadata: {}, is_anonymous: false } },
     };
@@ -163,7 +163,7 @@ describe("resolveRequestIdentity", () => {
     expect(result).toEqual({ user: { id: "human-1", username: "person_vibe", email: "person@example.com", isAnonymous: false } });
   });
 
-  it("resolves a bearer token as botAuth when no cookie session is present (agent write path, rate-limited)", async () => {
+  it("resolves a bearer token as botAuth when no cookie session is present (agent write path, agent rate-limit tier)", async () => {
     state.userResponse = { data: { user: { id: "agent-1", email: "", user_metadata: { full_name: "agent_abc" } } }, error: null };
 
     const result = await resolveRequestIdentity(makeRequest({ authorization: "Bearer good-token" }));

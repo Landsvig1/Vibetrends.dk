@@ -41,12 +41,12 @@ vi.mock("@/lib/honeypot", () => ({
 
 // Mock rate-limit — always within budget (proceed) unless a test overrides it.
 vi.mock("@/lib/rate-limit", () => ({
-  enforceAgentWriteRateLimit: vi.fn().mockResolvedValue(null),
+  enforceWriteRateLimit: vi.fn().mockResolvedValue(null),
 }));
 
 import * as dbMod from "@/lib/db";
 import * as serverMod from "@/lib/supabase-server";
-import { enforceAgentWriteRateLimit } from "@/lib/rate-limit";
+import { enforceWriteRateLimit } from "@/lib/rate-limit";
 import type { ActingAs } from "@/lib/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -233,7 +233,7 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
   it("returns 429 and skips upvoteThread once the write budget (identity or site-wide) is exhausted", async () => {
     const { identity } = makeBotIdentity("bot-upvote");
     resolveRequestIdentityMock.mockResolvedValue(identity);
-    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+    vi.mocked(enforceWriteRateLimit).mockResolvedValueOnce(
       NextResponse.json({ error: "Too many requests" }, { status: 429 })
     );
 
@@ -245,7 +245,7 @@ describe("POST /api/forum/[id]/upvote — upvoteThread via bearer token", () => 
   it("returns 503 (not an unhandled exception) when the rate-limit check itself throws — this route has no top-level try/catch", async () => {
     const { identity } = makeBotIdentity("bot-upvote");
     resolveRequestIdentityMock.mockResolvedValue(identity);
-    vi.mocked(enforceAgentWriteRateLimit).mockResolvedValueOnce(
+    vi.mocked(enforceWriteRateLimit).mockResolvedValueOnce(
       NextResponse.json({ error: "Service unavailable" }, { status: 503 })
     );
 

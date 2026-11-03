@@ -41,7 +41,7 @@ vi.mock('@/lib/supabase-server', () => ({
   },
 }));
 
-import { hashIp, checkRateLimit, checkAgentWriteAllowed, resolveAgentWriteLimit, enforceAgentWriteRateLimit } from '@/lib/rate-limit';
+import { hashIp, checkRateLimit, checkAgentWriteAllowed, checkHumanWriteAllowed, resolveWriteLimit, enforceWriteRateLimit } from '@/lib/rate-limit';
 import { getSupabaseServiceRole, supabasePublic } from '@/lib/supabase-server';
 
 beforeEach(() => {
@@ -229,60 +229,112 @@ describe('checkAgentWriteAllowed', () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolveAgentWriteLimit
+// checkHumanWriteAllowed
 //
-// The shared outcome classifier both REST routes (via enforceAgentWriteRateLimit)
-// and the MCP route call — one place for the ok/rate_limited/service_unavailable
-// mapping so REST and MCP can't drift.
+// Cookie-authenticated humans get their own per-user tier and no global tier:
+// a human account costs a real signup, so the site-wide ceiling that bounds
+// mass-provisioned agent identities isn't needed here.
 // ---------------------------------------------------------------------------
 
-describe('resolveAgentWriteLimit', () => {
-  it("returns 'ok' when within budget", async () => {
-    state.dualRpcResponse = true;
-    const result = await resolveAgentWriteLimit('user-abc-123');
-    expect(result).toBe('ok');
+describe('checkHumanWriteAllowed', () => {
+  it('calls the single-key RPC with the humanwrite bucket, 60/hour', async () => {
+    await checkHumanWriteAllowed('user-abc-123');
+    expect(state.lastRpcCall?.fn).toBe('check_and_increment_rate_limit');
+    expect(state.lastRpcCall?.params).toEqual({
+      p_key: 'humanwrite:user-abc-123',
+      p_limit: 60,
+      p_window_seconds: 3600,
+    });
   });
 
-  it("returns 'rate_limited' when the budget is exhausted", async () => {
-    state.dualRpcResponse = false;
-    const result = await resolveAgentWriteLimit('user-abc-123');
-    expect(result).toBe('rate_limited');
+  it('returns false when the budget is exhausted', async () => {
+    state.rpcResponse = { data: false, error: null };
+    await expect(checkHumanWriteAllowed('user-abc-123')).resolves.toBe(false);
   });
 
-  it("returns 'service_unavailable' instead of throwing when the underlying RPC fails", async () => {
+  it('throws when the RPC returns an error', async () => {
     state.rpcResponse = { data: null, error: { message: 'connection refused' } };
-    const result = await resolveAgentWriteLimit('user-abc-123');
-    expect(result).toBe('service_unavailable');
+    await expect(checkHumanWriteAllowed('user-abc-123')).rejects.toThrow('Rate limit RPC failed');
   });
 });
 
 // ---------------------------------------------------------------------------
-// enforceAgentWriteRateLimit
+// resolveWriteLimit
 //
-// The REST-facing wrapper every write route calls — translates
-// resolveAgentWriteLimit's outcome into a NextResponse or null (proceed).
+// The shared outcome classifier both REST routes (via enforceWriteRateLimit)
+// and the MCP route call. It picks the tier from the identity (bearer agent
+// or cookie human) so no call site chooses, and owns the
+// ok/rate_limited/service_unavailable mapping so REST and MCP can't drift.
 // ---------------------------------------------------------------------------
 
-describe('enforceAgentWriteRateLimit', () => {
-  it('returns null (proceed) when within budget', async () => {
+const agent = { user: { id: 'agent-1' }, botAuth: { user: { id: 'agent-1' } } };
+const human = { user: { id: 'human-1' } };
+
+describe('resolveWriteLimit', () => {
+  it('routes a bearer identity to the agent tier', async () => {
     state.dualRpcResponse = true;
-    const result = await enforceAgentWriteRateLimit('user-abc-123');
-    expect(result).toBeNull();
+    await resolveWriteLimit(agent);
+    expect(state.lastRpcCall?.fn).toBe('check_and_increment_dual_rate_limit');
+    expect(state.lastRpcCall?.params.p_key1).toBe('agentwrite:agent-1');
   });
 
-  it('returns a 429 NextResponse when the write budget is exhausted', async () => {
+  it('routes a cookie identity to the human tier', async () => {
+    await resolveWriteLimit(human);
+    expect(state.lastRpcCall?.fn).toBe('check_and_increment_rate_limit');
+    expect(state.lastRpcCall?.params.p_key).toBe('humanwrite:human-1');
+  });
+
+  it("returns 'ok' when within budget", async () => {
+    state.dualRpcResponse = true;
+    await expect(resolveWriteLimit(agent)).resolves.toBe('ok');
+    await expect(resolveWriteLimit(human)).resolves.toBe('ok');
+  });
+
+  it("returns 'rate_limited' when the budget is exhausted", async () => {
     state.dualRpcResponse = false;
-    const result = await enforceAgentWriteRateLimit('user-abc-123');
-    expect(result).not.toBeNull();
+    await expect(resolveWriteLimit(agent)).resolves.toBe('rate_limited');
+    state.rpcResponse = { data: false, error: null };
+    await expect(resolveWriteLimit(human)).resolves.toBe('rate_limited');
+  });
+
+  it("returns 'service_unavailable' instead of throwing when the underlying RPC fails", async () => {
+    state.rpcResponse = { data: null, error: { message: 'connection refused' } };
+    await expect(resolveWriteLimit(agent)).resolves.toBe('service_unavailable');
+    await expect(resolveWriteLimit(human)).resolves.toBe('service_unavailable');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforceWriteRateLimit
+//
+// The REST-facing wrapper every write route calls: translates
+// resolveWriteLimit's outcome into a NextResponse or null (proceed).
+// ---------------------------------------------------------------------------
+
+describe('enforceWriteRateLimit', () => {
+  it('returns null (proceed) when within budget', async () => {
+    state.dualRpcResponse = true;
+    await expect(enforceWriteRateLimit(agent)).resolves.toBeNull();
+    await expect(enforceWriteRateLimit(human)).resolves.toBeNull();
+  });
+
+  it('returns a 429 NextResponse when a human exhausts their budget', async () => {
+    state.rpcResponse = { data: false, error: null };
+    const result = await enforceWriteRateLimit(human);
     expect(result?.status).toBe(429);
     const body = await result?.json();
     expect(body.error).toBeDefined();
   });
 
+  it('returns a 429 NextResponse when an agent exhausts its budget', async () => {
+    state.dualRpcResponse = false;
+    const result = await enforceWriteRateLimit(agent);
+    expect(result?.status).toBe(429);
+  });
+
   it('returns a 503 NextResponse instead of throwing when the underlying RPC fails', async () => {
     state.rpcResponse = { data: null, error: { message: 'connection refused' } };
-    const result = await enforceAgentWriteRateLimit('user-abc-123');
-    expect(result).not.toBeNull();
+    const result = await enforceWriteRateLimit(human);
     expect(result?.status).toBe(503);
     const body = await result?.json();
     expect(body.error).toBeDefined();
