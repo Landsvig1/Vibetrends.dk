@@ -1,7 +1,5 @@
 "use client";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase";
-
 /**
  * First-party funnel events.
  *
@@ -10,12 +8,13 @@ import { createSupabaseBrowserClient } from "@/lib/supabase";
  * on. These are mirrored into Supabase, where they can be joined against
  * users and content -- see supabase/migrations/20260830120000_analytics_events.sql.
  *
- * Writes go through the record_analytics_event RPC; the table itself is
- * RLS-locked with no policies, so the browser can append but never read,
- * update or delete.
+ * Events are posted to /api/events, which rate-limits per IP and calls the
+ * record_analytics_event RPC with the service role. The browser has no
+ * direct access to the RPC or the table.
  */
 
 const SESSION_KEY = "vt_sid";
+const ENDPOINT = "/api/events";
 
 /**
  * Per-tab id used to count one visit's copies once. Deliberately
@@ -52,26 +51,21 @@ export function recordAnalyticsEvent(
   } = {},
 ): void {
   try {
-    const supabase = createSupabaseBrowserClient();
-    // Fire-and-forget: telemetry must never delay or break the copy action, so
-    // the promise is intentionally not awaited and its rejection is swallowed.
-    void supabase
-      .rpc("record_analytics_event", {
-        p_event_name: eventName,
-        p_item_type: payload.itemType ?? null,
-        p_item_slug: payload.itemSlug ?? null,
-        p_host_slug: payload.hostSlug ?? null,
-        p_snippet: payload.snippet ?? null,
-        p_path: typeof window !== "undefined" ? window.location.pathname : null,
-        p_session_id: sessionId() ?? null,
-      })
-      // Two-arg then, not .catch: the Supabase builder is a PromiseLike and
-      // has no .catch.
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+    const body = JSON.stringify({
+      name: eventName,
+      itemType: payload.itemType,
+      itemSlug: payload.itemSlug,
+      hostSlug: payload.hostSlug,
+      snippet: payload.snippet,
+      path: typeof window !== "undefined" ? window.location.pathname : undefined,
+      sessionId: sessionId(),
+    });
+    // Fire-and-forget: telemetry must never delay or break the copy action.
+    // sendBeacon survives the page unloading right after a copy; fetch with
+    // keepalive is the fallback where it is missing or refuses the payload.
+    if (typeof navigator !== "undefined" && navigator.sendBeacon?.(ENDPOINT, body)) return;
+    void fetch(ENDPOINT, { method: "POST", body, keepalive: true }).catch(() => undefined);
   } catch {
-    // Missing env vars or no browser context: never surface to the user.
+    // No browser context: never surface to the user.
   }
 }
