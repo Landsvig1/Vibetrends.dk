@@ -12,6 +12,7 @@ import { execSync } from 'child_process';
 import { connect } from './lib/db.mjs';
 import {
   calculateDelta,
+  summarizeGscDates,
   extractGrowthOpportunities,
   parseOwnerIds,
   classifyAccount,
@@ -375,30 +376,18 @@ export function getGscData(days = 30) {
       }
     }
 
-    const curQueriesRes = runGsc('query', curStart, curEnd);
-    const prevQueries = runGsc('query', prevStart, prevEnd);
+    const curQueries = runGsc('query', curStart, curEnd) || [];
     const curPages = runGsc('page', curStart, curEnd) || [];
-    const curDates = runGsc('date', curStart, curEnd) || [];
-    const curQueries = curQueriesRes || [];
-
-    const sum = (rows, key) => (rows ? rows.reduce((acc, r) => acc + (r[key] || 0), 0) : null);
-    const curClicks = sum(curQueriesRes, 'clicks');
-    const prevClicks = sum(prevQueries, 'clicks');
-    const curImpressions = sum(curQueriesRes, 'impressions');
-    const prevImpressions = sum(prevQueries, 'impressions');
+    const curDates = runGsc('date', curStart, curEnd);
+    const prevDates = runGsc('date', prevStart, prevEnd);
 
     const opportunities = extractGrowthOpportunities(curQueries);
 
     return {
-      summary: {
-        clicks: curClicks || 0,
-        impressions: curImpressions || 0,
-        clicksDelta: calculateDelta(curClicks, prevClicks),
-        impressionsDelta: calculateDelta(curImpressions, prevImpressions),
-      },
+      summary: summarizeGscDates(curDates, prevDates, curStart),
       topQueries: curQueries.slice(0, 30),
       topPages: curPages.slice(0, 20),
-      dailyTrends: curDates,
+      dailyTrends: curDates || [],
       growthOpportunities: opportunities,
     };
   } catch (e) {

@@ -23,6 +23,32 @@ export function calculateDelta(current, previous) {
   };
 }
 
+// Site totals from date rows. Query rows omit anonymized queries, so summing
+// them undercounts. GSC data lags a few days, so the previous period is cut to
+// the same number of days the current one actually covers.
+export function summarizeGscDates(curRows, prevRows, curStart) {
+  const DAY = 86400000;
+  const sum = (rows, key) => rows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
+  const date = (r) => r.keys[0];
+
+  let prevWindow = null;
+  if (curRows?.length && prevRows) {
+    const latest = curRows.map(date).sort().at(-1);
+    const start = Date.parse(curStart);
+    const from = new Date(start - (Date.parse(latest) - start + DAY)).toISOString().slice(0, 10);
+    prevWindow = prevRows.filter((r) => date(r) >= from && date(r) < curStart);
+  }
+
+  const clicks = curRows ? sum(curRows, 'clicks') : null;
+  const impressions = curRows ? sum(curRows, 'impressions') : null;
+  return {
+    clicks: clicks || 0,
+    impressions: impressions || 0,
+    clicksDelta: prevWindow ? calculateDelta(clicks, sum(prevWindow, 'clicks')) : null,
+    impressionsDelta: prevWindow ? calculateDelta(impressions, sum(prevWindow, 'impressions')) : null,
+  };
+}
+
 export function parseOwnerIds(envValue) {
   return new Set(String(envValue || '').split(',').map((id) => id.trim()).filter(Boolean));
 }

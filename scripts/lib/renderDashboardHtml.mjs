@@ -30,6 +30,28 @@ function renderDeltaBadge(delta, unavailable = 'n/a') {
   return `<span class="badge ${cls}">${icon} ${prefix}${delta.percent}%</span>`;
 }
 
+function formatDelta(delta) {
+  if (!delta) return 'n/a';
+  return `${delta.percent > 0 ? '+' : ''}${delta.percent}%`;
+}
+
+function sumProfiles(profiles, userType) {
+  const out = { skills: 0, vibes: 0, agents: 0, upvotes: 0, pending: 0 };
+  for (const p of profiles) {
+    if (p.userType !== userType) continue;
+    out.skills += Number(p.skillsCount) || 0;
+    out.vibes += Number(p.vibesCount) || 0;
+    out.agents += Number(p.agentsCount) || 0;
+    out.upvotes += Number(p.upvotesCount) || 0;
+    out.pending += Number(p.skillsPending) || 0;
+  }
+  return out;
+}
+
+function renderSubmissions(label, c) {
+  return `<li><strong>${label}:</strong> ${c.skills} skills (${c.pending} afventer review), ${c.vibes} vibes, ${c.agents} agenter, ${c.upvotes} upvotes.</li>`;
+}
+
 export function renderDashboardHtml(analyticsData) {
   const data = analyticsData || {};
   const vercel = data.vercel || {};
@@ -76,6 +98,13 @@ export function renderDashboardHtml(analyticsData) {
   const upvotesStats = supabase.upvotes || [];
   const apiActivity = supabase.apiActivity || [];
   const userProfiles = supabase.userProfiles || [];
+
+  const landingPages = gscPages.slice(0, 2);
+  const landingClicks = landingPages.reduce((acc, p) => acc + (Number(p.clicks) || 0), 0);
+  const topCountries = countries.slice(0, 3);
+  const otherCountryVisitors = visitors - topCountries.reduce((acc, c) => acc + (Number(c.visitors) || 0), 0);
+  const nextTerms = opportunities.slice(0, 3).map(o => o.term);
+  const apiEvents = (action) => Number(apiActivity.find(a => a.action === action)?.total_events) || 0;
 
   return `<!DOCTYPE html>
 <html lang="da">
@@ -492,17 +521,21 @@ export function renderDashboardHtml(analyticsData) {
           <div class="card-title">Vigtigste Konklusioner</div>
           <div style="font-size: 14px; line-height: 1.7; color: var(--foreground);">
             <p style="margin-bottom: 10px;">
-              <strong>🚀 Aula Breakout:</strong> Siderne for <code>aula-api-klient</code> og <code>aula-mcp</code> driver over 80% af alle organiske Google-klik med en høj CTR på 7–13%.
+              <strong>🔎 Google-søgning:</strong> ${gscClicks} klik (${formatDelta(gscClicksDelta)}) og ${gscImpressions} visninger (${formatDelta(gscImpressionsDelta)}) de seneste ${windowDays} dage.
             </p>
             <p style="margin-bottom: 10px;">
-              <strong>📈 Stærk Søgevisningsvækst:</strong> Google Search Console registrerede 556 visninger (+755%) i de seneste 30 dage.
+              <strong>🚀 Top-landingssider:</strong> ${gscClicks && landingPages.length
+                ? `${landingPages.map(p => `<code>${escapeHtml(String(p.keys?.[0] || '').replace('https://vibetrends.dk', '') || '/')}</code>`).join(' og ')} står for ${landingClicks} af ${gscClicks} klik (${Math.round((landingClicks / gscClicks) * 100)}%).`
+                : 'Ingen klik i perioden.'}
             </p>
             <p style="margin-bottom: 10px;">
               <strong>👥 Brugere:</strong> ${humans.total} eksterne mennesker, ${humans.returned} vendt tilbage efter dag ét, ${humans.active7d} aktive de seneste 7 dage.
               <span style="color: var(--muted);">Derudover ${agents.total} anonyme agentkonti og ${owners.total} ejerkonti, som ikke tæller med.</span>
             </p>
             <p>
-              <strong>💡 Næste Skridt:</strong> Optimer titler og meta descriptions på Side 1-nøgleord med 0% CTR (Boligsiden, Rejseplanen, Motion) for at konvertere visninger til klik.
+              <strong>💡 Næste Skridt:</strong> ${nextTerms.length
+                ? `Forbedr titler og meta descriptions for søgeord med lav CTR: ${nextTerms.map(escapeHtml).join(', ')}.`
+                : 'Ingen søgeord med høj visning og lav CTR i perioden.'}
             </p>
           </div>
         </div>
@@ -528,7 +561,7 @@ export function renderDashboardHtml(analyticsData) {
             </tbody>
           </table>
           <div style="margin-top: 14px; font-size: 13px; color: var(--muted);">
-            Opvotes: <strong>${upvotesStats.reduce((acc, u) => acc + Number(u.upvotes || 0), 0)}</strong> &bull; Forum tråde: <strong>0</strong>
+            Opvotes: <strong>${upvotesStats.reduce((acc, u) => acc + Number(u.upvotes || 0), 0)}</strong> &bull; Forum tråde: <strong>${contentStats.find(c => c.type === 'forum_threads')?.total || 0}</strong>
           </div>
         </div>
       </div>
@@ -560,14 +593,10 @@ export function renderDashboardHtml(analyticsData) {
           <div style="font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
             <p style="margin-bottom: 8px;"><strong>Besøgende på web (Vercel):</strong></p>
             <ul style="padding-left: 20px; color: var(--muted); margin-bottom: 12px;">
-              <li><strong>Danmark (54%):</strong> Primær målgruppe for danske Claude/MCP tools og Aula/Rejseplanen.</li>
-              <li><strong>USA (37%):</strong> Globale AI-udviklere der søger efter Next.js/Motion skills og Claude Code patterns.</li>
-              <li><strong>Tyskland / UK / Sverige / Norge (9%):</strong> Øvrig europæisk tech-trafik.</li>
-            </ul>
-            <p style="margin-bottom: 8px;"><strong>Registrerede konti:</strong></p>
-            <ul style="padding-left: 20px; color: var(--muted);">
-              <li><strong>Mennesker:</strong> Danske domæner (<code>.dk</code>), Hotmail og Google Workspace.</li>
-              <li><strong>Agenter:</strong> Headless scripts, Hermes feeds og IDE CLI-kald.</li>
+              ${visitors && topCountries.length ? `
+                ${topCountries.map(c => `<li><strong>${escapeHtml(c.country)} (${Math.round((Number(c.visitors) / visitors) * 100)}%):</strong> ${c.visitors} besøgende</li>`).join('')}
+                ${otherCountryVisitors > 0 ? `<li><strong>Øvrige (${Math.round((otherCountryVisitors / visitors) * 100)}%):</strong> ${otherCountryVisitors} besøgende</li>` : ''}
+              ` : '<li>Ingen geodata i perioden.</li>'}
             </ul>
           </div>
         </div>
@@ -577,15 +606,15 @@ export function renderDashboardHtml(analyticsData) {
           <div style="font-size: 13px; line-height: 1.6;">
             <p style="margin-bottom: 8px;"><strong>📦 Tilføjet Indhold (Submissions):</strong></p>
             <ul style="padding-left: 20px; color: var(--muted); margin-bottom: 12px;">
-              <li><strong>Mennesker:</strong> Projektet <code>Relaite</code> (af @webdev82_vibe) + 2 upvotes.</li>
-              <li><strong>Agenter:</strong> 8 indsendte skills (herunder <code>dk-techblog</code>, <code>simply-launch</code>, <code>gsc-admin</code>, <code>bot-pr-review</code>) holdt i Review Gate (pending).</li>
-              <li><strong>Curator Bot:</strong> 49 godkendte og verificerede katalog-skills.</li>
+              ${renderSubmissions('Mennesker', sumProfiles(userProfiles, 'human'))}
+              ${renderSubmissions('Agenter', sumProfiles(userProfiles, 'agent'))}
+              ${renderSubmissions('Ejerkonti', sumProfiles(userProfiles, 'owner'))}
             </ul>
             <p style="margin-bottom: 8px;"><strong>⚡ Forbrug & Connects (Interactions):</strong></p>
             <ul style="padding-left: 20px; color: var(--muted);">
-              <li><strong>MCP Toolkald:</strong> Registrerede <code>mcp:*</code> endpoint events.</li>
-              <li><strong>Agent Write Quotas:</strong> 20+ rate-limited write events afviklet sikkert.</li>
-              <li><strong>Copy & Install:</strong> 1-click git clone og MCP JSON config-kopieringer via Connect Blocks.</li>
+              <li><strong>MCP-hændelser:</strong> ${apiEvents('mcp')}</li>
+              <li><strong>Agent-skrivninger:</strong> ${apiEvents('agentwrite')}</li>
+              <li><strong>Copy & Install:</strong> ${funnel && !funnel.error ? `${funnel.copyEvents} kopieringer i perioden` : 'n/a'}</li>
             </ul>
           </div>
         </div>
