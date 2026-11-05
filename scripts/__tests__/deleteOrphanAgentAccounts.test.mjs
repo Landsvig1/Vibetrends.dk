@@ -154,6 +154,14 @@ describe("dryRun", () => {
     expect(client.statements().at(-1)).toBe("ROLLBACK");
   });
 
+  it("reports the 06 UTC cohort and the newest candidate in UTC, not session time", async () => {
+    const client = fakeClient();
+    await dryRun(client, { keepIds: [], ownerIds: [] });
+    const report = client.log.find((q) => /count\(\*\)/i.test(q.sql)).sql;
+    expect(report).toMatch(/extract\(hour from u\.created_at at time zone 'UTC'\) = 6[^,]*as candidates_06_utc/);
+    expect(report).toMatch(/at time zone 'UTC'[^,]*,\s*'YYYY-MM-DD"T"HH24:MI:SS"Z"'\) as newest_candidate/);
+  });
+
   it("flags a keep id that does not exist", async () => {
     const report = await dryRun(fakeClient({ existing: [] }), { keepIds: [KEEP], ownerIds: [] });
     expect(report.unknownKeepIds).toEqual([KEEP]);

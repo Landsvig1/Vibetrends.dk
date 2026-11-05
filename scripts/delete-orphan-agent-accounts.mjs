@@ -159,7 +159,10 @@ export async function dryRun(client, { keepIds, ownerIds }) {
     const { rows } = await client.query(
       `select count(*) as anonymous, count(*) filter (where ${ORPHAN_PREDICATE}) as candidates,
               (min(u.created_at) filter (where ${ORPHAN_PREDICATE}))::date::text as oldest_candidate,
-              (max(u.created_at) filter (where ${ORPHAN_PREDICATE}))::date::text as newest_candidate,
+              count(*) filter (where ${ORPHAN_PREDICATE}
+                and extract(hour from u.created_at at time zone 'UTC') = 6) as candidates_06_utc,
+              to_char(max(u.created_at) filter (where ${ORPHAN_PREDICATE}) at time zone 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS"Z"') as newest_candidate,
               ${reasons}
        from auth.users u where u.is_anonymous`,
       [[...keepIds, ...ownerIds]],
