@@ -1,5 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDelta, extractGrowthOpportunities, parseOwnerIds, classifyAccount, summarizeAccounts, itemPath, copyRateByPath } from '../lib/analyticsDelta.mjs';
+import { calculateDelta, extractGrowthOpportunities, parseOwnerIds, classifyAccount, summarizeAccounts, itemPath, copyRateByPath, summarizeGscDates } from '../lib/analyticsDelta.mjs';
+
+describe('summarizeGscDates', () => {
+  const day = (date, clicks, impressions) => ({ keys: [date], clicks, impressions });
+
+  it('totals date rows and compares against the same number of covered days', () => {
+    const cur = [day('2026-10-10', 3, 30), day('2026-10-11', 5, 50)];
+    const prev = [day('2026-10-07', 100, 1000), day('2026-10-08', 2, 20), day('2026-10-09', 2, 20), day('2026-10-10', 100, 1000)];
+    const s = summarizeGscDates(cur, prev, '2026-10-10');
+    expect(s.clicks).toBe(8);
+    expect(s.impressions).toBe(80);
+    expect(s.clicksDelta).toMatchObject({ previous: 4, percent: 100 });
+    expect(s.impressionsDelta).toMatchObject({ previous: 40, percent: 100 });
+  });
+
+  it('returns null deltas when a period failed or has no rows', () => {
+    const cur = [day('2026-10-10', 3, 30)];
+    expect(summarizeGscDates(cur, null, '2026-10-10').clicksDelta).toBeNull();
+    expect(summarizeGscDates(null, cur, '2026-10-10')).toMatchObject({ clicks: 0, clicksDelta: null });
+    expect(summarizeGscDates([], cur, '2026-10-10').impressionsDelta).toBeNull();
+  });
+});
 
 describe('calculateDelta', () => {
   it('calculates positive growth correctly', () => {

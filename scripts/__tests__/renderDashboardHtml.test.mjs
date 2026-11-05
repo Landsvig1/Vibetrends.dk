@@ -220,6 +220,41 @@ describe('renderDashboardHtml honest measurement', () => {
     expect(html).toContain('⚙️ Ejer</span>');
   });
 
+  it('derives conclusions, geography and submissions from the data', () => {
+    const html = renderDashboardHtml({
+      vercel: {
+        totals: { visitors: 100 },
+        countries: [{ country: 'DK', visitors: 60 }, { country: 'US', visitors: 20 }, { country: 'DE', visitors: 10 }, { country: 'NL', visitors: 10 }],
+      },
+      gsc: {
+        summary: { clicks: 10, impressions: 200, clicksDelta: { percent: -20, direction: 'down' }, impressionsDelta: null },
+        topPages: [{ keys: ['https://vibetrends.dk/mcp/foo'], clicks: 6 }, { keys: ['https://vibetrends.dk/'], clicks: 2 }],
+        growthOpportunities: [{ term: 'foo mcp', impressions: 20, clicks: 0, ctr: 0, position: 8, recommendation: 'x' }],
+      },
+      supabase: {
+        content: [{ type: 'forum_threads', total: 7, user_authored: 7 }],
+        apiActivity: [{ action: 'mcp', total_events: 45 }],
+        userProfiles: [{ id: 'a', userType: 'agent', displayName: 'a', origin: 'x', skillsCount: 3, skillsPending: 2, vibesCount: 0, agentsCount: 1, upvotesCount: 0, apiEventsCount: 0 }],
+      },
+    });
+    expect(html).toContain('10 klik (-20%) og 200 visninger (n/a)');
+    expect(html).toContain('<code>/mcp/foo</code> og <code>/</code> står for 8 af 10 klik (80%)');
+    expect(html).toContain('lav CTR: foo mcp.');
+    expect(html).toContain('DK (60%):');
+    expect(html).toContain('Øvrige (10%):');
+    expect(html).toContain('Agenter:</strong> 3 skills (2 afventer review), 0 vibes, 1 agenter');
+    expect(html).toContain('Forum tråde: <strong>7</strong>');
+    expect(html).toContain('MCP-hændelser:</strong> 45');
+  });
+
+  it('keeps stale hardcoded claims out of an empty report', () => {
+    const html = renderDashboardHtml({});
+    for (const stale of ['755%', '556 visninger', '54%', '37%', 'Relaite', 'Boligsiden']) {
+      expect(html).not.toContain(stale);
+    }
+    expect(html).toContain('Ingen klik i perioden');
+  });
+
   it('renders the per-page copy rate with n/a for pages without visitors', () => {
     const html = renderDashboardHtml({
       vercel: { totals: { visitors: 100 } },
