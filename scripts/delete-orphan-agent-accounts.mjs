@@ -2,8 +2,11 @@
 // decision D5). Dry run by default: it only changes data with --apply.
 //
 // An orphan is an anonymous account older than 7 days with no row in any
-// content, upvote, analytics, rate-limit or storage table, no session activity
-// in the last 7 days, and not on the keep list.
+// content, upvote, analytics or storage table, no session activity in the last
+// 7 days, and not on the keep list. A rate-limit row does not keep an account:
+// it is a counter that is never purged, so it says the account once tried to
+// write, not that it owns anything. Those rows are reported, and any left
+// behind are inert because nothing can authenticate as a deleted id.
 //
 // The keep list is load-bearing. A stable agent identity with no rows yet looks
 // exactly like an orphan, and deleting it kills the refresh token its owner
@@ -57,11 +60,6 @@ const ownsRow = (tables) =>
 const KEEP_REASONS = {
   on_keep_list: "u.id = any($1::uuid[])",
   younger_than_7d: `u.created_at >= now() - ${AGE}`,
-  // rate_limits has no user_id: identity lives in text keys (agentwrite:<uid>,
-  // humanwrite:<uid>, dbwrite:<uid>), so the match has to be on the text.
-  in_rate_limits:
-    `exists (select 1 from public.rate_limits r where position(u.id::text in r.key) > 0)` +
-    ` or exists (select 1 from public.rate_limit_rpc_audit a where position(u.id::text in a.p_key) > 0)`,
   owns_content: ownsRow(["skills", "vibes", "agents", "blog_posts", "forum_threads", "forum_replies"]),
   owns_upvote: ownsRow(["skill_upvotes", "vibes_upvotes", "agent_upvotes", "thread_upvotes", "reply_upvotes"]),
   in_analytics: ownsRow(["analytics_events"]),
@@ -69,6 +67,14 @@ const KEEP_REASONS = {
   recent_activity:
     `coalesce(u.last_sign_in_at >= now() - ${AGE}, false)` +
     ` or exists (select 1 from auth.sessions s where s.user_id = u.id and s.updated_at >= now() - ${AGE})`,
+};
+
+/** Reported by the dry run, never a reason to keep (D5). These tables have no
+ * user_id: identity lives in text keys (agentwrite:<uid>, humanwrite:<uid>,
+ * dbwrite:<uid>), so the match has to be on the text. */
+const REPORTED_ONLY = {
+  in_rate_limits: `exists (select 1 from public.rate_limits r where position(u.id::text in r.key) > 0)`,
+  in_rate_limit_audit: `exists (select 1 from public.rate_limit_rpc_audit a where position(u.id::text in a.p_key) > 0)`,
 };
 
 export const ORPHAN_PREDICATE = [
@@ -153,7 +159,7 @@ export async function dryRun(client, { keepIds, ownerIds }) {
   try {
     await checkSchema(client);
     const unknownKeepIds = await findUnknownIds(client, keepIds);
-    const reasons = Object.entries(KEEP_REASONS)
+    const reasons = Object.entries({ ...KEEP_REASONS, ...REPORTED_ONLY })
       .map(([name, sql]) => `count(*) filter (where ${sql}) as ${name}`)
       .join(", ");
     const { rows } = await client.query(

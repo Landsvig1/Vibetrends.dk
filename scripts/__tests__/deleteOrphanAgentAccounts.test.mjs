@@ -83,12 +83,15 @@ describe("OWNERSHIP_FKS", () => {
     for (const table of Object.keys(OWNERSHIP_FKS)) {
       expect(ORPHAN_PREDICATE).toContain(`public.${table}`);
     }
-    expect(ORPHAN_PREDICATE).toContain("public.rate_limits");
-    expect(ORPHAN_PREDICATE).toContain("public.rate_limit_rpc_audit");
     expect(ORPHAN_PREDICATE).toContain("storage.objects");
     expect(ORPHAN_PREDICATE).toContain("auth.sessions");
     expect(ORPHAN_PREDICATE).toContain("u.is_anonymous");
     expect(ORPHAN_PREDICATE).toContain("7 days");
+  });
+
+  it("does not let a rate-limit counter keep an account (D5)", () => {
+    expect(ORPHAN_PREDICATE).not.toContain("rate_limits");
+    expect(ORPHAN_PREDICATE).not.toContain("rate_limit_rpc_audit");
   });
 });
 
@@ -160,6 +163,14 @@ describe("dryRun", () => {
     const report = client.log.find((q) => /count\(\*\)/i.test(q.sql)).sql;
     expect(report).toMatch(/extract\(hour from u\.created_at at time zone 'UTC'\) = 6[^,]*as candidates_06_utc/);
     expect(report).toMatch(/at time zone 'UTC'[^,]*,\s*'YYYY-MM-DD"T"HH24:MI:SS"Z"'\) as newest_candidate/);
+  });
+
+  it("still reports rate-limit rows as counts, one per source", async () => {
+    const client = fakeClient();
+    await dryRun(client, { keepIds: [], ownerIds: [] });
+    const report = client.log.find((q) => /count\(\*\)/i.test(q.sql)).sql;
+    expect(report).toMatch(/public\.rate_limits r[^,]*as in_rate_limits/);
+    expect(report).toMatch(/public\.rate_limit_rpc_audit a[^,]*as in_rate_limit_audit/);
   });
 
   it("flags a keep id that does not exist", async () => {
