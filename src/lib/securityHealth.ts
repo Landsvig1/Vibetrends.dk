@@ -11,7 +11,7 @@
  * - "volume": activity over the last 24 hours above what this site normally
  *   sees. The limits are first guesses from Nov 2026 volumes (about one new
  *   anonymous account a month, an empty review queue) and are meant to be
- *   tuned once a few weeks of heartbeats exist.
+ *   tuned once a few weeks of runs exist.
  */
 
 export type HealthSnapshot = Record<string, number>;
@@ -142,11 +142,6 @@ export function evaluateHealth(snapshot: HealthSnapshot): HealthCheck[] {
   });
 }
 
-/** Monday in UTC, the day an all-clear heartbeat goes out. */
-export function isHeartbeatDay(now: Date): boolean {
-  return now.getUTCDay() === 1;
-}
-
 export function formatReport(checks: HealthCheck[]): { subject: string; text: string } {
   const failed = checks.filter((c) => !c.ok);
   const subject = failed.length
@@ -159,7 +154,7 @@ export function formatReport(checks: HealthCheck[]): { subject: string; text: st
   const text = [
     failed.length
       ? "Drift failures mean a security fix was undone. Volume failures mean unusual activity in the last 24 hours."
-      : "Weekly heartbeat. Nothing tripped.",
+      : "Nothing tripped.",
     "",
     ...failed.map(line),
     ...(failed.length ? [""] : []),

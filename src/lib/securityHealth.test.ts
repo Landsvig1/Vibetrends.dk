@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateHealth, formatReport, isHeartbeatDay } from "@/lib/securityHealth";
+import { evaluateHealth, formatReport } from "@/lib/securityHealth";
 
 /** The live snapshot from 2026-11-10: every invariant holds, no traffic. */
 const HEALTHY = {
@@ -54,13 +54,6 @@ describe("evaluateHealth", () => {
     delete rest.content_guard_triggers;
     const check = evaluateHealth(rest).find((c) => c.key === "content_guard_triggers");
     expect(check).toMatchObject({ ok: false, value: null });
-  });
-});
-
-describe("isHeartbeatDay", () => {
-  it("is Monday in UTC only", () => {
-    expect(isHeartbeatDay(new Date("2026-11-09T06:00:00Z"))).toBe(true);
-    expect(isHeartbeatDay(new Date("2026-11-10T06:00:00Z"))).toBe(false);
   });
 });
 

@@ -10,13 +10,12 @@ import { GET } from "../route";
 
 /**
  * The failure modes that matter for a monitor are the quiet ones: running for
- * an unauthenticated caller, skipping the mail when something is wrong, and
+ * an unauthenticated caller, reporting success when something is wrong, and
  * treating "could not check" as "nothing to report".
  */
 
 const SECRET = "cron-secret-value";
-const TUESDAY = new Date("2026-11-10T06:00:00Z");
-const MONDAY = new Date("2026-11-09T06:00:00Z");
+const PING = "https://hc-ping.com/00000000-0000-0000-0000-000000000000";
 
 const HEALTHY = {
   is_admin_reads_client_data: 0,
@@ -37,32 +36,29 @@ const request = (auth = `Bearer ${SECRET}`) =>
   new Request("https://vibetrends.dk/api/cron/security-health", { headers: { authorization: auth } });
 
 const fetchMock = vi.fn();
+const pingedUrl = () => fetchMock.mock.calls[0][0];
+const pingedBody = () => fetchMock.mock.calls[0][1].body as string;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(TUESDAY);
   vi.stubEnv("CRON_SECRET", SECRET);
-  vi.stubEnv("RESEND_API_KEY", "re_test");
-  vi.stubEnv("HEALTH_ALERT_TO", "owner@example.com");
+  vi.stubEnv("HEALTHCHECK_PING_URL", PING);
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockResolvedValue({ ok: true, status: 200 });
   rpc.mockResolvedValue({ data: HEALTHY, error: null });
 });
 
 afterEach(() => {
-  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
-const mailSubject = () => JSON.parse(fetchMock.mock.calls[0][1].body).subject;
-
 describe("GET /api/cron/security-health", () => {
-  it("rejects a caller without the cron secret and never queries the DB", async () => {
+  it("rejects a caller without the cron secret and never queries the DB or pings", async () => {
     const response = await GET(request("Bearer wrong"));
     expect(response.status).toBe(401);
     expect(rpc).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects everyone when CRON_SECRET is not configured", async () => {
@@ -70,38 +66,40 @@ describe("GET /api/cron/security-health", () => {
     expect((await GET(request())).status).toBe(401);
   });
 
-  it("stays quiet on a healthy weekday", async () => {
+  it("sends a success ping when every check passes", async () => {
     const response = await GET(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ failed: 0, mailed: false });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(pingedUrl()).toBe(PING);
+    expect(pingedBody()).toMatch(/^vibetrends security: all checks passed/);
   });
 
-  it("sends the all-clear heartbeat on Monday", async () => {
-    vi.setSystemTime(MONDAY);
-    await GET(request());
-    expect(mailSubject()).toBe("vibetrends security: all checks passed");
-  });
-
-  it("mails on any failed check, whatever the day", async () => {
+  it("pings /fail with the failing check in the body", async () => {
     rpc.mockResolvedValue({ data: { ...HEALTHY, server_only_functions_exposed: 1 }, error: null });
     const response = await GET(request());
-    expect(await response.json()).toMatchObject({ failed: 1, mailed: true });
-    expect(mailSubject()).toBe("vibetrends security: 1 check failed");
+    expect(await response.json()).toMatchObject({ failed: 1 });
+    expect(pingedUrl()).toBe(`${PING}/fail`);
+    expect(pingedBody()).toMatch(/FAIL .*Server-only RPCs/);
   });
 
-  it("mails and returns 500 when the check itself cannot run", async () => {
+  it("pings /fail and returns 500 when the check itself cannot run", async () => {
     rpc.mockResolvedValue({ data: null, error: { message: "function public.security_health() does not exist" } });
     const response = await GET(request());
     expect(response.status).toBe(500);
-    expect(mailSubject()).toBe("vibetrends security: health check could not run");
+    expect(pingedUrl()).toBe(`${PING}/fail`);
+    expect(pingedBody()).toMatch(/could not run: function public.security_health\(\) does not exist/);
   });
 
-  it("returns 500 when the alert cannot be delivered", async () => {
-    rpc.mockResolvedValue({ data: { ...HEALTHY, tables_without_rls: 1 }, error: null });
-    fetchMock.mockResolvedValue({ ok: false, status: 403 });
+  it("returns 500 when the ping cannot be delivered", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
     const response = await GET(request());
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ error: "mail_failed" });
+    expect(await response.json()).toMatchObject({ error: "ping_failed" });
+  });
+
+  it("returns 500 without pinging when HEALTHCHECK_PING_URL is missing", async () => {
+    vi.stubEnv("HEALTHCHECK_PING_URL", "");
+    const response = await GET(request());
+    expect(response.status).toBe(500);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

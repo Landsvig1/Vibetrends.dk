@@ -135,6 +135,6 @@ off, and keep the TS and SQL copies in step when you change either.
   writes. Don't remove or loosen it to make app traffic fit.
 - **These invariants are monitored.** `public.security_health()` and
   `src/lib/securityHealth.ts` check them daily via `/api/cron/security-health`
-  and mail the owner on drift. When you add an invariant, add its check there;
+  and report to Healthchecks.io, which alerts the owner on drift. When you add an invariant, add its check there;
   when a change legitimately alters one (a new content table, a second admin),
   update the expected value in the same PR, or the next run alerts.
