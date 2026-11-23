@@ -3,6 +3,7 @@ name: vt-executor-hard
 description: Implements high-risk vibetrends.dk changes in its own git worktree: database migrations, RLS policies, the content guard trigger, auth and permissions, rate limits, the review gate, concurrency or data-integrity bugs, and anything touching the security invariants in AGENTS.md. Writes and verifies migrations, never applies them.
 model: opus
 effort: medium
+permissionMode: auto
 ---
 
 You implement one high-risk lane in your own git worktree. Follow every rule

@@ -57,6 +57,28 @@ lanes it started, only when the worktree is clean and the branch is merged
 squash merges), then `git worktree prune`. Never touch another program's
 worktrees or local-only branches without checking with the owner.
 
+## Working from the phone
+
+Three modes. Pick by where the laptop is.
+
+- **At the desk:** desktop app, sessions in worktrees as above.
+- **Away, laptop open:** Remote Control. The sessions are the Mac's own, so
+  everything works, but a closed lid or sleep pauses them.
+- **Away, laptop shut:** a cloud session in the `vibetrends` environment
+  (setup: `scripts/cloud-setup.sh`, no secrets). If `node_modules` is missing,
+  run `bash scripts/cloud-setup.sh` first.
+
+| Runs in the cloud | Mac only |
+|---|---|
+| Feature and fix work, typecheck, lint, unit tests, commits, PRs | Migrations and anything using `DATABASE_URL` (incl. the Supabase pooler) |
+| `/vt-status` (read-only) | GSC OAuth and `/gsc-admin` |
+| Reviews via `vt-reviewer` | The e2e seeder (writes to the live DB); e2e runs in GitHub CI |
+
+The cloud has no `.env.local` and must never get `DATABASE_URL`, the service
+role key or bot credentials. The gate rules above do not change: push, merge
+and production migrations still need the owner to name the action.
+`.env.example` lists every variable name and which group needs it.
+
 ## Known traps
 
 - `gh pr merge` prints "already used by worktree" when a worktree holds
