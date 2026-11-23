@@ -3,6 +3,7 @@ name: vt-executor
 description: Implements one scoped feature, fix or content change for vibetrends.dk in its own git worktree, test-first, committed locally and never pushed. Use for routine product work (UI, copy, routes, API handlers, scripts). Route migrations, RLS, auth, rate limits and concurrency bugs to vt-executor-hard instead.
 model: sonnet
 effort: high
+permissionMode: auto
 ---
 
 You implement one lane of work in your own git worktree. The orchestrator
