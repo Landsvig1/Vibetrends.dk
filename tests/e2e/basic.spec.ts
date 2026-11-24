@@ -80,13 +80,13 @@ test.describe('VibeTrends.dk Core Flows', () => {
     // only render in the DOM as visible after hover.
     await expect(page.locator('nav').getByText('Vibes', { exact: true })).toBeVisible();
 
-    // Forum is always linked, whether or not it holds threads. It is the only
-    // hub a visitor can fill, so gating the link on its own content was
-    // self-sealing — the surface that produces the first thread was hidden
-    // until a first thread existed. Its empty state is designed instead (see
-    // the cold-start branch in ForumExplorer). Indexing is a separate question
-    // and is deliberately still gated: an empty forum stays noindexed.
-    await expect(page.locator('nav').getByText('Forum', { exact: true })).toBeVisible();
+    // Forum is hidden from the nav and the footer until it has been seeded
+    // (FORUM_HIDDEN in src/lib/hubContent.ts, owner decision 2026-11-23). It
+    // is a flag, not a content threshold, so this holds whatever the fixture
+    // DB holds. The route stays live: the forum flow test below loads /forum
+    // directly.
+    await expect(page.locator('nav').getByText('Forum', { exact: true })).toHaveCount(0);
+    await expect(page.locator('footer a[href="/forum"]')).toHaveCount(0);
 
     // Blog stays gated, because no visitor can populate it — hiding an empty
     // one costs nothing and spares a dead link. Rather than hardcode "hidden",
