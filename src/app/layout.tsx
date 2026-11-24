@@ -148,7 +148,7 @@ async function RootLayoutInner({ children }: { children: React.ReactNode }) {
         <main id="indhold" className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <RouteTransitionProvider>{children}</RouteTransitionProvider>
         </main>
-        <Footer />
+        <Footer hiddenHrefs={hiddenHrefs} />
       </NuqsAdapter>
     </AuthProvider>
   );

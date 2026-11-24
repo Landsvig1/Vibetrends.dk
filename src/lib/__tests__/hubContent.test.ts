@@ -88,40 +88,34 @@ describe("hasForumContent() / hasBlogContent()", () => {
 });
 
 describe("hiddenNavHrefs()", () => {
-  it("hides only /blog while both hubs are empty", async () => {
-    // /forum is deliberately NOT gated on its own content: it is the one hub a
-    // visitor can fill, so hiding it while empty is self-sealing. Its empty
-    // state is designed instead. /blog is author-only and stays gated.
-    expect(await hiddenNavHrefs()).toEqual(["/blog"]);
+  it("hides /forum and /blog while both hubs are empty", async () => {
+    expect(await hiddenNavHrefs()).toEqual(["/forum", "/blog"]);
   });
 
-  it("keeps /forum linked whether or not it has threads", async () => {
-    expect(await hiddenNavHrefs()).not.toContain("/forum");
+  it("keeps /forum hidden whether or not it has threads", async () => {
+    // Owner decision (2026-11-23): the forum stays out of the nav until it is
+    // seeded. It is a flag, not a content threshold.
     state.threads = 1;
-    expect(await hiddenNavHrefs()).not.toContain("/forum");
+    expect(await hiddenNavHrefs()).toContain("/forum");
+    state.threads = 50;
+    expect(await hiddenNavHrefs()).toContain("/forum");
   });
 
   it("reveals /blog on the first published post", async () => {
     state.posts = 1;
-    expect(await hiddenNavHrefs()).toEqual([]);
+    expect(await hiddenNavHrefs()).toEqual(["/forum"]);
   });
 
-  it("hides nothing once the blog has content", async () => {
-    state.threads = 2;
-    state.posts = 2;
-    expect(await hiddenNavHrefs()).toEqual([]);
-  });
-
-  it("hides nothing when the read fails, rather than unlinking a live hub", async () => {
+  it("keeps /blog linked when the read fails, rather than unlinking a live hub", async () => {
     state.posts = new Error("supabase unavailable");
-    expect(await hiddenNavHrefs()).toEqual([]);
+    expect(await hiddenNavHrefs()).toEqual(["/forum"]);
   });
 
   it("does not read the thread count at all", async () => {
-    // The forum decision no longer depends on it, so a broken thread count must
+    // The forum decision does not depend on it, so a broken thread count must
     // not be able to take the blog link down with it.
     state.threads = new Error("supabase unavailable");
     state.posts = 0;
-    expect(await hiddenNavHrefs()).toEqual(["/blog"]);
+    expect(await hiddenNavHrefs()).toEqual(["/forum", "/blog"]);
   });
 });

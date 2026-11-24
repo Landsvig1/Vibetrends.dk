@@ -60,38 +60,23 @@ export async function hasBlogContent(): Promise<boolean> {
 }
 
 /**
- * Header nav hrefs to hide while their hub has nothing in it.
+ * Nav hrefs (header and footer) to hide.
  *
- * This is deliberately NOT the same question as hasForumContent/hasBlogContent,
- * even though it used to be answered by them. Those two still decide indexing —
- * the sitemap entry and the hub's robots meta — and nothing here changes that:
- * an empty hub stays out of the sitemap and stays noindexed, because a thin page
- * in the index is a real SEO cost.
- *
- * Visibility in the nav is a different trade, and the two hubs answer it
- * differently:
+ * This is deliberately NOT the same question as hasForumContent/hasBlogContent.
+ * Those two decide indexing — the sitemap entry and the hub's robots meta — and
+ * nothing here changes that.
  *
  *   - /blog is author-only. No visitor can populate it, so hiding an empty blog
- *     costs nothing and spares the visitor a dead link. It stays gated.
+ *     costs nothing and spares the visitor a dead link. It stays gated on its own
+ *     content: createBlogPost/deleteBlogPost revalidate HUB_EMPTINESS_TAG, so the
+ *     first post brings the link back on the same trigger that puts the hub in
+ *     the sitemap and drops its noindex.
  *
- *   - /forum is the only hub a *visitor* can fill. Gating it on its own content
- *     is self-sealing: the surface that would produce the first thread is hidden
- *     until a first thread exists, so it can never start. PRODUCT.md names
- *     community traction as the success metric and an inert catalog as a failure
- *     state, which makes "never show the community surface" the more expensive
- *     side of this trade — more expensive than the dead-link impression the
- *     gating was added to avoid.
- *
- * The empty forum is therefore designed rather than hidden: ForumExplorer's
- * zero-thread state is an authored invitation tied to real catalog content, not
- * a blank list. That is what makes showing the link honest instead of a bait.
- *
- * Everything the old gating bought is preserved for /blog, including the
- * revalidation behavior: createBlogPost/deleteBlogPost revalidate
- * HUB_EMPTINESS_TAG, so a post created through the site or the API brings the
- * link back on the same trigger that puts the hub in the sitemap and drops its
- * noindex. Upvotes and replies deliberately do not — see the tag's definition in
- * db.ts for why it isn't just 'threads-list'.
+ *   - /forum is hidden unconditionally. The owner decided on 2026-11-23 to keep
+ *     it out of the nav until it has been seeded, after an always-visible forum
+ *     sat at one thread and zero replies for months. The route, its threads and
+ *     the MCP search_forum tool stay live; only the entry points go. Showing it
+ *     again is an owner decision, not a content threshold: drop FORUM_HIDDEN.
  *
  * A row inserted out of band — a node script against DATABASE_URL, a migration,
  * the Supabase dashboard — touches no tag, and the count is cacheLife('max'), so
@@ -99,8 +84,10 @@ export async function hasBlogContent(): Promise<boolean> {
  * (db.ts) documents the same trap. If you seed content by hand, revalidate or
  * redeploy afterwards.
  */
-export async function hiddenNavHrefs(): Promise<string[]> {
-  const blogHasContent = await hasBlogContent();
+export const FORUM_HIDDEN: boolean = true;
 
-  return blogHasContent ? [] : ["/blog"];
+export async function hiddenNavHrefs(): Promise<string[]> {
+  const hidden: string[] = FORUM_HIDDEN ? ["/forum"] : [];
+  if (!(await hasBlogContent())) hidden.push("/blog");
+  return hidden;
 }

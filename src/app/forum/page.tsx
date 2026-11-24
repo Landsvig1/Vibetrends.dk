@@ -74,13 +74,12 @@ export async function ForumPageContent({
   // inside getThreads — reply counts are populated server-side.
   const threads = await getThreads({ category, lang: 'da', sort: serverSort });
 
-  // Cold-start seed. The forum used to be hidden from the nav while empty,
-  // which was self-sealing: the surface that produces the first thread can't
-  // produce one if nobody can reach it (see hiddenNavHrefs in lib/hubContent).
-  // The link is now always shown, so the empty state has to earn it — it offers
-  // real catalog entries as conversation starters rather than a bare "be the
-  // first!". Only fetched when there is genuinely nothing to show, so the
-  // populated forum pays nothing for it. getTopSkills is 'use cache'/max.
+  // Cold-start seed. The empty state offers real catalog entries as
+  // conversation starters rather than a bare "be the first!". The forum is
+  // currently hidden from the nav (FORUM_HIDDEN in lib/hubContent) but the
+  // route stays reachable by URL, so this still has to read well. Only fetched
+  // when there is genuinely nothing to show, so the populated forum pays
+  // nothing for it. getTopSkills is 'use cache'/max.
   const coldStartTopics =
     threads.length === 0
       ? (await getTopSkills(3, 'da')).map((s) => ({

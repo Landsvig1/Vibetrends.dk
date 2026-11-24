@@ -3,7 +3,12 @@
 import Link from "next/link";
 import KoalaIcon from "./KoalaIcon";
 
-export default function Footer() {
+/**
+ * `hiddenHrefs` is the same list the header gets (hiddenNavHrefs in
+ * lib/hubContent.ts), so a hub hidden from the nav is hidden here too.
+ */
+export default function Footer({ hiddenHrefs = [] }: { hiddenHrefs?: string[] }) {
+  const shown = (href: string) => !hiddenHrefs.includes(href);
   return (
     <footer style={{ viewTransitionName: "site-footer" }} className="mt-auto border-t border-card-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -38,21 +43,25 @@ export default function Footer() {
                     Vibes
                   </Link>
                 </li>
-                <li>
-                  <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    Forum
-                  </Link>
-                </li>
+                {shown("/forum") && (
+                  <li>
+                    <Link href="/forum" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                      Forum
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Ressourcer</h3>
               <ul className="mt-4 space-y-2">
-                <li>
-                  <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
-                    Blog & Guides
-                  </Link>
-                </li>
+                {shown("/blog") && (
+                  <li>
+                    <Link href="/blog" className="text-sm text-text-secondary hover:text-foreground transition-colors">
+                      Blog & Guides
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link href="/about" className="text-sm text-text-secondary hover:text-foreground transition-colors">
                     Om vibetrends.dk
