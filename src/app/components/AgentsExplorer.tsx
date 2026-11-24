@@ -365,7 +365,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   {Icon && <Icon className="h-3.5 w-3.5" />}
                   {label}
                   {board.showCount && (
-                    <span className="font-mono opacity-70">{board.items.length}</span>
+                    <span className="font-mono">{board.items.length}</span>
                   )}
                 </button>
               );

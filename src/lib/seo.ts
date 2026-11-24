@@ -71,9 +71,28 @@ function truncateAtWordBoundary(text: string, max: number): string {
  */
 export function clampDescription(description: string): string {
   if (!description) return description;
-  return description.length > DESCRIPTION_MAX
-    ? truncateAtWordBoundary(description, DESCRIPTION_MAX)
-    : description;
+  const plain = plainTextDescription(description);
+  return plain.length > DESCRIPTION_MAX
+    ? truncateAtWordBoundary(plain, DESCRIPTION_MAX)
+    : plain;
+}
+
+/**
+ * Flatten a markdown description to one line of plain text for a meta tag.
+ *
+ * Descriptions are stored as authored, and some are markdown: /skills/impeccable
+ * is a seven-line bullet list, so its meta description, og:description and
+ * twitter:description all began "* Fjerner det typiske…" with backticks inline.
+ * A SERP snippet or social card renders those characters literally. Plain prose
+ * passes through unchanged apart from whitespace collapsing.
+ */
+export function plainTextDescription(text: string): string {
+  return text
+    .replace(/^[ \t]*(?:[*+-]|\d+[.)]|#{1,6}|>)[ \t]+/gm, "")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__|`)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const TITLE_MAX = 60;
