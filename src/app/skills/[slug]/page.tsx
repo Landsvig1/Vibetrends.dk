@@ -72,8 +72,10 @@ export const unstable_instant = {
 
 export default async function SkillDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
+    // min-h-[100svh]: the old ~380px skeleton let the footer paint inside the
+    // first phone viewport and then jump when the skill streamed in (CLS 0.38).
     <Suspense fallback={
-      <div className="space-y-10 animate-pulse">
+      <div className="min-h-[100svh] space-y-10 animate-pulse">
         <div className="h-6 bg-card-border/50 rounded w-24"></div>
         <div className="rounded-2xl glass-panel border border-card-border bg-card-border/10 h-80"></div>
       </div>
