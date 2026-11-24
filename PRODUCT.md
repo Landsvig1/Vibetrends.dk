@@ -75,7 +75,7 @@ showcase), CLI (`/cli`), MCP servers (`/mcp`), Forum (`/forum`, threaded with
 categories, upvotes, replies), Blog (`/blog`), plus About, Agent Guide, Privacy
 and Terms. Forum and Blog are live by URL but hidden from the header, footer and
 About page (owner decision, 2026-11-23): the blog until its first post, the
-forum until it has been seeded (`FORUM_HIDDEN` in `src/lib/hubContent.ts`). The old Agents section was retired — it duplicated `/cli` — and
+forum until it has been seeded (`FORUM_HIDDEN` in `src/lib/hubContent.ts`). The old Agents section was retired (it duplicated `/cli`), and
 `/agents` now 308s to `/cli`, `/agents/:id` to `/cli/:id` or `/mcp/:id`.
 
 **Terminology — use these exact names:**

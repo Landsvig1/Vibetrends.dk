@@ -3,7 +3,7 @@
  *
  * min-h-[100svh] is the point of sharing it. /mcp used an inline 300px
  * "Indlæser…" box, so on a phone the footer was painted inside the first
- * viewport and then shoved below the fold when the list arrived — Lighthouse
+ * viewport and then shoved below the fold when the list arrived. Lighthouse
  * measured CLS 0.48 there against 0 on /cli. Reserving a full viewport keeps
  * the footer out of the first paint whatever the list's length.
  */

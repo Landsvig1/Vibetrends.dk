@@ -63,7 +63,7 @@ export async function hasBlogContent(): Promise<boolean> {
  * Nav hrefs (header and footer) to hide.
  *
  * This is deliberately NOT the same question as hasForumContent/hasBlogContent.
- * Those two decide indexing — the sitemap entry and the hub's robots meta — and
+ * Those two decide indexing (the sitemap entry and the hub's robots meta), and
  * nothing here changes that.
  *
  *   - /blog is author-only. No visitor can populate it, so hiding an empty blog

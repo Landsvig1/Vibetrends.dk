@@ -193,7 +193,7 @@ describe("resolveView — a stale ?view= cannot select a tab that isn't there", 
   });
 });
 
-describe("resolveView — a hidden row never lands on a board rule 0 dropped", () => {
+describe("resolveView: a hidden row never lands on a board rule 0 dropped", () => {
   type Item = { id: string; isDanish: boolean };
   const key = (i: Item) => i.id;
   const boardsFor = (items: Item[]): Board<Item>[] => [
@@ -204,7 +204,7 @@ describe("resolveView — a hidden row never lands on a board rule 0 dropped", (
 
   it("shows the one non-Danish forum thread instead of an empty Dansk list", () => {
     // Live /forum on 2026-11-23: one thread, not Danish-flagged. Dansk is empty
-    // (rule 0), Top and Nyeste hold the same member (rule 2), so no row — and
+    // (rule 0), Top and Nyeste hold the same member (rule 2), so no row, and
     // the old fallback "danish" filtered the only thread away.
     const boards = boardsFor([{ id: "t1", isDanish: false }]);
     const visible = visibleBoards(boards, key);
