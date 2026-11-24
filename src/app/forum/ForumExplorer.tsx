@@ -199,7 +199,7 @@ export default function ForumExplorer({
     [threads]
   );
   const visible = useMemo(() => visibleBoards(boards, (t) => t.id), [boards]);
-  const activeView = resolveView(view, visible, "danish");
+  const activeView = resolveView(view, visible, "danish", boards);
 
   // getThreads/api/forum only understand top/new — Dansk is a client-side
   // filter/sort layered on the 'top'-sorted base list (see viewThreads below).

@@ -297,7 +297,7 @@ export default function VibesExplorer({ initialProjects }: VibesExplorerProps) {
   const visible = useMemo(() => visibleBoards(boards, (p) => p.id), [boards]);
 
   // A stale ?view= must not select a board that no longer has a tab.
-  const activeView = resolveView(view, visible, "danish");
+  const activeView = resolveView(view, visible, "danish", boards);
 
   // Board rules live in selectBoardProjects (exported, tested). Memoized to
   // avoid re-filtering and re-sorting on every keystroke.
