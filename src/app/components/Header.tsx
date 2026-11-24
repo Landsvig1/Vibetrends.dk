@@ -94,7 +94,7 @@ export default function Header({ hiddenHrefs = [] }: { hiddenHrefs?: string[] })
                 <span className="text-lg font-bold text-foreground transition duration-300 leading-tight">
                   vibetrends<span className="text-accent-primary font-extrabold font-mono">.dk</span>
                 </span>
-                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5 opacity-60">AI Tools & Viden</span>
+                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] -mt-0.5">AI Tools & Viden</span>
               </div>
             </Link>
           </div>

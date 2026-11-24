@@ -182,7 +182,56 @@ describe("resolveView — a stale ?view= cannot select a tab that isn't there", 
     expect(resolveView("nonsense", visible, "danish")).toBe("danish");
   });
 
-  it("returns the hub's default when there is no row at all", () => {
+  it("returns the hub's default when there is no row and every board is empty", () => {
     expect(resolveView("hot", [], "danish")).toBe("danish");
+    expect(
+      resolveView("hot", [], "danish", [
+        { value: "danish", items: [] },
+        { value: "top", items: [] },
+      ])
+    ).toBe("danish");
+  });
+});
+
+describe("resolveView: a hidden row never lands on a board rule 0 dropped", () => {
+  type Item = { id: string; isDanish: boolean };
+  const key = (i: Item) => i.id;
+  const boardsFor = (items: Item[]): Board<Item>[] => [
+    { value: "danish", items: items.filter((i) => i.isDanish) },
+    { value: "top", items },
+    { value: "new", items: [...items].reverse() },
+  ];
+
+  it("shows the one non-Danish forum thread instead of an empty Dansk list", () => {
+    // Live /forum on 2026-11-23: one thread, not Danish-flagged. Dansk is empty
+    // (rule 0), Top and Nyeste hold the same member (rule 2), so no row, and
+    // the old fallback "danish" filtered the only thread away.
+    const boards = boardsFor([{ id: "t1", isDanish: false }]);
+    const visible = visibleBoards(boards, key);
+    expect(visible).toEqual([]);
+    const view = resolveView("danish", visible, "danish", boards);
+    expect(view).toBe("top");
+    expect(boards.find((b) => b.value === view)!.items).toHaveLength(1);
+  });
+
+  it("shows the full list on a hub whose entries are all foreign", () => {
+    // e.g. /cli filtered to a category with no Danish tools.
+    const boards = boardsFor([
+      { id: "a", isDanish: false },
+      { id: "b", isDanish: false },
+    ]);
+    const visible = visibleBoards(boards, key);
+    expect(visible).toEqual([]);
+    expect(resolveView("danish", visible, "danish", boards)).toBe("top");
+  });
+
+  it("keeps Dansk when every entry is Danish, since it then holds everything", () => {
+    const boards = boardsFor([
+      { id: "a", isDanish: true },
+      { id: "b", isDanish: true },
+    ]);
+    const visible = visibleBoards(boards, key);
+    expect(visible).toEqual([]);
+    expect(resolveView("danish", visible, "danish", boards)).toBe("danish");
   });
 });

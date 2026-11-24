@@ -285,7 +285,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
   const visible = useMemo(() => visibleBoards(boards, (a) => a.id), [boards]);
 
   // A stale ?view=hot must not select a board that no longer has a tab.
-  const activeView = resolveView(view, visible, "danish");
+  const activeView = resolveView(view, visible, "danish", boards);
 
   // Board rules live in selectBoardAgents (exported, tested). Memoized to
   // avoid re-filtering and re-sorting on every keystroke.
@@ -365,7 +365,7 @@ export default function AgentsExplorer({ scope, initialItems }: AgentsExplorerPr
                   {Icon && <Icon className="h-3.5 w-3.5" />}
                   {label}
                   {board.showCount && (
-                    <span className="font-mono opacity-70">{board.items.length}</span>
+                    <span className="font-mono">{board.items.length}</span>
                   )}
                 </button>
               );

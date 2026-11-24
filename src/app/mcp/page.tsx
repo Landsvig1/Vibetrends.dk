@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getAgents } from "@/lib/db";
+import AgentsExplorerSkeleton from "../components/AgentsExplorerSkeleton";
 import AgentsExplorer from "../components/AgentsExplorer";
 import AgentSurfaceStrip from "../components/AgentSurfaceStrip";
 import { entityMetadata } from "@/lib/seo";
@@ -13,9 +14,8 @@ export const metadata: Metadata = entityMetadata({
 
 /**
  * Outer server component — wraps the data-fetch layer in a Suspense boundary
- * so the inline fallback is streamed on a cache-miss rather than blocking or
- * showing nothing. /mcp has no dedicated loading.tsx so an inline fallback is
- * used instead.
+ * so the shared AgentsExplorerSkeleton (same one /cli's loading.tsx uses) is
+ * streamed on a cache-miss rather than blocking or showing nothing.
  */
 export default async function McpPage({
   searchParams,
@@ -23,11 +23,7 @@ export default async function McpPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-text-secondary font-semibold">Indlæser…</div>
-      </div>
-    }>
+    <Suspense fallback={<AgentsExplorerSkeleton />}>
       <McpPageContent searchParams={searchParams} />
     </Suspense>
   );

@@ -33,7 +33,7 @@ export const unstable_instant = {
 export default async function McpDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense fallback={
-      <div className="space-y-10 animate-pulse">
+      <div className="min-h-[100svh] space-y-10 animate-pulse">
         <div className="h-6 bg-card-border/50 rounded w-24"></div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-8">

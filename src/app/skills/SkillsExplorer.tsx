@@ -128,17 +128,17 @@ export default function SkillsExplorer({
   // The Hot board joins them only while a fresh weekly ranking exists: when
   // there is none, getSkills returns no rows and rule 0 drops the tab. That is
   // the intended state between this deploy and the first merged ranking.
-  const viewTabs = useMemo(
-    () =>
-      visibleBoards(
-        [
-          { value: "danish", items: danishSkills },
-          { value: "all", items: allSkills },
-          { value: "hot", items: hotSkills },
-        ],
-        (skill) => skill.id
-      ),
+  const viewBoards = useMemo(
+    () => [
+      { value: "danish", items: danishSkills },
+      { value: "all", items: allSkills },
+      { value: "hot", items: hotSkills },
+    ],
     [danishSkills, allSkills, hotSkills]
+  );
+  const viewTabs = useMemo(
+    () => visibleBoards(viewBoards, (skill) => skill.id),
+    [viewBoards]
   );
 
   // Two-step, and both steps are load-bearing. getValidView rejects garbage and
@@ -152,7 +152,8 @@ export default function SkillsExplorer({
   const view = resolveView(
     getValidView(rawView),
     viewTabs,
-    DEFAULT_SKILL_BOARD
+    DEFAULT_SKILL_BOARD,
+    viewBoards
   ) as SkillBoard;
   const { user } = useAuth();
 

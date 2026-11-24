@@ -199,7 +199,7 @@ export default function ForumExplorer({
     [threads]
   );
   const visible = useMemo(() => visibleBoards(boards, (t) => t.id), [boards]);
-  const activeView = resolveView(view, visible, "danish");
+  const activeView = resolveView(view, visible, "danish", boards);
 
   // getThreads/api/forum only understand top/new — Dansk is a client-side
   // filter/sort layered on the 'top'-sorted base list (see viewThreads below).
@@ -450,7 +450,7 @@ export default function ForumExplorer({
                     {Icon && <Icon className="h-3.5 w-3.5" />}
                     {label}
                     {board.showCount && (
-                      <span className="font-mono opacity-70">{board.items.length}</span>
+                      <span className="font-mono">{board.items.length}</span>
                     )}
                   </button>
                 );

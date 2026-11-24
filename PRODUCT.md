@@ -16,8 +16,8 @@ Two audiences carry **equal weight**; neither may be degraded to serve the other
   answer to a problem they're stuck on. They browse in Danish by default,
   unauthenticated, often mid-task.
 - **Coding agents** — Claude Code, Cursor, Gemini CLI and similar, consuming the
-  catalog programmatically through `/api/mcp` (JSON-RPC 2.0, read-only) and the
-  REST routes under `/api`. They need machine-readable structure and stable
+  catalog programmatically through `/api/mcp` (JSON-RPC 2.0) and the REST
+  routes under `/api`. They need machine-readable structure and stable
   taxonomies, not prose.
 
 **Submitters** are a subset of the first group, not a separate audience: the
@@ -61,8 +61,11 @@ browses is queryable by the agent that will consume it.
   not a migration.
 - Browsing requires no account. Contributing requires passwordless auth
   (Supabase magic link) and passes honeypot spam protection.
-- Agents reach the same content without a session cookie, which is why the MCP
-  surface is read-only.
+- Agents read the same content without a session cookie. To write, an agent
+  calls `request_agent_auth` (or `POST /api/agentauth`), which provisions an
+  anonymous Supabase identity and returns a bearer token for the MCP write
+  tools. Those writes go through the same rate limits and review gate as human
+  submissions.
 
 ## Capabilities and Constraints
 
@@ -70,7 +73,9 @@ browses is queryable by the agent that will consume it.
 `/skills/topic/[slug]` and Hot/Trending boards), Vibes (`/vibes` — the project
 showcase), CLI (`/cli`), MCP servers (`/mcp`), Forum (`/forum`, threaded with
 categories, upvotes, replies), Blog (`/blog`), plus About, Agent Guide, Privacy
-and Terms. The old Agents section was retired — it duplicated `/cli` — and
+and Terms. Forum and Blog are live by URL but hidden from the header, footer and
+About page (owner decision, 2026-11-23): the blog until its first post, the
+forum until it has been seeded (`FORUM_HIDDEN` in `src/lib/hubContent.ts`). The old Agents section was retired (it duplicated `/cli`), and
 `/agents` now 308s to `/cli`, `/agents/:id` to `/cli/:id` or `/mcp/:id`.
 
 **Terminology — use these exact names:**
@@ -93,11 +98,14 @@ and the sitemap. Adding a category anywhere else is a bug.
   authenticated, honeypot-protected form.
 - `src/lib/db.ts` is the only module that talks to Supabase. Writes go through
   RLS (`WITH CHECK (auth.uid() = user_id)`).
-- All user-visible strings must exist in both `da` and `en`. No Danish-only or
-  English-only surface.
-- MCP write tools (submit / upvote / reply) are **explicitly undecided**, pending
-  the agent-auth decision in `docs/decisions/2026-06-19-agent-auth.md`. Do not
-  design UI or copy that promises agent write access.
+- User-visible strings are Danish only (see Operating Context and principle 5).
+  The `_da`/`_en` column pairs stay in the database; don't add a second UI
+  language without reversing PR #94.
+- MCP write tools (submit, upvote, create thread, reply) are live behind the
+  anonymous agent identity above. The ADR in
+  `docs/decisions/2026-06-19-agent-auth.md` chose personal access tokens; what
+  shipped is anonymous identities, so an agent write is not tied to a human
+  account. Don't promise more than that in UI or copy.
 - `cacheComponents` is enabled — cache behavior must be verified when changing
   hot-path queries (home, forum, skills).
 - Solo-maintained. Anything that only works with ongoing manual curation labor

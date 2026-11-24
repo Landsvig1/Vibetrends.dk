@@ -35,7 +35,7 @@ export const unstable_instant = {
 export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={
-      <div className="space-y-10 animate-pulse">
+      <div className="min-h-[100svh] space-y-10 animate-pulse">
         <div className="h-6 bg-card-border/50 rounded w-24"></div>
         <div className="max-w-3xl mx-auto rounded-xl glass-panel overflow-hidden border border-card-border shadow-2xl h-96 bg-card-border/20"></div>
       </div>

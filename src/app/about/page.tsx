@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, Layers, Briefcase, MessageSquare, PlusCircle, Terminal, Cpu } from "lucide-react";
 import { entityMetadata } from "@/lib/seo";
+import { FORUM_HIDDEN } from "@/lib/hubContent";
 
 export async function generateMetadata(): Promise<Metadata> {
   return entityMetadata({
@@ -52,12 +53,14 @@ export default async function AboutPage() {
                 <strong className="text-foreground">Skills</strong>: et kurateret katalog af skills, MCP-servere og CLI-værktøjer du kan koble direkte på Claude Code, Cursor eller Gemini CLI for at gøre dem mere kapable.
               </span>
             </li>
+            {!FORUM_HIDDEN && (
             <li className="flex gap-3">
               <MessageSquare className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
                 <strong className="text-foreground">Forum</strong>: dansksproget diskussion om hvad der virker (og ikke virker) når man bygger med AI.
               </span>
             </li>
+            )}
             <li className="flex gap-3">
               <Cpu className="h-5 w-5 text-accent-primary shrink-0 mt-0.5" />
               <span>
@@ -88,10 +91,12 @@ export default async function AboutPage() {
               <strong className="text-foreground">Har du bygget noget?</strong>{" "}
               Indsend det til Vibes, eller indsend en skill du har skrevet til kataloget. Begge dele er community-bidraget og kurateret, ikke auto-scrapet.
             </li>
+            {!FORUM_HIDDEN && (
             <li>
               <strong className="text-foreground">Sidder du fast?</strong>{" "}
               Skriv i <Link href="/forum" className="text-accent-primary hover:underline">Forummet</Link>. Det er lille nok til at rigtige svar, ikke støj, er normen.
             </li>
+            )}
           </ol>
         </div>
       </section>

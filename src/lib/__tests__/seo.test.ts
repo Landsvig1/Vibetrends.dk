@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { entityMetadata, clampDescription, truncateTitle } from "@/lib/seo";
+import { entityMetadata, clampDescription, plainTextDescription, truncateTitle } from "@/lib/seo";
 
 describe("entityMetadata", () => {
   it("sets a language-agnostic canonical and maps lang to og:locale", () => {
@@ -98,7 +98,35 @@ describe("entityMetadata", () => {
   });
 });
 
+describe("plainTextDescription", () => {
+  it("flattens a markdown bullet list into one line of prose", () => {
+    // Shape of the live /skills/impeccable description.
+    const md =
+      "* Fjerner det typiske AI-look.\n" +
+      "* Opretter en `DESIGN.md`-fil i dit projekt.\n" +
+      "* Kør **`npx impeccable install`** for at starte.";
+    expect(plainTextDescription(md)).toBe(
+      "Fjerner det typiske AI-look. Opretter en DESIGN.md-fil i dit projekt. Kør npx impeccable install for at starte."
+    );
+  });
+
+  it("strips headings, numbered items, quotes and link syntax", () => {
+    expect(plainTextDescription("## Titel\n1. Første\n2) Anden\n> Citat [læs mere](https://x.dk)")).toBe(
+      "Titel Første Anden Citat læs mere"
+    );
+  });
+
+  it("leaves plain prose, hyphens and inline asterisks in words alone", () => {
+    const prose = "Full-stack MCP-server: 2-3 kald, a*b notation, pris - 0 kr.";
+    expect(plainTextDescription(prose)).toBe(prose);
+  });
+});
+
 describe("clampDescription", () => {
+  it("never emits a leading markdown marker", () => {
+    expect(clampDescription("* Fjerner rod.\n* Giver kommandoer.")).toBe("Fjerner rod. Giver kommandoer.");
+  });
+
   it("passes through descriptions already in the 110-160 char range unchanged", () => {
     const inRange = "x".repeat(130);
     expect(clampDescription(inRange)).toBe(inRange);
